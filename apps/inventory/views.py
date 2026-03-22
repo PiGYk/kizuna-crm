@@ -4,14 +4,14 @@ import io
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db.models import Q
+from django.db.models import Q, Sum, ExpressionWrapper, DecimalField, F
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.generic import ListView, CreateView, UpdateView, DetailView
 from django.urls import reverse_lazy, reverse
 
 from .forms import ProductForm, StockInForm, StockAdjustForm, ImportForm
-from .models import Product, StockMovement, Unit
+from .models import Category, Product, StockMovement, Unit
 
 
 class ProductListView(LoginRequiredMixin, ListView):
@@ -21,11 +21,14 @@ class ProductListView(LoginRequiredMixin, ListView):
     paginate_by = 50
 
     def get_queryset(self):
-        qs = Product.objects.select_related('unit').filter(is_active=True)
+        qs = Product.objects.select_related('unit', 'category').filter(is_active=True)
         q = self.request.GET.get('q', '').strip()
         stock = self.request.GET.get('stock', '')
+        cat = self.request.GET.get('cat', '')
         if q:
             qs = qs.filter(name__icontains=q)
+        if cat:
+            qs = qs.filter(category_id=cat)
         if stock == 'low':
             qs = [p for p in qs if p.is_low_stock()]
         elif stock == 'out':
@@ -36,6 +39,21 @@ class ProductListView(LoginRequiredMixin, ListView):
         ctx = super().get_context_data(**kwargs)
         ctx['q'] = self.request.GET.get('q', '')
         ctx['stock'] = self.request.GET.get('stock', '')
+        ctx['cat'] = self.request.GET.get('cat', '')
+        ctx['categories'] = Category.objects.all()
+
+        # суми по всьому складу (незалежно від поточних фільтрів)
+        money_field = DecimalField(max_digits=14, decimal_places=2)
+        totals = Product.objects.filter(is_active=True).aggregate(
+            total_buy=Sum(
+                ExpressionWrapper(F('quantity') * F('buy_price'), output_field=money_field)
+            ),
+            total_sell=Sum(
+                ExpressionWrapper(F('quantity') * F('sell_price'), output_field=money_field)
+            ),
+        )
+        ctx['total_buy'] = totals['total_buy'] or 0
+        ctx['total_sell'] = totals['total_sell'] or 0
         return ctx
 
 
@@ -146,15 +164,23 @@ def import_products(request):
                     sell = float(row.get('вихідна_ціна') or row.get('sell_price') or 0)
                     qty = float(row.get('залишок') or row.get('quantity') or 0)
 
+                    cat_name = str(row.get('категорія') or row.get('category') or '').strip()
+                    category = None
+                    if cat_name:
+                        category, _ = Category.objects.get_or_create(name=cat_name)
+
                     product, is_new = Product.objects.get_or_create(
                         name=name_val,
-                        defaults={'unit': unit, 'buy_price': buy, 'sell_price': sell, 'quantity': qty}
+                        defaults={'unit': unit, 'buy_price': buy, 'sell_price': sell,
+                                  'quantity': qty, 'category': category}
                     )
                     if not is_new:
                         product.buy_price = buy
                         product.sell_price = sell
                         product.unit = unit
-                        product.save(update_fields=['buy_price', 'sell_price', 'unit'])
+                        if category:
+                            product.category = category
+                        product.save(update_fields=['buy_price', 'sell_price', 'unit', 'category'])
                         updated += 1
                     else:
                         created += 1
@@ -178,6 +204,6 @@ def export_template(request):
     response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
     response['Content-Disposition'] = 'attachment; filename="import_template.csv"'
     writer = csv.writer(response)
-    writer.writerow(['назва', 'одиниця', 'вхідна_ціна', 'вихідна_ціна', 'залишок'])
-    writer.writerow(['Приклад препарату', 'мл', '50.00', '120.00', '100'])
+    writer.writerow(['назва', 'категорія', 'одиниця', 'вхідна_ціна', 'вихідна_ціна', 'залишок'])
+    writer.writerow(['Приклад препарату', 'Вакцини', 'мл', '50.00', '120.00', '100'])
     return response

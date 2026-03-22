@@ -1,5 +1,5 @@
 from django import forms
-from .models import Product, StockMovement, Unit
+from .models import Category, Product, StockMovement, Unit
 
 FIELD_CLASS = (
     'w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm '
@@ -10,7 +10,7 @@ FIELD_CLASS = (
 class ProductForm(forms.ModelForm):
     class Meta:
         model = Product
-        fields = ('name', 'unit', 'buy_price', 'sell_price', 'min_quantity', 'notes', 'is_active')
+        fields = ('name', 'category', 'unit', 'buy_price', 'sell_price', 'min_quantity', 'notes', 'is_active')
         widgets = {
             'notes': forms.Textarea(attrs={'rows': 2}),
         }

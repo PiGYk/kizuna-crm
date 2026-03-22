@@ -3,6 +3,18 @@ from django.conf import settings
 from decimal import Decimal
 
 
+class Category(models.Model):
+    name = models.CharField('Назва', max_length=100, unique=True)
+
+    class Meta:
+        verbose_name = 'Категорія'
+        verbose_name_plural = 'Категорії'
+        ordering = ('name',)
+
+    def __str__(self):
+        return self.name
+
+
 class Unit(models.Model):
     name = models.CharField('Назва', max_length=20, unique=True)
     short = models.CharField('Скорочення', max_length=10)
@@ -18,6 +30,10 @@ class Unit(models.Model):
 
 class Product(models.Model):
     name = models.CharField('Назва', max_length=200)
+    category = models.ForeignKey(
+        Category, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='products', verbose_name='Категорія'
+    )
     unit = models.ForeignKey(Unit, on_delete=models.PROTECT, verbose_name='Одиниця')
     buy_price = models.DecimalField('Вхідна ціна', max_digits=10, decimal_places=2, default=0)
     sell_price = models.DecimalField('Вихідна ціна', max_digits=10, decimal_places=2, default=0)

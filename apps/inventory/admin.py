@@ -1,5 +1,10 @@
 from django.contrib import admin
-from .models import Unit, Product, StockMovement
+from .models import Category, Unit, Product, StockMovement
+
+
+@admin.register(Category)
+class CategoryAdmin(admin.ModelAdmin):
+    list_display = ('name',)
 
 
 @admin.register(Unit)
@@ -16,8 +21,8 @@ class StockMovementInline(admin.TabularInline):
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ('name', 'unit', 'quantity', 'sell_price', 'is_active')
-    list_filter = ('is_active', 'unit')
+    list_display = ('name', 'category', 'unit', 'quantity', 'buy_price', 'sell_price', 'is_active')
+    list_filter = ('is_active', 'category', 'unit')
     search_fields = ('name',)
     inlines = [StockMovementInline]
 
