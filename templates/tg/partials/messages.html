@@ -1,0 +1,25 @@
+<div id="messages-list" class="flex flex-col gap-2 p-4 overflow-y-auto flex-1">
+  {% for msg in messages %}
+  <div class="flex {% if msg.direction == 'out' %}justify-end{% else %}justify-start{% endif %}">
+    <div class="max-w-xs lg:max-w-md px-4 py-2.5 rounded-2xl text-sm
+      {% if msg.direction == 'out' %}
+        bg-brand-gold text-brand-dark rounded-br-sm
+      {% else %}
+        bg-white border border-gray-200 text-brand-dark rounded-bl-sm
+      {% endif %}">
+      <div>{{ msg.text }}</div>
+      <div class="text-xs mt-1 {% if msg.direction == 'out' %}text-brand-dark/50{% else %}text-gray-400{% endif %} text-right">
+        {{ msg.created_at|date:"H:i" }}
+        {% if msg.direction == 'out' and msg.sent_by %}
+          · {{ msg.sent_by.get_full_name|default:msg.sent_by.username }}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<script>
+  // прокрутити вниз
+  const ml = document.getElementById('messages-list');
+  if (ml) ml.scrollTop = ml.scrollHeight;
+</script>

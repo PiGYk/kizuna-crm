@@ -82,5 +82,6 @@ urlpatterns = [
     path('inventory/', include('apps.inventory.urls')),
     path('services/', include('apps.services.urls')),
     path('billing/', include('apps.billing.urls')),
+    path('tg/', include('apps.tg.urls')),
     path('health/', lambda r: HttpResponse('ok')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

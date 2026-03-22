@@ -7,3 +7,4 @@ openpyxl
 Pillow
 WeasyPrint
 gunicorn
+requests

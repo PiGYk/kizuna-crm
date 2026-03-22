@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% block title %}{{ chat.display_name }} — Telegram{% endblock %}
+
+{% block content %}
+<div class="flex gap-4 h-[calc(100vh-8rem)]">
+
+  <!-- Список чатів (ліва панель) -->
+  <div class="w-72 bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col shrink-0 hidden md:flex">
+    <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+      <span class="text-sm font-semibold text-brand-dark">Telegram чати</span>
+    </div>
+    <div class="overflow-y-auto flex-1"
+         hx-get="{% url 'tg:list_partial' %}"
+         hx-trigger="load, every 10s"
+         hx-swap="innerHTML"
+         id="chat-list-panel">
+    </div>
+  </div>
+
+  <!-- Активний чат -->
+  <div class="flex-1 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+
+    <!-- Заголовок чату -->
+    <div class="px-5 py-3 border-b border-gray-100 flex items-center gap-3">
+      <a href="{% url 'tg:list' %}" class="md:hidden text-gray-400 hover:text-gray-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+      </a>
+      <div class="w-9 h-9 rounded-full bg-sky-100 flex items-center justify-center text-sky-600 font-bold shrink-0">
+        {{ chat.display_name|slice:":1"|upper }}
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="font-semibold text-brand-dark">{{ chat.display_name }}</div>
+        {% if chat.tg_username %}
+          <div class="text-xs text-gray-400">@{{ chat.tg_username }}</div>
+        {% endif %}
+      </div>
+      <!-- Прив'язка до клієнта -->
+      <div class="shrink-0">
+        {% if chat.client %}
+          <a href="{% url 'clients:detail' chat.client.pk %}"
+             class="text-xs text-brand-gold hover:text-brand-dark font-medium">
+            {{ chat.client }} →
+          </a>
+        {% else %}
+          <form method="post" action="{% url 'tg:link' chat.pk %}" class="flex items-center gap-1">
+            {% csrf_token %}
+            <select name="client_id"
+              class="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-brand-gold">
+              <option value="">— прив'язати клієнта —</option>
+              {% for c in unlinked_clients %}
+                <option value="{{ c.pk }}">{{ c }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="text-xs text-brand-gold hover:text-brand-dark font-medium px-1">OK</button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Повідомлення -->
+    <div class="flex-1 overflow-hidden flex flex-col bg-gray-50"
+         id="messages-container"
+         hx-get="{% url 'tg:messages' chat.pk %}"
+         hx-trigger="load, every 5s"
+         hx-swap="innerHTML"
+         hx-target="#messages-container">
+      <div class="p-4 text-center text-sm text-gray-400">Завантаження…</div>
+    </div>
+
+    <!-- Поле вводу -->
+    <div class="px-4 py-3 border-t border-gray-100 bg-white">
+      <form hx-post="{% url 'tg:send' chat.pk %}"
+            hx-target="#messages-container"
+            hx-swap="innerHTML"
+            hx-on::after-request="this.reset()"
+            class="flex gap-2">
+        {% csrf_token %}
+        <input type="text" name="text"
+          placeholder="Написати повідомлення…"
+          autocomplete="off"
+          required
+          class="flex-1 border border-gray-300 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+        <button type="submit"
+          class="bg-brand-gold text-brand-dark px-4 py-2 rounded-xl text-sm font-semibold hover:brightness-95">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+        </button>
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

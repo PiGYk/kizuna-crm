@@ -20,6 +20,7 @@ INSTALLED_APPS = [
     'apps.inventory',
     'apps.services',
     'apps.billing',
+    'apps.tg',
 ]
 
 MIDDLEWARE = [
@@ -89,3 +90,5 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+TELEGRAM_BOT_TOKEN = config('TELEGRAM_BOT_TOKEN', default='')

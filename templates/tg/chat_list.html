@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}Telegram — Kizuna CRM{% endblock %}
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-2xl font-bold text-brand-dark">Telegram</h1>
+  <p class="text-sm text-gray-400 mt-1">Оберіть чат зліва або попросіть клієнта написати боту</p>
+</div>
+<div class="bg-white rounded-xl border border-gray-200 overflow-hidden max-w-2xl">
+  <div hx-get="{% url 'tg:list_partial' %}"
+       hx-trigger="load, every 10s"
+       hx-swap="innerHTML">
+    <div class="p-8 text-center text-gray-400 text-sm">Завантаження…</div>
+  </div>
+</div>
+{% endblock %}
