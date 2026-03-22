@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% block title %}Новий чек — Kizuna CRM{% endblock %}
+
+{% block content %}
+<div class="max-w-lg">
+  <div class="flex items-center gap-3 mb-6">
+    <a href="{% url 'billing:list' %}" class="text-gray-400 hover:text-gray-600">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+    </a>
+    <h1 class="text-2xl font-bold text-brand-dark">Новий чек</h1>
+  </div>
+
+  <!-- Step 1: пошук клієнта -->
+  <div class="bg-white rounded-xl border border-gray-200 p-6 mb-4">
+    <h2 class="text-sm font-semibold text-gray-700 mb-3">Клієнт</h2>
+    <input
+      type="text"
+      placeholder="Пошук за прізвищем або телефоном…"
+      class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
+      hx-get="{% url 'billing:client_search' %}"
+      hx-trigger="input changed delay:300ms"
+      hx-target="#client-results"
+      name="q"
+    >
+    <div id="client-results" class="mt-2"></div>
+  </div>
+
+  <!-- Step 2: пацієнт (заповнюється після вибору клієнта) -->
+  <div id="patient-section" class="hidden bg-white rounded-xl border border-gray-200 p-6 mb-4"></div>
+
+  <!-- Step 3: форма створення (прихована, заповнюється через JS) -->
+  <form method="post" id="start-form">
+    {% csrf_token %}
+    <input type="hidden" name="client_id" id="selected-client-id">
+    <input type="hidden" name="patient_id" id="selected-patient-id">
+    <button type="submit" id="start-btn"
+      class="hidden w-full bg-brand-gold text-brand-dark py-2.5 rounded-lg text-sm font-semibold hover:brightness-95">
+      Перейти до чеку →
+    </button>
+  </form>
+</div>
+
+<script>
+function selectClient(id, name) {
+  document.getElementById('selected-client-id').value = id;
+  document.getElementById('selected-patient-id').value = '';
+  document.getElementById('start-btn').classList.remove('hidden');
+
+  // завантажити пацієнтів через HTMX
+  htmx.ajax('GET', '/billing/patients/' + id + '/', {target: '#patient-section', swap: 'innerHTML'});
+  document.getElementById('patient-section').classList.remove('hidden');
+}
+
+function selectPatient(id) {
+  document.getElementById('selected-patient-id').value = id;
+  // підсвічуємо вибраного
+  document.querySelectorAll('.patient-btn').forEach(b => b.classList.remove('ring-2', 'ring-brand-gold'));
+  document.getElementById('patient-' + id)?.classList.add('ring-2', 'ring-brand-gold');
+}
+</script>
+{% endblock %}

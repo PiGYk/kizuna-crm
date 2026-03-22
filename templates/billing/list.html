@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+
+{% block title %}Рахунки — Kizuna CRM{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-bold text-brand-dark">Рахунки</h1>
+  <a href="{% url 'billing:create' %}"
+     class="bg-brand-gold text-brand-dark px-4 py-2 rounded-lg text-sm font-medium hover:brightness-95 transition-all">
+    + Новий чек
+  </a>
+</div>
+
+<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+  {% if invoices %}
+  <table class="w-full text-sm">
+    <thead class="border-b border-gray-100 bg-gray-50">
+      <tr>
+        <th class="text-left px-4 py-3 text-gray-500 font-medium">#</th>
+        <th class="text-left px-4 py-3 text-gray-500 font-medium">Клієнт / Пацієнт</th>
+        <th class="text-left px-4 py-3 text-gray-500 font-medium">Лікар</th>
+        <th class="text-left px-4 py-3 text-gray-500 font-medium">Дата</th>
+        <th class="text-right px-4 py-3 text-gray-500 font-medium">Сума</th>
+        <th class="text-center px-4 py-3 text-gray-500 font-medium">Статус</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-50">
+      {% for inv in invoices %}
+      <tr class="hover:bg-gray-50 cursor-pointer" onclick="location='{% url 'billing:detail' inv.pk %}'">
+        <td class="px-4 py-3 text-gray-400">#{{ inv.pk }}</td>
+        <td class="px-4 py-3">
+          <div class="font-medium text-brand-dark">{{ inv.client }}</div>
+          {% if inv.patient %}<div class="text-xs text-gray-400">{{ inv.patient.name }}</div>{% endif %}
+        </td>
+        <td class="px-4 py-3 text-gray-500">{{ inv.doctor.get_full_name|default:inv.doctor.username|default:"—" }}</td>
+        <td class="px-4 py-3 text-gray-500">{{ inv.created_at|date:"d.m.Y H:i" }}</td>
+        <td class="px-4 py-3 text-right font-semibold text-brand-dark">{{ inv.total }} ₴</td>
+        <td class="px-4 py-3 text-center">
+          {% if inv.status == 'paid' %}
+            <span class="inline-block px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">Оплачено</span>
+          {% elif inv.status == 'draft' %}
+            <span class="inline-block px-2 py-0.5 rounded-full text-xs bg-yellow-100 text-yellow-700">Чернетка</span>
+          {% else %}
+            <span class="inline-block px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-500">Скасовано</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="p-12 text-center text-gray-400">
+    <p>Рахунків ще немає</p>
+    <a href="{% url 'billing:create' %}" class="mt-2 inline-block text-brand-gold font-medium text-sm">Створити перший</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

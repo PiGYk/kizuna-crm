@@ -1,0 +1,192 @@
+{% extends 'base.html' %}
+
+{% block title %}Чек #{{ invoice.pk }} — Kizuna CRM{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl">
+  <div class="flex items-center gap-3 mb-6">
+    <a href="{% url 'billing:list' %}" class="text-gray-400 hover:text-gray-600">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+    </a>
+    <h1 class="text-2xl font-bold text-brand-dark flex-1">
+      Чек #{{ invoice.pk }}
+    </h1>
+    <span class="text-sm text-gray-400">{{ invoice.client }}{% if invoice.patient %} / {{ invoice.patient.name }}{% endif %}</span>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+    <!-- Ліва колонка: додавання рядків -->
+    <div class="lg:col-span-1 space-y-4">
+
+      <!-- Додати послугу -->
+      <div class="bg-white rounded-xl border border-gray-200 p-4">
+        <h2 class="text-sm font-semibold text-gray-700 mb-3">+ Послуга</h2>
+        <form hx-post="{% url 'billing:add_line' invoice.pk %}"
+              hx-target="#lines-section"
+              hx-swap="outerHTML"
+              hx-on::after-request="this.reset()">
+          {% csrf_token %}
+          <input type="hidden" name="line_type" value="service">
+          <select name="service_id" required
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-brand-gold"
+            onchange="loadComponents(this.value)">
+            <option value="">— обрати —</option>
+            {% for s in services %}
+            <option value="{{ s.pk }}" data-price="{{ s.price }}">{{ s.name }} — {{ s.price }} ₴</option>
+            {% endfor %}
+          </select>
+          <div class="grid grid-cols-2 gap-2 mb-2">
+            <div>
+              <label class="text-xs text-gray-500">К-сть</label>
+              <input type="number" name="quantity" value="1" min="0.001" step="0.001" required
+                class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+            </div>
+            <div>
+              <label class="text-xs text-gray-500">Знижка</label>
+              <div class="flex gap-1">
+                <input type="number" name="discount" value="0" min="0" step="0.01"
+                  class="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+                <select name="discount_type"
+                  class="border border-gray-300 rounded-lg px-1 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+                  <option value="percent">%</option>
+                  <option value="amount">₴</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <!-- компоненти послуги -->
+          <div id="service-components-preview" class="mb-2 text-xs text-gray-400 hidden">
+            <div class="font-medium text-gray-500 mb-1">Склад послуги:</div>
+            <div id="components-list"></div>
+          </div>
+          <button type="submit"
+            class="w-full bg-brand-gold text-brand-dark py-1.5 rounded-lg text-sm font-medium hover:brightness-95">
+            Додати
+          </button>
+        </form>
+      </div>
+
+      <!-- Додати товар -->
+      <div class="bg-white rounded-xl border border-gray-200 p-4">
+        <h2 class="text-sm font-semibold text-gray-700 mb-3">+ Товар</h2>
+        <form hx-post="{% url 'billing:add_line' invoice.pk %}"
+              hx-target="#lines-section"
+              hx-swap="outerHTML"
+              hx-on::after-request="this.reset()">
+          {% csrf_token %}
+          <input type="hidden" name="line_type" value="product">
+          <select name="product_id" required
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-brand-gold">
+            <option value="">— обрати —</option>
+            {% for p in products %}
+            <option value="{{ p.pk }}">{{ p.name }} ({{ p.quantity }} {{ p.unit }}) — {{ p.sell_price }} ₴</option>
+            {% endfor %}
+          </select>
+          <div class="grid grid-cols-2 gap-2 mb-2">
+            <div>
+              <label class="text-xs text-gray-500">К-сть</label>
+              <input type="number" name="quantity" value="1" min="0.001" step="0.001" required
+                class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+            </div>
+            <div>
+              <label class="text-xs text-gray-500">Знижка</label>
+              <div class="flex gap-1">
+                <input type="number" name="discount" value="0" min="0" step="0.01"
+                  class="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+                <select name="discount_type"
+                  class="border border-gray-300 rounded-lg px-1 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+                  <option value="percent">%</option>
+                  <option value="amount">₴</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <button type="submit"
+            class="w-full bg-gray-100 text-gray-700 py-1.5 rounded-lg text-sm font-medium hover:bg-gray-200">
+            Додати
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Права колонка: рядки рахунку -->
+    <div class="lg:col-span-2">
+      {% include 'billing/partials/lines_table.html' %}
+    </div>
+  </div>
+</div>
+
+<!-- Попап підтвердження оплати -->
+<div id="pay-modal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl p-6 max-w-md w-full shadow-xl">
+    <h2 class="text-lg font-bold text-brand-dark mb-4">Підтвердження оплати</h2>
+    <p class="text-sm text-gray-600 mb-4">Оберіть, для яких послуг списати товари зі складу:</p>
+    <form method="post" action="{% url 'billing:pay' invoice.pk %}" id="pay-form">
+      {% csrf_token %}
+      <div id="service-writeoff-list" class="space-y-2 mb-4"></div>
+      <p class="text-xs text-gray-400 mb-4">Товари, додані напряму, списуються автоматично.</p>
+      <div class="flex gap-3">
+        <button type="submit"
+          class="flex-1 bg-brand-gold text-brand-dark py-2.5 rounded-lg text-sm font-semibold hover:brightness-95">
+          Оплатити
+        </button>
+        <button type="button" onclick="closePayModal()"
+          class="flex-1 border border-gray-300 text-gray-700 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50">
+          Скасувати
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+// Перегляд компонентів послуги
+const componentCache = {};
+
+async function loadComponents(serviceId) {
+  const preview = document.getElementById('service-components-preview');
+  const list = document.getElementById('components-list');
+  if (!serviceId) { preview.classList.add('hidden'); return; }
+
+  if (!componentCache[serviceId]) {
+    const resp = await fetch('/billing/service-components/' + serviceId + '/');
+    componentCache[serviceId] = await resp.text();
+  }
+  list.innerHTML = componentCache[serviceId];
+  preview.classList.remove('hidden');
+}
+
+// Попап оплати
+function openPayModal() {
+  // Збираємо послуги з компонентами
+  const rows = document.querySelectorAll('[data-service-id]');
+  const list = document.getElementById('service-writeoff-list');
+  list.innerHTML = '';
+
+  rows.forEach(row => {
+    const sid = row.dataset.serviceId;
+    const name = row.dataset.serviceName;
+    const hasComps = row.dataset.hasComponents === 'true';
+    if (hasComps) {
+      list.innerHTML += `
+        <label class="flex items-center gap-2 text-sm cursor-pointer">
+          <input type="checkbox" name="writeoff_service" value="${sid}" checked
+            class="rounded border-gray-300 text-brand-gold focus:ring-brand-gold">
+          <span>${name}</span>
+        </label>`;
+    }
+  });
+
+  if (list.innerHTML === '') {
+    list.innerHTML = '<p class="text-sm text-gray-400">Послуг зі складовими немає</p>';
+  }
+
+  document.getElementById('pay-modal').classList.remove('hidden');
+}
+
+function closePayModal() {
+  document.getElementById('pay-modal').classList.add('hidden');
+}
+</script>
+{% endblock %}

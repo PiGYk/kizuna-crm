@@ -1,0 +1,5 @@
+{% for comp in components %}
+<span class="block">{{ comp.product.name }} × {{ comp.quantity|floatformat:"-3" }} {{ comp.product.unit }}</span>
+{% empty %}
+<span class="italic">Немає компонентів</span>
+{% endfor %}

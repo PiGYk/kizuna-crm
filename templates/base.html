@@ -57,10 +57,10 @@
         <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
         Послуги
       </a>
-      <a href="{% url 'billing:create' %}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+      <a href="{% url 'billing:list' %}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
         {% if 'billing' in request.resolver_match.app_name %}bg-brand-gold text-brand-dark{% else %}text-white/70 hover:bg-white/10 hover:text-white{% endif %}">
         <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/></svg>
-        Новий чек
+        Рахунки
       </a>
     </nav>
     <div class="px-4 py-4 border-t border-white/10">
@@ -91,7 +91,7 @@
       <a href="{% url 'clients:list' %}" class="block px-3 py-2 rounded-lg text-sm text-white/70 hover:bg-white/10 hover:text-white">Клієнти</a>
       <a href="{% url 'inventory:list' %}" class="block px-3 py-2 rounded-lg text-sm text-white/70 hover:bg-white/10 hover:text-white">Склад</a>
       <a href="{% url 'services:list' %}" class="block px-3 py-2 rounded-lg text-sm text-white/70 hover:bg-white/10 hover:text-white">Послуги</a>
-      <a href="{% url 'billing:create' %}" class="block px-3 py-2 rounded-lg text-sm text-white/70 hover:bg-white/10 hover:text-white">Новий чек</a>
+      <a href="{% url 'billing:list' %}" class="block px-3 py-2 rounded-lg text-sm text-white/70 hover:bg-white/10 hover:text-white">Рахунки</a>
       <a href="{% url 'accounts:logout' %}" class="block px-3 py-2 rounded-lg text-sm text-red-400">Вийти</a>
     </div>
 

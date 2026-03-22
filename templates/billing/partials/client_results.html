@@ -1,0 +1,14 @@
+{% if clients %}
+<div class="space-y-1">
+  {% for client in clients %}
+  <button type="button"
+    onclick="selectClient({{ client.pk }}, '{{ client|escapejs }}')"
+    class="w-full text-left px-3 py-2.5 rounded-lg border border-gray-200 hover:border-brand-gold hover:bg-brand-gold/5 transition text-sm">
+    <div class="font-medium text-brand-dark">{{ client }}</div>
+    <div class="text-xs text-gray-400">{{ client.phone }}</div>
+  </button>
+  {% endfor %}
+</div>
+{% elif q %}
+<p class="text-sm text-gray-400 mt-2">Нічого не знайдено</p>
+{% endif %}

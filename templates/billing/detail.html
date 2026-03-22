@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+
+{% block title %}Рахунок #{{ invoice.pk }} — Kizuna CRM{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl">
+  <div class="flex items-center gap-3 mb-6">
+    <a href="{% url 'billing:list' %}" class="text-gray-400 hover:text-gray-600">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+    </a>
+    <h1 class="text-2xl font-bold text-brand-dark flex-1">Рахунок #{{ invoice.pk }}</h1>
+    <a href="{% url 'billing:pdf' invoice.pk %}" target="_blank"
+       class="text-sm text-brand-gold hover:text-brand-dark font-medium flex items-center gap-1">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+      PDF
+    </a>
+  </div>
+
+  <!-- Мета-інфо -->
+  <div class="bg-white rounded-xl border border-gray-200 p-5 mb-4">
+    <div class="grid grid-cols-2 gap-4 text-sm">
+      <div>
+        <div class="text-gray-500 mb-0.5">Клієнт</div>
+        <div class="font-medium text-brand-dark">
+          <a href="{% url 'clients:detail' invoice.client.pk %}" class="hover:text-brand-gold">{{ invoice.client }}</a>
+        </div>
+      </div>
+      {% if invoice.patient %}
+      <div>
+        <div class="text-gray-500 mb-0.5">Пацієнт</div>
+        <div class="font-medium text-brand-dark">
+          <a href="{% url 'clients:patient_detail' invoice.patient.pk %}" class="hover:text-brand-gold">
+            {{ invoice.patient.name }}
+          </a>
+        </div>
+      </div>
+      {% endif %}
+      <div>
+        <div class="text-gray-500 mb-0.5">Дата</div>
+        <div class="font-medium">{{ invoice.created_at|date:"d.m.Y H:i" }}</div>
+      </div>
+      <div>
+        <div class="text-gray-500 mb-0.5">Лікар</div>
+        <div class="font-medium">{{ invoice.doctor.get_full_name|default:invoice.doctor.username|default:"—" }}</div>
+      </div>
+      <div>
+        <div class="text-gray-500 mb-0.5">Статус</div>
+        <div>
+          {% if invoice.status == 'paid' %}
+            <span class="inline-block px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700 font-medium">Оплачено</span>
+          {% elif invoice.status == 'draft' %}
+            <span class="inline-block px-2 py-0.5 rounded-full text-xs bg-yellow-100 text-yellow-700 font-medium">Чернетка</span>
+          {% else %}
+            <span class="inline-block px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-500 font-medium">Скасовано</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Рядки -->
+  <div class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-4">
+    <div class="divide-y divide-gray-50">
+      {% for line in lines %}
+      <div class="flex items-center justify-between px-5 py-3 text-sm">
+        <div class="flex-1">
+          <div class="font-medium text-brand-dark">{{ line.name }}</div>
+          <div class="text-xs text-gray-400">
+            {{ line.quantity|floatformat:"-3" }} × {{ line.unit_price }} ₴
+            {% if line.discount %}
+              · знижка {{ line.discount }}{% if line.discount_type == 'percent' %}%{% else %} ₴{% endif %}
+            {% endif %}
+          </div>
+        </div>
+        <div class="font-semibold text-brand-dark">{{ line.total }} ₴</div>
+      </div>
+      {% endfor %}
+    </div>
+
+    {% if invoice.discount %}
+    <div class="border-t border-gray-100 px-5 py-2 flex justify-between text-sm text-gray-500">
+      <span>Знижка на чек</span>
+      <span>−{{ invoice.discount }}{% if invoice.discount_type == 'percent' %}%{% else %} ₴{% endif %}</span>
+    </div>
+    {% endif %}
+
+    <div class="border-t border-gray-200 bg-gray-50 px-5 py-4 flex items-center justify-between">
+      <span class="font-semibold text-gray-700">Разом:</span>
+      <span class="text-2xl font-bold text-brand-gold">{{ invoice.total }} ₴</span>
+    </div>
+  </div>
+
+  {% if invoice.notes %}
+  <div class="bg-white rounded-xl border border-gray-200 p-4 text-sm text-gray-600">
+    {{ invoice.notes }}
+  </div>
+  {% endif %}
+
+  {% if invoice.status == 'draft' %}
+  <div class="mt-4">
+    <a href="{% url 'billing:edit' invoice.pk %}"
+       class="inline-block bg-brand-gold text-brand-dark px-6 py-2.5 rounded-lg text-sm font-semibold hover:brightness-95">
+      Продовжити редагування
+    </a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

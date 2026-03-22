@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; font-size: 12px; color: #12100F; padding: 30px; }
+    .header { border-bottom: 2px solid #DEAA01; padding-bottom: 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-start; }
+    .title { font-size: 22px; font-weight: bold; color: #12100F; }
+    .subtitle { color: #666; margin-top: 4px; }
+    .meta { text-align: right; font-size: 11px; color: #555; }
+    .meta-row { margin-top: 4px; }
+    .section { margin-bottom: 16px; }
+    .section-title { font-size: 11px; text-transform: uppercase; color: #888; letter-spacing: 0.05em; margin-bottom: 8px; }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; padding: 8px 10px; border-bottom: 1px solid #e5e5e5; font-size: 11px; color: #888; }
+    td { padding: 8px 10px; border-bottom: 1px solid #f0f0f0; }
+    .text-right { text-align: right; }
+    .total-row td { font-weight: bold; font-size: 14px; color: #12100F; border-top: 2px solid #DEAA01; border-bottom: none; padding-top: 12px; }
+    .gold { color: #DEAA01; }
+    .notes { margin-top: 16px; padding: 10px; background: #f8f8f8; border-radius: 4px; font-size: 11px; color: #666; }
+    .footer { margin-top: 30px; padding-top: 12px; border-top: 1px solid #e5e5e5; font-size: 10px; color: #aaa; text-align: center; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="title">Kizuna Vet CRM</div>
+    <div class="subtitle">Рахунок #{{ invoice.pk }}</div>
+  </div>
+  <div class="meta">
+    <div class="meta-row"><strong>Дата:</strong> {{ invoice.created_at|date:"d.m.Y H:i" }}</div>
+    <div class="meta-row"><strong>Клієнт:</strong> {{ invoice.client }}</div>
+    {% if invoice.patient %}<div class="meta-row"><strong>Пацієнт:</strong> {{ invoice.patient.name }}</div>{% endif %}
+    {% if invoice.doctor %}<div class="meta-row"><strong>Лікар:</strong> {{ invoice.doctor.get_full_name|default:invoice.doctor.username }}</div>{% endif %}
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">Позиції</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Найменування</th>
+        <th class="text-right">К-сть</th>
+        <th class="text-right">Ціна, ₴</th>
+        <th class="text-right">Знижка</th>
+        <th class="text-right">Сума, ₴</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for line in lines %}
+      <tr>
+        <td>{{ line.name }}</td>
+        <td class="text-right">{{ line.quantity|floatformat:"-3" }}</td>
+        <td class="text-right">{{ line.unit_price }}</td>
+        <td class="text-right">
+          {% if line.discount %}{{ line.discount }}{% if line.discount_type == 'percent' %}%{% else %} ₴{% endif %}{% else %}—{% endif %}
+        </td>
+        <td class="text-right">{{ line.total }}</td>
+      </tr>
+      {% endfor %}
+      {% if invoice.discount %}
+      <tr>
+        <td colspan="4" class="text-right" style="color:#888; font-size:11px;">Знижка на чек</td>
+        <td class="text-right" style="color:#888;">−{{ invoice.discount }}{% if invoice.discount_type == 'percent' %}%{% else %} ₴{% endif %}</td>
+      </tr>
+      {% endif %}
+      <tr class="total-row">
+        <td colspan="4" class="text-right">Разом до сплати:</td>
+        <td class="text-right gold">{{ invoice.total }} ₴</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+{% if invoice.notes %}
+<div class="notes"><strong>Нотатки:</strong> {{ invoice.notes }}</div>
+{% endif %}
+
+<div class="footer">Kizuna Vet CRM · crm.kizuna.com.ua</div>
+</body>
+</html>
