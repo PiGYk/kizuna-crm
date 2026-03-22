@@ -8,60 +8,163 @@
   <p class="text-gray-500 text-sm mt-1">Вітаємо, {{ user.get_full_name|default:user.username }}</p>
 </div>
 
-<!-- Stats -->
-<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+<!-- Виручка -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
   <div class="bg-white rounded-xl border border-gray-200 p-4">
-    <div class="text-2xl font-bold text-brand-dark">—</div>
-    <div class="text-sm text-gray-500 mt-1">Клієнтів</div>
+    <div class="text-xs text-gray-400 mb-1">Сьогодні</div>
+    <div class="text-2xl font-bold text-brand-gold">{{ revenue_today|floatformat:0 }} ₴</div>
+    <div class="text-xs text-gray-400 mt-1">{{ invoices_today }} чек{% if invoices_today != 1 %}ів{% endif %}</div>
   </div>
   <div class="bg-white rounded-xl border border-gray-200 p-4">
-    <div class="text-2xl font-bold text-brand-dark">—</div>
-    <div class="text-sm text-gray-500 mt-1">Пацієнтів</div>
+    <div class="text-xs text-gray-400 mb-1">Цей тиждень</div>
+    <div class="text-2xl font-bold text-brand-dark">{{ revenue_week|floatformat:0 }} ₴</div>
   </div>
   <div class="bg-white rounded-xl border border-gray-200 p-4">
-    <div class="text-2xl font-bold text-brand-dark">—</div>
-    <div class="text-sm text-gray-500 mt-1">Чеків сьогодні</div>
+    <div class="text-xs text-gray-400 mb-1">Цей місяць</div>
+    <div class="text-2xl font-bold text-brand-dark">{{ revenue_month|floatformat:0 }} ₴</div>
   </div>
   <div class="bg-white rounded-xl border border-gray-200 p-4">
-    <div class="text-2xl font-bold text-brand-gold">—</div>
-    <div class="text-sm text-gray-500 mt-1">Виручка сьогодні</div>
+    <div class="text-xs text-gray-400 mb-1">Всього</div>
+    <div class="text-xl font-bold text-brand-dark">{{ clients_total }} клієнт.</div>
+    <div class="text-xs text-gray-400 mt-1">{{ patients_total }} пацієнт.</div>
   </div>
 </div>
 
-<!-- Quick actions -->
-<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-  <a href="{% url 'clients:create' %}" class="bg-white rounded-xl border border-gray-200 p-5 hover:border-brand-gold hover:shadow-sm transition group">
-    <div class="flex items-center gap-3">
-      <div class="w-10 h-10 bg-brand-cream rounded-lg flex items-center justify-center group-hover:bg-brand-gold/20">
-        <svg class="w-5 h-5 text-brand-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+
+  <!-- Топ послуги -->
+  <div class="bg-white rounded-xl border border-gray-200 p-5">
+    <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Топ послуги (місяць)</h2>
+    {% if top_services %}
+    <div class="space-y-3">
+      {% for s in top_services %}
+      <div class="flex items-center justify-between text-sm">
+        <span class="text-brand-dark truncate flex-1 mr-2">{{ s.name }}</span>
+        <div class="text-right shrink-0">
+          <span class="font-semibold text-brand-dark">{{ s.cnt }}×</span>
+          <span class="text-xs text-gray-400 ml-1">{{ s.total|floatformat:0 }} ₴</span>
+        </div>
       </div>
-      <div>
-        <div class="font-medium text-sm text-brand-dark">Новий клієнт</div>
-        <div class="text-xs text-gray-500">Додати власника + тварину</div>
-      </div>
+      {% endfor %}
     </div>
-  </a>
-  <a href="{% url 'billing:create' %}" class="bg-brand-dark rounded-xl p-5 hover:brightness-110 transition group">
-    <div class="flex items-center gap-3">
-      <div class="w-10 h-10 bg-brand-gold/20 rounded-lg flex items-center justify-center">
+    {% else %}
+    <p class="text-sm text-gray-400">Даних ще немає</p>
+    {% endif %}
+  </div>
+
+  <!-- Топ товари -->
+  <div class="bg-white rounded-xl border border-gray-200 p-5">
+    <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Топ товари (місяць)</h2>
+    {% if top_products %}
+    <div class="space-y-3">
+      {% for p in top_products %}
+      <div class="flex items-center justify-between text-sm">
+        <span class="text-brand-dark truncate flex-1 mr-2">{{ p.name }}</span>
+        <div class="text-right shrink-0">
+          <span class="font-semibold text-brand-dark">{{ p.cnt }}×</span>
+          <span class="text-xs text-gray-400 ml-1">{{ p.total|floatformat:0 }} ₴</span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-sm text-gray-400">Даних ще немає</p>
+    {% endif %}
+  </div>
+
+  <!-- Залишки -->
+  <div class="bg-white rounded-xl border border-gray-200 p-5">
+    <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Попередження складу</h2>
+    {% if out_of_stock %}
+    <div class="flex items-center gap-2 mb-3 p-2 bg-red-50 rounded-lg">
+      <svg class="w-4 h-4 text-red-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+      <span class="text-xs text-red-600 font-medium">{{ out_of_stock }} товар{% if out_of_stock != 1 %}ів{% endif %} на нулі</span>
+      <a href="{% url 'inventory:list' %}?stock=out" class="ml-auto text-xs text-red-500 hover:text-red-700 font-medium">Переглянути →</a>
+    </div>
+    {% endif %}
+    {% if low_stock %}
+    <div class="space-y-2">
+      {% for p in low_stock %}
+      <div class="flex items-center justify-between text-sm">
+        <a href="{% url 'inventory:detail' p.pk %}" class="text-brand-dark hover:text-brand-gold truncate flex-1 mr-2">{{ p.name }}</a>
+        <span class="text-amber-600 font-semibold shrink-0">{{ p.quantity|floatformat:"-3" }} {{ p.unit }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-sm text-gray-400">Все в нормі 👍</p>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- Останні рахунки + швидкі дії -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+  <!-- Останні рахунки -->
+  <div class="lg:col-span-2 bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+      <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide">Останні рахунки</h2>
+      <a href="{% url 'billing:list' %}" class="text-xs text-brand-gold hover:text-brand-dark font-medium">Всі →</a>
+    </div>
+    {% if recent_invoices %}
+    <div class="divide-y divide-gray-50">
+      {% for inv in recent_invoices %}
+      <a href="{% url 'billing:detail' inv.pk %}"
+         class="flex items-center px-5 py-3 hover:bg-gray-50 transition text-sm">
+        <div class="flex-1 min-w-0">
+          <div class="font-medium text-brand-dark truncate">{{ inv.client }}</div>
+          {% if inv.patient %}<div class="text-xs text-gray-400">{{ inv.patient.name }}</div>{% endif %}
+        </div>
+        <div class="text-xs text-gray-400 mx-4 shrink-0 hidden md:block">{{ inv.created_at|date:"d.m H:i" }}</div>
+        <div class="font-semibold text-brand-gold shrink-0">{{ inv.total|floatformat:0 }} ₴</div>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="p-8 text-center text-sm text-gray-400">Рахунків ще немає</div>
+    {% endif %}
+  </div>
+
+  <!-- Швидкі дії -->
+  <div class="space-y-3">
+    <a href="{% url 'billing:create' %}" class="flex items-center gap-3 bg-brand-dark rounded-xl p-4 hover:brightness-110 transition">
+      <div class="w-9 h-9 bg-brand-gold/20 rounded-lg flex items-center justify-center shrink-0">
         <svg class="w-5 h-5 text-brand-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/></svg>
       </div>
       <div>
-        <div class="font-medium text-sm text-white">Новий чек</div>
-        <div class="text-xs text-white/60">Швидке оформлення</div>
+        <div class="font-semibold text-sm text-white">Новий чек</div>
+        <div class="text-xs text-white/50">Швидке оформлення</div>
       </div>
-    </div>
-  </a>
-  <a href="{% url 'inventory:list' %}" class="bg-white rounded-xl border border-gray-200 p-5 hover:border-brand-gold hover:shadow-sm transition group">
-    <div class="flex items-center gap-3">
-      <div class="w-10 h-10 bg-brand-cream rounded-lg flex items-center justify-center group-hover:bg-brand-gold/20">
+    </a>
+    <a href="{% url 'clients:create' %}" class="flex items-center gap-3 bg-white rounded-xl border border-gray-200 p-4 hover:border-brand-gold transition">
+      <div class="w-9 h-9 bg-brand-cream rounded-lg flex items-center justify-center shrink-0">
+        <svg class="w-5 h-5 text-brand-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+      </div>
+      <div>
+        <div class="font-semibold text-sm text-brand-dark">Новий клієнт</div>
+        <div class="text-xs text-gray-400">Додати власника</div>
+      </div>
+    </a>
+    <a href="{% url 'inventory:list' %}?stock=low" class="flex items-center gap-3 bg-white rounded-xl border border-gray-200 p-4 hover:border-brand-gold transition">
+      <div class="w-9 h-9 bg-brand-cream rounded-lg flex items-center justify-center shrink-0">
         <svg class="w-5 h-5 text-brand-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
       </div>
       <div>
-        <div class="font-medium text-sm text-brand-dark">Склад</div>
-        <div class="text-xs text-gray-500">Залишки та поповнення</div>
+        <div class="font-semibold text-sm text-brand-dark">Малий залишок</div>
+        <div class="text-xs text-gray-400">Переглянути склад</div>
       </div>
-    </div>
-  </a>
+    </a>
+    <a href="{% url 'clients:patient_list' %}" class="flex items-center gap-3 bg-white rounded-xl border border-gray-200 p-4 hover:border-brand-gold transition">
+      <div class="w-9 h-9 bg-brand-cream rounded-lg flex items-center justify-center shrink-0">
+        <svg class="w-5 h-5 text-brand-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+      </div>
+      <div>
+        <div class="font-semibold text-sm text-brand-dark">Пацієнти</div>
+        <div class="text-xs text-gray-400">Всі тварини</div>
+      </div>
+    </a>
+  </div>
+
 </div>
 {% endblock %}
