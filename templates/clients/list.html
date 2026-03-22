@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+
+{% block title %}Клієнти — Kizuna CRM{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-bold text-gray-900">Клієнти</h1>
+  <a href="{% url 'clients:create' %}"
+     class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors">
+    + Додати
+  </a>
+</div>
+
+<!-- Search -->
+<div class="mb-4">
+  <form method="get">
+    <input type="text" name="q" value="{{ q }}"
+      placeholder="Пошук за ім'ям або телефоном..."
+      class="w-full md:w-96 px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+  </form>
+</div>
+
+<!-- Table -->
+<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 border-b border-gray-200">
+      <tr>
+        <th class="px-4 py-3 text-left font-medium text-gray-600">Клієнт</th>
+        <th class="px-4 py-3 text-left font-medium text-gray-600">Телефон</th>
+        <th class="px-4 py-3 text-left font-medium text-gray-600 hidden md:table-cell">Пацієнти</th>
+        <th class="px-4 py-3"></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">
+      {% for client in clients %}
+      <tr class="hover:bg-gray-50 cursor-pointer" onclick="location.href='{% url 'clients:detail' client.pk %}'">
+        <td class="px-4 py-3">
+          <div class="font-medium text-gray-900">{{ client.full_name }}</div>
+          {% if client.email %}<div class="text-xs text-gray-400">{{ client.email }}</div>{% endif %}
+        </td>
+        <td class="px-4 py-3 text-gray-600">{{ client.phone }}</td>
+        <td class="px-4 py-3 hidden md:table-cell">
+          {% for p in client.patients.all %}
+            <span class="inline-block bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full mr-1">
+              {{ p.name }}
+            </span>
+          {% empty %}
+            <span class="text-gray-400 text-xs">—</span>
+          {% endfor %}
+        </td>
+        <td class="px-4 py-3 text-right">
+          <a href="{% url 'clients:detail' client.pk %}"
+             class="text-indigo-600 hover:text-indigo-800 text-xs font-medium"
+             onclick="event.stopPropagation()">Відкрити</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="4" class="px-4 py-12 text-center text-gray-400">
+          {% if q %}Нічого не знайдено за "{{ q }}"{% else %}Клієнтів ще немає{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Pagination -->
+{% if is_paginated %}
+<div class="flex justify-center gap-2 mt-4">
+  {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}"
+       class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">←</a>
+  {% endif %}
+  <span class="px-3 py-1.5 text-sm text-gray-600">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}"
+       class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">→</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

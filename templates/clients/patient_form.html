@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if patient %}Редагувати пацієнта{% else %}Новий пацієнт{% endif %} — Kizuna CRM{% endblock %}
+
+{% block content %}
+<div class="max-w-lg">
+  <div class="flex items-center gap-3 mb-6">
+    <a href="{% url 'clients:detail' client.pk %}" class="text-gray-400 hover:text-gray-600">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+    </a>
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">
+        {% if patient %}Редагувати пацієнта{% else %}Новий пацієнт{% endif %}
+      </h1>
+      <p class="text-sm text-gray-500">Власник: {{ client.full_name }}</p>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl border border-gray-200 p-6">
+    <form method="post" enctype="multipart/form-data" class="space-y-4">
+      {% csrf_token %}
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Кличка *</label>
+          {{ form.name }}
+          {% if form.name.errors %}<p class="text-red-500 text-xs mt-1">{{ form.name.errors|join:", " }}</p>{% endif %}
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Вид *</label>
+          {{ form.species }}
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Порода</label>
+          {{ form.breed }}
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Стать</label>
+          {{ form.sex }}
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Дата народження</label>
+          {{ form.date_of_birth }}
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Масть/колір</label>
+          {{ form.color }}
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Лікар</label>
+        {{ form.assigned_doctor }}
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Фото</label>
+        {% if patient.photo %}
+          <img src="{{ patient.photo.url }}" class="w-20 h-20 rounded-full object-cover mb-2">
+        {% endif %}
+        {{ form.photo }}
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Нотатки</label>
+        {{ form.notes }}
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="submit"
+          class="bg-indigo-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors">
+          Зберегти
+        </button>
+        <a href="{% url 'clients:detail' client.pk %}"
+          class="px-6 py-2.5 rounded-lg text-sm font-medium text-gray-700 border border-gray-300 hover:bg-gray-50">
+          Скасувати
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

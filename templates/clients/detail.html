@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ client.full_name }} — Kizuna CRM{% endblock %}
+
+{% block content %}
+<div class="flex items-center gap-3 mb-6">
+  <a href="{% url 'clients:list' %}" class="text-gray-400 hover:text-gray-600">
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+  </a>
+  <h1 class="text-2xl font-bold text-gray-900">{{ client.full_name }}</h1>
+  <a href="{% url 'clients:edit' client.pk %}"
+     class="ml-auto text-sm text-indigo-600 hover:text-indigo-800 font-medium">Редагувати</a>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+  <!-- Client info -->
+  <div class="bg-white rounded-xl border border-gray-200 p-5">
+    <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Контакти</h2>
+    <dl class="space-y-2 text-sm">
+      <div class="flex justify-between">
+        <dt class="text-gray-500">Телефон</dt>
+        <dd class="font-medium"><a href="tel:{{ client.phone }}" class="text-indigo-600">{{ client.phone }}</a></dd>
+      </div>
+      {% if client.email %}
+      <div class="flex justify-between">
+        <dt class="text-gray-500">Email</dt>
+        <dd class="font-medium">{{ client.email }}</dd>
+      </div>
+      {% endif %}
+      <div class="flex justify-between">
+        <dt class="text-gray-500">Клієнт з</dt>
+        <dd class="text-gray-600">{{ client.created_at|date:"d.m.Y" }}</dd>
+      </div>
+    </dl>
+    {% if client.notes %}
+    <div class="mt-4 pt-4 border-t border-gray-100">
+      <div class="text-xs text-gray-500 mb-1">Нотатки</div>
+      <p class="text-sm text-gray-700">{{ client.notes }}</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Patients -->
+  <div class="md:col-span-2">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide">Пацієнти</h2>
+      <a href="{% url 'clients:patient_create' client.pk %}"
+         class="text-sm text-indigo-600 hover:text-indigo-800 font-medium">+ Додати</a>
+    </div>
+
+    {% if patients %}
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {% for patient in patients %}
+      <a href="{% url 'clients:patient_detail' patient.pk %}"
+         class="bg-white rounded-xl border border-gray-200 p-4 hover:border-indigo-300 hover:shadow-sm transition block">
+        <div class="flex items-start gap-3">
+          {% if patient.photo %}
+            <img src="{{ patient.photo.url }}" alt="{{ patient.name }}"
+                 class="w-12 h-12 rounded-full object-cover shrink-0">
+          {% else %}
+            <div class="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center shrink-0 text-xl">
+              {% if patient.species == 'cat' %}🐱
+              {% elif patient.species == 'dog' %}🐶
+              {% elif patient.species == 'rabbit' %}🐰
+              {% elif patient.species == 'bird' %}🐦
+              {% else %}🐾{% endif %}
+            </div>
+          {% endif %}
+          <div class="flex-1 min-w-0">
+            <div class="font-semibold text-gray-900">{{ patient.name }}</div>
+            <div class="text-xs text-gray-500">{{ patient.get_species_display }}{% if patient.breed %} · {{ patient.breed }}{% endif %}</div>
+            <div class="text-xs text-gray-400 mt-0.5">{{ patient.age_display }}{% if patient.assigned_doctor %} · {{ patient.assigned_doctor.get_full_name|default:patient.assigned_doctor.username }}{% endif %}</div>
+          </div>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="bg-white rounded-xl border border-dashed border-gray-300 p-8 text-center">
+      <div class="text-gray-400 mb-3 text-3xl">🐾</div>
+      <p class="text-sm text-gray-500">Немає пацієнтів</p>
+      <a href="{% url 'clients:patient_create' client.pk %}"
+         class="mt-3 inline-block text-sm text-indigo-600 hover:text-indigo-800 font-medium">Додати пацієнта</a>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

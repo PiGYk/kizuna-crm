@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ patient.name }} — Kizuna CRM{% endblock %}
+
+{% block content %}
+<div class="flex items-center gap-3 mb-6">
+  <a href="{% url 'clients:detail' patient.client.pk %}" class="text-gray-400 hover:text-gray-600">
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+  </a>
+  <div class="flex-1">
+    <h1 class="text-2xl font-bold text-gray-900">{{ patient.name }}</h1>
+    <p class="text-sm text-gray-500">{{ patient.get_species_display }}{% if patient.breed %} · {{ patient.breed }}{% endif %} · {{ patient.client.full_name }}</p>
+  </div>
+  <a href="{% url 'clients:patient_edit' patient.pk %}"
+     class="text-sm text-indigo-600 hover:text-indigo-800 font-medium">Редагувати</a>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+  <!-- Patient info -->
+  <div class="bg-white rounded-xl border border-gray-200 p-5">
+    {% if patient.photo %}
+      <img src="{{ patient.photo.url }}" alt="{{ patient.name }}"
+           class="w-24 h-24 rounded-full object-cover mx-auto mb-4">
+    {% else %}
+      <div class="w-24 h-24 rounded-full bg-indigo-50 flex items-center justify-center mx-auto mb-4 text-4xl">
+        {% if patient.species == 'cat' %}🐱
+        {% elif patient.species == 'dog' %}🐶
+        {% elif patient.species == 'rabbit' %}🐰
+        {% elif patient.species == 'bird' %}🐦
+        {% else %}🐾{% endif %}
+      </div>
+    {% endif %}
+    <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Інформація</h2>
+    <dl class="space-y-2 text-sm">
+      <div class="flex justify-between">
+        <dt class="text-gray-500">Стать</dt>
+        <dd>{{ patient.get_sex_display }}</dd>
+      </div>
+      <div class="flex justify-between">
+        <dt class="text-gray-500">Вік</dt>
+        <dd>{{ patient.age_display }}</dd>
+      </div>
+      {% if patient.color %}
+      <div class="flex justify-between">
+        <dt class="text-gray-500">Масть</dt>
+        <dd>{{ patient.color }}</dd>
+      </div>
+      {% endif %}
+      {% if patient.assigned_doctor %}
+      <div class="flex justify-between">
+        <dt class="text-gray-500">Лікар</dt>
+        <dd>{{ patient.assigned_doctor.get_full_name|default:patient.assigned_doctor.username }}</dd>
+      </div>
+      {% endif %}
+    </dl>
+    {% if patient.notes %}
+    <div class="mt-4 pt-4 border-t border-gray-100">
+      <div class="text-xs text-gray-500 mb-1">Нотатки</div>
+      <p class="text-sm text-gray-700">{{ patient.notes }}</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- History placeholder (step 7) -->
+  <div class="md:col-span-2 space-y-4">
+    <div class="bg-white rounded-xl border border-gray-200 p-5">
+      <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Візити</h2>
+      <p class="text-sm text-gray-400">Буде додано на кроці 7</p>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 p-5">
+      <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Вакцини</h2>
+      <p class="text-sm text-gray-400">Буде додано на кроці 7</p>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
