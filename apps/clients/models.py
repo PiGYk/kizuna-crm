@@ -75,3 +75,56 @@ class Patient(models.Model):
             months = (today.year - self.date_of_birth.year) * 12 + today.month - self.date_of_birth.month
             return f"{months} міс."
         return f"{years} р."
+
+
+class Visit(models.Model):
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='visits', verbose_name='Пацієнт')
+    doctor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='visits',
+        verbose_name='Лікар',
+    )
+    date = models.DateTimeField('Дата прийому')
+    complaint = models.TextField('Скарги', blank=True)
+    diagnosis = models.TextField('Діагноз', blank=True)
+    treatment = models.TextField('Лікування', blank=True)
+    notes = models.TextField('Нотатки', blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Візит'
+        verbose_name_plural = 'Візити'
+        ordering = ('-date',)
+
+    def __str__(self):
+        return f"{self.patient.name} — {self.date:%d.%m.%Y}"
+
+
+class Vaccine(models.Model):
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='vaccines', verbose_name='Пацієнт')
+    doctor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='vaccines',
+        verbose_name='Лікар',
+    )
+    name = models.CharField('Назва вакцини', max_length=200)
+    date = models.DateField('Дата щеплення')
+    next_date = models.DateField('Наступне щеплення', null=True, blank=True)
+    batch_number = models.CharField('Серія', max_length=100, blank=True)
+    notes = models.TextField('Нотатки', blank=True)
+
+    class Meta:
+        verbose_name = 'Вакцина'
+        verbose_name_plural = 'Вакцини'
+        ordering = ('-date',)
+
+    def __str__(self):
+        return f"{self.name} — {self.patient.name} ({self.date:%d.%m.%Y})"
+
+    def is_overdue(self):
+        from datetime import date
+        return self.next_date and self.next_date < date.today()

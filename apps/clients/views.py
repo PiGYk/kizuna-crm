@@ -6,8 +6,8 @@ from django.urls import reverse_lazy, reverse
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.decorators import login_required
 
-from .forms import ClientForm, PatientForm
-from .models import Client, Patient
+from .forms import ClientForm, PatientForm, VisitForm, VaccineForm
+from .models import Client, Patient, Visit, Vaccine
 
 
 class ClientListView(LoginRequiredMixin, ListView):
@@ -98,6 +98,62 @@ class PatientDetailView(LoginRequiredMixin, DetailView):
     model = Patient
     template_name = 'clients/patient_detail.html'
     context_object_name = 'patient'
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['visits'] = self.object.visits.select_related('doctor').all()
+        ctx['vaccines'] = self.object.vaccines.select_related('doctor').all()
+        ctx['visit_form'] = VisitForm(initial={'doctor': self.request.user})
+        ctx['vaccine_form'] = VaccineForm(initial={'doctor': self.request.user})
+        return ctx
+
+
+@login_required
+def visit_create(request, patient_pk):
+    patient = get_object_or_404(Patient, pk=patient_pk)
+    form = VisitForm(request.POST or None, initial={'doctor': request.user})
+    if request.method == 'POST' and form.is_valid():
+        visit = form.save(commit=False)
+        visit.patient = patient
+        visit.save()
+        messages.success(request, 'Візит додано')
+        return redirect('clients:patient_detail', pk=patient.pk)
+    return render(request, 'clients/visit_form.html', {'form': form, 'patient': patient})
+
+
+@login_required
+def visit_update(request, pk):
+    visit = get_object_or_404(Visit, pk=pk)
+    form = VisitForm(request.POST or None, instance=visit)
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        messages.success(request, 'Збережено')
+        return redirect('clients:patient_detail', pk=visit.patient.pk)
+    return render(request, 'clients/visit_form.html', {'form': form, 'patient': visit.patient, 'visit': visit})
+
+
+@login_required
+def vaccine_create(request, patient_pk):
+    patient = get_object_or_404(Patient, pk=patient_pk)
+    form = VaccineForm(request.POST or None, initial={'doctor': request.user})
+    if request.method == 'POST' and form.is_valid():
+        vaccine = form.save(commit=False)
+        vaccine.patient = patient
+        vaccine.save()
+        messages.success(request, 'Вакцинацію додано')
+        return redirect('clients:patient_detail', pk=patient.pk)
+    return render(request, 'clients/vaccine_form.html', {'form': form, 'patient': patient})
+
+
+@login_required
+def vaccine_update(request, pk):
+    vaccine = get_object_or_404(Vaccine, pk=pk)
+    form = VaccineForm(request.POST or None, instance=vaccine)
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        messages.success(request, 'Збережено')
+        return redirect('clients:patient_detail', pk=vaccine.patient.pk)
+    return render(request, 'clients/vaccine_form.html', {'form': form, 'patient': vaccine.patient, 'vaccine': vaccine})
 
 
 # HTMX live search — повертає partial з результатами
