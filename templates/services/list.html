@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block title %}Послуги — Kizuna CRM{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-bold text-brand-dark">Послуги</h1>
+  <a href="{% url 'services:create' %}"
+     class="bg-brand-gold text-brand-dark px-4 py-2 rounded-lg text-sm font-medium hover:brightness-95 transition-all">
+    + Додати
+  </a>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+  {% for service in services %}
+  <a href="{% url 'services:detail' service.pk %}"
+     class="bg-white rounded-xl border border-gray-200 p-5 hover:border-brand-gold hover:shadow-sm transition block">
+    <div class="flex items-start justify-between mb-2">
+      <div class="font-semibold text-brand-dark">{{ service.name }}</div>
+      <div class="text-brand-gold font-bold text-sm ml-2 shrink-0">{{ service.price }} ₴</div>
+    </div>
+    {% if service.description %}
+      <p class="text-xs text-gray-500 mb-3">{{ service.description|truncatechars:80 }}</p>
+    {% endif %}
+    {% with comps=service.components.all %}
+    {% if comps %}
+      <div class="flex flex-wrap gap-1 mt-2">
+        {% for c in comps %}
+          <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+            {{ c.product.name }} × {{ c.quantity|floatformat:"-3" }} {{ c.product.unit }}
+          </span>
+        {% endfor %}
+      </div>
+    {% endif %}
+    {% endwith %}
+  </a>
+  {% empty %}
+  <div class="col-span-3 bg-white rounded-xl border border-dashed border-gray-300 p-12 text-center text-gray-400">
+    <p>Послуг ще немає</p>
+    <a href="{% url 'services:create' %}" class="mt-2 inline-block text-brand-gold font-medium text-sm">Додати першу</a>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,100 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if service %}Редагувати послугу{% else %}Нова послуга{% endif %} — Kizuna CRM{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl">
+  <div class="flex items-center gap-3 mb-6">
+    <a href="{% url 'services:list' %}" class="text-gray-400 hover:text-gray-600">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+    </a>
+    <h1 class="text-2xl font-bold text-brand-dark">
+      {% if service %}Редагувати послугу{% else %}Нова послуга{% endif %}
+    </h1>
+  </div>
+
+  <form method="post">
+    {% csrf_token %}
+    {{ formset.management_form }}
+
+    <div class="bg-white rounded-xl border border-gray-200 p-6 mb-4 space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Назва *</label>
+        {{ form.name }}
+        {% if form.name.errors %}<p class="text-red-500 text-xs mt-1">{{ form.name.errors|join:", " }}</p>{% endif %}
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Опис</label>
+        {{ form.description }}
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Ціна ₴ *</label>
+          {{ form.price }}
+        </div>
+        <div class="flex items-end pb-2.5">
+          <label class="flex items-center gap-2 text-sm text-gray-700">
+            {{ form.is_active }} Активна
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Components formset -->
+    <div class="bg-white rounded-xl border border-gray-200 p-6 mb-4">
+      <h2 class="text-sm font-semibold text-gray-700 mb-3">Склад послуги
+        <span class="text-gray-400 font-normal">(товари зі складу, які списуються)</span>
+      </h2>
+
+      <div id="formset-container" class="space-y-3">
+        {% for f in formset %}
+        <div class="formset-row flex items-center gap-3 {% if f.instance.pk and f.DELETE.value %}opacity-40{% endif %}">
+          <div class="flex-1">{{ f.product }}</div>
+          <div class="w-28">{{ f.quantity }}</div>
+          <label class="flex items-center gap-1 text-xs text-gray-400 shrink-0">
+            {{ f.DELETE }} видалити
+          </label>
+          {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+
+      <button type="button" id="add-component"
+        class="mt-3 text-sm text-brand-gold hover:text-brand-dark font-medium">
+        + Додати компонент
+      </button>
+    </div>
+
+    <div class="flex gap-3">
+      <button type="submit"
+        class="bg-brand-gold text-brand-dark px-6 py-2.5 rounded-lg text-sm font-semibold hover:brightness-95">
+        Зберегти
+      </button>
+      <a href="{% url 'services:list' %}"
+        class="px-6 py-2.5 rounded-lg text-sm font-medium text-gray-700 border border-gray-300 hover:bg-gray-50">
+        Скасувати
+      </a>
+    </div>
+  </form>
+</div>
+
+<script>
+// Динамічне додавання рядків formset
+const container = document.getElementById('formset-container');
+const totalForms = document.getElementById('id_comp-TOTAL_FORMS');
+document.getElementById('add-component').addEventListener('click', () => {
+  const idx = parseInt(totalForms.value);
+  const template = container.querySelector('.formset-row');
+  const clone = template.cloneNode(true);
+  clone.querySelectorAll('input, select').forEach(el => {
+    el.name = el.name.replace(/-\d+-/, `-${idx}-`);
+    el.id = el.id.replace(/-\d+-/, `-${idx}-`);
+    if (el.type !== 'checkbox') el.value = '';
+    if (el.type === 'checkbox') el.checked = false;
+  });
+  clone.classList.remove('opacity-40');
+  container.appendChild(clone);
+  totalForms.value = idx + 1;
+});
+</script>
+{% endblock %}

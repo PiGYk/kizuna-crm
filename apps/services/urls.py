@@ -1,10 +1,11 @@
 from django.urls import path
-from django.http import HttpResponse
+from . import views
 
 app_name = 'services'
 
-stub = lambda r: HttpResponse('Coming soon')
-
 urlpatterns = [
-    path('', stub, name='list'),
+    path('', views.ServiceListView.as_view(), name='list'),
+    path('create/', views.service_create, name='create'),
+    path('<int:pk>/', views.ServiceDetailView.as_view(), name='detail'),
+    path('<int:pk>/edit/', views.service_update, name='edit'),
 ]

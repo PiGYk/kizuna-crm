@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+
+{% block title %}Склад — Kizuna CRM{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-bold text-brand-dark">Склад</h1>
+  <div class="flex gap-2">
+    <a href="{% url 'inventory:import' %}"
+       class="px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
+      Імпорт
+    </a>
+    <a href="{% url 'inventory:create' %}"
+       class="bg-brand-gold text-brand-dark px-4 py-2 rounded-lg text-sm font-medium hover:brightness-95 transition-all">
+      + Додати
+    </a>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="flex flex-wrap gap-3 mb-4">
+  <form method="get" class="flex-1 min-w-48">
+    <input type="text" name="q" value="{{ q }}"
+      placeholder="Пошук товару..."
+      class="w-full md:w-72 px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+  </form>
+  <div class="flex gap-2">
+    <a href="?{% if q %}q={{ q }}&{% endif %}" class="px-3 py-2 rounded-lg text-sm border {% if not stock %}bg-brand-dark text-white border-brand-dark{% else %}border-gray-300 text-gray-600 hover:bg-gray-50{% endif %}">Всі</a>
+    <a href="?{% if q %}q={{ q }}&{% endif %}stock=low" class="px-3 py-2 rounded-lg text-sm border {% if stock == 'low' %}bg-amber-500 text-white border-amber-500{% else %}border-gray-300 text-gray-600 hover:bg-gray-50{% endif %}">Мало</a>
+    <a href="?{% if q %}q={{ q }}&{% endif %}stock=out" class="px-3 py-2 rounded-lg text-sm border {% if stock == 'out' %}bg-red-500 text-white border-red-500{% else %}border-gray-300 text-gray-600 hover:bg-gray-50{% endif %}">Нуль</a>
+  </div>
+</div>
+
+<!-- Table -->
+<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 border-b border-gray-200">
+      <tr>
+        <th class="px-4 py-3 text-left font-medium text-gray-600">Назва</th>
+        <th class="px-4 py-3 text-right font-medium text-gray-600">Залишок</th>
+        <th class="px-4 py-3 text-right font-medium text-gray-600 hidden md:table-cell">Вхідна</th>
+        <th class="px-4 py-3 text-right font-medium text-gray-600">Вихідна</th>
+        <th class="px-4 py-3"></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">
+      {% for product in products %}
+      <tr class="hover:bg-gray-50 cursor-pointer" onclick="location.href='{% url 'inventory:detail' product.pk %}'">
+        <td class="px-4 py-3">
+          <div class="font-medium text-brand-dark">{{ product.name }}</div>
+        </td>
+        <td class="px-4 py-3 text-right">
+          <span class="font-semibold {% if product.is_out_of_stock %}text-red-600{% elif product.is_low_stock %}text-amber-600{% else %}text-gray-900{% endif %}">
+            {{ product.quantity|floatformat:"-3" }}
+          </span>
+          <span class="text-gray-400 text-xs ml-1">{{ product.unit }}</span>
+        </td>
+        <td class="px-4 py-3 text-right text-gray-500 hidden md:table-cell">{{ product.buy_price }} ₴</td>
+        <td class="px-4 py-3 text-right font-medium text-gray-900">{{ product.sell_price }} ₴</td>
+        <td class="px-4 py-3 text-right">
+          <a href="{% url 'inventory:detail' product.pk %}"
+             class="text-brand-gold hover:text-brand-dark text-xs font-medium"
+             onclick="event.stopPropagation()">Відкрити</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="5" class="px-4 py-12 text-center text-gray-400">
+          {% if q %}Нічого не знайдено{% else %}Склад порожній{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if is_paginated %}
+<div class="flex justify-center gap-2 mt-4">
+  {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">←</a>
+  {% endif %}
+  <span class="px-3 py-1.5 text-sm text-gray-600">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">→</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

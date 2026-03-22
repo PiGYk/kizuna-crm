@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ product.name }} — Склад{% endblock %}
+
+{% block content %}
+<div class="flex items-center gap-3 mb-6">
+  <a href="{% url 'inventory:list' %}" class="text-gray-400 hover:text-gray-600">
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+  </a>
+  <h1 class="text-2xl font-bold text-brand-dark flex-1">{{ product.name }}</h1>
+  <a href="{% url 'inventory:edit' product.pk %}" class="text-sm text-brand-gold hover:text-brand-dark font-medium">Редагувати</a>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+  <!-- Info + actions -->
+  <div class="space-y-4">
+    <div class="bg-white rounded-xl border border-gray-200 p-5">
+      <dl class="space-y-3 text-sm">
+        <div class="flex justify-between">
+          <dt class="text-gray-500">Залишок</dt>
+          <dd class="font-bold text-lg {% if product.is_out_of_stock %}text-red-600{% elif product.is_low_stock %}text-amber-600{% else %}text-brand-dark{% endif %}">
+            {{ product.quantity|floatformat:"-3" }} {{ product.unit }}
+          </dd>
+        </div>
+        <div class="flex justify-between">
+          <dt class="text-gray-500">Вхідна ціна</dt>
+          <dd class="font-medium">{{ product.buy_price }} ₴</dd>
+        </div>
+        <div class="flex justify-between">
+          <dt class="text-gray-500">Вихідна ціна</dt>
+          <dd class="font-medium text-brand-dark">{{ product.sell_price }} ₴</dd>
+        </div>
+        {% if product.min_quantity > 0 %}
+        <div class="flex justify-between">
+          <dt class="text-gray-500">Мін. залишок</dt>
+          <dd>{{ product.min_quantity }} {{ product.unit }}</dd>
+        </div>
+        {% endif %}
+      </dl>
+      {% if product.notes %}
+      <div class="mt-3 pt-3 border-t border-gray-100 text-sm text-gray-600">{{ product.notes }}</div>
+      {% endif %}
+    </div>
+
+    <!-- Stock in form -->
+    <div class="bg-white rounded-xl border border-gray-200 p-5">
+      <h3 class="text-sm font-semibold text-gray-700 mb-3">Прихід товару</h3>
+      <form method="post" action="{% url 'inventory:stock_in' product.pk %}">
+        {% csrf_token %}
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Кількість *</label>
+            {{ in_form.quantity }}
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Вхідна ціна за од.</label>
+            {{ in_form.price }}
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Причина / постачальник</label>
+            {{ in_form.reason }}
+          </div>
+        </div>
+        <button type="submit"
+          class="mt-3 w-full bg-brand-gold text-brand-dark py-2 rounded-lg text-sm font-semibold hover:brightness-95">
+          Записати прихід
+        </button>
+      </form>
+    </div>
+
+    <!-- Adjust form -->
+    <div class="bg-white rounded-xl border border-gray-200 p-5">
+      <h3 class="text-sm font-semibold text-gray-700 mb-3">Коригування залишку</h3>
+      <form method="post" action="{% url 'inventory:stock_adjust' product.pk %}">
+        {% csrf_token %}
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Новий залишок *</label>
+            {{ adjust_form.quantity }}
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Причина</label>
+            {{ adjust_form.reason }}
+          </div>
+        </div>
+        <button type="submit"
+          class="mt-3 w-full border border-gray-300 text-gray-700 py-2 rounded-lg text-sm font-medium hover:bg-gray-50">
+          Скоригувати
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Movements history -->
+  <div class="md:col-span-2">
+    <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Історія рухів</h2>
+    {% if movements %}
+    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 border-b border-gray-200">
+          <tr>
+            <th class="px-4 py-3 text-left font-medium text-gray-600">Дата</th>
+            <th class="px-4 py-3 text-left font-medium text-gray-600">Тип</th>
+            <th class="px-4 py-3 text-right font-medium text-gray-600">К-сть</th>
+            <th class="px-4 py-3 text-right font-medium text-gray-600 hidden md:table-cell">Ціна</th>
+            <th class="px-4 py-3 text-left font-medium text-gray-600 hidden md:table-cell">Причина</th>
+            <th class="px-4 py-3 text-left font-medium text-gray-600 hidden md:table-cell">Хто</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+          {% for mv in movements %}
+          <tr>
+            <td class="px-4 py-2.5 text-gray-500 text-xs">{{ mv.created_at|date:"d.m.Y H:i" }}</td>
+            <td class="px-4 py-2.5">
+              <span class="px-2 py-0.5 rounded-full text-xs font-medium
+                {% if mv.type == 'in' %}bg-green-100 text-green-700
+                {% elif mv.type == 'out' %}bg-red-100 text-red-700
+                {% else %}bg-blue-100 text-blue-700{% endif %}">
+                {{ mv.get_type_display }}
+              </span>
+            </td>
+            <td class="px-4 py-2.5 text-right font-medium
+              {% if mv.type == 'in' %}text-green-700{% elif mv.type == 'out' %}text-red-600{% else %}text-blue-600{% endif %}">
+              {% if mv.type == 'in' %}+{% elif mv.type == 'out' %}-{% endif %}{{ mv.quantity|floatformat:"-3" }}
+            </td>
+            <td class="px-4 py-2.5 text-right text-gray-500 hidden md:table-cell">
+              {% if mv.price %}{{ mv.price }} ₴{% else %}—{% endif %}
+            </td>
+            <td class="px-4 py-2.5 text-gray-500 hidden md:table-cell">{{ mv.reason|default:"—" }}</td>
+            <td class="px-4 py-2.5 text-gray-500 hidden md:table-cell text-xs">
+              {{ mv.created_by.get_full_name|default:mv.created_by.username|default:"—" }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="bg-white rounded-xl border border-dashed border-gray-300 p-8 text-center text-gray-400 text-sm">
+      Рухів ще немає
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

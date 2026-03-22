@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ service.name }} — Послуги{% endblock %}
+
+{% block content %}
+<div class="flex items-center gap-3 mb-6">
+  <a href="{% url 'services:list' %}" class="text-gray-400 hover:text-gray-600">
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+  </a>
+  <h1 class="text-2xl font-bold text-brand-dark flex-1">{{ service.name }}</h1>
+  <a href="{% url 'services:edit' service.pk %}" class="text-sm text-brand-gold hover:text-brand-dark font-medium">Редагувати</a>
+</div>
+
+<div class="max-w-xl space-y-4">
+  <div class="bg-white rounded-xl border border-gray-200 p-5">
+    <dl class="space-y-3 text-sm">
+      <div class="flex justify-between">
+        <dt class="text-gray-500">Ціна</dt>
+        <dd class="text-2xl font-bold text-brand-gold">{{ service.price }} ₴</dd>
+      </div>
+      {% if service.description %}
+      <div>
+        <dt class="text-gray-500 mb-1">Опис</dt>
+        <dd class="text-gray-700">{{ service.description }}</dd>
+      </div>
+      {% endif %}
+    </dl>
+  </div>
+
+  {% if components %}
+  <div class="bg-white rounded-xl border border-gray-200 p-5">
+    <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Склад послуги</h2>
+    <div class="space-y-2">
+      {% for c in components %}
+      <div class="flex items-center justify-between text-sm">
+        <a href="{% url 'inventory:detail' c.product.pk %}" class="text-brand-dark hover:text-brand-gold font-medium">
+          {{ c.product.name }}
+        </a>
+        <span class="text-gray-500">{{ c.quantity|floatformat:"-3" }} {{ c.product.unit }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
