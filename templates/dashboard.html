@@ -4,61 +4,61 @@
 
 {% block content %}
 <div class="mb-6">
-  <h1 class="text-2xl font-bold text-gray-900">Дашборд</h1>
+  <h1 class="text-2xl font-bold text-brand-dark">Дашборд</h1>
   <p class="text-gray-500 text-sm mt-1">Вітаємо, {{ user.get_full_name|default:user.username }}</p>
 </div>
 
 <!-- Stats -->
 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
   <div class="bg-white rounded-xl border border-gray-200 p-4">
-    <div class="text-2xl font-bold text-gray-900">—</div>
+    <div class="text-2xl font-bold text-brand-dark">—</div>
     <div class="text-sm text-gray-500 mt-1">Клієнтів</div>
   </div>
   <div class="bg-white rounded-xl border border-gray-200 p-4">
-    <div class="text-2xl font-bold text-gray-900">—</div>
+    <div class="text-2xl font-bold text-brand-dark">—</div>
     <div class="text-sm text-gray-500 mt-1">Пацієнтів</div>
   </div>
   <div class="bg-white rounded-xl border border-gray-200 p-4">
-    <div class="text-2xl font-bold text-gray-900">—</div>
+    <div class="text-2xl font-bold text-brand-dark">—</div>
     <div class="text-sm text-gray-500 mt-1">Чеків сьогодні</div>
   </div>
   <div class="bg-white rounded-xl border border-gray-200 p-4">
-    <div class="text-2xl font-bold text-indigo-600">—</div>
+    <div class="text-2xl font-bold text-brand-gold">—</div>
     <div class="text-sm text-gray-500 mt-1">Виручка сьогодні</div>
   </div>
 </div>
 
 <!-- Quick actions -->
 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-  <a href="{% url 'clients:create' %}" class="bg-white rounded-xl border border-gray-200 p-5 hover:border-indigo-300 hover:shadow-sm transition group">
+  <a href="{% url 'clients:create' %}" class="bg-white rounded-xl border border-gray-200 p-5 hover:border-brand-gold hover:shadow-sm transition group">
     <div class="flex items-center gap-3">
-      <div class="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center group-hover:bg-indigo-100">
-        <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+      <div class="w-10 h-10 bg-brand-cream rounded-lg flex items-center justify-center group-hover:bg-brand-gold/20">
+        <svg class="w-5 h-5 text-brand-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
       </div>
       <div>
-        <div class="font-medium text-sm text-gray-900">Новий клієнт</div>
+        <div class="font-medium text-sm text-brand-dark">Новий клієнт</div>
         <div class="text-xs text-gray-500">Додати власника + тварину</div>
       </div>
     </div>
   </a>
-  <a href="{% url 'billing:create' %}" class="bg-white rounded-xl border border-gray-200 p-5 hover:border-indigo-300 hover:shadow-sm transition group">
+  <a href="{% url 'billing:create' %}" class="bg-brand-dark rounded-xl p-5 hover:brightness-110 transition group">
     <div class="flex items-center gap-3">
-      <div class="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center group-hover:bg-green-100">
-        <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/></svg>
+      <div class="w-10 h-10 bg-brand-gold/20 rounded-lg flex items-center justify-center">
+        <svg class="w-5 h-5 text-brand-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/></svg>
       </div>
       <div>
-        <div class="font-medium text-sm text-gray-900">Новий чек</div>
-        <div class="text-xs text-gray-500">Швидке оформлення</div>
+        <div class="font-medium text-sm text-white">Новий чек</div>
+        <div class="text-xs text-white/60">Швидке оформлення</div>
       </div>
     </div>
   </a>
-  <a href="{% url 'inventory:list' %}" class="bg-white rounded-xl border border-gray-200 p-5 hover:border-indigo-300 hover:shadow-sm transition group">
+  <a href="{% url 'inventory:list' %}" class="bg-white rounded-xl border border-gray-200 p-5 hover:border-brand-gold hover:shadow-sm transition group">
     <div class="flex items-center gap-3">
-      <div class="w-10 h-10 bg-amber-50 rounded-lg flex items-center justify-center group-hover:bg-amber-100">
-        <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+      <div class="w-10 h-10 bg-brand-cream rounded-lg flex items-center justify-center group-hover:bg-brand-gold/20">
+        <svg class="w-5 h-5 text-brand-dark" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
       </div>
       <div>
-        <div class="font-medium text-sm text-gray-900">Склад</div>
+        <div class="font-medium text-sm text-brand-dark">Склад</div>
         <div class="text-xs text-gray-500">Залишки та поповнення</div>
       </div>
     </div>

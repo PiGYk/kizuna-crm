@@ -1,39 +1,52 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Вхід — Kizuna CRM{% endblock %}
 
 {% block auth_content %}
-<div class="min-h-screen flex items-center justify-center bg-gray-50">
-  <div class="w-full max-w-sm">
-    <div class="text-center mb-8">
-      <h1 class="text-3xl font-bold text-indigo-600">Kizuna CRM</h1>
-      <p class="text-gray-500 mt-1 text-sm">Ветеринарна система управління</p>
-    </div>
-    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+<div class="min-h-screen flex bg-brand-cream">
+
+  <!-- Left — dark brand panel -->
+  <div class="hidden md:flex flex-col items-center justify-center w-1/2 bg-brand-dark">
+    <img src="{% static 'img/logo.svg' %}" alt="Kizuna CRM" class="w-56 h-56 object-contain">
+  </div>
+
+  <!-- Right — form -->
+  <div class="flex flex-col items-center justify-center w-full md:w-1/2 px-8">
+    <div class="w-full max-w-sm">
+      <!-- Mobile logo -->
+      <div class="flex justify-center mb-8 md:hidden">
+        <img src="{% static 'img/logo.svg' %}" alt="Kizuna CRM" class="h-20 w-auto">
+      </div>
+
+      <h2 class="text-2xl font-bold text-brand-dark mb-1">Вхід</h2>
+      <p class="text-sm text-gray-500 mb-6">Kizuna CRM · Ветеринарна система</p>
+
       <form method="post" class="space-y-4">
         {% csrf_token %}
         {% if form.errors %}
-          <div class="bg-red-50 text-red-700 text-sm px-4 py-3 rounded-lg">
+          <div class="bg-red-50 text-red-700 text-sm px-4 py-3 rounded-lg border border-red-200">
             Невірний логін або пароль
           </div>
         {% endif %}
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Логін</label>
+          <label class="block text-sm font-medium text-brand-dark mb-1">Логін</label>
           <input type="text" name="username" autofocus required
-            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold focus:border-transparent bg-white">
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Пароль</label>
+          <label class="block text-sm font-medium text-brand-dark mb-1">Пароль</label>
           <input type="password" name="password" required
-            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold focus:border-transparent bg-white">
         </div>
         <input type="hidden" name="next" value="{{ next }}">
         <button type="submit"
-          class="w-full bg-indigo-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors">
+          class="w-full bg-brand-gold text-brand-dark font-semibold py-2.5 rounded-lg text-sm hover:brightness-95 transition-all">
           Увійти
         </button>
       </form>
     </div>
   </div>
+
 </div>
 {% endblock %}
