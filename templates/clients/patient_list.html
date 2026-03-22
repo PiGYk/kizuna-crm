@@ -84,7 +84,7 @@
           {{ patient.get_species_display }}{% if patient.breed %} · {{ patient.breed }}{% endif %}
         </td>
         <td class="px-4 py-3 text-gray-400 text-xs hidden md:table-cell">
-          {{ patient.assigned_doctor.get_full_name|default:patient.assigned_doctor.username|default:"—" }}
+          {% if patient.assigned_doctor %}{{ patient.assigned_doctor.get_full_name|default:patient.assigned_doctor.username }}{% else %}—{% endif %}
         </td>
         <td class="px-4 py-3 text-right">
           <a href="{% url 'clients:patient_detail' patient.pk %}"

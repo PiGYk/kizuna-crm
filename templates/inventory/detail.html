@@ -129,7 +129,7 @@
             </td>
             <td class="px-4 py-2.5 text-gray-500 hidden md:table-cell">{{ mv.reason|default:"—" }}</td>
             <td class="px-4 py-2.5 text-gray-500 hidden md:table-cell text-xs">
-              {{ mv.created_by.get_full_name|default:mv.created_by.username|default:"—" }}
+              {% if mv.created_by %}{{ mv.created_by.get_full_name|default:mv.created_by.username }}{% else %}—{% endif %}
             </td>
           </tr>
           {% endfor %}

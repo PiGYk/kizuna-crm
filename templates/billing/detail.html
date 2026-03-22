@@ -41,7 +41,7 @@
       </div>
       <div>
         <div class="text-gray-500 mb-0.5">Лікар</div>
-        <div class="font-medium">{{ invoice.doctor.get_full_name|default:invoice.doctor.username|default:"—" }}</div>
+        <div class="font-medium">{% if invoice.doctor %}{{ invoice.doctor.get_full_name|default:invoice.doctor.username }}{% else %}—{% endif %}</div>
       </div>
       <div>
         <div class="text-gray-500 mb-0.5">Статус</div>

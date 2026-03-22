@@ -32,7 +32,7 @@
           <div class="font-medium text-brand-dark">{{ inv.client }}</div>
           {% if inv.patient %}<div class="text-xs text-gray-400">{{ inv.patient.name }}</div>{% endif %}
         </td>
-        <td class="px-4 py-3 text-gray-500">{{ inv.doctor.get_full_name|default:inv.doctor.username|default:"—" }}</td>
+        <td class="px-4 py-3 text-gray-500">{% if inv.doctor %}{{ inv.doctor.get_full_name|default:inv.doctor.username }}{% else %}—{% endif %}</td>
         <td class="px-4 py-3 text-gray-500">{{ inv.created_at|date:"d.m.Y H:i" }}</td>
         <td class="px-4 py-3 text-right font-semibold text-brand-dark">{{ inv.total }} ₴</td>
         <td class="px-4 py-3 text-center">
