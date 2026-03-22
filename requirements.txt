@@ -6,3 +6,4 @@ python-decouple
 openpyxl
 Pillow
 WeasyPrint
+gunicorn
