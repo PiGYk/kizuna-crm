@@ -45,7 +45,7 @@
                  onclick="event.stopPropagation()"
                  title="{{ p.name }}">
                 {% if p.photo %}
-                  <img src="{{ p.photo.url }}" class="w-7 h-7 rounded-full object-cover border-2 border-white shadow-sm">
+                  <img src="{{ p.photo.url }}" class="w-7 h-7 rounded-full object-cover block shrink-0 border-2 border-white shadow-sm">
                 {% else %}
                   <div class="w-7 h-7 rounded-full bg-brand-gold/10 flex items-center justify-center text-sm border-2 border-white shadow-sm">
                     {% if p.species == 'cat' %}🐱{% elif p.species == 'dog' %}🐶{% elif p.species == 'rabbit' %}🐰{% elif p.species == 'bird' %}🐦{% else %}🐾{% endif %}

@@ -57,12 +57,12 @@
     <tbody class="divide-y divide-gray-100">
       {% for patient in patients %}
       <tr class="hover:bg-gray-50 cursor-pointer" onclick="location.href='{% url 'clients:patient_detail' patient.pk %}'">
-        <td class="px-4 py-2">
+        <td class="px-4 py-2 w-14">
           {% if patient.photo %}
             <img src="{{ patient.photo.url }}" alt="{{ patient.name }}"
-                 class="w-10 h-10 rounded-full object-cover">
+                 class="w-10 h-10 rounded-full object-cover block shrink-0">
           {% else %}
-            <div class="w-10 h-10 rounded-full bg-brand-gold/10 flex items-center justify-center text-lg">
+            <div class="w-10 h-10 rounded-full bg-brand-gold/10 flex items-center justify-center text-lg shrink-0">
               {% if patient.species == 'cat' %}🐱
               {% elif patient.species == 'dog' %}🐶
               {% elif patient.species == 'rabbit' %}🐰
