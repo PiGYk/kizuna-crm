@@ -147,6 +147,22 @@ def visit_create(request, patient_pk):
 
 
 @login_required
+def visit_duplicate(request, pk):
+    from django.utils import timezone
+    original = get_object_or_404(Visit, pk=pk)
+    copy = Visit.objects.create(
+        patient=original.patient,
+        doctor=request.user,
+        date=timezone.now(),
+        complaint=original.complaint,
+        diagnosis=original.diagnosis,
+        treatment=original.treatment,
+        notes=original.notes,
+    )
+    return redirect('clients:visit_edit', pk=copy.pk)
+
+
+@login_required
 def visit_update(request, pk):
     visit = get_object_or_404(Visit, pk=pk)
     form = VisitForm(request.POST or None, instance=visit)

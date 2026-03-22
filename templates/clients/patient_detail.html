@@ -144,8 +144,16 @@
               <div class="text-xs text-gray-400 ml-4">{{ visit.doctor.get_full_name|default:visit.doctor.username }}</div>
             {% endif %}
           </div>
-          <a href="{% url 'clients:visit_edit' visit.pk %}"
-             class="text-xs text-gray-400 hover:text-brand-gold font-medium shrink-0">Ред.</a>
+          <div class="flex items-center gap-2 shrink-0">
+            <form method="post" action="{% url 'clients:visit_duplicate' visit.pk %}">
+              {% csrf_token %}
+              <button type="submit" class="text-xs text-gray-400 hover:text-brand-gold font-medium" title="Скопіювати маніпуляцію">
+                Копія
+              </button>
+            </form>
+            <a href="{% url 'clients:visit_edit' visit.pk %}"
+               class="text-xs text-gray-400 hover:text-brand-gold font-medium">Ред.</a>
+          </div>
         </div>
         <div class="ml-4 space-y-2 text-sm">
           {% if visit.complaint %}
