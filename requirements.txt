@@ -1,0 +1,8 @@
+Django>=4.2,<5.0
+psycopg2-binary
+django-htmx
+whitenoise
+python-decouple
+openpyxl
+Pillow
+WeasyPrint
