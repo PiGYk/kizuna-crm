@@ -7,9 +7,26 @@
   <a href="{% url 'clients:list' %}" class="text-gray-400 hover:text-gray-600">
     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
   </a>
-  <h1 class="text-2xl font-bold text-gray-900">{{ client.full_name }}</h1>
+  <div class="flex-1">
+    <h1 class="text-2xl font-bold text-brand-dark">{{ client.last_name }} {{ client.first_name }}</h1>
+    {% if patients %}
+    <div class="flex items-center gap-1.5 mt-1">
+      {% for p in patients %}
+        <a href="{% url 'clients:patient_detail' p.pk %}"
+           class="flex items-center gap-1 bg-gray-100 hover:bg-brand-gold/10 px-2 py-0.5 rounded-full transition text-xs text-gray-600 hover:text-brand-dark">
+          {% if p.photo %}
+            <img src="{{ p.photo.url }}" class="w-4 h-4 rounded-full object-cover">
+          {% else %}
+            <span>{% if p.species == 'cat' %}🐱{% elif p.species == 'dog' %}🐶{% elif p.species == 'rabbit' %}🐰{% elif p.species == 'bird' %}🐦{% else %}🐾{% endif %}</span>
+          {% endif %}
+          {{ p.name }}
+        </a>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
   <a href="{% url 'clients:edit' client.pk %}"
-     class="ml-auto text-sm text-indigo-600 hover:text-indigo-800 font-medium">Редагувати</a>
+     class="text-sm text-brand-gold hover:text-brand-dark font-medium">Редагувати</a>
 </div>
 
 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -20,7 +37,7 @@
     <dl class="space-y-2 text-sm">
       <div class="flex justify-between">
         <dt class="text-gray-500">Телефон</dt>
-        <dd class="font-medium"><a href="tel:{{ client.phone }}" class="text-indigo-600">{{ client.phone }}</a></dd>
+        <dd class="font-medium"><a href="tel:{{ client.phone }}" class="text-brand-gold">{{ client.phone }}</a></dd>
       </div>
       {% if client.email %}
       <div class="flex justify-between">
@@ -46,20 +63,20 @@
     <div class="flex items-center justify-between mb-3">
       <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide">Пацієнти</h2>
       <a href="{% url 'clients:patient_create' client.pk %}"
-         class="text-sm text-indigo-600 hover:text-indigo-800 font-medium">+ Додати</a>
+         class="text-sm text-brand-gold hover:text-brand-dark font-medium">+ Додати</a>
     </div>
 
     {% if patients %}
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
       {% for patient in patients %}
       <a href="{% url 'clients:patient_detail' patient.pk %}"
-         class="bg-white rounded-xl border border-gray-200 p-4 hover:border-indigo-300 hover:shadow-sm transition block">
+         class="bg-white rounded-xl border border-gray-200 p-4 hover:border-brand-gold hover:shadow-sm transition block">
         <div class="flex items-start gap-3">
           {% if patient.photo %}
             <img src="{{ patient.photo.url }}" alt="{{ patient.name }}"
-                 class="w-12 h-12 rounded-full object-cover shrink-0">
+                 class="w-14 h-14 rounded-xl object-cover shrink-0">
           {% else %}
-            <div class="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center shrink-0 text-xl">
+            <div class="w-14 h-14 rounded-xl bg-brand-gold/10 flex items-center justify-center shrink-0 text-2xl">
               {% if patient.species == 'cat' %}🐱
               {% elif patient.species == 'dog' %}🐶
               {% elif patient.species == 'rabbit' %}🐰
@@ -68,7 +85,7 @@
             </div>
           {% endif %}
           <div class="flex-1 min-w-0">
-            <div class="font-semibold text-gray-900">{{ patient.name }}</div>
+            <div class="font-semibold text-brand-dark">{{ patient.name }}</div>
             <div class="text-xs text-gray-500">{{ patient.get_species_display }}{% if patient.breed %} · {{ patient.breed }}{% endif %}</div>
             <div class="text-xs text-gray-400 mt-0.5">{{ patient.age_display }}{% if patient.assigned_doctor %} · {{ patient.assigned_doctor.get_full_name|default:patient.assigned_doctor.username }}{% endif %}</div>
           </div>
@@ -81,7 +98,7 @@
       <div class="text-gray-400 mb-3 text-3xl">🐾</div>
       <p class="text-sm text-gray-500">Немає пацієнтів</p>
       <a href="{% url 'clients:patient_create' client.pk %}"
-         class="mt-3 inline-block text-sm text-indigo-600 hover:text-indigo-800 font-medium">Додати пацієнта</a>
+         class="mt-3 inline-block text-sm text-brand-gold hover:text-brand-dark font-medium">Додати пацієнта</a>
     </div>
     {% endif %}
   </div>

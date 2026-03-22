@@ -4,23 +4,21 @@
 
 {% block content %}
 <div class="flex items-center justify-between mb-6">
-  <h1 class="text-2xl font-bold text-gray-900">Клієнти</h1>
+  <h1 class="text-2xl font-bold text-brand-dark">Клієнти</h1>
   <a href="{% url 'clients:create' %}"
-     class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors">
+     class="bg-brand-gold text-brand-dark px-4 py-2 rounded-lg text-sm font-medium hover:brightness-95 transition-all">
     + Додати
   </a>
 </div>
 
-<!-- Search -->
 <div class="mb-4">
   <form method="get">
     <input type="text" name="q" value="{{ q }}"
       placeholder="Пошук за ім'ям або телефоном..."
-      class="w-full md:w-96 px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+      class="w-full md:w-96 px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
   </form>
 </div>
 
-<!-- Table -->
 <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
   <table class="w-full text-sm">
     <thead class="bg-gray-50 border-b border-gray-200">
@@ -35,22 +33,34 @@
       {% for client in clients %}
       <tr class="hover:bg-gray-50 cursor-pointer" onclick="location.href='{% url 'clients:detail' client.pk %}'">
         <td class="px-4 py-3">
-          <div class="font-medium text-gray-900">{{ client.full_name }}</div>
+          <div class="font-medium text-brand-dark">{{ client.last_name }} {{ client.first_name }}</div>
           {% if client.email %}<div class="text-xs text-gray-400">{{ client.email }}</div>{% endif %}
         </td>
         <td class="px-4 py-3 text-gray-600">{{ client.phone }}</td>
         <td class="px-4 py-3 hidden md:table-cell">
-          {% for p in client.patients.all %}
-            <span class="inline-block bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full mr-1">
-              {{ p.name }}
-            </span>
-          {% empty %}
-            <span class="text-gray-400 text-xs">—</span>
-          {% endfor %}
+          <div class="flex items-center gap-1.5 flex-wrap">
+            {% for p in client.patients.all %}
+              <a href="{% url 'clients:patient_detail' p.pk %}"
+                 class="flex items-center gap-1 hover:opacity-80 transition"
+                 onclick="event.stopPropagation()"
+                 title="{{ p.name }}">
+                {% if p.photo %}
+                  <img src="{{ p.photo.url }}" class="w-7 h-7 rounded-full object-cover border-2 border-white shadow-sm">
+                {% else %}
+                  <div class="w-7 h-7 rounded-full bg-brand-gold/10 flex items-center justify-center text-sm border-2 border-white shadow-sm">
+                    {% if p.species == 'cat' %}🐱{% elif p.species == 'dog' %}🐶{% elif p.species == 'rabbit' %}🐰{% elif p.species == 'bird' %}🐦{% else %}🐾{% endif %}
+                  </div>
+                {% endif %}
+                <span class="text-xs text-gray-600">{{ p.name }}</span>
+              </a>
+            {% empty %}
+              <span class="text-gray-300 text-xs">—</span>
+            {% endfor %}
+          </div>
         </td>
         <td class="px-4 py-3 text-right">
           <a href="{% url 'clients:detail' client.pk %}"
-             class="text-indigo-600 hover:text-indigo-800 text-xs font-medium"
+             class="text-brand-gold hover:text-brand-dark text-xs font-medium"
              onclick="event.stopPropagation()">Відкрити</a>
         </td>
       </tr>
@@ -65,7 +75,6 @@
   </table>
 </div>
 
-<!-- Pagination -->
 {% if is_paginated %}
 <div class="flex justify-center gap-2 mt-4">
   {% if page_obj.has_previous %}

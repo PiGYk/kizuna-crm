@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+
+{% block title %}Пацієнти — Kizuna CRM{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-bold text-brand-dark">Пацієнти</h1>
+</div>
+
+<div class="mb-4">
+  <form method="get">
+    <input type="text" name="q" value="{{ q }}"
+      placeholder="Пошук за кличкою, хазяїном, породою…"
+      class="w-full md:w-96 px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+  </form>
+</div>
+
+<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 border-b border-gray-200">
+      <tr>
+        <th class="px-4 py-3 text-left font-medium text-gray-600 w-12"></th>
+        <th class="px-4 py-3 text-left font-medium text-gray-600">Кличка</th>
+        <th class="px-4 py-3 text-left font-medium text-gray-600">Хазяїн</th>
+        <th class="px-4 py-3 text-left font-medium text-gray-600 hidden md:table-cell">Вид / Порода</th>
+        <th class="px-4 py-3 text-left font-medium text-gray-600 hidden md:table-cell">Лікар</th>
+        <th class="px-4 py-3"></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">
+      {% for patient in patients %}
+      <tr class="hover:bg-gray-50 cursor-pointer" onclick="location.href='{% url 'clients:patient_detail' patient.pk %}'">
+        <td class="px-4 py-2">
+          {% if patient.photo %}
+            <img src="{{ patient.photo.url }}" alt="{{ patient.name }}"
+                 class="w-10 h-10 rounded-full object-cover">
+          {% else %}
+            <div class="w-10 h-10 rounded-full bg-brand-gold/10 flex items-center justify-center text-lg">
+              {% if patient.species == 'cat' %}🐱
+              {% elif patient.species == 'dog' %}🐶
+              {% elif patient.species == 'rabbit' %}🐰
+              {% elif patient.species == 'bird' %}🐦
+              {% else %}🐾{% endif %}
+            </div>
+          {% endif %}
+        </td>
+        <td class="px-4 py-3">
+          <div class="font-semibold text-brand-dark">{{ patient.name }}</div>
+          <div class="text-xs text-gray-400">{{ patient.age_display }}</div>
+        </td>
+        <td class="px-4 py-3 text-gray-700">
+          <a href="{% url 'clients:detail' patient.client.pk %}"
+             class="hover:text-brand-gold"
+             onclick="event.stopPropagation()">{{ patient.client.full_name }}</a>
+        </td>
+        <td class="px-4 py-3 text-gray-500 hidden md:table-cell">
+          {{ patient.get_species_display }}{% if patient.breed %} · {{ patient.breed }}{% endif %}
+        </td>
+        <td class="px-4 py-3 text-gray-400 text-xs hidden md:table-cell">
+          {{ patient.assigned_doctor.get_full_name|default:patient.assigned_doctor.username|default:"—" }}
+        </td>
+        <td class="px-4 py-3 text-right">
+          <a href="{% url 'clients:patient_detail' patient.pk %}"
+             class="text-brand-gold hover:text-brand-dark text-xs font-medium"
+             onclick="event.stopPropagation()">Відкрити</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="6" class="px-4 py-12 text-center text-gray-400">
+          {% if q %}Нічого не знайдено{% else %}Пацієнтів ще немає{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if is_paginated %}
+<div class="flex justify-center gap-2 mt-4">
+  {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">←</a>
+  {% endif %}
+  <span class="px-3 py-1.5 text-sm text-gray-600">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">→</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

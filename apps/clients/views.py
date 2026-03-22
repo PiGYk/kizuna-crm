@@ -10,6 +10,30 @@ from .forms import ClientForm, PatientForm, VisitForm, VaccineForm
 from .models import Client, Patient, Visit, Vaccine
 
 
+class PatientListView(LoginRequiredMixin, ListView):
+    model = Patient
+    template_name = 'clients/patient_list.html'
+    context_object_name = 'patients'
+    paginate_by = 40
+
+    def get_queryset(self):
+        qs = Patient.objects.select_related('client', 'assigned_doctor')
+        q = self.request.GET.get('q', '').strip()
+        if q:
+            qs = qs.filter(
+                Q(name__icontains=q) |
+                Q(client__first_name__icontains=q) |
+                Q(client__last_name__icontains=q) |
+                Q(breed__icontains=q)
+            )
+        return qs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['q'] = self.request.GET.get('q', '')
+        return ctx
+
+
 class ClientListView(LoginRequiredMixin, ListView):
     model = Client
     template_name = 'clients/list.html'
@@ -103,6 +127,7 @@ class PatientDetailView(LoginRequiredMixin, DetailView):
         ctx = super().get_context_data(**kwargs)
         ctx['visits'] = self.object.visits.select_related('doctor').all()
         ctx['vaccines'] = self.object.vaccines.select_related('doctor').all()
+        ctx['invoices'] = self.object.invoices.select_related('doctor').filter(status='paid').all()
         ctx['visit_form'] = VisitForm(initial={'doctor': self.request.user})
         ctx['vaccine_form'] = VaccineForm(initial={'doctor': self.request.user})
         return ctx
