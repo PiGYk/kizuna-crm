@@ -192,4 +192,5 @@ def client_search(request):
             Q(last_name__icontains=q) |
             Q(phone__icontains=q)
         ).prefetch_related('patients')[:10]
-    return render(request, 'clients/partials/search_results.html', {'clients': clients, 'q': q})
+    mode = request.GET.get('mode', '')
+    return render(request, 'clients/partials/search_results.html', {'clients': clients, 'q': q, 'mode': mode})

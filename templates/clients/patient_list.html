@@ -5,6 +5,33 @@
 {% block content %}
 <div class="flex items-center justify-between mb-6">
   <h1 class="text-2xl font-bold text-brand-dark">Пацієнти</h1>
+  <button onclick="document.getElementById('add-patient-modal').classList.remove('hidden')"
+     class="bg-brand-gold text-brand-dark px-4 py-2 rounded-lg text-sm font-medium hover:brightness-95 transition-all">
+    + Додати
+  </button>
+</div>
+
+<!-- Модальне вікно: вибір клієнта перед створенням пацієнта -->
+<div id="add-patient-modal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl p-6 max-w-md w-full shadow-xl">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-bold text-brand-dark">Оберіть хазяїна</h2>
+      <button onclick="document.getElementById('add-patient-modal').classList.add('hidden')"
+              class="text-gray-400 hover:text-gray-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <input type="text" placeholder="Пошук клієнта за прізвищем або телефоном…"
+      class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-brand-gold"
+      hx-get="{% url 'clients:search' %}?mode=add_patient"
+      hx-trigger="input changed delay:300ms"
+      hx-target="#modal-client-results"
+      name="q">
+    <div id="modal-client-results" class="space-y-1 max-h-64 overflow-y-auto"></div>
+    <p class="text-xs text-gray-400 mt-3">Немає клієнта?
+      <a href="{% url 'clients:create' %}" class="text-brand-gold hover:text-brand-dark font-medium">Створити нового</a>
+    </p>
+  </div>
 </div>
 
 <div class="mb-4">
