@@ -43,7 +43,7 @@
         <div class="flex justify-between"><dt class="text-gray-500">Стать</dt><dd>{{ patient.get_sex_display }}</dd></div>
         <div class="flex justify-between"><dt class="text-gray-500">Вік</dt><dd>{{ patient.age_display }}</dd></div>
         {% if patient.color %}<div class="flex justify-between"><dt class="text-gray-500">Масть</dt><dd>{{ patient.color }}</dd></div>{% endif %}
-        {% if patient.assigned_doctor %}<div class="flex justify-between"><dt class="text-gray-500">Лікар</dt><dd>{{ patient.assigned_doctor.get_full_name|default:patient.assigned_doctor.username }}</dd></div>{% endif %}
+        {% include 'clients/partials/patient_doctor.html' %}
       </dl>
       {% if patient.notes %}
       <div class="mt-4 pt-4 border-t border-gray-100">

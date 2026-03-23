@@ -124,12 +124,14 @@ class PatientDetailView(LoginRequiredMixin, DetailView):
     context_object_name = 'patient'
 
     def get_context_data(self, **kwargs):
+        from django.contrib.auth import get_user_model
         ctx = super().get_context_data(**kwargs)
         ctx['visits'] = self.object.visits.select_related('doctor').all()
         ctx['vaccines'] = self.object.vaccines.select_related('doctor').all()
         ctx['invoices'] = self.object.invoices.select_related('doctor').filter(status='paid').all()
         ctx['visit_form'] = VisitForm(initial={'doctor': self.request.user})
         ctx['vaccine_form'] = VaccineForm(initial={'doctor': self.request.user})
+        ctx['doctors'] = get_user_model().objects.filter(role__in=['admin', 'doctor']).order_by('last_name', 'first_name')
         return ctx
 
 
@@ -195,6 +197,26 @@ def vaccine_update(request, pk):
         messages.success(request, 'Збережено')
         return redirect('clients:patient_detail', pk=vaccine.patient.pk)
     return render(request, 'clients/vaccine_form.html', {'form': form, 'patient': vaccine.patient, 'vaccine': vaccine})
+
+
+@login_required
+def patient_set_doctor(request, pk):
+    from django.contrib.auth import get_user_model
+    from django.http import HttpResponse
+    patient = get_object_or_404(Patient, pk=pk)
+    if request.method == 'POST':
+        doctor_id = request.POST.get('assigned_doctor') or None
+        if doctor_id:
+            User = get_user_model()
+            patient.assigned_doctor = get_object_or_404(User, pk=doctor_id)
+        else:
+            patient.assigned_doctor = None
+        patient.save(update_fields=['assigned_doctor'])
+    doctors = get_user_model().objects.filter(role__in=['admin', 'doctor']).order_by('last_name', 'first_name')
+    return render(request, 'clients/partials/patient_doctor.html', {
+        'patient': patient,
+        'doctors': doctors,
+    })
 
 
 # HTMX live search — повертає partial з результатами

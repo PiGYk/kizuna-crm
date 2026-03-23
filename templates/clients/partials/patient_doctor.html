@@ -1,0 +1,36 @@
+<div id="patient-doctor-block">
+  {% if patient.assigned_doctor %}
+    <div class="flex justify-between items-center">
+      <dt class="text-gray-500">Лікар</dt>
+      <dd class="flex items-center gap-2">
+        {{ patient.assigned_doctor.get_full_name|default:patient.assigned_doctor.username }}
+        <button type="button" onclick="document.getElementById('doctor-edit-form').classList.toggle('hidden')"
+          class="text-xs text-gray-300 hover:text-brand-gold transition-colors">змін.</button>
+      </dd>
+    </div>
+  {% else %}
+    <div class="flex justify-between items-center">
+      <dt class="text-gray-500">Лікар</dt>
+      <dd class="text-gray-300 text-xs italic">не призначено</dd>
+    </div>
+  {% endif %}
+
+  <form id="doctor-edit-form"
+        hx-post="{% url 'clients:patient_set_doctor' patient.pk %}"
+        hx-target="#patient-doctor-block"
+        hx-swap="outerHTML"
+        class="{% if patient.assigned_doctor %}hidden {% endif %}mt-2 flex gap-2">
+    {% csrf_token %}
+    <select name="assigned_doctor"
+      class="flex-1 border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+      <option value="">— без лікаря —</option>
+      {% for doc in doctors %}
+        <option value="{{ doc.pk }}" {% if doc == patient.assigned_doctor %}selected{% endif %}>
+          {{ doc.get_full_name|default:doc.username }}
+        </option>
+      {% endfor %}
+    </select>
+    <button type="submit"
+      class="bg-brand-gold text-brand-dark px-3 py-1 rounded-lg text-sm font-medium hover:brightness-95">OK</button>
+  </form>
+</div>
