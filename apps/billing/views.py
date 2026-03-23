@@ -97,6 +97,8 @@ def add_line(request, pk):
 
     if line_type == 'service':
         service_id = request.POST.get('service_id')
+        if not service_id:
+            return HttpResponse(status=400)
         service = get_object_or_404(Service, pk=service_id)
         qty = Decimal(request.POST.get('quantity', '1'))
         discount = Decimal(request.POST.get('discount', '0'))
@@ -115,6 +117,8 @@ def add_line(request, pk):
 
     elif line_type == 'product':
         product_id = request.POST.get('product_id')
+        if not product_id:
+            return HttpResponse(status=400)
         product = get_object_or_404(Product, pk=product_id)
         qty = Decimal(request.POST.get('quantity', '1'))
         discount = Decimal(request.POST.get('discount', '0'))
@@ -131,6 +135,24 @@ def add_line(request, pk):
         )
         line.save()
 
+    invoice.save_total()
+    lines = invoice.lines.select_related('service', 'product').all()
+    return render(request, 'billing/partials/lines_table.html', {'invoice': invoice, 'lines': lines})
+
+
+# ── HTMX: оновити ціну / кількість рядка ────────────────────────────────────
+
+@login_required
+@require_POST
+def update_line(request, pk, line_id):
+    invoice = get_object_or_404(Invoice, pk=pk, status=Invoice.Status.DRAFT)
+    line = get_object_or_404(InvoiceLine, pk=line_id, invoice=invoice)
+    try:
+        line.unit_price = Decimal(request.POST.get('unit_price', line.unit_price))
+        line.quantity = Decimal(request.POST.get('quantity', line.quantity))
+    except Exception:
+        pass
+    line.save()
     invoice.save_total()
     lines = invoice.lines.select_related('service', 'product').all()
     return render(request, 'billing/partials/lines_table.html', {'invoice': invoice, 'lines': lines})
@@ -162,6 +184,33 @@ def update_discount(request, pk):
     invoice.save_total()
     lines = invoice.lines.select_related('service', 'product').all()
     return render(request, 'billing/partials/lines_table.html', {'invoice': invoice, 'lines': lines})
+
+
+# ── JSON-пошук послуг і товарів ─────────────────────────────────────────────
+
+@login_required
+def service_search_json(request):
+    q = request.GET.get('q', '').strip()
+    qs = Service.objects.filter(is_active=True).order_by('name')
+    if q:
+        qs = qs.filter(name__icontains=q)
+    qs = qs[:25]
+    return JsonResponse({'results': [
+        {'id': s.pk, 'name': s.name, 'price': str(s.price)} for s in qs
+    ]})
+
+
+@login_required
+def product_search_json(request):
+    q = request.GET.get('q', '').strip()
+    qs = Product.objects.filter(is_active=True).order_by('name')
+    if q:
+        qs = qs.filter(name__icontains=q)
+    qs = qs[:25]
+    return JsonResponse({'results': [
+        {'id': p.pk, 'name': p.name, 'price': str(p.sell_price),
+         'qty': str(p.quantity), 'unit': p.unit.name if p.unit else ''} for p in qs
+    ]})
 
 
 # ── HTMX: компоненти послуги (для попапу підтвердження) ─────────────────────

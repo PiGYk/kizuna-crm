@@ -25,17 +25,16 @@
         <form hx-post="{% url 'billing:add_line' invoice.pk %}"
               hx-target="#lines-section"
               hx-swap="outerHTML"
-              hx-on::after-request="this.reset()">
+              hx-on::after-request="resetSearchSelect('svc')">
           {% csrf_token %}
           <input type="hidden" name="line_type" value="service">
-          <select name="service_id" required
-            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-brand-gold"
-            onchange="loadComponents(this.value)">
-            <option value="">— обрати —</option>
-            {% for s in services %}
-            <option value="{{ s.pk }}" data-price="{{ s.price }}">{{ s.name }} — {{ s.price }} ₴</option>
-            {% endfor %}
-          </select>
+          <input type="hidden" name="service_id" id="svc-id">
+          <div class="relative mb-2" id="svc-wrap">
+            <input type="text" id="svc-input" placeholder="Пошук послуги…" autocomplete="off"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
+              oninput="searchSelect('svc', '/billing/service-search/', this.value, onServicePick); document.getElementById('svc-submit').disabled = true;">
+            <div id="svc-drop" class="absolute z-20 w-full bg-white border border-gray-200 rounded-lg shadow-lg hidden max-h-56 overflow-y-auto text-sm"></div>
+          </div>
           <div class="grid grid-cols-2 gap-2 mb-2">
             <div>
               <label class="text-xs text-gray-500">К-сть</label>
@@ -55,13 +54,12 @@
               </div>
             </div>
           </div>
-          <!-- компоненти послуги -->
           <div id="service-components-preview" class="mb-2 text-xs text-gray-400 hidden">
             <div class="font-medium text-gray-500 mb-1">Склад послуги:</div>
             <div id="components-list"></div>
           </div>
-          <button type="submit"
-            class="w-full bg-brand-gold text-brand-dark py-1.5 rounded-lg text-sm font-medium hover:brightness-95">
+          <button type="submit" id="svc-submit" disabled
+            class="w-full bg-brand-gold text-brand-dark py-1.5 rounded-lg text-sm font-medium hover:brightness-95 disabled:opacity-40 disabled:cursor-not-allowed">
             Додати
           </button>
         </form>
@@ -73,16 +71,16 @@
         <form hx-post="{% url 'billing:add_line' invoice.pk %}"
               hx-target="#lines-section"
               hx-swap="outerHTML"
-              hx-on::after-request="this.reset()">
+              hx-on::after-request="resetSearchSelect('prd')">
           {% csrf_token %}
           <input type="hidden" name="line_type" value="product">
-          <select name="product_id" required
-            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-brand-gold">
-            <option value="">— обрати —</option>
-            {% for p in products %}
-            <option value="{{ p.pk }}">{{ p.name }} ({{ p.quantity }} {{ p.unit }}) — {{ p.sell_price }} ₴</option>
-            {% endfor %}
-          </select>
+          <input type="hidden" name="product_id" id="prd-id">
+          <div class="relative mb-2" id="prd-wrap">
+            <input type="text" id="prd-input" placeholder="Пошук товару…" autocomplete="off"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
+              oninput="searchSelect('prd', '/billing/product-search/', this.value, onProductPick); document.getElementById('prd-submit').disabled = true;">
+            <div id="prd-drop" class="absolute z-20 w-full bg-white border border-gray-200 rounded-lg shadow-lg hidden max-h-56 overflow-y-auto text-sm"></div>
+          </div>
           <div class="grid grid-cols-2 gap-2 mb-2">
             <div>
               <label class="text-xs text-gray-500">К-сть</label>
@@ -102,8 +100,8 @@
               </div>
             </div>
           </div>
-          <button type="submit"
-            class="w-full bg-gray-100 text-gray-700 py-1.5 rounded-lg text-sm font-medium hover:bg-gray-200">
+          <button type="submit" id="prd-submit" disabled
+            class="w-full bg-gray-100 text-gray-700 py-1.5 rounded-lg text-sm font-medium hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed">
             Додати
           </button>
         </form>
@@ -141,23 +139,84 @@
 </div>
 
 <script>
-// Перегляд компонентів послуги
-const componentCache = {};
+// ── Пошук-select ─────────────────────────────────────────────────────────────
+const _searchTimers = {};
+const _componentCache = {};
 
-async function loadComponents(serviceId) {
-  const preview = document.getElementById('service-components-preview');
-  const list = document.getElementById('components-list');
-  if (!serviceId) { preview.classList.add('hidden'); return; }
-
-  if (!componentCache[serviceId]) {
-    const resp = await fetch('/billing/service-components/' + serviceId + '/');
-    componentCache[serviceId] = await resp.text();
-  }
-  list.innerHTML = componentCache[serviceId];
-  preview.classList.remove('hidden');
+function searchSelect(key, url, q, onPick) {
+  clearTimeout(_searchTimers[key]);
+  const drop = document.getElementById(key + '-drop');
+  if (!q) { drop.classList.add('hidden'); return; }
+  _searchTimers[key] = setTimeout(async () => {
+    const res = await fetch(url + '?q=' + encodeURIComponent(q));
+    const data = await res.json();
+    if (!data.results.length) {
+      drop.innerHTML = '<div class="px-3 py-2 text-gray-400">Нічого не знайдено</div>';
+    } else {
+      drop.innerHTML = data.results.map(r => onPick.render(r)).join('');
+    }
+    drop.classList.remove('hidden');
+  }, 220);
 }
 
-// Попап оплати
+function pickItem(key, id, label) {
+  document.getElementById(key + '-id').value = id;
+  document.getElementById(key + '-input').value = label;
+  document.getElementById(key + '-drop').classList.add('hidden');
+  const btn = document.getElementById(key + '-submit');
+  if (btn) btn.disabled = false;
+}
+
+function resetSearchSelect(key) {
+  document.getElementById(key + '-id').value = '';
+  document.getElementById(key + '-input').value = '';
+  document.getElementById(key + '-drop').classList.add('hidden');
+  const btn = document.getElementById(key + '-submit');
+  if (btn) btn.disabled = true;
+  if (key === 'svc') {
+    document.getElementById('service-components-preview').classList.add('hidden');
+  }
+}
+
+// закрити дропдаун при кліку поза
+document.addEventListener('click', e => {
+  ['svc', 'prd'].forEach(key => {
+    const wrap = document.getElementById(key + '-wrap');
+    if (wrap && !wrap.contains(e.target))
+      document.getElementById(key + '-drop').classList.add('hidden');
+  });
+});
+
+// ── Обробники для послуги ────────────────────────────────────────────────────
+const onServicePick = {
+  render: r => `<div class="px-3 py-2 hover:bg-brand-gold/10 cursor-pointer flex justify-between gap-2"
+    onclick="pickService(${r.id}, ${JSON.stringify(r.name)}, ${JSON.stringify(r.price)})">
+    <span>${r.name}</span><span class="text-gray-400 shrink-0">${r.price} ₴</span></div>`
+};
+
+async function pickService(id, name, price) {
+  pickItem('svc', id, name);
+  // завантажити компоненти
+  const preview = document.getElementById('service-components-preview');
+  const list = document.getElementById('components-list');
+  if (!_componentCache[id]) {
+    const resp = await fetch('/billing/service-components/' + id + '/');
+    _componentCache[id] = await resp.text();
+  }
+  list.innerHTML = _componentCache[id];
+  const hasComps = list.textContent.trim().length > 0;
+  preview.classList.toggle('hidden', !hasComps);
+}
+
+// ── Обробники для товару ─────────────────────────────────────────────────────
+const onProductPick = {
+  render: r => `<div class="px-3 py-2 hover:bg-brand-gold/10 cursor-pointer flex justify-between gap-2"
+    onclick="pickItem('prd', ${r.id}, ${JSON.stringify(r.name)})">
+    <span>${r.name}</span>
+    <span class="text-gray-400 shrink-0">${r.qty} ${r.unit} · ${r.price} ₴</span></div>`
+};
+
+// ── Попап оплати ─────────────────────────────────────────────────────────────
 function openPayModal() {
   // Збираємо послуги з компонентами
   const rows = document.querySelectorAll('[data-service-id]');
