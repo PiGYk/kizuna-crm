@@ -176,6 +176,27 @@ def visit_update(request, pk):
 
 
 @login_required
+def visit_pdf(request, pk):
+    from django.http import HttpResponse
+    from django.template.loader import render_to_string
+    visit = get_object_or_404(Visit, pk=pk)
+    try:
+        from weasyprint import HTML
+    except ImportError:
+        return HttpResponse('WeasyPrint не встановлено', status=500)
+    html_string = render_to_string('clients/visit_pdf.html', {
+        'visit': visit,
+        'patient': visit.patient,
+        'request': request,
+    })
+    pdf = HTML(string=html_string, base_url=request.build_absolute_uri('/')).write_pdf()
+    filename = f"visit-{visit.patient.name}-{visit.date:%d%m%Y}.pdf"
+    response = HttpResponse(pdf, content_type='application/pdf')
+    response['Content-Disposition'] = f'filename="{filename}"'
+    return response
+
+
+@login_required
 def vaccine_create(request, patient_pk):
     patient = get_object_or_404(Patient, pk=patient_pk)
     form = VaccineForm(request.POST or None, initial={'doctor': request.user})

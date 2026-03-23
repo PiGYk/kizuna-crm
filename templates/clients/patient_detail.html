@@ -154,6 +154,8 @@
             </form>
             <a href="{% url 'clients:visit_edit' visit.pk %}"
                class="text-xs text-gray-400 hover:text-brand-gold font-medium">Ред.</a>
+            <a href="{% url 'clients:visit_pdf' visit.pk %}" target="_blank"
+               class="text-xs text-gray-400 hover:text-brand-gold font-medium">PDF</a>
           </div>
         </div>
         <div class="ml-4 space-y-2 text-sm">
