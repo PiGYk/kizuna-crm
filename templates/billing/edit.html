@@ -189,32 +189,51 @@ document.addEventListener('click', e => {
 
 // ── Обробники для послуги ────────────────────────────────────────────────────
 const onServicePick = {
-  render: r => `<div class="px-3 py-2 hover:bg-brand-gold/10 cursor-pointer flex justify-between gap-2"
-    onclick="pickService(${r.id}, ${JSON.stringify(r.name)}, ${JSON.stringify(r.price)})">
-    <span>${r.name}</span><span class="text-gray-400 shrink-0">${r.price} ₴</span></div>`
-};
-
-async function pickService(id, name, price) {
-  pickItem('svc', id, name);
-  // завантажити компоненти
-  const preview = document.getElementById('service-components-preview');
-  const list = document.getElementById('components-list');
-  if (!_componentCache[id]) {
-    const resp = await fetch('/billing/service-components/' + id + '/');
-    _componentCache[id] = await resp.text();
+  render: r => {
+    const div = document.createElement('div');
+    div.className = 'px-3 py-2 hover:bg-brand-gold/10 cursor-pointer flex justify-between gap-2';
+    div.dataset.id = r.id;
+    div.dataset.name = r.name;
+    div.dataset.price = r.price;
+    div.dataset.type = 'svc';
+    div.innerHTML = `<span>${r.name}</span><span class="text-gray-400 shrink-0">${r.price} ₴</span>`;
+    return div.outerHTML;
   }
-  list.innerHTML = _componentCache[id];
-  const hasComps = list.textContent.trim().length > 0;
-  preview.classList.toggle('hidden', !hasComps);
-}
+};
 
 // ── Обробники для товару ─────────────────────────────────────────────────────
 const onProductPick = {
-  render: r => `<div class="px-3 py-2 hover:bg-brand-gold/10 cursor-pointer flex justify-between gap-2"
-    onclick="pickItem('prd', ${r.id}, ${JSON.stringify(r.name)})">
-    <span>${r.name}</span>
-    <span class="text-gray-400 shrink-0">${r.qty} ${r.unit} · ${r.price} ₴</span></div>`
+  render: r => {
+    const div = document.createElement('div');
+    div.className = 'px-3 py-2 hover:bg-brand-gold/10 cursor-pointer flex justify-between gap-2';
+    div.dataset.id = r.id;
+    div.dataset.name = r.name;
+    div.dataset.type = 'prd';
+    div.innerHTML = `<span>${r.name}</span><span class="text-gray-400 shrink-0">${r.qty} ${r.unit} · ${r.price} ₴</span>`;
+    return div.outerHTML;
+  }
 };
+
+// ── Делегований клік по дропдауну ────────────────────────────────────────────
+document.addEventListener('mousedown', async e => {
+  const item = e.target.closest('[data-type]');
+  if (!item) return;
+  e.preventDefault();
+  const key = item.dataset.type;
+  const id = item.dataset.id;
+  const name = item.dataset.name;
+  pickItem(key, id, name);
+  if (key === 'svc') {
+    const preview = document.getElementById('service-components-preview');
+    const list = document.getElementById('components-list');
+    if (!_componentCache[id]) {
+      const resp = await fetch('/billing/service-components/' + id + '/');
+      _componentCache[id] = await resp.text();
+    }
+    list.innerHTML = _componentCache[id];
+    preview.classList.toggle('hidden', !list.textContent.trim().length);
+  }
+});
 
 // ── Попап оплати ─────────────────────────────────────────────────────────────
 function openPayModal() {
