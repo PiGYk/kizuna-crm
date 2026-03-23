@@ -42,6 +42,8 @@ class Patient(models.Model):
     breed = models.CharField('Порода', max_length=100, blank=True)
     sex = models.CharField('Стать', max_length=10, choices=Sex.choices, default=Sex.UNKNOWN)
     date_of_birth = models.DateField('Дата народження', null=True, blank=True)
+    age = models.CharField('Вік', max_length=30, blank=True)
+    is_neutered = models.BooleanField('Кастрований/стерилізований', default=False)
     color = models.CharField('Масть/колір', max_length=100, blank=True)
     photo = models.ImageField('Фото', upload_to='patients/', null=True, blank=True)
     assigned_doctor = models.ForeignKey(
@@ -64,6 +66,8 @@ class Patient(models.Model):
         return f"{self.name} ({self.get_species_display()}) — {self.client}"
 
     def age_display(self):
+        if self.age:
+            return self.age
         if not self.date_of_birth:
             return '—'
         from datetime import date

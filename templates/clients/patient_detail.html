@@ -42,6 +42,7 @@
       <dl class="space-y-2 text-sm">
         <div class="flex justify-between"><dt class="text-gray-500">Стать</dt><dd>{{ patient.get_sex_display }}</dd></div>
         <div class="flex justify-between"><dt class="text-gray-500">Вік</dt><dd>{{ patient.age_display }}</dd></div>
+        <div class="flex justify-between"><dt class="text-gray-500">Кастр./стерил.</dt><dd>{% if patient.is_neutered %}Так{% else %}Ні{% endif %}</dd></div>
         {% if patient.color %}<div class="flex justify-between"><dt class="text-gray-500">Масть</dt><dd>{{ patient.color }}</dd></div>{% endif %}
         {% include 'clients/partials/patient_doctor.html' %}
       </dl>

@@ -24,7 +24,7 @@ class ClientForm(forms.ModelForm):
 class PatientForm(forms.ModelForm):
     class Meta:
         model = Patient
-        fields = ('name', 'species', 'breed', 'sex', 'date_of_birth', 'color', 'photo', 'assigned_doctor', 'notes')
+        fields = ('name', 'species', 'breed', 'sex', 'age', 'is_neutered', 'color', 'photo', 'assigned_doctor', 'notes')
         widgets = {
             'date_of_birth': forms.DateInput(attrs={'type': 'date'}),
             'notes': forms.Textarea(attrs={'rows': 3}),
