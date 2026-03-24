@@ -81,6 +81,7 @@ urlpatterns = [
     path('clients/', include('apps.clients.urls')),
     path('inventory/', include('apps.inventory.urls')),
     path('services/', include('apps.services.urls')),
+    path('appointments/', include('apps.appointments.urls')),
     path('billing/', include('apps.billing.urls')),
     path('tg/', include('apps.tg.urls')),
     path('health/', lambda r: HttpResponse('ok')),

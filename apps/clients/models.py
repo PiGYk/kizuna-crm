@@ -106,6 +106,29 @@ class Visit(models.Model):
         return f"{self.patient.name} — {self.date:%d.%m.%Y}"
 
 
+class PatientAnalysis(models.Model):
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='analyses', verbose_name='Пацієнт')
+    title = models.CharField('Назва', max_length=200)
+    image = models.ImageField('Фото', upload_to='analyses/')
+    date = models.DateField('Дата')
+    notes = models.TextField('Нотатки', blank=True)
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        verbose_name='Завантажив',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Аналіз'
+        verbose_name_plural = 'Аналізи'
+        ordering = ('-date',)
+
+    def __str__(self):
+        return f"{self.title} — {self.patient.name} ({self.date:%d.%m.%Y})"
+
+
 class Vaccine(models.Model):
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='vaccines', verbose_name='Пацієнт')
     doctor = models.ForeignKey(
@@ -132,3 +155,25 @@ class Vaccine(models.Model):
     def is_overdue(self):
         from datetime import date
         return self.next_date and self.next_date < date.today()
+
+
+class WeightRecord(models.Model):
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='weights', verbose_name='Пацієнт')
+    date = models.DateField('Дата зважування')
+    weight = models.DecimalField('Вага (кг)', max_digits=6, decimal_places=2)
+    notes = models.CharField('Нотатки', max_length=200, blank=True)
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        verbose_name='Хто зважував',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Вага'
+        verbose_name_plural = 'Записи ваги'
+        ordering = ('date',)
+
+    def __str__(self):
+        return f"{self.patient.name} — {self.weight} кг ({self.date:%d.%m.%Y})"

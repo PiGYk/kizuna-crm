@@ -46,6 +46,13 @@
         <span class="text-gray-400 font-normal">(товари зі складу, які списуються)</span>
       </h2>
 
+      <!-- пошук для фільтрації select-ів товарів у formset -->
+      <div class="mb-2">
+        <input type="text" id="comp-search" placeholder="Фільтр товарів у рядках нижче…"
+          class="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-gold"
+          oninput="filterFormsetSelects(this.value)">
+      </div>
+
       <div id="formset-container" class="space-y-3">
         {% for f in formset %}
         <div class="formset-row flex items-center gap-3 {% if f.instance.pk and f.DELETE.value %}opacity-40{% endif %}">
@@ -76,9 +83,30 @@
       </a>
     </div>
   </form>
+
+  {% if service %}
+  <form method="post" action="{% url 'services:delete' service.pk %}" class="mt-3">
+    {% csrf_token %}
+    <button type="submit" onclick="return confirm('Видалити послугу «{{ service.name }}»?')"
+      class="px-4 py-2.5 border border-red-200 text-red-500 rounded-lg text-sm hover:bg-red-50">
+      Видалити послугу
+    </button>
+  </form>
+  {% endif %}
 </div>
 
 <script>
+// Фільтр товарів у formset-selects
+function filterFormsetSelects(q) {
+  const lower = q.toLowerCase();
+  document.querySelectorAll('.formset-row select').forEach(sel => {
+    Array.from(sel.options).forEach(opt => {
+      if (!opt.value) return; // залишаємо "— Товар —"
+      opt.hidden = lower && !opt.text.toLowerCase().includes(lower);
+    });
+  });
+}
+
 // Динамічне додавання рядків formset
 const container = document.getElementById('formset-container');
 const totalForms = document.getElementById('id_comp-TOTAL_FORMS');

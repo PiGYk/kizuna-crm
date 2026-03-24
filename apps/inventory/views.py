@@ -123,6 +123,7 @@ def stock_adjust(request, pk):
         mv.type = StockMovement.Type.ADJUST
         mv.created_by = request.user
         mv.save()
+        product.refresh_from_db()
         messages.success(request, f'Залишок скориговано до {product.quantity} {product.unit}')
     return redirect('inventory:detail', pk=pk)
 

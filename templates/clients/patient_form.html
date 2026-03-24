@@ -42,9 +42,15 @@
       </div>
       <div class="grid grid-cols-2 gap-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Вік</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Дата народження</label>
+          {{ form.date_of_birth }}
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Вік (текстом)</label>
           {{ form.age }}
         </div>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Масть/колір</label>
           {{ form.color }}

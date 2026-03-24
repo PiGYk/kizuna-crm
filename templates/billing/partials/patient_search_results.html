@@ -1,0 +1,26 @@
+{% if patients %}
+<div class="space-y-1">
+  {% for patient in patients %}
+  <button type="button"
+    onclick="selectPatientDirect({{ patient.pk }}, {{ patient.client.pk }}, '{{ patient.name|escapejs }}', '{{ patient.client|escapejs }}')"
+    class="w-full text-left px-3 py-2.5 rounded-lg border border-gray-200 hover:border-brand-gold hover:bg-brand-gold/5 transition">
+    <div class="flex items-center gap-3">
+      {% if patient.photo %}
+      <img src="{{ patient.photo.url }}" alt="{{ patient.name }}"
+           class="w-10 h-10 rounded-full object-cover flex-shrink-0 border border-gray-200">
+      {% else %}
+      <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 text-gray-400 text-lg">
+        {% if patient.species == 'cat' %}🐱{% elif patient.species == 'dog' %}🐶{% elif patient.species == 'bird' %}🐦{% elif patient.species == 'rabbit' %}🐰{% elif patient.species == 'reptile' %}🦎{% else %}🐾{% endif %}
+      </div>
+      {% endif %}
+      <div class="min-w-0">
+        <div class="font-medium text-brand-dark text-sm">{{ patient.name }} <span class="text-gray-400 font-normal">{{ patient.get_species_display }}{% if patient.breed %}, {{ patient.breed }}{% endif %}</span></div>
+        <div class="text-xs text-gray-400 truncate">{{ patient.client }} · {{ patient.client.phone }}</div>
+      </div>
+    </div>
+  </button>
+  {% endfor %}
+</div>
+{% elif q %}
+<p class="text-sm text-gray-400 mt-2">Нічого не знайдено</p>
+{% endif %}

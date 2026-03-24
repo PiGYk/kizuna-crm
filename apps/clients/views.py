@@ -6,8 +6,8 @@ from django.urls import reverse_lazy, reverse
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.decorators import login_required
 
-from .forms import ClientForm, PatientForm, VisitForm, VaccineForm
-from .models import Client, Patient, Visit, Vaccine
+from .forms import ClientForm, PatientForm, VisitForm, VaccineForm, AnalysisForm, WeightForm
+from .models import Client, Patient, Visit, Vaccine, PatientAnalysis, WeightRecord
 
 
 class PatientListView(LoginRequiredMixin, ListView):
@@ -125,12 +125,17 @@ class PatientDetailView(LoginRequiredMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         from django.contrib.auth import get_user_model
+        from datetime import date
         ctx = super().get_context_data(**kwargs)
         ctx['visits'] = self.object.visits.select_related('doctor').all()
         ctx['vaccines'] = self.object.vaccines.select_related('doctor').all()
         ctx['invoices'] = self.object.invoices.select_related('doctor').filter(status='paid').all()
+        ctx['analyses'] = self.object.analyses.all()
         ctx['visit_form'] = VisitForm(initial={'doctor': self.request.user})
         ctx['vaccine_form'] = VaccineForm(initial={'doctor': self.request.user})
+        ctx['analysis_form'] = AnalysisForm(initial={'date': date.today()})
+        ctx['weight_form'] = WeightForm(initial={'date': date.today()})
+        ctx['weights'] = list(self.object.weights.order_by('date').all())
         ctx['doctors'] = get_user_model().objects.filter(role__in=['admin', 'doctor']).order_by('last_name', 'first_name')
         return ctx
 
@@ -240,6 +245,33 @@ def patient_set_doctor(request, pk):
     })
 
 
+@login_required
+def analysis_create(request, patient_pk):
+    patient = get_object_or_404(Patient, pk=patient_pk)
+    if request.method == 'POST':
+        form = AnalysisForm(request.POST, request.FILES)
+        if form.is_valid():
+            analysis = form.save(commit=False)
+            analysis.patient = patient
+            analysis.uploaded_by = request.user
+            analysis.save()
+            messages.success(request, 'Аналіз додано')
+        else:
+            messages.error(request, 'Помилка при завантаженні')
+    return redirect('clients:patient_detail', pk=patient_pk)
+
+
+@login_required
+def analysis_delete(request, pk):
+    analysis = get_object_or_404(PatientAnalysis, pk=pk)
+    patient_pk = analysis.patient.pk
+    if request.method == 'POST':
+        analysis.image.delete(save=False)
+        analysis.delete()
+        messages.success(request, 'Видалено')
+    return redirect('clients:patient_detail', pk=patient_pk)
+
+
 # HTMX live search — повертає partial з результатами
 @login_required
 def client_search(request):
@@ -253,3 +285,26 @@ def client_search(request):
         ).prefetch_related('patients')[:10]
     mode = request.GET.get('mode', '')
     return render(request, 'clients/partials/search_results.html', {'clients': clients, 'q': q, 'mode': mode})
+
+
+@login_required
+def weight_add(request, patient_pk):
+    patient = get_object_or_404(Patient, pk=patient_pk)
+    if request.method == 'POST':
+        form = WeightForm(request.POST)
+        if form.is_valid():
+            record = form.save(commit=False)
+            record.patient = patient
+            record.recorded_by = request.user
+            record.save()
+            messages.success(request, f'Вагу {record.weight} кг записано')
+    return redirect('clients:patient_detail', pk=patient_pk)
+
+
+@login_required
+def weight_delete(request, pk):
+    record = get_object_or_404(WeightRecord, pk=pk)
+    patient_pk = record.patient.pk
+    if request.method == 'POST':
+        record.delete()
+    return redirect('clients:patient_detail', pk=patient_pk)

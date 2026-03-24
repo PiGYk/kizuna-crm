@@ -1,0 +1,4 @@
+<option value="">— оберіть пацієнта —</option>
+{% for p in patients %}
+<option value="{{ p.pk }}">{{ p.name }} ({{ p.species }}{% if p.breed %}, {{ p.breed }}{% endif %})</option>
+{% endfor %}

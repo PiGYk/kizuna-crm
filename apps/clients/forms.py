@@ -1,5 +1,5 @@
 from django import forms
-from .models import Client, Patient, Visit, Vaccine
+from .models import Client, Patient, Visit, Vaccine, PatientAnalysis, WeightRecord
 
 FIELD_CLASS = (
     'w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm '
@@ -24,7 +24,7 @@ class ClientForm(forms.ModelForm):
 class PatientForm(forms.ModelForm):
     class Meta:
         model = Patient
-        fields = ('name', 'species', 'breed', 'sex', 'age', 'is_neutered', 'color', 'photo', 'assigned_doctor', 'notes')
+        fields = ('name', 'species', 'breed', 'sex', 'date_of_birth', 'age', 'is_neutered', 'color', 'photo', 'assigned_doctor', 'notes')
         widgets = {
             'date_of_birth': forms.DateInput(attrs={'type': 'date'}),
             'notes': forms.Textarea(attrs={'rows': 3}),
@@ -68,3 +68,33 @@ class VaccineForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
             field.widget.attrs.setdefault('class', FIELD_CLASS)
+
+
+class AnalysisForm(forms.ModelForm):
+    class Meta:
+        model = PatientAnalysis
+        fields = ('title', 'image', 'date', 'notes')
+        widgets = {
+            'date': forms.DateInput(attrs={'type': 'date'}),
+            'notes': forms.Textarea(attrs={'rows': 2}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault('class', FIELD_CLASS)
+
+
+class WeightForm(forms.ModelForm):
+    class Meta:
+        model = WeightRecord
+        fields = ('date', 'weight', 'notes')
+        widgets = {
+            'date': forms.DateInput(attrs={'type': 'date'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs.setdefault('class', FIELD_CLASS)
+        self.fields['notes'].required = False

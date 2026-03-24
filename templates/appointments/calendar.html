@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% load appt_tags tz %}
+{% block title %}Розклад — Kizuna CRM{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-4">
+  <h1 class="text-2xl font-bold text-brand-dark">Розклад</h1>
+  <a href="{% url 'appointments:create' %}?date={{ ref }}"
+     class="bg-brand-gold text-brand-dark px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-95">
+    + Записати
+  </a>
+</div>
+
+<!-- Навігація по тижнях -->
+<div class="flex items-center gap-3 mb-4">
+  <a href="?date={{ prev_week }}" class="p-2 rounded-lg border border-gray-300 hover:bg-gray-50">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+  </a>
+  <a href="?date={{ today }}" class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">Сьогодні</a>
+  <a href="?date={{ next_week }}" class="p-2 rounded-lg border border-gray-300 hover:bg-gray-50">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+  </a>
+  <span class="text-sm text-gray-500">
+    {{ days.0|date:"d.m" }} — {{ days.6|date:"d.m.Y" }}
+  </span>
+</div>
+
+<!-- Сітка тижня -->
+<div class="bg-white rounded-xl border border-gray-200 overflow-x-auto">
+  <table class="w-full text-xs border-collapse" style="min-width:700px">
+    <thead>
+      <tr class="border-b border-gray-200">
+        <th class="w-14 px-2 py-2 text-gray-400 font-normal text-right"></th>
+        {% for day in days %}
+        <th class="px-2 py-2 text-center font-medium border-l border-gray-100
+          {% if day == today %}text-brand-gold{% else %}text-gray-600{% endif %}">
+          <div>{{ day|date:"D"|slice:":2" }}</div>
+          <div class="text-lg {% if day == today %}font-bold text-brand-gold{% endif %}">{{ day|date:"d" }}</div>
+        </th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for slot in slots %}
+      <tr class="border-t border-gray-50 hover:bg-gray-50/50">
+        <td class="px-2 py-0 text-right text-gray-400 align-top pt-1" style="height:40px">
+          {% if slot.minute == 0 %}{{ slot|time:"H:i" }}{% endif %}
+        </td>
+        {% for day in days %}
+        <td class="border-l border-gray-100 align-top relative px-1 py-0.5" style="height:40px">
+          {# Записи що починаються в цей слот #}
+          {% for appt in appts_by_day|dict_get:day %}
+            {% with appt_time=appt.starts_at|localtime %}
+            {% if appt_time.hour == slot.hour and appt_time.minute == slot.minute %}
+            <a href="{% url 'appointments:edit' appt.pk %}"
+               class="block rounded px-1.5 py-1 text-xs leading-tight mb-0.5 truncate
+               {% if appt.status == 'completed' %}bg-green-100 text-green-800
+               {% elif appt.status == 'cancelled' or appt.status == 'no_show' %}bg-gray-100 text-gray-400 line-through
+               {% elif appt.status == 'confirmed' %}bg-blue-100 text-blue-800
+               {% else %}bg-brand-gold/20 text-brand-dark{% endif %}"
+               style="min-height:{% widthratio appt.duration 30 40 %}px"
+               title="{{ appt.client }} — {{ appt.patient.name|default:'' }} ({{ appt.duration }} хв)">
+              <div class="font-semibold truncate">{{ appt.client.last_name }} {{ appt.client.first_name|slice:":1" }}.</div>
+              {% if appt.patient %}<div class="truncate opacity-70">{{ appt.patient.name }}</div>{% endif %}
+            </a>
+            {% endif %}
+            {% endwith %}
+          {% endfor %}
+          {# Кнопка "+" при hover #}
+          <a href="{% url 'appointments:create' %}?date={{ day|date:'Y-m-d' }}&time={{ slot|time:'H:i' }}"
+             class="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 hover:bg-brand-gold/10 transition text-brand-gold font-bold text-base rounded">
+            +
+          </a>
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Список на день (мобільна версія / доповнення) -->
+<div class="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+  {% for day in days %}
+    {% with day_appts=appts_by_day|dict_get:day %}
+    {% if day_appts %}
+    <div class="bg-white rounded-xl border {% if day == today %}border-brand-gold{% else %}border-gray-200{% endif %} p-4">
+      <div class="font-semibold text-sm text-brand-dark mb-2">
+        {{ day|date:"l, d.m" }}
+        {% if day == today %}<span class="text-xs text-brand-gold ml-1">сьогодні</span>{% endif %}
+      </div>
+      <div class="space-y-2">
+        {% for appt in day_appts %}
+        <div class="flex items-start gap-2 text-sm">
+          <span class="text-brand-gold font-semibold shrink-0 w-10">{{ appt.starts_at|localtime|date:"H:i" }}</span>
+          <div class="flex-1 min-w-0">
+            <div class="font-medium text-brand-dark truncate">
+              {{ appt.client.last_name }} {{ appt.client.first_name }}
+              {% if appt.patient %} / {{ appt.patient.name }}{% endif %}
+            </div>
+            {% if appt.services.exists %}
+            <div class="text-xs text-gray-400 truncate">
+              {% for s in appt.services.all %}{{ s.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+            </div>
+            {% endif %}
+          </div>
+          <div class="flex items-center gap-1 shrink-0">
+            <span class="text-xs text-gray-400">{{ appt.duration }} хв</span>
+            <a href="{% url 'appointments:edit' appt.pk %}" class="text-gray-400 hover:text-brand-gold p-1">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-1.414.586H9v-2.414a2 2 0 01.586-1.414z"/></svg>
+            </a>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+    {% endwith %}
+  {% endfor %}
+</div>
+
+{% endblock %}

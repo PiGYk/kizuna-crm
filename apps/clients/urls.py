@@ -19,5 +19,9 @@ urlpatterns = [
     path('patients/<int:patient_pk>/vaccines/create/', views.vaccine_create, name='vaccine_create'),
     path('vaccines/<int:pk>/edit/', views.vaccine_update, name='vaccine_edit'),
     path('patients/<int:pk>/set-doctor/', views.patient_set_doctor, name='patient_set_doctor'),
+    path('patients/<int:patient_pk>/analyses/create/', views.analysis_create, name='analysis_create'),
+    path('analyses/<int:pk>/delete/', views.analysis_delete, name='analysis_delete'),
     path('search/', views.client_search, name='search'),
+    path('patients/<int:patient_pk>/weights/add/', views.weight_add, name='weight_add'),
+    path('weights/<int:pk>/delete/', views.weight_delete, name='weight_delete'),
 ]

@@ -56,3 +56,13 @@ def service_update(request, pk):
         messages.success(request, 'Збережено')
         return redirect('services:detail', pk=service.pk)
     return render(request, 'services/form.html', {'form': form, 'formset': formset, 'service': service})
+
+
+@login_required
+def service_delete(request, pk):
+    service = get_object_or_404(Service, pk=pk)
+    if request.method == 'POST':
+        service.delete()
+        messages.success(request, 'Послугу видалено')
+        return redirect('services:list')
+    return redirect('services:edit', pk=pk)

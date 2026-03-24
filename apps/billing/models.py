@@ -1,3 +1,4 @@
+import json
 from django.db import models
 from django.conf import settings
 from decimal import Decimal
@@ -12,6 +13,10 @@ class Invoice(models.Model):
     class DiscountType(models.TextChoices):
         PERCENT = 'percent', '%'
         AMOUNT = 'amount', '₴'
+
+    class PaymentMethod(models.TextChoices):
+        CASH = 'cash', 'Готівка'
+        CARD = 'card', 'Картка'
 
     client = models.ForeignKey(
         'clients.Client', on_delete=models.PROTECT, related_name='invoices',
@@ -37,6 +42,10 @@ class Invoice(models.Model):
     )
     total = models.DecimalField(
         max_digits=12, decimal_places=2, default=0, verbose_name='Сума'
+    )
+    payment_method = models.CharField(
+        max_length=10, choices=PaymentMethod.choices, null=True, blank=True,
+        verbose_name='Спосіб оплати'
     )
     notes = models.TextField(blank=True, verbose_name='Нотатки')
     created_by = models.ForeignKey(
@@ -102,6 +111,21 @@ class InvoiceLine(models.Model):
     def save(self, *args, **kwargs):
         self.total = self.calc_total()
         super().save(*args, **kwargs)
+
+    @property
+    def components_json(self):
+        if self.line_type != 'service' or not self.service_id:
+            return '[]'
+        comps = self.service.components.select_related('product__unit').all()
+        return json.dumps([
+            {
+                'id': c.pk,
+                'name': c.product.name,
+                'qty': str(c.quantity),
+                'unit': c.product.unit.short if c.product.unit else '',
+            }
+            for c in comps
+        ])
 
     class Meta:
         verbose_name = 'Рядок рахунку'

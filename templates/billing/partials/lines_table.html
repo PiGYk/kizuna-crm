@@ -7,31 +7,48 @@
   {% if lines %}
   <div class="divide-y divide-gray-50">
     {% for line in lines %}
-    <div class="flex items-center gap-3 px-4 py-3 text-sm"
+    <div class="px-4 py-2.5 text-sm"
+      data-line-id="{{ line.pk }}"
       data-service-id="{{ line.service_id|default:'' }}"
       data-service-name="{{ line.name|escapejs }}"
-      data-has-components="{% if line.line_type == 'service' and line.service and line.service.components.exists %}true{% else %}false{% endif %}">
-      <div class="flex-1 min-w-0">
-        <div class="font-medium text-brand-dark truncate">{{ line.name }}</div>
-        <div class="text-xs text-gray-400">
-          {{ line.get_line_type_display }} ·
-          {{ line.quantity|floatformat:"-3" }} × {{ line.unit_price }} ₴
-          {% if line.discount %}
-            · знижка {{ line.discount }}{% if line.discount_type == 'percent' %}%{% else %} ₴{% endif %}
-          {% endif %}
+      data-has-components="{% if line.line_type == 'service' and line.service and line.service.components.exists %}true{% else %}false{% endif %}"
+      data-components="{{ line.components_json }}">
+      <div class="flex items-center gap-2">
+        <div class="flex-1 min-w-0">
+          <div class="font-medium text-brand-dark truncate">{{ line.name }}</div>
+          <div class="text-xs text-gray-400">{{ line.get_line_type_display }}</div>
         </div>
+        <div class="font-semibold text-brand-dark shrink-0">{{ line.total }} ₴</div>
+        <form hx-post="{% url 'billing:remove_line' invoice.pk line.pk %}"
+              hx-target="#lines-section"
+              hx-swap="outerHTML"
+              hx-confirm="Видалити рядок?">
+          {% csrf_token %}
+          <button type="submit" class="text-gray-300 hover:text-red-400 transition-colors p-1">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </form>
       </div>
-      <div class="font-semibold text-brand-dark shrink-0">{{ line.total }} ₴</div>
-      <form hx-post="{% url 'billing:remove_line' invoice.pk line.pk %}"
+      <!-- інлайн-редагування ціни і кількості -->
+      <form hx-post="{% url 'billing:update_line' invoice.pk line.pk %}"
             hx-target="#lines-section"
             hx-swap="outerHTML"
-            hx-confirm="Видалити рядок?">
+            hx-trigger="change"
+            class="flex items-center gap-2 mt-1.5">
         {% csrf_token %}
-        <button type="submit" class="text-gray-300 hover:text-red-400 transition-colors p-1">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-          </svg>
-        </button>
+        <label class="text-xs text-gray-400 shrink-0">К-сть:</label>
+        <input type="number" name="quantity" value="{{ line.quantity|floatformat:'-3' }}"
+          min="0.001" step="0.001"
+          class="w-20 border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-gold">
+        <label class="text-xs text-gray-400 shrink-0">Ціна ₴:</label>
+        <input type="number" name="unit_price" value="{{ line.unit_price }}"
+          min="0" step="0.01"
+          class="w-24 border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-gold">
+        {% if line.discount %}
+        <span class="text-xs text-gray-400">знижка {{ line.discount }}{% if line.discount_type == 'percent' %}%{% else %} ₴{% endif %}</span>
+        {% endif %}
       </form>
     </div>
     {% endfor %}
@@ -48,7 +65,7 @@
         <input type="number" name="discount" value="{{ invoice.discount }}" min="0" step="0.01"
           class="w-20 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-brand-gold">
         <select name="discount_type"
-          class="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-brand-gold">
+          class="w-16 shrink-0 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-brand-gold">
           <option value="percent" {% if invoice.discount_type == 'percent' %}selected{% endif %}>%</option>
           <option value="amount" {% if invoice.discount_type == 'amount' %}selected{% endif %}>₴</option>
         </select>

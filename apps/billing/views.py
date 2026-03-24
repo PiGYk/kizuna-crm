@@ -6,6 +6,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from django.db.models import Q
 from apps.clients.models import Client, Patient
 from apps.inventory.models import Product, StockMovement
 from apps.services.models import Service
@@ -18,7 +19,13 @@ from .models import Invoice, InvoiceLine
 @login_required
 def invoice_list(request):
     invoices = Invoice.objects.select_related('client', 'patient', 'doctor').all()
-    return render(request, 'billing/list.html', {'invoices': invoices})
+    payment = request.GET.get('payment', '')
+    if payment in Invoice.PaymentMethod.values:
+        invoices = invoices.filter(payment_method=payment)
+    return render(request, 'billing/list.html', {
+        'invoices': invoices,
+        'payment_filter': payment,
+    })
 
 
 # ── новий рахунок: вибір клієнта ────────────────────────────────────────────
@@ -49,14 +56,25 @@ def client_search(request):
     clients = []
     if q:
         clients = Client.objects.filter(
-            last_name__icontains=q
-        ) | Client.objects.filter(
-            first_name__icontains=q
-        ) | Client.objects.filter(
-            phone__icontains=q
-        )
-        clients = clients[:10]
+            Q(last_name__icontains=q) |
+            Q(first_name__icontains=q) |
+            Q(phone__icontains=q)
+        )[:10]
     return render(request, 'billing/partials/client_results.html', {'clients': clients, 'q': q})
+
+
+# ── HTMX: пошук пацієнтів по кличці ────────────────────────────────────────
+
+@login_required
+def patient_search(request):
+    q = request.GET.get('q', '').strip()
+    patients = []
+    if q:
+        patients = Patient.objects.select_related('client').filter(
+            Q(name__icontains=q) |
+            Q(breed__icontains=q)
+        )[:10]
+    return render(request, 'billing/partials/patient_search_results.html', {'patients': patients, 'q': q})
 
 
 # ── HTMX: пацієнти клієнта ──────────────────────────────────────────────────
@@ -236,7 +254,7 @@ def pay_invoice(request, pk):
     writeoff_ids = set(request.POST.getlist('writeoff_service'))
 
     for line in invoice.lines.select_related('service', 'product').all():
-        if line.line_type == 'product' and not line.stock_written_off:
+        if line.line_type == 'product' and line.product and not line.stock_written_off:
             # автоматично списуємо товари
             StockMovement.objects.create(
                 product=line.product,
@@ -252,7 +270,12 @@ def pay_invoice(request, pk):
         elif line.line_type == 'service' and str(line.service_id) in writeoff_ids and not line.stock_written_off:
             # списуємо компоненти послуги
             for comp in line.service.components.select_related('product').all():
-                qty_to_write = comp.quantity * line.quantity
+                custom_key = f'comp_qty_{line.pk}_{comp.pk}'
+                custom_val = request.POST.get(custom_key)
+                try:
+                    qty_to_write = Decimal(custom_val) if custom_val else comp.quantity * line.quantity
+                except Exception:
+                    qty_to_write = comp.quantity * line.quantity
                 StockMovement.objects.create(
                     product=comp.product,
                     type=StockMovement.Type.OUT,
@@ -264,8 +287,12 @@ def pay_invoice(request, pk):
             line.stock_written_off = True
             line.save(update_fields=['stock_written_off'])
 
+    payment_method = request.POST.get('payment_method', Invoice.PaymentMethod.CASH)
+    if payment_method not in Invoice.PaymentMethod.values:
+        payment_method = Invoice.PaymentMethod.CASH
     invoice.status = Invoice.Status.PAID
-    invoice.save(update_fields=['status'])
+    invoice.payment_method = payment_method
+    invoice.save(update_fields=['status', 'payment_method'])
 
     return redirect('billing:detail', pk=pk)
 
