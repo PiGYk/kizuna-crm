@@ -10,7 +10,7 @@ FIELD_CLASS = (
 class ProductForm(forms.ModelForm):
     class Meta:
         model = Product
-        fields = ('name', 'category', 'unit', 'buy_price', 'sell_price', 'min_quantity', 'notes', 'is_active')
+        fields = ('name', 'sku', 'category', 'unit', 'buy_price', 'sell_price', 'min_quantity', 'notes', 'is_active')
         widgets = {
             'notes': forms.Textarea(attrs={'rows': 2}),
         }

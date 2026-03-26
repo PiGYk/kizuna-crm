@@ -148,76 +148,217 @@ def stock_adjust(request, pk):
     return redirect('inventory:detail', pk=pk)
 
 
-@login_required
-def import_products(request):
-    if request.method == 'POST':
-        form = ImportForm(request.POST, request.FILES)
-        if form.is_valid():
-            f = request.FILES['file']
-            name = f.name.lower()
-            rows, errors = [], []
-
-            if name.endswith('.csv'):
-                text = f.read().decode('utf-8-sig')
-                reader = csv.DictReader(io.StringIO(text))
-                rows = list(reader)
-            elif name.endswith('.xlsx'):
-                import openpyxl
-                wb = openpyxl.load_workbook(f, read_only=True, data_only=True)
-                ws = wb.active
-                headers = [str(c.value).strip() if c.value else '' for c in next(ws.iter_rows(min_row=1, max_row=1))]
-                for row in ws.iter_rows(min_row=2, values_only=True):
-                    rows.append(dict(zip(headers, row)))
-
-            # очікувані колонки: назва, одиниця, вхідна_ціна, вихідна_ціна, залишок
-            created, updated = 0, 0
-            for i, row in enumerate(rows, start=2):
-                try:
-                    name_val = str(row.get('назва') or row.get('name') or '').strip()
-                    if not name_val:
-                        continue
-                    unit_short = str(row.get('одиниця') or row.get('unit') or 'шт').strip()
-                    unit, _ = Unit.objects.get_or_create(
-                        short__iexact=unit_short,
-                        defaults={'name': unit_short, 'short': unit_short}
-                    )
-                    buy = float(row.get('вхідна_ціна') or row.get('buy_price') or 0)
-                    sell = float(row.get('вихідна_ціна') or row.get('sell_price') or 0)
-                    qty = float(row.get('залишок') or row.get('quantity') or 0)
-
-                    cat_name = str(row.get('категорія') or row.get('category') or '').strip()
-                    category = None
-                    if cat_name:
-                        category, _ = Category.objects.get_or_create(name=cat_name)
-
-                    product, is_new = Product.objects.get_or_create(
-                        name=name_val,
-                        defaults={'unit': unit, 'buy_price': buy, 'sell_price': sell,
-                                  'quantity': qty, 'category': category}
-                    )
-                    if not is_new:
-                        product.buy_price = buy
-                        product.sell_price = sell
-                        product.unit = unit
-                        if category:
-                            product.category = category
-                        product.save(update_fields=['buy_price', 'sell_price', 'unit', 'category'])
-                        updated += 1
-                    else:
-                        created += 1
-                except Exception as e:
-                    errors.append(f'Рядок {i}: {e}')
-
-            msg = f'Імпортовано: {created} нових, {updated} оновлено.'
-            if errors:
-                msg += f' Помилки: {"; ".join(errors[:3])}'
-                messages.warning(request, msg)
-            else:
-                messages.success(request, msg)
-            return redirect('inventory:list')
+def _parse_file(f):
+    """Парсить CSV/XLSX файл, повертає (headers, rows)."""
+    name = f.name.lower()
+    if name.endswith('.csv'):
+        text = f.read().decode('utf-8-sig')
+        reader = csv.DictReader(io.StringIO(text))
+        rows = list(reader)
+        headers = reader.fieldnames or []
+    elif name.endswith(('.xlsx', '.xls')):
+        import openpyxl
+        f.seek(0)
+        wb = openpyxl.load_workbook(f, read_only=True, data_only=True)
+        ws = wb.active
+        headers = [str(c.value).strip() if c.value else f'col_{i}' for i, c in enumerate(next(ws.iter_rows(min_row=1, max_row=1)))]
+        rows = []
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            rows.append(dict(zip(headers, row)))
     else:
-        form = ImportForm()
-    return render(request, 'inventory/import.html', {'form': form})
+        headers, rows = [], []
+    return headers, rows
+
+
+# Автоматичний маппінг колонок файлу → полів системи
+_AUTO_MAP = {
+    'name': ['назва', 'name', 'наименование', 'найменування', 'товар', 'product', 'назва товару'],
+    'sku': ['sku', 'артикул', 'код', 'code', 'article', 'арт', 'арт.'],
+    'category': ['категорія', 'category', 'группа', 'група', 'тип'],
+    'unit': ['одиниця', 'unit', 'од.', 'од', 'одиниця виміру', 'единица'],
+    'buy_price': ['вхідна_ціна', 'вхідна ціна', 'buy_price', 'закупка', 'вхідна', 'ціна закупки', 'цена закупки', 'purchase_price'],
+    'sell_price': ['вихідна_ціна', 'вихідна ціна', 'sell_price', 'продаж', 'вихідна', 'ціна продажу', 'цена продажи', 'price', 'ціна'],
+    'quantity': ['залишок', 'quantity', 'кількість', 'к-ть', 'qty', 'количество', 'кіл-ть', 'stock'],
+    'min_quantity': ['мін_залишок', 'мін. залишок', 'min_quantity', 'мінімум', 'min_stock'],
+    'notes': ['нотатки', 'notes', 'примітки', 'коментар', 'comment'],
+}
+
+IMPORT_FIELDS = [
+    ('name', 'Назва *'),
+    ('sku', 'Артикул (SKU)'),
+    ('category', 'Категорія'),
+    ('unit', 'Одиниця'),
+    ('buy_price', 'Вхідна ціна'),
+    ('sell_price', 'Вихідна ціна'),
+    ('quantity', 'Залишок'),
+    ('min_quantity', 'Мін. залишок'),
+    ('notes', 'Нотатки'),
+]
+
+
+def _auto_match(file_headers):
+    """Повертає dict: field_key → matched file header або ''."""
+    mapping = {}
+    used = set()
+    for field_key, aliases in _AUTO_MAP.items():
+        for h in file_headers:
+            h_lower = h.strip().lower()
+            if h_lower in aliases and h not in used:
+                mapping[field_key] = h
+                used.add(h)
+                break
+    return mapping
+
+
+@login_required
+def import_upload(request):
+    """Крок 1: завантаження файлу, парсинг, показ маппінгу."""
+    if request.method == 'POST' and request.FILES.get('file'):
+        f = request.FILES['file']
+        headers, rows = _parse_file(f)
+        if not headers:
+            messages.error(request, 'Не вдалося прочитати файл. Підтримуються CSV, XLSX.')
+            return redirect('inventory:import')
+
+        auto_map = _auto_match(headers)
+
+        # зберігаємо файл у сесії (як рядки) для другого кроку
+        request.session['import_headers'] = headers
+        request.session['import_rows'] = rows
+        request.session['import_filename'] = f.name
+
+        # Для preview — конвертуємо dict-и в списки значень по headers
+        preview = []
+        for row in rows[:5]:
+            preview.append([row.get(h, '') for h in headers])
+
+        return render(request, 'inventory/import_mapping.html', {
+            'headers': headers,
+            'fields': IMPORT_FIELDS,
+            'auto_map': auto_map,
+            'preview': preview,
+            'total_rows': len(rows),
+            'filename': f.name,
+        })
+
+    return render(request, 'inventory/import.html')
+
+
+@login_required
+def import_execute(request):
+    """Крок 2: виконання імпорту з маппінгом від юзера."""
+    if request.method != 'POST':
+        return redirect('inventory:import')
+
+    rows = request.session.get('import_rows', [])
+    if not rows:
+        messages.error(request, 'Немає даних для імпорту. Завантажте файл ще раз.')
+        return redirect('inventory:import')
+
+    # Читаємо маппінг: field_key → file column header
+    mapping = {}
+    for field_key, _ in IMPORT_FIELDS:
+        col = request.POST.get(f'map_{field_key}', '').strip()
+        if col and col != '__skip__':
+            mapping[field_key] = col
+
+    if 'name' not in mapping:
+        messages.error(request, 'Поле "Назва" обов\'язкове для маппінгу.')
+        return redirect('inventory:import')
+
+    def _get(row, key):
+        col = mapping.get(key)
+        if not col:
+            return ''
+        val = row.get(col)
+        if val is None:
+            return ''
+        return str(val).strip()
+
+    created, updated, errors = 0, 0, []
+    for i, row in enumerate(rows, start=2):
+        try:
+            name_val = _get(row, 'name')
+            if not name_val:
+                continue
+
+            sku_val = _get(row, 'sku')
+
+            # Пошук існуючого товару: спочатку по SKU, потім по назві
+            product = None
+            if sku_val:
+                product = Product.objects.filter(sku__iexact=sku_val).first()
+            if not product:
+                product = Product.objects.filter(name__iexact=name_val).first()
+
+            # Одиниця виміру
+            unit_short = _get(row, 'unit') or 'шт'
+            unit, _ = Unit.objects.get_or_create(
+                short__iexact=unit_short,
+                defaults={'name': unit_short, 'short': unit_short}
+            )
+
+            # Категорія
+            cat_name = _get(row, 'category')
+            category = None
+            if cat_name:
+                category, _ = Category.objects.get_or_create(name=cat_name)
+
+            # Числа
+            buy = float(_get(row, 'buy_price') or 0)
+            sell = float(_get(row, 'sell_price') or 0)
+            qty = float(_get(row, 'quantity') or 0)
+            min_qty = float(_get(row, 'min_quantity') or 0)
+            notes_val = _get(row, 'notes')
+
+            if product:
+                # Оновлюємо існуючий
+                product.name = name_val
+                if sku_val and not product.sku:
+                    product.sku = sku_val
+                elif sku_val:
+                    product.sku = sku_val
+                product.unit = unit
+                if category:
+                    product.category = category
+                if buy:
+                    product.buy_price = buy
+                if sell:
+                    product.sell_price = sell
+                if min_qty:
+                    product.min_quantity = min_qty
+                if notes_val:
+                    product.notes = notes_val
+                product.save()
+                updated += 1
+            else:
+                # Створюємо новий
+                Product.objects.create(
+                    name=name_val,
+                    sku=sku_val,
+                    unit=unit,
+                    category=category,
+                    buy_price=buy,
+                    sell_price=sell,
+                    quantity=qty,
+                    min_quantity=min_qty,
+                    notes=notes_val,
+                )
+                created += 1
+        except Exception as e:
+            errors.append(f'Рядок {i}: {e}')
+
+    # Чистимо сесію
+    for key in ('import_headers', 'import_rows', 'import_filename'):
+        request.session.pop(key, None)
+
+    msg = f'Імпорт завершено: {created} створено, {updated} оновлено.'
+    if errors:
+        msg += f' Помилки ({len(errors)}): {"; ".join(errors[:5])}'
+        messages.warning(request, msg)
+    else:
+        messages.success(request, msg)
+    return redirect('inventory:list')
 
 
 @login_required
@@ -242,8 +383,8 @@ def export_template(request):
     response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
     response['Content-Disposition'] = 'attachment; filename="import_template.csv"'
     writer = csv.writer(response)
-    writer.writerow(['назва', 'категорія', 'одиниця', 'вхідна_ціна', 'вихідна_ціна', 'залишок'])
-    writer.writerow(['Приклад препарату', 'Вакцини', 'мл', '50.00', '120.00', '100'])
+    writer.writerow(['назва', 'артикул', 'категорія', 'одиниця', 'вхідна_ціна', 'вихідна_ціна', 'залишок'])
+    writer.writerow(['Приклад препарату', 'SKU001', 'Вакцини', 'мл', '50.00', '120.00', '100'])
     return response
 
 
@@ -326,6 +467,7 @@ def export_inventory(request):
     cols_param = request.GET.getlist('cols')
     all_columns = [
         ('name', 'Назва', lambda p: p.name),
+        ('sku', 'Артикул (SKU)', lambda p: p.sku),
         ('category', 'Категорія', lambda p: p.category.name if p.category else ''),
         ('unit', 'Одиниця', lambda p: p.unit.short if p.unit else ''),
         ('quantity', 'Залишок', lambda p: float(p.quantity)),

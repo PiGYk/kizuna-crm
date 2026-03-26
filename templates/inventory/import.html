@@ -1,9 +1,8 @@
 {% extends 'base.html' %}
-
 {% block title %}Імпорт товарів — Kizuna CRM{% endblock %}
 
 {% block content %}
-<div class="max-w-lg">
+<div class="max-w-lg mx-auto">
   <div class="flex items-center gap-3 mb-6">
     <a href="{% url 'inventory:list' %}" class="text-gray-400 hover:text-gray-600">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
@@ -11,15 +10,15 @@
     <h1 class="text-2xl font-bold text-brand-dark">Імпорт товарів</h1>
   </div>
 
-  <!-- Info -->
   <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 text-sm text-amber-800">
-    <p class="font-medium mb-2">Формат файлу (CSV або .xlsx):</p>
-    <p class="font-mono text-xs bg-white rounded px-2 py-1 border border-amber-200">
-      назва | одиниця | вхідна_ціна | вихідна_ціна | залишок
-    </p>
-    <p class="mt-2 text-xs">Якщо товар вже існує — ціни оновляться. Залишок встановлюється тільки для нових товарів.</p>
-    <a href="{% url 'inventory:template' %}"
-       class="mt-2 inline-block text-amber-700 underline text-xs font-medium">
+    <p class="font-medium mb-2">Підтримувані формати:</p>
+    <ul class="list-disc ml-4 space-y-1 text-xs">
+      <li><strong>CSV</strong> — з роздільником кома або крапка з комою</li>
+      <li><strong>XLSX</strong> — Excel файл (перший лист)</li>
+    </ul>
+    <p class="mt-2 text-xs">Перший рядок — заголовки колонок. На наступному кроці ви зможете обрати, яка колонка відповідає якому полю.</p>
+    <p class="mt-1 text-xs">Товари з однаковою назвою або артикулом (SKU) будуть оновлені, а не створені заново.</p>
+    <a href="{% url 'inventory:template' %}" class="mt-2 inline-block text-amber-700 underline text-xs font-medium">
       Завантажити шаблон CSV
     </a>
   </div>
@@ -28,16 +27,14 @@
     <form method="post" enctype="multipart/form-data" class="space-y-4">
       {% csrf_token %}
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Файл *</label>
-        {{ form.file }}
-        {% if form.file.errors %}
-          <p class="text-red-500 text-xs mt-1">{{ form.file.errors|join:", " }}</p>
-        {% endif %}
+        <label class="block text-sm font-medium text-gray-700 mb-2">Файл (CSV або XLSX)</label>
+        <input type="file" name="file" accept=".csv,.xlsx,.xls" required
+          class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
       </div>
       <div class="flex gap-3 pt-2">
         <button type="submit"
           class="bg-brand-gold text-brand-dark px-6 py-2.5 rounded-lg text-sm font-semibold hover:brightness-95">
-          Імпортувати
+          Далі — налаштувати поля
         </button>
         <a href="{% url 'inventory:list' %}"
           class="px-6 py-2.5 rounded-lg text-sm font-medium text-gray-700 border border-gray-300 hover:bg-gray-50">

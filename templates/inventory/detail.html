@@ -9,6 +9,30 @@
   </a>
   <h1 class="text-2xl font-bold text-brand-dark flex-1">{{ product.name }}</h1>
   <a href="{% url 'inventory:edit' product.pk %}" class="text-sm text-brand-gold hover:text-brand-dark font-medium">Редагувати</a>
+  <button onclick="document.getElementById('delete-modal').classList.remove('hidden')"
+    class="text-sm text-red-400 hover:text-red-600 font-medium">Видалити</button>
+</div>
+
+<!-- Модалка підтвердження видалення -->
+<div id="delete-modal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl p-6 max-w-sm w-full shadow-xl">
+    <h2 class="text-lg font-bold text-brand-dark mb-2">Видалити товар?</h2>
+    <p class="text-sm text-gray-600 mb-1">«{{ product.name }}» буде видалено назавжди разом з усією історією рухів.</p>
+    <p class="text-xs text-gray-400 mb-5">Рахунки не постраждають — назва товару в них збережеться.</p>
+    <div class="flex gap-3">
+      <form method="post" action="{% url 'inventory:delete' product.pk %}" class="flex-1">
+        {% csrf_token %}
+        <button type="submit"
+          class="w-full bg-red-500 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-red-600">
+          Видалити
+        </button>
+      </form>
+      <button type="button" onclick="document.getElementById('delete-modal').classList.add('hidden')"
+        class="flex-1 border border-gray-300 text-gray-700 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50">
+        Скасувати
+      </button>
+    </div>
+  </div>
 </div>
 
 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -17,6 +41,12 @@
   <div class="space-y-4">
     <div class="bg-white rounded-xl border border-gray-200 p-5">
       <dl class="space-y-3 text-sm">
+        {% if product.sku %}
+        <div class="flex justify-between">
+          <dt class="text-gray-500">Артикул (SKU)</dt>
+          <dd class="font-mono text-xs bg-gray-100 px-2 py-0.5 rounded">{{ product.sku }}</dd>
+        </div>
+        {% endif %}
         <div class="flex justify-between">
           <dt class="text-gray-500">Залишок</dt>
           <dd class="font-bold text-lg {% if product.is_out_of_stock %}text-red-600{% elif product.is_low_stock %}text-amber-600{% else %}text-brand-dark{% endif %}">

@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+{% block title %}Маппінг полів — Kizuna CRM{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+  <div class="flex items-center gap-3 mb-6">
+    <a href="{% url 'inventory:import' %}" class="text-gray-400 hover:text-gray-600">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+    </a>
+    <h1 class="text-2xl font-bold text-brand-dark">Маппінг полів</h1>
+  </div>
+
+  <div class="bg-white rounded-xl border border-gray-200 p-4 mb-4 flex items-center justify-between">
+    <div>
+      <span class="text-sm text-gray-500">Файл:</span>
+      <span class="text-sm font-medium ml-1">{{ filename }}</span>
+    </div>
+    <div>
+      <span class="text-sm text-gray-500">Рядків:</span>
+      <span class="text-sm font-medium ml-1">{{ total_rows }}</span>
+    </div>
+  </div>
+
+  <form method="post" action="{% url 'inventory:import_execute' %}">
+    {% csrf_token %}
+
+    <!-- Маппінг -->
+    <div class="bg-white rounded-xl border border-gray-200 p-6 mb-4">
+      <h2 class="text-sm font-semibold text-gray-700 mb-4">Вкажіть відповідність полів</h2>
+      <p class="text-xs text-gray-400 mb-4">Автоматично знайдені відповідності вже обрані. Якщо не вгадало — оберіть вручну.</p>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {% for key, label in fields %}
+        <div class="flex items-center gap-3">
+          <label class="text-sm text-gray-700 w-32 shrink-0 {% if key == 'name' %}font-semibold{% endif %}">{{ label }}</label>
+          <select name="map_{{ key }}"
+            class="flex-1 rounded-lg border-gray-300 text-sm px-3 py-2 focus:ring-brand-gold focus:border-brand-gold
+            {% if key in auto_map %}border-green-300 bg-green-50{% endif %}">
+            <option value="__skip__">— пропустити —</option>
+            {% for h in headers %}
+            <option value="{{ h }}" {% if auto_map|default_if_none:"" %}{% for ak, av in auto_map.items %}{% if ak == key and av == h %}selected{% endif %}{% endfor %}{% endif %}>
+              {{ h }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Попередній перегляд -->
+    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-4">
+      <div class="px-4 py-3 border-b border-gray-100">
+        <h2 class="text-sm font-semibold text-gray-700">Попередній перегляд (перші {{ preview|length }} рядків)</h2>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs">
+          <thead class="bg-gray-50 text-gray-500">
+            <tr>
+              <th class="px-3 py-2 text-left">#</th>
+              {% for h in headers %}
+              <th class="px-3 py-2 text-left whitespace-nowrap">{{ h }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-50">
+            {% for row in preview %}
+            <tr class="hover:bg-gray-50">
+              <td class="px-3 py-2 text-gray-400">{{ forloop.counter }}</td>
+              {% for val in row %}
+              <td class="px-3 py-2 max-w-48 truncate">{{ val|default_if_none:"" }}</td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Кнопки -->
+    <div class="flex gap-3">
+      <button type="submit"
+        class="bg-brand-gold text-brand-dark px-6 py-2.5 rounded-lg text-sm font-semibold hover:brightness-95">
+        Імпортувати {{ total_rows }} товарів
+      </button>
+      <a href="{% url 'inventory:import' %}"
+        class="px-6 py-2.5 rounded-lg text-sm font-medium text-gray-700 border border-gray-300 hover:bg-gray-50">
+        Назад
+      </a>
+    </div>
+  </form>
+</div>
+{% endblock %}

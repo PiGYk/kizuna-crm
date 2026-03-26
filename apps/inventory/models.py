@@ -30,6 +30,7 @@ class Unit(models.Model):
 
 class Product(models.Model):
     name = models.CharField('Назва', max_length=200)
+    sku = models.CharField('Артикул (SKU)', max_length=100, blank=True, db_index=True)
     category = models.ForeignKey(
         Category, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='products', verbose_name='Категорія'
