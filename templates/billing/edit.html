@@ -3,7 +3,7 @@
 {% block title %}Чек #{{ invoice.pk }} — Kizuna CRM{% endblock %}
 
 {% block content %}
-<div class="max-w-3xl">
+<div class="max-w-5xl">
   <div class="flex items-center gap-3 mb-6">
     <a href="{% url 'billing:list' %}" class="text-gray-400 hover:text-gray-600">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
@@ -37,7 +37,7 @@
           </div>
           <div class="mb-2">
             <label class="text-xs text-gray-500">К-сть</label>
-            <input type="number" name="quantity" value="1" min="0.001" step="0.001" required
+            <input type="number" name="quantity" value="1" min="0.01" step="1" required
               class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
           </div>
           <div class="mb-2">
@@ -81,7 +81,7 @@
           </div>
           <div class="mb-2">
             <label class="text-xs text-gray-500">К-сть</label>
-            <input type="number" name="quantity" value="1" min="0.001" step="0.001" required
+            <input type="number" name="quantity" value="1" min="0.01" step="1" required
               class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
           </div>
           <div class="mb-2">
@@ -113,7 +113,7 @@
 
 <!-- Попап підтвердження оплати -->
 <div id="pay-modal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4">
-  <div class="bg-white rounded-xl p-6 max-w-md w-full shadow-xl">
+  <div class="bg-white rounded-xl p-6 max-w-lg w-full shadow-xl max-h-[90vh] overflow-y-auto">
     <h2 class="text-lg font-bold text-brand-dark mb-4">Підтвердження оплати</h2>
     <p class="text-sm text-gray-600 mb-4">Оберіть, для яких послуг списати товари зі складу:</p>
     <form method="post" action="{% url 'billing:pay' invoice.pk %}" id="pay-form">
@@ -127,12 +127,12 @@
           <button type="button" id="btn-cash"
             onclick="selectPayMethod('cash')"
             class="flex-1 py-2 rounded-lg text-sm font-medium border-2 border-brand-gold bg-brand-gold/10 text-brand-dark">
-            💵 Готівка
+            Готівка
           </button>
           <button type="button" id="btn-card"
             onclick="selectPayMethod('card')"
             class="flex-1 py-2 rounded-lg text-sm font-medium border-2 border-gray-200 text-gray-500 hover:border-gray-300">
-            💳 Картка
+            Картка
           </button>
         </div>
       </div>
@@ -208,7 +208,7 @@ const onServicePick = {
     div.dataset.name = r.name;
     div.dataset.price = r.price;
     div.dataset.type = 'svc';
-    div.innerHTML = `<span>${r.name}</span><span class="text-gray-400 shrink-0">${r.price} ₴</span>`;
+    div.innerHTML = `<span class="break-words">${r.name}</span><span class="text-gray-400 shrink-0">${r.price} ₴</span>`;
     return div.outerHTML;
   }
 };
@@ -221,7 +221,7 @@ const onProductPick = {
     div.dataset.id = r.id;
     div.dataset.name = r.name;
     div.dataset.type = 'prd';
-    div.innerHTML = `<span>${r.name}</span><span class="text-gray-400 shrink-0">${r.qty} ${r.unit} · ${r.price} ₴</span>`;
+    div.innerHTML = `<span class="break-words">${r.name}</span><span class="text-gray-400 shrink-0">${r.qty} ${r.unit} · ${r.price} ₴</span>`;
     return div.outerHTML;
   }
 };
@@ -260,17 +260,24 @@ function openPayModal() {
     const hasComps = row.dataset.hasComponents === 'true';
     if (!hasComps) return;
 
-    let components = [];
-    try { components = JSON.parse(row.dataset.components || '[]'); } catch(e) {}
-
-    const compsHtml = components.map(c => `
-      <div class="flex items-center gap-2 ml-6 mt-1">
-        <span class="flex-1 text-xs text-gray-500">${c.name}</span>
-        <input type="number" name="comp_qty_${lid}_${c.id}"
-          value="${c.qty}" min="0" step="0.001"
-          class="w-20 border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-gold">
-        <span class="text-xs text-gray-400 w-6">${c.unit}</span>
-      </div>`).join('');
+    // Зчитуємо значення з інлайн-інпутів компонентів
+    const inlineInputs = row.querySelectorAll('.comp-qty-input');
+    let compsHtml = '';
+    inlineInputs.forEach(inp => {
+      const compId = inp.dataset.compId;
+      const qty = inp.value;
+      const label = inp.closest('.flex').querySelector('.text-gray-500').textContent;
+      const unit = inp.closest('.flex').querySelector('.w-8') ?
+                   inp.closest('.flex').querySelector('.w-8').textContent.trim() : '';
+      compsHtml += `
+        <div class="flex items-center gap-2 ml-6 mt-1">
+          <span class="flex-1 text-xs text-gray-500">${label}</span>
+          <input type="number" name="comp_qty_${lid}_${compId}"
+            value="${qty}" min="0" step="1"
+            class="w-20 border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-gold">
+          <span class="text-xs text-gray-400 w-8">${unit}</span>
+        </div>`;
+    });
 
     list.innerHTML += `
       <div class="mb-3">
