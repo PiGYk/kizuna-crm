@@ -77,6 +77,16 @@
         <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/></svg>
         Рахунки
       </a>
+      <a href="{% url 'analytics:index' %}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+        {% if 'analytics' in request.resolver_match.app_name %}bg-brand-gold text-brand-dark{% else %}text-white/70 hover:bg-white/10 hover:text-white{% endif %}">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        Аналітика
+      </a>
+      <a href="{% url 'finance:expenses' %}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+        {% if 'finance' in request.resolver_match.app_name %}bg-brand-gold text-brand-dark{% else %}text-white/70 hover:bg-white/10 hover:text-white{% endif %}">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Фінанси
+      </a>
     </nav>
     <div class="px-4 py-4 border-t border-white/10">
       <div class="text-xs text-white/60 mb-0.5">{{ user.get_full_name|default:user.username }}</div>
@@ -102,15 +112,20 @@
 
     <!-- Mobile menu -->
     <div id="mobile-menu" class="hidden md:hidden bg-brand-dark border-b border-white/10 px-4 py-2 space-y-0.5">
-      <a href="{% url 'dashboard' %}" class="block px-3 py-2 rounded-lg text-sm text-white/70 hover:bg-white/10 hover:text-white">Дашборд</a>
-      <a href="{% url 'clients:list' %}" class="block px-3 py-2 rounded-lg text-sm text-white/70 hover:bg-white/10 hover:text-white">Клієнти</a>
-      <a href="{% url 'clients:patient_list' %}" class="block px-3 py-2 rounded-lg text-sm text-white/70 hover:bg-white/10 hover:text-white">Пацієнти</a>
-      <a href="{% url 'inventory:list' %}" class="block px-3 py-2 rounded-lg text-sm text-white/70 hover:bg-white/10 hover:text-white">Склад</a>
-      <a href="{% url 'services:list' %}" class="block px-3 py-2 rounded-lg text-sm text-white/70 hover:bg-white/10 hover:text-white">Послуги</a>
-      <a href="{% url 'appointments:calendar' %}" class="block px-3 py-2 rounded-lg text-sm text-white/70 hover:bg-white/10 hover:text-white">Розклад</a>
-      <a href="{% url 'tg:list' %}" class="block px-3 py-2 rounded-lg text-sm text-white/70 hover:bg-white/10 hover:text-white">Telegram</a>
-      <a href="{% url 'billing:list' %}" class="block px-3 py-2 rounded-lg text-sm text-white/70 hover:bg-white/10 hover:text-white">Рахунки</a>
-      <a href="{% url 'accounts:logout' %}" class="block px-3 py-2 rounded-lg text-sm text-red-400">Вийти</a>
+      <a href="{% url 'dashboard' %}" class="block px-3 py-2 rounded-lg text-sm {% if request.resolver_match.url_name == 'dashboard' %}bg-brand-gold text-brand-dark font-medium{% else %}text-white/70 hover:bg-white/10 hover:text-white{% endif %}">Дашборд</a>
+      <a href="{% url 'clients:list' %}" class="block px-3 py-2 rounded-lg text-sm {% if 'clients' in request.resolver_match.app_name %}bg-brand-gold text-brand-dark font-medium{% else %}text-white/70 hover:bg-white/10 hover:text-white{% endif %}">Клієнти</a>
+      <a href="{% url 'clients:patient_list' %}" class="block px-3 py-2 rounded-lg text-sm {% if request.resolver_match.url_name == 'patient_list' %}bg-brand-gold text-brand-dark font-medium{% else %}text-white/70 hover:bg-white/10 hover:text-white{% endif %}">Пацієнти</a>
+      <a href="{% url 'inventory:list' %}" class="block px-3 py-2 rounded-lg text-sm {% if 'inventory' in request.resolver_match.app_name %}bg-brand-gold text-brand-dark font-medium{% else %}text-white/70 hover:bg-white/10 hover:text-white{% endif %}">Склад</a>
+      <a href="{% url 'services:list' %}" class="block px-3 py-2 rounded-lg text-sm {% if 'services' in request.resolver_match.app_name %}bg-brand-gold text-brand-dark font-medium{% else %}text-white/70 hover:bg-white/10 hover:text-white{% endif %}">Послуги</a>
+      <a href="{% url 'appointments:calendar' %}" class="block px-3 py-2 rounded-lg text-sm {% if 'appointments' in request.resolver_match.app_name %}bg-brand-gold text-brand-dark font-medium{% else %}text-white/70 hover:bg-white/10 hover:text-white{% endif %}">Розклад</a>
+      <a href="{% url 'tg:list' %}" class="block px-3 py-2 rounded-lg text-sm {% if 'tg' in request.resolver_match.app_name %}bg-brand-gold text-brand-dark font-medium{% else %}text-white/70 hover:bg-white/10 hover:text-white{% endif %}">Telegram</a>
+      <a href="{% url 'billing:list' %}" class="block px-3 py-2 rounded-lg text-sm {% if 'billing' in request.resolver_match.app_name %}bg-brand-gold text-brand-dark font-medium{% else %}text-white/70 hover:bg-white/10 hover:text-white{% endif %}">Рахунки</a>
+      <a href="{% url 'analytics:index' %}" class="block px-3 py-2 rounded-lg text-sm {% if 'analytics' in request.resolver_match.app_name %}bg-brand-gold text-brand-dark font-medium{% else %}text-white/70 hover:bg-white/10 hover:text-white{% endif %}">Аналітика</a>
+      <a href="{% url 'finance:expenses' %}" class="block px-3 py-2 rounded-lg text-sm {% if 'finance' in request.resolver_match.app_name %}bg-brand-gold text-brand-dark font-medium{% else %}text-white/70 hover:bg-white/10 hover:text-white{% endif %}">Фінанси</a>
+      <div class="border-t border-white/10 mt-2 pt-2">
+        <div class="px-3 py-1 text-xs text-white/40">{{ user.get_full_name|default:user.username }} · {{ user.get_role_display }}</div>
+        <a href="{% url 'accounts:logout' %}" class="block px-3 py-2 rounded-lg text-sm text-red-400">Вийти</a>
+      </div>
     </div>
 
     <!-- Page content -->

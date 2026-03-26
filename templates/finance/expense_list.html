@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Витрати — Kizuna CRM{% endblock %}
+
+{% block content %}
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+  <h1 class="text-2xl font-bold">Витрати</h1>
+  <div class="flex gap-2">
+    <a href="{% url 'finance:suppliers' %}" class="px-4 py-2 rounded-lg text-sm font-medium bg-white border border-gray-200 hover:bg-gray-50">Постачальники</a>
+    <a href="{% url 'finance:cash_operations' %}" class="px-4 py-2 rounded-lg text-sm font-medium bg-white border border-gray-200 hover:bg-gray-50">Каса</a>
+    <a href="{% url 'finance:report' %}" class="px-4 py-2 rounded-lg text-sm font-medium bg-white border border-gray-200 hover:bg-gray-50">Звіт P&L</a>
+    <a href="{% url 'finance:expense_create' %}" class="px-4 py-2 rounded-lg text-sm font-medium bg-brand-gold text-brand-dark hover:opacity-90">+ Витрата</a>
+  </div>
+</div>
+
+<!-- Фільтри -->
+<form method="get" class="bg-white rounded-xl p-4 mb-4 flex flex-wrap gap-3 items-end">
+  <div>
+    <label class="block text-xs text-gray-500 mb-1">Категорія</label>
+    <select name="category" class="rounded-lg border-gray-300 text-sm px-3 py-2">
+      <option value="">Всі</option>
+      {% for c in categories %}
+        <option value="{{ c.pk }}" {% if filter.category == c.pk|stringformat:"d" %}selected{% endif %}>{{ c }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label class="block text-xs text-gray-500 mb-1">Постачальник</label>
+    <select name="supplier" class="rounded-lg border-gray-300 text-sm px-3 py-2">
+      <option value="">Всі</option>
+      {% for s in suppliers %}
+        <option value="{{ s.pk }}" {% if filter.supplier == s.pk|stringformat:"d" %}selected{% endif %}>{{ s.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label class="block text-xs text-gray-500 mb-1">Оплата</label>
+    <select name="method" class="rounded-lg border-gray-300 text-sm px-3 py-2">
+      <option value="">Всі</option>
+      <option value="cash" {% if filter.method == "cash" %}selected{% endif %}>Готівка</option>
+      <option value="card" {% if filter.method == "card" %}selected{% endif %}>Картка</option>
+      <option value="transfer" {% if filter.method == "transfer" %}selected{% endif %}>Переказ</option>
+    </select>
+  </div>
+  <div>
+    <label class="block text-xs text-gray-500 mb-1">Від</label>
+    <input type="date" name="from" value="{{ filter.from }}" class="rounded-lg border-gray-300 text-sm px-3 py-2">
+  </div>
+  <div>
+    <label class="block text-xs text-gray-500 mb-1">До</label>
+    <input type="date" name="to" value="{{ filter.to }}" class="rounded-lg border-gray-300 text-sm px-3 py-2">
+  </div>
+  <button type="submit" class="px-4 py-2 rounded-lg text-sm font-medium bg-brand-dark text-white hover:opacity-90">Фільтр</button>
+  <a href="{% url 'finance:expenses' %}" class="px-4 py-2 rounded-lg text-sm text-gray-500 hover:text-gray-700">Скинути</a>
+</form>
+
+<!-- Сума -->
+<div class="bg-white rounded-xl p-4 mb-4">
+  <span class="text-sm text-gray-500">Всього за фільтром:</span>
+  <span class="text-lg font-bold ml-2">{{ total|floatformat:2 }} ₴</span>
+</div>
+
+<!-- Таблиця -->
+<div class="bg-white rounded-xl overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+      <tr>
+        <th class="px-4 py-3 text-left">Дата</th>
+        <th class="px-4 py-3 text-left">Категорія</th>
+        <th class="px-4 py-3 text-left">Опис</th>
+        <th class="px-4 py-3 text-left">Постачальник</th>
+        <th class="px-4 py-3 text-left">Оплата</th>
+        <th class="px-4 py-3 text-right">Сума</th>
+        <th class="px-4 py-3 text-right">Дії</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">
+      {% for e in expenses %}
+      <tr class="hover:bg-gray-50">
+        <td class="px-4 py-3 whitespace-nowrap">{{ e.date|date:"d.m.Y" }}</td>
+        <td class="px-4 py-3">{{ e.category }}</td>
+        <td class="px-4 py-3">
+          {{ e.description }}
+          {% if e.receipt_photo %}
+            <a href="{{ e.receipt_photo.url }}" target="_blank" class="ml-1 text-brand-gold hover:underline text-xs">фото</a>
+          {% endif %}
+        </td>
+        <td class="px-4 py-3 text-gray-500">{{ e.supplier.name|default:"—" }}</td>
+        <td class="px-4 py-3">{{ e.get_payment_method_display }}</td>
+        <td class="px-4 py-3 text-right font-medium">{{ e.amount|floatformat:2 }} ₴</td>
+        <td class="px-4 py-3 text-right space-x-2">
+          <a href="{% url 'finance:expense_edit' e.pk %}" class="text-brand-gold hover:underline">ред.</a>
+          <form method="post" action="{% url 'finance:expense_delete' e.pk %}" class="inline" onsubmit="return confirm('Видалити витрату?')">
+            {% csrf_token %}
+            <button class="text-red-500 hover:underline">вид.</button>
+          </form>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="7" class="px-4 py-8 text-center text-gray-400">Витрат немає</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

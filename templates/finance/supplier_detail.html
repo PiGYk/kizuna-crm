@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}{{ supplier.name }} — Kizuna CRM{% endblock %}
+
+{% block content %}
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+  <div>
+    <a href="{% url 'finance:suppliers' %}" class="text-sm text-gray-400 hover:text-gray-600">&larr; Постачальники</a>
+    <h1 class="text-2xl font-bold mt-1">{{ supplier.name }}</h1>
+  </div>
+  <div class="flex gap-2">
+    <a href="{% url 'finance:supplier_edit' supplier.pk %}" class="px-4 py-2 rounded-lg text-sm font-medium bg-white border border-gray-200 hover:bg-gray-50">Редагувати</a>
+    <form method="post" action="{% url 'finance:supplier_delete' supplier.pk %}" onsubmit="return confirm('Видалити постачальника?')">
+      {% csrf_token %}
+      <button class="px-4 py-2 rounded-lg text-sm font-medium text-red-500 bg-white border border-gray-200 hover:bg-red-50">Видалити</button>
+    </form>
+  </div>
+</div>
+
+<!-- Інфо -->
+<div class="bg-white rounded-xl p-5 mb-4">
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+    {% if supplier.contact_person %}
+    <div>
+      <span class="text-gray-400">Контактна особа</span>
+      <p class="font-medium">{{ supplier.contact_person }}</p>
+    </div>
+    {% endif %}
+    {% if supplier.phone %}
+    <div>
+      <span class="text-gray-400">Телефон</span>
+      <p class="font-medium">{{ supplier.phone }}</p>
+    </div>
+    {% endif %}
+    {% if supplier.email %}
+    <div>
+      <span class="text-gray-400">Email</span>
+      <p class="font-medium">{{ supplier.email }}</p>
+    </div>
+    {% endif %}
+    <div>
+      <span class="text-gray-400">Всього оплачено</span>
+      <p class="font-bold text-lg">{{ total|floatformat:2 }} ₴</p>
+    </div>
+  </div>
+  {% if supplier.notes %}
+  <p class="mt-3 text-sm text-gray-500">{{ supplier.notes }}</p>
+  {% endif %}
+</div>
+
+<!-- Витрати постачальника -->
+<h2 class="text-lg font-semibold mb-3">Витрати</h2>
+<div class="bg-white rounded-xl overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+      <tr>
+        <th class="px-4 py-3 text-left">Дата</th>
+        <th class="px-4 py-3 text-left">Категорія</th>
+        <th class="px-4 py-3 text-left">Опис</th>
+        <th class="px-4 py-3 text-right">Сума</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">
+      {% for e in expenses %}
+      <tr class="hover:bg-gray-50">
+        <td class="px-4 py-3 whitespace-nowrap">{{ e.date|date:"d.m.Y" }}</td>
+        <td class="px-4 py-3">{{ e.category }}</td>
+        <td class="px-4 py-3">{{ e.description }}</td>
+        <td class="px-4 py-3 text-right font-medium">{{ e.amount|floatformat:2 }} ₴</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4" class="px-4 py-8 text-center text-gray-400">Витрат ще немає</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

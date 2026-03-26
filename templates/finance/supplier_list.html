@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Постачальники — Kizuna CRM{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-bold">Постачальники</h1>
+  <div class="flex gap-2">
+    <a href="{% url 'finance:expenses' %}" class="px-4 py-2 rounded-lg text-sm font-medium bg-white border border-gray-200 hover:bg-gray-50">Витрати</a>
+    <a href="{% url 'finance:supplier_create' %}" class="px-4 py-2 rounded-lg text-sm font-medium bg-brand-gold text-brand-dark hover:opacity-90">+ Постачальник</a>
+  </div>
+</div>
+
+<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+  {% for s in suppliers %}
+  <a href="{% url 'finance:supplier_detail' s.pk %}" class="bg-white rounded-xl p-5 hover:shadow-md transition-shadow">
+    <h3 class="font-semibold text-lg mb-1">{{ s.name }}</h3>
+    {% if s.contact_person %}<p class="text-sm text-gray-500">{{ s.contact_person }}</p>{% endif %}
+    {% if s.phone %}<p class="text-sm text-gray-500">{{ s.phone }}</p>{% endif %}
+    <div class="mt-3 pt-3 border-t border-gray-100 flex justify-between text-sm">
+      <span class="text-gray-400">{{ s.expense_count|default:0 }} витрат</span>
+      <span class="font-medium">{{ s.total_expenses|floatformat:2|default:"0.00" }} ₴</span>
+    </div>
+  </a>
+  {% empty %}
+  <p class="text-gray-400 col-span-full text-center py-8">Постачальників ще немає</p>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}Звіт P&L — Kizuna CRM{% endblock %}
+
+{% block content %}
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+  <h1 class="text-2xl font-bold">Прибутки та збитки</h1>
+  <div class="flex gap-2">
+    <a href="{% url 'finance:expenses' %}" class="px-4 py-2 rounded-lg text-sm font-medium bg-white border border-gray-200 hover:bg-gray-50">Витрати</a>
+    <a href="{% url 'finance:cash_operations' %}" class="px-4 py-2 rounded-lg text-sm font-medium bg-white border border-gray-200 hover:bg-gray-50">Каса</a>
+  </div>
+</div>
+
+<!-- Пресети -->
+<div class="flex flex-wrap gap-2 mb-4" id="presets">
+  <button data-preset="today" class="preset-btn px-4 py-2 rounded-lg text-sm font-medium bg-white border border-gray-200 hover:bg-gray-50">Сьогодні</button>
+  <button data-preset="week" class="preset-btn px-4 py-2 rounded-lg text-sm font-medium bg-white border border-gray-200 hover:bg-gray-50">7 днів</button>
+  <button data-preset="month" class="preset-btn px-4 py-2 rounded-lg text-sm font-medium bg-brand-gold text-brand-dark">Місяць</button>
+  <button data-preset="year" class="preset-btn px-4 py-2 rounded-lg text-sm font-medium bg-white border border-gray-200 hover:bg-gray-50">Рік</button>
+  <div class="flex gap-2 items-center ml-2">
+    <input type="date" id="date-start" class="rounded-lg border-gray-300 text-sm px-3 py-2">
+    <span class="text-gray-400">—</span>
+    <input type="date" id="date-end" class="rounded-lg border-gray-300 text-sm px-3 py-2">
+    <button data-preset="custom" class="preset-btn px-4 py-2 rounded-lg text-sm font-medium bg-white border border-gray-200 hover:bg-gray-50">Довільно</button>
+  </div>
+</div>
+
+<!-- KPI -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  <div class="bg-white rounded-xl p-5">
+    <div class="text-sm text-gray-400">Дохід</div>
+    <div class="text-2xl font-bold text-green-600 mt-1" id="kpi-income">—</div>
+    <div class="text-xs text-gray-400 mt-1"><span id="kpi-income-cash">0</span> готівка · <span id="kpi-income-card">0</span> картка</div>
+  </div>
+  <div class="bg-white rounded-xl p-5">
+    <div class="text-sm text-gray-400">Витрати</div>
+    <div class="text-2xl font-bold text-red-500 mt-1" id="kpi-expenses">—</div>
+    <div class="text-xs text-gray-400 mt-1"><span id="kpi-exp-cash">0</span> гот. · <span id="kpi-exp-card">0</span> карт. · <span id="kpi-exp-transfer">0</span> пер.</div>
+  </div>
+  <div class="bg-white rounded-xl p-5">
+    <div class="text-sm text-gray-400">Чистий прибуток</div>
+    <div class="text-2xl font-bold mt-1" id="kpi-profit">—</div>
+  </div>
+  <div class="bg-white rounded-xl p-5">
+    <div class="text-sm text-gray-400">Рух між касами</div>
+    <div class="text-xs mt-2 space-y-1">
+      <div>Картка → Готівка: <strong id="kpi-c2c">0</strong> ₴</div>
+      <div>Готівка → Картка: <strong id="kpi-c2k">0</strong> ₴</div>
+      <div>Внесення: <strong id="kpi-dep">0</strong> ₴</div>
+      <div>Вилучення: <strong id="kpi-wd">0</strong> ₴</div>
+    </div>
+  </div>
+</div>
+
+<!-- Графік -->
+<div class="bg-white rounded-xl p-5 mb-6">
+  <h2 class="text-sm font-semibold text-gray-500 mb-4">Доходи vs Витрати по днях</h2>
+  <canvas id="chart" height="100"></canvas>
+</div>
+
+<!-- Таблиці -->
+<div class="grid md:grid-cols-2 gap-6">
+  <div class="bg-white rounded-xl p-5">
+    <h2 class="text-sm font-semibold text-gray-500 mb-3">По категоріях витрат</h2>
+    <div id="by-category" class="space-y-2 text-sm"></div>
+  </div>
+  <div class="bg-white rounded-xl p-5">
+    <h2 class="text-sm font-semibold text-gray-500 mb-3">По постачальниках</h2>
+    <div id="by-supplier" class="space-y-2 text-sm"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script>
+(function(){
+  const fmt = n => Number(n).toLocaleString('uk-UA', {minimumFractionDigits:2, maximumFractionDigits:2});
+  let chart = null;
+  let preset = 'month';
+
+  function load() {
+    let url = '{% url "finance:report_data" %}?preset=' + preset;
+    if (preset === 'custom') {
+      url += '&start=' + document.getElementById('date-start').value;
+      url += '&end=' + document.getElementById('date-end').value;
+    }
+    fetch(url).then(r=>r.json()).then(d => {
+      document.getElementById('kpi-income').textContent = fmt(d.income.total) + ' ₴';
+      document.getElementById('kpi-income-cash').textContent = fmt(d.income.cash);
+      document.getElementById('kpi-income-card').textContent = fmt(d.income.card);
+
+      document.getElementById('kpi-expenses').textContent = fmt(d.expenses.total) + ' ₴';
+      document.getElementById('kpi-exp-cash').textContent = fmt(d.expenses.cash);
+      document.getElementById('kpi-exp-card').textContent = fmt(d.expenses.card);
+      document.getElementById('kpi-exp-transfer').textContent = fmt(d.expenses.transfer);
+
+      const profitEl = document.getElementById('kpi-profit');
+      profitEl.textContent = fmt(d.profit) + ' ₴';
+      profitEl.className = 'text-2xl font-bold mt-1 ' + (d.profit >= 0 ? 'text-green-600' : 'text-red-500');
+
+      document.getElementById('kpi-c2c').textContent = fmt(d.cash_register.card_to_cash);
+      document.getElementById('kpi-c2k').textContent = fmt(d.cash_register.cash_to_card);
+      document.getElementById('kpi-dep').textContent = fmt(d.cash_register.deposits);
+      document.getElementById('kpi-wd').textContent = fmt(d.cash_register.withdrawals);
+
+      // Chart
+      if (chart) chart.destroy();
+      const ctx = document.getElementById('chart').getContext('2d');
+      chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: d.daily.labels,
+          datasets: [
+            {label:'Дохід', data:d.daily.income, backgroundColor:'rgba(34,197,94,0.6)', borderRadius:4},
+            {label:'Витрати', data:d.daily.expenses, backgroundColor:'rgba(239,68,68,0.5)', borderRadius:4},
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: {legend:{position:'top'}},
+          scales: {y:{beginAtZero:true, ticks:{callback:v=>fmt(v)}}},
+        }
+      });
+
+      // By category
+      const catEl = document.getElementById('by-category');
+      catEl.innerHTML = d.by_category.length
+        ? d.by_category.map(c =>
+          `<div class="flex justify-between"><span>${c.name} <span class="text-gray-400">(${c.cnt})</span></span><span class="font-medium">${fmt(c.total)} ₴</span></div>`
+        ).join('')
+        : '<p class="text-gray-400">Немає даних</p>';
+
+      // By supplier
+      const supEl = document.getElementById('by-supplier');
+      supEl.innerHTML = d.by_supplier.length
+        ? d.by_supplier.map(s =>
+          `<div class="flex justify-between"><span>${s.name} <span class="text-gray-400">(${s.cnt})</span></span><span class="font-medium">${fmt(s.total)} ₴</span></div>`
+        ).join('')
+        : '<p class="text-gray-400">Немає даних</p>';
+    });
+  }
+
+  document.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.preset-btn').forEach(b => {
+        b.className = 'preset-btn px-4 py-2 rounded-lg text-sm font-medium bg-white border border-gray-200 hover:bg-gray-50';
+      });
+      this.className = 'preset-btn px-4 py-2 rounded-lg text-sm font-medium bg-brand-gold text-brand-dark';
+      preset = this.dataset.preset;
+      load();
+    });
+  });
+
+  load();
+})();
+</script>
+{% endblock %}

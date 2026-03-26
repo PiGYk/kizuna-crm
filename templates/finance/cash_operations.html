@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Каса — Kizuna CRM{% endblock %}
+
+{% block content %}
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+  <h1 class="text-2xl font-bold">Касові операції</h1>
+  <div class="flex gap-2">
+    <a href="{% url 'finance:expenses' %}" class="px-4 py-2 rounded-lg text-sm font-medium bg-white border border-gray-200 hover:bg-gray-50">Витрати</a>
+    <a href="{% url 'finance:cash_operation_create' %}" class="px-4 py-2 rounded-lg text-sm font-medium bg-brand-gold text-brand-dark hover:opacity-90">+ Операція</a>
+  </div>
+</div>
+
+<form method="get" class="bg-white rounded-xl p-4 mb-4 flex flex-wrap gap-3 items-end">
+  <div>
+    <label class="block text-xs text-gray-500 mb-1">Від</label>
+    <input type="date" name="from" value="{{ filter.from }}" class="rounded-lg border-gray-300 text-sm px-3 py-2">
+  </div>
+  <div>
+    <label class="block text-xs text-gray-500 mb-1">До</label>
+    <input type="date" name="to" value="{{ filter.to }}" class="rounded-lg border-gray-300 text-sm px-3 py-2">
+  </div>
+  <button type="submit" class="px-4 py-2 rounded-lg text-sm font-medium bg-brand-dark text-white hover:opacity-90">Фільтр</button>
+</form>
+
+<div class="bg-white rounded-xl overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+      <tr>
+        <th class="px-4 py-3 text-left">Дата</th>
+        <th class="px-4 py-3 text-left">Тип</th>
+        <th class="px-4 py-3 text-left">Опис</th>
+        <th class="px-4 py-3 text-left">Хто</th>
+        <th class="px-4 py-3 text-right">Сума</th>
+        <th class="px-4 py-3 text-right">Дії</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">
+      {% for op in operations %}
+      <tr class="hover:bg-gray-50">
+        <td class="px-4 py-3 whitespace-nowrap">{{ op.date|date:"d.m.Y" }}</td>
+        <td class="px-4 py-3">
+          <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+            {% if op.type == 'card_to_cash' %}bg-green-100 text-green-700
+            {% elif op.type == 'cash_to_card' %}bg-blue-100 text-blue-700
+            {% elif op.type == 'deposit' %}bg-yellow-100 text-yellow-700
+            {% else %}bg-red-100 text-red-700{% endif %}">
+            {{ op.get_type_display }}
+          </span>
+        </td>
+        <td class="px-4 py-3 text-gray-500">{{ op.description|default:"—" }}</td>
+        <td class="px-4 py-3 text-gray-500">{{ op.created_by.get_full_name|default:op.created_by.username }}</td>
+        <td class="px-4 py-3 text-right font-medium">{{ op.amount|floatformat:2 }} ₴</td>
+        <td class="px-4 py-3 text-right">
+          <form method="post" action="{% url 'finance:cash_operation_delete' op.pk %}" class="inline" onsubmit="return confirm('Видалити операцію?')">
+            {% csrf_token %}
+            <button class="text-red-500 hover:underline text-xs">вид.</button>
+          </form>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6" class="px-4 py-8 text-center text-gray-400">Операцій немає</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

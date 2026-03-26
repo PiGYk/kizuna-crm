@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Налаштування фінансів — Kizuna CRM{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-bold">Категорії витрат</h1>
+  <a href="{% url 'finance:expenses' %}" class="px-4 py-2 rounded-lg text-sm font-medium bg-white border border-gray-200 hover:bg-gray-50">&larr; Витрати</a>
+</div>
+
+<!-- Додати категорію -->
+<form method="post" action="{% url 'finance:category_create' %}" class="bg-white rounded-xl p-4 mb-4 flex gap-3 items-end">
+  {% csrf_token %}
+  <div class="flex-1">
+    <label class="block text-xs text-gray-500 mb-1">Назва</label>
+    {{ form.name }}
+  </div>
+  <div>
+    <label class="block text-xs text-gray-500 mb-1">Іконка</label>
+    {{ form.icon }}
+  </div>
+  <button type="submit" class="px-4 py-2 rounded-lg text-sm font-medium bg-brand-gold text-brand-dark hover:opacity-90">Додати</button>
+</form>
+
+<!-- Список -->
+<div class="bg-white rounded-xl overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+      <tr>
+        <th class="px-4 py-3 text-left">Категорія</th>
+        <th class="px-4 py-3 text-right">Витрат</th>
+        <th class="px-4 py-3 text-right">Сума</th>
+        <th class="px-4 py-3 text-right">Дії</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">
+      {% for c in categories %}
+      <tr class="hover:bg-gray-50">
+        <td class="px-4 py-3 font-medium">{{ c }}</td>
+        <td class="px-4 py-3 text-right text-gray-500">{{ c.cnt }}</td>
+        <td class="px-4 py-3 text-right">{{ c.total|floatformat:2|default:"0.00" }} ₴</td>
+        <td class="px-4 py-3 text-right">
+          {% if c.cnt == 0 %}
+          <form method="post" action="{% url 'finance:category_delete' c.pk %}" class="inline" onsubmit="return confirm('Видалити?')">
+            {% csrf_token %}
+            <button class="text-red-500 hover:underline text-xs">вид.</button>
+          </form>
+          {% else %}
+          <span class="text-gray-300 text-xs">використовується</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4" class="px-4 py-8 text-center text-gray-400">Категорій немає</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
