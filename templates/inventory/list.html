@@ -14,13 +14,18 @@
        class="px-3 py-2 rounded-lg text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
       Імпорт
     </a>
+    <a href="{% url 'inventory:export' %}?fmt=xlsx&mode=simple{% if q %}&q={{ q }}{% endif %}{% if cat %}&cat={{ cat }}{% endif %}{% if stock %}&stock={{ stock }}{% endif %}"
+       class="px-3 py-2 rounded-lg text-sm font-medium border border-brand-gold text-brand-dark hover:bg-brand-gold/10 transition-colors hidden sm:inline-flex"
+       title="XLSX для порівняння цін з постачальниками">
+      Порівняння
+    </a>
     <a href="{% url 'inventory:export' %}?fmt=xlsx{% if q %}&q={{ q }}{% endif %}{% if cat %}&cat={{ cat }}{% endif %}{% if stock %}&stock={{ stock }}{% endif %}"
        class="px-3 py-2 rounded-lg text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors hidden sm:inline-flex">
-      📊 XLSX
+      XLSX
     </a>
     <a href="{% url 'inventory:export' %}?fmt=csv{% if q %}&q={{ q }}{% endif %}{% if cat %}&cat={{ cat }}{% endif %}{% if stock %}&stock={{ stock }}{% endif %}"
        class="px-3 py-2 rounded-lg text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors hidden sm:inline-flex">
-      📄 CSV
+      CSV
     </a>
     <a href="{% url 'inventory:create' %}"
        class="bg-brand-gold text-brand-dark px-3 py-2 rounded-lg text-sm font-medium hover:brightness-95 transition-all">

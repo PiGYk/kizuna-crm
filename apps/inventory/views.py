@@ -310,6 +310,7 @@ def unit_delete(request, pk):
 @login_required
 def export_inventory(request):
     fmt = request.GET.get('fmt', 'xlsx')
+    mode = request.GET.get('mode', 'full')  # full або simple
     q = request.GET.get('q', '').strip()
     cat = request.GET.get('cat', '')
     stock = request.GET.get('stock', '')
@@ -320,53 +321,74 @@ def export_inventory(request):
     if cat:
         products = products.filter(category_id=cat)
     products = products.order_by('name')
-    # фільтри по залишку (після ORM, бо логіка в методах моделі)
     if stock == 'low':
         products = [p for p in products if p.is_low_stock()]
     elif stock == 'out':
         products = [p for p in products if p.is_out_of_stock()]
 
-    # підпис для назви файлу
     label_parts = []
+    if mode == 'simple':
+        label_parts.append('порівняння')
     if q:
         label_parts.append(q)
     if stock == 'low':
-        label_parts.append('mало')
+        label_parts.append('мало')
     elif stock == 'out':
         label_parts.append('нуль')
     file_label = ('_' + '_'.join(label_parts)) if label_parts else ''
 
-    headers = ['Назва', 'Категорія', 'Одиниця', 'Залишок', 'Мін. залишок', 'Вхідна ціна', 'Вихідна ціна', 'Нотатки']
+    # Простий режим — для порівняння з постачальниками
+    if mode == 'simple':
+        headers = ['Назва', 'Кіл-ть', 'Одиниця', 'Вхідна ціна', 'Ціна постачальника', 'Різниця']
+    else:
+        headers = ['Назва', 'Категорія', 'Одиниця', 'Залишок', 'Мін. залишок', 'Вхідна ціна', 'Вихідна ціна', 'Нотатки']
+
+    def _row_simple(p):
+        return [
+            p.name,
+            float(p.quantity),
+            p.unit.short if p.unit else '',
+            float(p.buy_price),
+            '',  # порожня колонка для вписування ціни постачальника
+            '',  # формула різниці (буде в xlsx)
+        ]
+
+    def _row_full(p):
+        return [
+            p.name,
+            p.category.name if p.category else '',
+            p.unit.short if p.unit else '',
+            float(p.quantity),
+            float(p.min_quantity),
+            float(p.buy_price),
+            float(p.sell_price),
+            p.notes,
+        ]
 
     if fmt == 'csv':
         response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
         response['Content-Disposition'] = f'attachment; filename="inventory{file_label}.csv"'
         writer = csv.writer(response)
         writer.writerow(headers)
+        row_fn = _row_simple if mode == 'simple' else _row_full
         for p in products:
-            writer.writerow([
-                p.name,
-                p.category.name if p.category else '',
-                p.unit.short if p.unit else '',
-                p.quantity,
-                p.min_quantity,
-                p.buy_price,
-                p.sell_price,
-                p.notes,
-            ])
+            writer.writerow(row_fn(p))
         return response
 
     # xlsx
     import openpyxl
-    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side, numbers
     from openpyxl.utils import get_column_letter
 
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.title = 'Склад'
+    ws.title = 'Порівняння' if mode == 'simple' else 'Склад'
 
     header_font = Font(bold=True, color='12100F')
     header_fill = PatternFill(fill_type='solid', fgColor='DEAA01')
+    thin_border = Border(
+        bottom=Side(style='thin', color='E5E7EB'),
+    )
 
     for col, h in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col, value=h)
@@ -374,24 +396,68 @@ def export_inventory(request):
         cell.fill = header_fill
         cell.alignment = Alignment(horizontal='center')
 
-    for row, p in enumerate(products, 2):
-        ws.cell(row=row, column=1, value=p.name)
-        ws.cell(row=row, column=2, value=p.category.name if p.category else '')
-        ws.cell(row=row, column=3, value=p.unit.short if p.unit else '')
-        ws.cell(row=row, column=4, value=float(p.quantity))
-        ws.cell(row=row, column=5, value=float(p.min_quantity))
-        ws.cell(row=row, column=6, value=float(p.buy_price))
-        ws.cell(row=row, column=7, value=float(p.sell_price))
-        ws.cell(row=row, column=8, value=p.notes)
+    if mode == 'simple':
+        # Спеціальне форматування для порівняння
+        supplier_fill = PatternFill(fill_type='solid', fgColor='EFF6FF')  # голубий для заповнення
+        cheaper_fill = PatternFill(fill_type='solid', fgColor='DCFCE7')   # зелений — дешевше
+        expensive_fill = PatternFill(fill_type='solid', fgColor='FEE2E2') # червоний — дорожче
 
-        if p.is_out_of_stock():
-            for col in range(1, 9):
-                ws.cell(row=row, column=col).fill = PatternFill(fill_type='solid', fgColor='FEE2E2')
-        elif p.is_low_stock():
-            for col in range(1, 9):
-                ws.cell(row=row, column=col).fill = PatternFill(fill_type='solid', fgColor='FEF9C3')
+        for row_idx, p in enumerate(products, 2):
+            ws.cell(row=row_idx, column=1, value=p.name)
+            qty_cell = ws.cell(row=row_idx, column=2, value=float(p.quantity))
+            qty_cell.number_format = '0.###'
+            ws.cell(row=row_idx, column=3, value=p.unit.short if p.unit else '')
+            price_cell = ws.cell(row=row_idx, column=4, value=float(p.buy_price))
+            price_cell.number_format = '#,##0.00'
 
-    col_widths = [40, 20, 10, 10, 12, 14, 14, 30]
+            # Колонка E — порожня, для вписування ціни постачальника
+            sup_cell = ws.cell(row=row_idx, column=5, value=None)
+            sup_cell.fill = supplier_fill
+            sup_cell.number_format = '#,##0.00'
+
+            # Колонка F — формула різниці (ціна постачальника - наша вхідна)
+            diff_cell = ws.cell(row=row_idx, column=6)
+            diff_cell.value = f'=IF(E{row_idx}="","",E{row_idx}-D{row_idx})'
+            diff_cell.number_format = '#,##0.00'
+
+            for c in range(1, 7):
+                ws.cell(row=row_idx, column=c).border = thin_border
+
+        # Умовне форматування для колонки різниці
+        from openpyxl.formatting.rule import CellIsRule
+        last_row = len(list(products)) + 1
+        green_font = Font(color='166534')
+        red_font = Font(color='991B1B')
+        ws.conditional_formatting.add(
+            f'F2:F{last_row}',
+            CellIsRule(operator='lessThan', formula=['0'], fill=cheaper_fill, font=green_font)
+        )
+        ws.conditional_formatting.add(
+            f'F2:F{last_row}',
+            CellIsRule(operator='greaterThan', formula=['0'], fill=expensive_fill, font=red_font)
+        )
+
+        col_widths = [45, 10, 10, 14, 14, 14]
+    else:
+        for row_idx, p in enumerate(products, 2):
+            ws.cell(row=row_idx, column=1, value=p.name)
+            ws.cell(row=row_idx, column=2, value=p.category.name if p.category else '')
+            ws.cell(row=row_idx, column=3, value=p.unit.short if p.unit else '')
+            ws.cell(row=row_idx, column=4, value=float(p.quantity))
+            ws.cell(row=row_idx, column=5, value=float(p.min_quantity))
+            ws.cell(row=row_idx, column=6, value=float(p.buy_price))
+            ws.cell(row=row_idx, column=7, value=float(p.sell_price))
+            ws.cell(row=row_idx, column=8, value=p.notes)
+
+            if p.is_out_of_stock():
+                for c in range(1, 9):
+                    ws.cell(row=row_idx, column=c).fill = PatternFill(fill_type='solid', fgColor='FEE2E2')
+            elif p.is_low_stock():
+                for c in range(1, 9):
+                    ws.cell(row=row_idx, column=c).fill = PatternFill(fill_type='solid', fgColor='FEF9C3')
+
+        col_widths = [40, 20, 10, 10, 12, 14, 14, 30]
+
     for i, width in enumerate(col_widths, 1):
         ws.column_dimensions[get_column_letter(i)].width = width
 
