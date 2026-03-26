@@ -20,6 +20,15 @@ class ProductListView(LoginRequiredMixin, ListView):
     context_object_name = 'products'
     paginate_by = 50
 
+    SORT_FIELDS = {
+        'name': 'name',
+        'category': 'category__name',
+        'quantity': 'quantity',
+        'buy_price': 'buy_price',
+        'sell_price': 'sell_price',
+        'unit': 'unit__short',
+    }
+
     def get_queryset(self):
         qs = Product.objects.select_related('unit', 'category').filter(is_active=True)
         q = self.request.GET.get('q', '').strip()
@@ -29,6 +38,15 @@ class ProductListView(LoginRequiredMixin, ListView):
             qs = qs.filter(name__icontains=q)
         if cat:
             qs = qs.filter(category_id=cat)
+
+        # сортування
+        sort = self.request.GET.get('sort', 'name')
+        direction = self.request.GET.get('dir', 'asc')
+        db_field = self.SORT_FIELDS.get(sort, 'name')
+        if direction == 'desc':
+            db_field = '-' + db_field
+        qs = qs.order_by(db_field)
+
         if stock == 'low':
             qs = [p for p in qs if p.is_low_stock()]
         elif stock == 'out':
@@ -40,6 +58,8 @@ class ProductListView(LoginRequiredMixin, ListView):
         ctx['q'] = self.request.GET.get('q', '')
         ctx['stock'] = self.request.GET.get('stock', '')
         ctx['cat'] = self.request.GET.get('cat', '')
+        ctx['sort'] = self.request.GET.get('sort', 'name')
+        ctx['dir'] = self.request.GET.get('dir', 'asc')
         ctx['categories'] = Category.objects.all()
 
         # суми по всьому складу (незалежно від поточних фільтрів)
@@ -201,10 +221,183 @@ def import_products(request):
 
 
 @login_required
+def product_delete(request, pk):
+    from django.db.models import ProtectedError
+    product = get_object_or_404(Product, pk=pk)
+    if request.method == 'POST':
+        try:
+            product.delete()
+            messages.success(request, f'Товар «{product.name}» видалено')
+            return redirect('inventory:list')
+        except ProtectedError:
+            services = product.servicecomponent_set.select_related('service').values_list('service__name', flat=True)
+            names = ', '.join(services)
+            messages.error(request, f'Не можна видалити — товар використовується в послугах: {names}')
+            return redirect('inventory:detail', pk=pk)
+    return redirect('inventory:detail', pk=pk)
+
+
+@login_required
 def export_template(request):
     response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
     response['Content-Disposition'] = 'attachment; filename="import_template.csv"'
     writer = csv.writer(response)
     writer.writerow(['назва', 'категорія', 'одиниця', 'вхідна_ціна', 'вихідна_ціна', 'залишок'])
     writer.writerow(['Приклад препарату', 'Вакцини', 'мл', '50.00', '120.00', '100'])
+    return response
+
+
+# ── Налаштування: категорії та одиниці ───────────────────────────────────────
+
+@login_required
+def inventory_settings(request):
+    return render(request, 'inventory/settings.html', {
+        'categories': Category.objects.annotate_product_count() if hasattr(Category, 'annotate_product_count') else _categories_with_count(),
+        'units': _units_with_count(),
+    })
+
+
+def _categories_with_count():
+    from django.db.models import Count
+    return Category.objects.annotate(product_count=Count('products')).order_by('name')
+
+
+def _units_with_count():
+    from django.db.models import Count
+    return Unit.objects.annotate(product_count=Count('product')).order_by('name')
+
+
+@login_required
+def category_create(request):
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        if name:
+            Category.objects.get_or_create(name=name)
+    return redirect('inventory:settings')
+
+
+@login_required
+def category_delete(request, pk):
+    if request.method == 'POST':
+        cat = get_object_or_404(Category, pk=pk)
+        cat.delete()
+    return redirect('inventory:settings')
+
+
+@login_required
+def unit_create(request):
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        short = request.POST.get('short', '').strip()
+        if name and short:
+            Unit.objects.get_or_create(name=name, defaults={'short': short})
+    return redirect('inventory:settings')
+
+
+@login_required
+def unit_delete(request, pk):
+    if request.method == 'POST':
+        unit = get_object_or_404(Unit, pk=pk)
+        try:
+            unit.delete()
+        except Exception:
+            messages.error(request, f'Одиницю «{unit.short}» не можна видалити — вона використовується в товарах')
+    return redirect('inventory:settings')
+
+
+# ── Експорт складу ────────────────────────────────────────────────────────────
+
+@login_required
+def export_inventory(request):
+    fmt = request.GET.get('fmt', 'xlsx')
+    q = request.GET.get('q', '').strip()
+    cat = request.GET.get('cat', '')
+    stock = request.GET.get('stock', '')
+
+    products = Product.objects.select_related('unit', 'category').filter(is_active=True)
+    if q:
+        products = products.filter(name__icontains=q)
+    if cat:
+        products = products.filter(category_id=cat)
+    products = products.order_by('name')
+    # фільтри по залишку (після ORM, бо логіка в методах моделі)
+    if stock == 'low':
+        products = [p for p in products if p.is_low_stock()]
+    elif stock == 'out':
+        products = [p for p in products if p.is_out_of_stock()]
+
+    # підпис для назви файлу
+    label_parts = []
+    if q:
+        label_parts.append(q)
+    if stock == 'low':
+        label_parts.append('mало')
+    elif stock == 'out':
+        label_parts.append('нуль')
+    file_label = ('_' + '_'.join(label_parts)) if label_parts else ''
+
+    headers = ['Назва', 'Категорія', 'Одиниця', 'Залишок', 'Мін. залишок', 'Вхідна ціна', 'Вихідна ціна', 'Нотатки']
+
+    if fmt == 'csv':
+        response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+        response['Content-Disposition'] = f'attachment; filename="inventory{file_label}.csv"'
+        writer = csv.writer(response)
+        writer.writerow(headers)
+        for p in products:
+            writer.writerow([
+                p.name,
+                p.category.name if p.category else '',
+                p.unit.short if p.unit else '',
+                p.quantity,
+                p.min_quantity,
+                p.buy_price,
+                p.sell_price,
+                p.notes,
+            ])
+        return response
+
+    # xlsx
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.utils import get_column_letter
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Склад'
+
+    header_font = Font(bold=True, color='12100F')
+    header_fill = PatternFill(fill_type='solid', fgColor='DEAA01')
+
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center')
+
+    for row, p in enumerate(products, 2):
+        ws.cell(row=row, column=1, value=p.name)
+        ws.cell(row=row, column=2, value=p.category.name if p.category else '')
+        ws.cell(row=row, column=3, value=p.unit.short if p.unit else '')
+        ws.cell(row=row, column=4, value=float(p.quantity))
+        ws.cell(row=row, column=5, value=float(p.min_quantity))
+        ws.cell(row=row, column=6, value=float(p.buy_price))
+        ws.cell(row=row, column=7, value=float(p.sell_price))
+        ws.cell(row=row, column=8, value=p.notes)
+
+        if p.is_out_of_stock():
+            for col in range(1, 9):
+                ws.cell(row=row, column=col).fill = PatternFill(fill_type='solid', fgColor='FEE2E2')
+        elif p.is_low_stock():
+            for col in range(1, 9):
+                ws.cell(row=row, column=col).fill = PatternFill(fill_type='solid', fgColor='FEF9C3')
+
+    col_widths = [40, 20, 10, 10, 12, 14, 14, 30]
+    for i, width in enumerate(col_widths, 1):
+        ws.column_dimensions[get_column_letter(i)].width = width
+
+    ws.freeze_panes = 'A2'
+
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename="inventory{file_label}.xlsx"'
+    wb.save(response)
     return response

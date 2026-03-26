@@ -3,15 +3,27 @@
 {% block title %}Склад — Kizuna CRM{% endblock %}
 
 {% block content %}
-<div class="flex items-center justify-between mb-6">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
   <h1 class="text-2xl font-bold text-brand-dark">Склад</h1>
-  <div class="flex gap-2">
+  <div class="flex flex-wrap gap-2">
+    <a href="{% url 'inventory:settings' %}"
+       class="px-3 py-2 rounded-lg text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
+      Налаштування
+    </a>
     <a href="{% url 'inventory:import' %}"
-       class="px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
+       class="px-3 py-2 rounded-lg text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
       Імпорт
     </a>
+    <a href="{% url 'inventory:export' %}?fmt=xlsx{% if q %}&q={{ q }}{% endif %}{% if cat %}&cat={{ cat }}{% endif %}{% if stock %}&stock={{ stock }}{% endif %}"
+       class="px-3 py-2 rounded-lg text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors hidden sm:inline-flex">
+      📊 XLSX
+    </a>
+    <a href="{% url 'inventory:export' %}?fmt=csv{% if q %}&q={{ q }}{% endif %}{% if cat %}&cat={{ cat }}{% endif %}{% if stock %}&stock={{ stock }}{% endif %}"
+       class="px-3 py-2 rounded-lg text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors hidden sm:inline-flex">
+      📄 CSV
+    </a>
     <a href="{% url 'inventory:create' %}"
-       class="bg-brand-gold text-brand-dark px-4 py-2 rounded-lg text-sm font-medium hover:brightness-95 transition-all">
+       class="bg-brand-gold text-brand-dark px-3 py-2 rounded-lg text-sm font-medium hover:brightness-95 transition-all">
       + Додати
     </a>
   </div>
@@ -61,17 +73,43 @@
 </div>
 
 <!-- Table -->
-<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-  <table class="w-full text-sm">
+<div class="bg-white rounded-xl border border-gray-200 overflow-x-auto">
+  <table class="w-full text-sm min-w-[480px] md:min-w-0">
     <thead class="bg-gray-50 border-b border-gray-200">
       <tr>
-        <th class="px-4 py-3 text-left font-medium text-gray-600">Назва</th>
-        <th class="px-4 py-3 text-left font-medium text-gray-600 hidden md:table-cell">Категорія</th>
-        <th class="px-4 py-3 text-right font-medium text-gray-600">Кількість</th>
-        <th class="px-4 py-3 text-right font-medium text-gray-600 hidden md:table-cell">Вхідна</th>
-        <th class="px-4 py-3 text-right font-medium text-gray-600">Вихідна</th>
-        <th class="px-4 py-3 text-left font-medium text-gray-600 hidden md:table-cell">Одиниця</th>
-        <th class="px-4 py-3"></th>
+        {% with base_qs="?"|add:"q="|add:q|add:"&cat="|add:cat|add:"&stock="|add:stock %}
+        <th class="px-3 md:px-4 py-3 text-left font-medium text-gray-600">
+          <a href="{{ base_qs }}&sort=name&dir={% if sort == 'name' and dir == 'asc' %}desc{% else %}asc{% endif %}" class="hover:text-brand-gold inline-flex items-center gap-1">
+            Назва {% if sort == 'name' %}<span class="text-brand-gold">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
+          </a>
+        </th>
+        <th class="px-3 md:px-4 py-3 text-left font-medium text-gray-600 hidden md:table-cell">
+          <a href="{{ base_qs }}&sort=category&dir={% if sort == 'category' and dir == 'asc' %}desc{% else %}asc{% endif %}" class="hover:text-brand-gold inline-flex items-center gap-1">
+            Категорія {% if sort == 'category' %}<span class="text-brand-gold">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
+          </a>
+        </th>
+        <th class="px-3 md:px-4 py-3 text-right font-medium text-gray-600">
+          <a href="{{ base_qs }}&sort=quantity&dir={% if sort == 'quantity' and dir == 'asc' %}desc{% else %}asc{% endif %}" class="hover:text-brand-gold inline-flex items-center gap-1 justify-end w-full">
+            Кіл-ть {% if sort == 'quantity' %}<span class="text-brand-gold">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
+          </a>
+        </th>
+        <th class="px-3 md:px-4 py-3 text-right font-medium text-gray-600 hidden md:table-cell">
+          <a href="{{ base_qs }}&sort=buy_price&dir={% if sort == 'buy_price' and dir == 'asc' %}desc{% else %}asc{% endif %}" class="hover:text-brand-gold inline-flex items-center gap-1 justify-end w-full">
+            Вхідна {% if sort == 'buy_price' %}<span class="text-brand-gold">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
+          </a>
+        </th>
+        <th class="px-3 md:px-4 py-3 text-right font-medium text-gray-600">
+          <a href="{{ base_qs }}&sort=sell_price&dir={% if sort == 'sell_price' and dir == 'asc' %}desc{% else %}asc{% endif %}" class="hover:text-brand-gold inline-flex items-center gap-1 justify-end w-full">
+            Вихідна {% if sort == 'sell_price' %}<span class="text-brand-gold">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
+          </a>
+        </th>
+        <th class="px-3 md:px-4 py-3 text-left font-medium text-gray-600 hidden md:table-cell">
+          <a href="{{ base_qs }}&sort=unit&dir={% if sort == 'unit' and dir == 'asc' %}desc{% else %}asc{% endif %}" class="hover:text-brand-gold inline-flex items-center gap-1">
+            Одиниця {% if sort == 'unit' %}<span class="text-brand-gold">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
+          </a>
+        </th>
+        {% endwith %}
+        <th class="px-3 md:px-4 py-3"></th>
       </tr>
     </thead>
     <tbody class="divide-y divide-gray-100">
