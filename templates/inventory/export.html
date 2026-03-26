@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+{% block title %}Експорт складу — Kizuna CRM{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto">
+  <div class="flex items-center gap-3 mb-6">
+    <a href="{% url 'inventory:list' %}" class="text-gray-400 hover:text-gray-600">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+    </a>
+    <h1 class="text-2xl font-bold text-brand-dark">Експорт складу</h1>
+  </div>
+
+  <form id="export-form" class="bg-white rounded-xl border border-gray-200 p-6 space-y-5">
+
+    <!-- Формат -->
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-2">Формат</label>
+      <div class="flex gap-3">
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="radio" name="fmt" value="xlsx" checked class="text-brand-gold focus:ring-brand-gold">
+          <span class="text-sm">XLSX (Excel)</span>
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="radio" name="fmt" value="csv" class="text-brand-gold focus:ring-brand-gold">
+          <span class="text-sm">CSV</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Колонки -->
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-2">Колонки</label>
+      <div class="space-y-2">
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" name="cols" value="name" checked disabled class="rounded text-brand-gold focus:ring-brand-gold">
+          <span class="text-sm">Назва</span>
+          <span class="text-xs text-gray-400">(завжди)</span>
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" name="cols" value="category" checked class="rounded text-brand-gold focus:ring-brand-gold">
+          <span class="text-sm">Категорія</span>
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" name="cols" value="unit" checked class="rounded text-brand-gold focus:ring-brand-gold">
+          <span class="text-sm">Одиниця</span>
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" name="cols" value="quantity" checked class="rounded text-brand-gold focus:ring-brand-gold">
+          <span class="text-sm">Залишок</span>
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" name="cols" value="min_quantity" class="rounded text-brand-gold focus:ring-brand-gold">
+          <span class="text-sm">Мін. залишок</span>
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" name="cols" value="buy_price" checked class="rounded text-brand-gold focus:ring-brand-gold">
+          <span class="text-sm">Вхідна ціна</span>
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" name="cols" value="sell_price" checked class="rounded text-brand-gold focus:ring-brand-gold">
+          <span class="text-sm">Вихідна ціна</span>
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" name="cols" value="notes" class="rounded text-brand-gold focus:ring-brand-gold">
+          <span class="text-sm">Нотатки</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Фільтр по категорії -->
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-2">Категорія</label>
+      <select name="cat" class="w-full rounded-lg border-gray-300 text-sm px-3 py-2 focus:ring-brand-gold focus:border-brand-gold">
+        <option value="">Всі категорії</option>
+        {% for c in categories %}
+        <option value="{{ c.pk }}">{{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Фільтр по залишку -->
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-2">Залишок</label>
+      <select name="stock" class="w-full rounded-lg border-gray-300 text-sm px-3 py-2 focus:ring-brand-gold focus:border-brand-gold">
+        <option value="">Всі товари</option>
+        <option value="low">Малий залишок</option>
+        <option value="out">Нульовий залишок</option>
+      </select>
+    </div>
+
+    <!-- Пошук -->
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-2">Пошук по назві</label>
+      <input type="text" name="q" placeholder="Залиште порожнім для всіх товарів"
+        class="w-full rounded-lg border-gray-300 text-sm px-3 py-2 focus:ring-brand-gold focus:border-brand-gold">
+    </div>
+
+    <!-- Кнопки -->
+    <div class="flex gap-3 pt-2">
+      <button type="submit"
+        class="flex-1 bg-brand-gold text-brand-dark py-2.5 rounded-lg text-sm font-semibold hover:brightness-95">
+        Завантажити
+      </button>
+      <a href="{% url 'inventory:list' %}"
+        class="px-6 py-2.5 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200">
+        Назад
+      </a>
+    </div>
+  </form>
+</div>
+
+<script>
+document.getElementById('export-form').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const form = this;
+  const params = new URLSearchParams();
+
+  // Формат
+  const fmt = form.querySelector('input[name="fmt"]:checked');
+  if (fmt) params.set('fmt', fmt.value);
+
+  // Колонки — завжди включаємо name
+  params.append('cols', 'name');
+  form.querySelectorAll('input[name="cols"]:checked:not([disabled])').forEach(cb => {
+    params.append('cols', cb.value);
+  });
+
+  // Фільтри
+  const cat = form.querySelector('select[name="cat"]').value;
+  const stock = form.querySelector('select[name="stock"]').value;
+  const q = form.querySelector('input[name="q"]').value.trim();
+  if (cat) params.set('cat', cat);
+  if (stock) params.set('stock', stock);
+  if (q) params.set('q', q);
+
+  window.location.href = '{% url "inventory:export" %}?' + params.toString();
+});
+</script>
+{% endblock %}
