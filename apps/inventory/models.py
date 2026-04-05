@@ -1,10 +1,20 @@
 from django.db import models
 from django.conf import settings
 from decimal import Decimal
+from apps.clinic.managers import OrgManager
 
 
 class Category(models.Model):
-    name = models.CharField('Назва', max_length=100, unique=True)
+    name = models.CharField('Назва', max_length=100)
+    organization = models.ForeignKey(
+        'clinic.Organization',
+        on_delete=models.CASCADE,
+        null=True, blank=True,
+        related_name='inventory_categories',
+        verbose_name='Організація',
+    )
+
+    objects = OrgManager()
 
     class Meta:
         verbose_name = 'Категорія'
@@ -36,6 +46,15 @@ class Product(models.Model):
         related_name='products', verbose_name='Категорія'
     )
     unit = models.ForeignKey(Unit, on_delete=models.PROTECT, verbose_name='Одиниця')
+    organization = models.ForeignKey(
+        'clinic.Organization',
+        on_delete=models.CASCADE,
+        null=True, blank=True,
+        related_name='products',
+        verbose_name='Організація',
+    )
+
+    objects = OrgManager()
     buy_price = models.DecimalField('Вхідна ціна', max_digits=10, decimal_places=2, default=0)
     sell_price = models.DecimalField('Вихідна ціна', max_digits=10, decimal_places=2, default=0)
     quantity = models.DecimalField('Залишок', max_digits=10, decimal_places=3, default=0)

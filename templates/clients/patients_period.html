@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+
+{% block title %}Пацієнти за період — Kizuna CRM{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-bold text-brand-dark">Пацієнти за період</h1>
+</div>
+
+<!-- Вкладки -->
+<div class="flex gap-1 mb-5">
+  <a href="{% url 'clients:patient_list' %}"
+     class="px-4 py-2 rounded-lg text-sm font-medium border transition-colors border-gray-200 text-gray-500 hover:border-gray-300">
+    Всі пацієнти
+  </a>
+  <a href="{% url 'clients:patients_period' %}"
+     class="px-4 py-2 rounded-lg text-sm font-medium border transition-colors bg-brand-gold text-brand-dark border-brand-gold">
+    За період
+  </a>
+</div>
+
+<!-- Фільтр дат -->
+<form method="get" class="flex flex-wrap items-end gap-3 mb-5 bg-white border border-gray-200 rounded-xl p-4">
+  <div class="flex flex-col gap-1">
+    <label class="text-xs text-gray-500 font-medium">Від</label>
+    <input type="date" name="date_from" value="{{ date_from|date:'Y-m-d' }}"
+      class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+  </div>
+  <div class="flex flex-col gap-1">
+    <label class="text-xs text-gray-500 font-medium">До</label>
+    <input type="date" name="date_to" value="{{ date_to|date:'Y-m-d' }}"
+      class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+  </div>
+  <button type="submit"
+    class="bg-brand-gold text-brand-dark px-4 py-2 rounded-lg text-sm font-medium hover:brightness-95 transition-all">
+    Показати
+  </button>
+  <span class="text-sm text-gray-400 self-end pb-2">Знайдено: <strong class="text-brand-dark">{{ count }}</strong></span>
+</form>
+
+<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 border-b border-gray-200">
+      <tr>
+        <th class="px-4 py-3 text-left font-medium text-gray-600 w-12"></th>
+        <th class="px-4 py-3 text-left font-medium text-gray-600">Кличка</th>
+        <th class="px-4 py-3 text-left font-medium text-gray-600">Хазяїн</th>
+        <th class="px-4 py-3 text-left font-medium text-gray-600 hidden md:table-cell">Вид / Порода</th>
+        <th class="px-4 py-3 text-left font-medium text-gray-600 hidden md:table-cell">Лікар</th>
+        <th class="px-4 py-3"></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">
+      {% for patient in patients %}
+      <tr class="hover:bg-gray-50 cursor-pointer" onclick="location.href='{% url 'clients:patient_detail' patient.pk %}'">
+        <td class="px-4 py-2 w-14">
+          {% if patient.photo %}
+            <img src="{{ patient.photo.url }}" alt="{{ patient.name }}"
+                 class="w-10 h-10 rounded-full object-cover block shrink-0">
+          {% else %}
+            <div class="w-10 h-10 rounded-full bg-brand-gold/10 flex items-center justify-center text-lg shrink-0">
+              {% if patient.species == 'cat' %}🐱
+              {% elif patient.species == 'dog' %}🐶
+              {% elif patient.species == 'rabbit' %}🐰
+              {% elif patient.species == 'bird' %}🐦
+              {% else %}🐾{% endif %}
+            </div>
+          {% endif %}
+        </td>
+        <td class="px-4 py-3">
+          <div class="font-semibold text-brand-dark">{{ patient.name }}</div>
+          <div class="text-xs text-gray-400">{{ patient.age_display }}</div>
+        </td>
+        <td class="px-4 py-3 text-gray-700">
+          <a href="{% url 'clients:detail' patient.client.pk %}"
+             class="hover:text-brand-gold"
+             onclick="event.stopPropagation()">{{ patient.client.full_name }}</a>
+        </td>
+        <td class="px-4 py-3 text-gray-500 hidden md:table-cell">
+          {{ patient.get_species_display }}{% if patient.breed %} · {{ patient.breed }}{% endif %}
+        </td>
+        <td class="px-4 py-3 text-gray-400 text-xs hidden md:table-cell">
+          {% if patient.assigned_doctor %}{{ patient.assigned_doctor.get_full_name|default:patient.assigned_doctor.username }}{% else %}—{% endif %}
+        </td>
+        <td class="px-4 py-3 text-right">
+          <a href="{% url 'clients:patient_detail' patient.pk %}"
+             class="text-brand-gold hover:text-brand-dark text-xs font-medium"
+             onclick="event.stopPropagation()">Відкрити</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="6" class="px-4 py-12 text-center text-gray-400">
+          За вказаний період активності не знайдено
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

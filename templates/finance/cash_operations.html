@@ -3,10 +3,41 @@
 
 {% block content %}
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-  <h1 class="text-2xl font-bold">Касові операції</h1>
+  <h1 class="text-2xl font-bold">Каса</h1>
   <div class="flex gap-2">
     <a href="{% url 'finance:expenses' %}" class="px-4 py-2 rounded-lg text-sm font-medium bg-white border border-gray-200 hover:bg-gray-50">Витрати</a>
     <a href="{% url 'finance:cash_operation_create' %}" class="px-4 py-2 rounded-lg text-sm font-medium bg-brand-gold text-brand-dark hover:opacity-90">+ Операція</a>
+  </div>
+</div>
+
+<!-- Поточні залишки -->
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+  <div class="bg-white rounded-xl p-5 flex items-center gap-4 border border-gray-100 shadow-sm">
+    <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+      <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a5 5 0 00-10 0v2M5 9h14l1 11H4L5 9z"/>
+      </svg>
+    </div>
+    <div>
+      <p class="text-xs text-gray-400 uppercase tracking-wide font-medium mb-0.5">Готівка в касі</p>
+      <p class="text-2xl font-bold {% if cash_balance < 0 %}text-red-600{% else %}text-gray-900{% endif %}">
+        {{ cash_balance|floatformat:2 }} ₴
+      </p>
+    </div>
+  </div>
+  <div class="bg-white rounded-xl p-5 flex items-center gap-4 border border-gray-100 shadow-sm">
+    <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+      <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <rect x="2" y="5" width="20" height="14" rx="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path stroke-linecap="round" stroke-linejoin="round" d="M2 10h20"/>
+      </svg>
+    </div>
+    <div>
+      <p class="text-xs text-gray-400 uppercase tracking-wide font-medium mb-0.5">На картці</p>
+      <p class="text-2xl font-bold {% if card_balance < 0 %}text-red-600{% else %}text-gray-900{% endif %}">
+        {{ card_balance|floatformat:2 }} ₴
+      </p>
+    </div>
   </div>
 </div>
 

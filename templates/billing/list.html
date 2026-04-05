@@ -28,7 +28,35 @@
 
 <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
   {% if invoices %}
-  <table class="w-full text-sm">
+  <!-- Mobile: card layout -->
+  <div class="md:hidden divide-y divide-gray-50">
+    {% for inv in invoices %}
+    <a href="{% url 'billing:detail' inv.pk %}" class="block px-4 py-3 hover:bg-gray-50 transition">
+      <div class="flex items-center justify-between mb-1">
+        <div class="font-medium text-brand-dark text-sm">{{ inv.client }}</div>
+        <div class="font-semibold text-brand-dark text-sm">{{ inv.total }} ₴</div>
+      </div>
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2 text-xs text-gray-400">
+          {% if inv.patient %}<span>{{ inv.patient.name }}</span><span>·</span>{% endif %}
+          <span>{{ inv.created_at|date:"d.m H:i" }}</span>
+          {% if inv.payment_method == 'cash' %}<span>💵</span>{% elif inv.payment_method == 'card' %}<span>💳</span>{% endif %}
+        </div>
+        <div>
+          {% if inv.status == 'paid' %}
+            <span class="inline-block px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">Оплачено</span>
+          {% elif inv.status == 'draft' %}
+            <span class="inline-block px-2 py-0.5 rounded-full text-xs bg-yellow-100 text-yellow-700">Чернетка</span>
+          {% else %}
+            <span class="inline-block px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-500">Скасовано</span>
+          {% endif %}
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  <!-- Desktop: table layout -->
+  <table class="w-full text-sm hidden md:table">
     <thead class="border-b border-gray-100 bg-gray-50">
       <tr>
         <th class="text-left px-4 py-3 text-gray-500 font-medium">#</th>
@@ -38,6 +66,7 @@
         <th class="text-right px-4 py-3 text-gray-500 font-medium">Сума</th>
         <th class="text-center px-4 py-3 text-gray-500 font-medium">Оплата</th>
         <th class="text-center px-4 py-3 text-gray-500 font-medium">Статус</th>
+        <th class="px-4 py-3"></th>
       </tr>
     </thead>
     <tbody class="divide-y divide-gray-50">
@@ -67,6 +96,20 @@
             <span class="inline-block px-2 py-0.5 rounded-full text-xs bg-yellow-100 text-yellow-700">Чернетка</span>
           {% else %}
             <span class="inline-block px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-500">Скасовано</span>
+          {% endif %}
+        </td>
+        <td class="px-4 py-3 text-center" onclick="event.stopPropagation()">
+          {% if inv.status != 'paid' %}
+          <form method="post" action="{% url 'billing:delete' inv.pk %}"
+                onsubmit="return confirm('Видалити рахунок #{{ inv.pk }}?')">
+            {% csrf_token %}
+            <button type="submit" class="text-gray-300 hover:text-red-400 transition-colors" title="Видалити">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+              </svg>
+            </button>
+          </form>
           {% endif %}
         </td>
       </tr>

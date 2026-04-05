@@ -10,6 +10,8 @@ urlpatterns = [
     path('<int:pk>/edit/', views.invoice_edit, name='edit'),
     path('<int:pk>/pay/', views.pay_invoice, name='pay'),
     path('<int:pk>/cancel/', views.cancel_invoice, name='cancel'),
+    path('<int:pk>/delete/', views.delete_invoice, name='delete'),
+    path('<int:pk>/update-payment/', views.update_payment_method, name='update_payment'),
     path('<int:pk>/pdf/', views.invoice_pdf, name='pdf'),
     path('<int:pk>/add-line/', views.add_line, name='add_line'),
     path('<int:pk>/remove-line/<int:line_id>/', views.remove_line, name='remove_line'),
@@ -21,4 +23,8 @@ urlpatterns = [
     path('service-components/<int:service_id>/', views.service_components, name='service_components'),
     path('service-search/', views.service_search_json, name='service_search'),
     path('product-search/', views.product_search_json, name='product_search'),
+    path('<int:pk>/fiscalize/', views.fiscalize_invoice, name='fiscalize'),
+    path('<int:pk>/confirm-payment/', views.confirm_checkbox_payment, name='confirm_payment'),
+    path('<int:pk>/cancel-fiscal/', views.cancel_fiscal, name='cancel_fiscal'),
+    path('<int:pk>/toggle-vaccine/', views.toggle_vaccine, name='toggle_vaccine'),
 ]

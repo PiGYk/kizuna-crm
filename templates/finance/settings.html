@@ -3,8 +3,26 @@
 
 {% block content %}
 <div class="flex items-center justify-between mb-6">
-  <h1 class="text-2xl font-bold">Категорії витрат</h1>
+  <h1 class="text-2xl font-bold">Налаштування фінансів</h1>
   <a href="{% url 'finance:expenses' %}" class="px-4 py-2 rounded-lg text-sm font-medium bg-white border border-gray-200 hover:bg-gray-50">&larr; Витрати</a>
+</div>
+
+<!-- Початкові залишки -->
+<div class="bg-white rounded-xl p-5 mb-6 border border-gray-100">
+  <h2 class="text-base font-semibold mb-1">Початкові залишки</h2>
+  <p class="text-sm text-gray-400 mb-4">Сума на рахунках до початку обліку в системі. На основі цих значень розраховується поточний баланс готівки та картки.</p>
+  <form method="post" action="{% url 'finance:settings_balance_update' %}" class="flex flex-wrap gap-4 items-end">
+    {% csrf_token %}
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">Готівка в касі (₴)</label>
+      {{ balance_form.initial_cash }}
+    </div>
+    <div>
+      <label class="block text-xs text-gray-500 mb-1">На картці (₴)</label>
+      {{ balance_form.initial_card }}
+    </div>
+    <button type="submit" class="px-4 py-2 rounded-lg text-sm font-medium bg-brand-dark text-white hover:opacity-90">Зберегти</button>
+  </form>
 </div>
 
 <!-- Додати категорію -->

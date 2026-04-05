@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Налаштування клініки — {{ clinic.name }}{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-bold">Налаштування клініки</h1>
+</div>
+
+<form method="post">
+  {% csrf_token %}
+
+  <div class="bg-white rounded-xl border border-gray-100 p-6 mb-6">
+    <h2 class="text-base font-semibold mb-4">Основна інформація</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Повна назва <span class="text-red-400">*</span></label>
+        {{ form.name }}{% if form.name.errors %}<p class="text-xs text-red-500 mt-1">{{ form.name.errors.0 }}</p>{% endif %}
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Коротка назва</label>
+        {{ form.short_name }}
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Адреса</label>
+        {{ form.address }}
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Телефон</label>
+        {{ form.phone }}
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Email</label>
+        {{ form.email }}
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Години роботи</label>
+        {{ form.work_hours }}
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Веб-сайт</label>
+        {{ form.website }}
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Символ валюти</label>
+        {{ form.currency_symbol }}
+      </div>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl border border-gray-100 p-6 mb-6">
+    <h2 class="text-base font-semibold mb-1">Telegram бот</h2>
+    <p class="text-sm text-gray-400 mb-4">Отримайте токен у <a href="https://t.me/BotFather" target="_blank" class="text-brand-gold hover:underline">@BotFather</a>. Після зміни токену — перереєструйте webhook.</p>
+    <div class="grid grid-cols-1 gap-4">
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Bot Token</label>
+        {{ form.telegram_bot_token }}
+      </div>
+    </div>
+    {% if clinic.telegram_bot_token %}
+    <div class="mt-4">
+      <form method="post" action="{% url 'tg:set_webhook' %}">
+        {% csrf_token %}
+        <button type="submit"
+           class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          Зареєструвати webhook
+        </button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="bg-white rounded-xl border border-gray-100 p-6 mb-6">
+    <h2 class="text-base font-semibold mb-1">Checkbox (фіскалізація)</h2>
+    <p class="text-sm text-gray-400 mb-4">Дані касира для реєстрації фіскальних чеків через Checkbox.ua.</p>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">License Key</label>
+        {{ form.checkbox_license_key }}
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">PIN касира</label>
+        {{ form.checkbox_pin }}
+      </div>
+    </div>
+  </div>
+
+  <div class="flex gap-3">
+    <button type="submit"
+      class="px-6 py-2.5 bg-brand-gold text-brand-dark rounded-lg text-sm font-semibold hover:brightness-95">
+      Зберегти
+    </button>
+  </div>
+</form>
+{% endblock %}

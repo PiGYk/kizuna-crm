@@ -1,0 +1,725 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- SEO -->
+  <title>Kizuna CRM — Ветеринарна CRM система для клінік України</title>
+  <meta name="description" content="Kizuna CRM — хмарна CRM для ветеринарних клінік. Облік клієнтів та тварин, розклад прийомів, склад, білінг, фіскалізація Checkbox, Telegram-бот. Спробуйте безкоштовно.">
+  <meta name="keywords" content="ветеринарна CRM, вет CRM, CRM для ветеринарної клініки, ветеринарна програма, облік ветклініки, ветеринарна система, програма для ветеринара, CRM ветеринарія Україна, управління ветеринарною клінікою, вет клініка програмне забезпечення">
+  <meta name="robots" content="index, follow">
+  <meta name="author" content="Kizuna CRM">
+  <link rel="canonical" href="https://crm.kizuna.com.ua/">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/x-icon" href="{% static 'img/favicon.ico' %}">
+  <link rel="icon" type="image/png" sizes="32x32" href="{% static 'img/favicon-32.png' %}">
+  <link rel="icon" type="image/png" sizes="16x16" href="{% static 'img/favicon-16.png' %}">
+  <link rel="apple-touch-icon" href="{% static 'img/favicon-192.png' %}">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#12100F">
+
+  <!-- OG -->
+  <meta property="og:title" content="Kizuna CRM — Ветеринарна CRM для клінік України">
+  <meta property="og:description" content="Все що потрібно ветклініці в одній системі: клієнти, розклад, склад, рахунки, фіскалізація, Telegram-бот. 14 днів безкоштовно.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://crm.kizuna.com.ua/">
+  <meta property="og:locale" content="uk_UA">
+  <meta property="og:image" content="https://crm.kizuna.com.ua/static/img/og-image.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Kizuna CRM — Ветеринарна CRM система">
+  <meta property="og:site_name" content="Kizuna CRM">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Kizuna CRM — Ветеринарна CRM для клінік України">
+  <meta name="twitter:description" content="Хмарна CRM для ветклінік: клієнти, розклад, склад, рахунки, Telegram-бот, Checkbox РРО.">
+  <meta name="twitter:image" content="https://crm.kizuna.com.ua/static/img/og-image.jpg">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              dark:  '#12100F',
+              gold:  '#DEAA01',
+              cream: '#FFF7F3',
+              muted: '#2a2624',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    html { scroll-behavior: smooth; }
+    .screen-shadow {
+      box-shadow: 0 25px 60px rgba(0,0,0,0.18), 0 8px 20px rgba(0,0,0,0.10);
+    }
+    .screen-frame {
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(0,0,0,0.08);
+    }
+    .gradient-hero {
+      background: linear-gradient(135deg, #12100F 0%, #2a2624 60%, #1a1714 100%);
+    }
+    .gradient-gold {
+      background: linear-gradient(135deg, #DEAA01 0%, #f0c030 100%);
+    }
+    .pain-card:hover {
+      transform: translateY(-3px);
+      transition: transform 0.2s ease;
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-8px); }
+    }
+    .float-anim { animation: float 4s ease-in-out infinite; }
+  </style>
+</head>
+
+<body class="bg-white font-sans text-brand-dark antialiased">
+
+<!-- ═══════════════════ NAVBAR ═══════════════════ -->
+<nav class="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100">
+  <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <img src="{% static 'img/logo.svg' %}" alt="Kizuna CRM" class="h-10 w-auto">
+      <span class="font-bold text-lg text-brand-dark">Kizuna CRM</span>
+    </div>
+    <div class="hidden md:flex items-center gap-8 text-sm text-gray-600">
+      <a href="#features" class="hover:text-brand-gold transition-colors">Можливості</a>
+      <a href="#pain" class="hover:text-brand-gold transition-colors">Для кого</a>
+      <a href="#screens" class="hover:text-brand-gold transition-colors">Скріншоти</a>
+      <a href="#pricing" class="hover:text-brand-gold transition-colors">Тарифи</a>
+    </div>
+    <div class="flex items-center gap-4">
+      <a href="tel:+380682398095" class="hidden lg:flex items-center gap-1.5 text-sm text-gray-600 hover:text-brand-dark transition-colors">
+        <svg class="w-3.5 h-3.5 text-brand-gold" fill="currentColor" viewBox="0 0 20 20"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/></svg>
+        +38 068 239 80 95
+      </a>
+      <a href="/login/" class="text-sm text-gray-600 hover:text-brand-dark transition-colors hidden sm:inline">Увійти</a>
+      <a href="/register/" class="px-4 py-2 gradient-gold text-brand-dark rounded-lg text-sm font-semibold hover:brightness-95 transition-all whitespace-nowrap">
+        <span class="sm:hidden">Спробувати</span>
+        <span class="hidden sm:inline">Спробувати безкоштовно</span>
+      </a>
+    </div>
+  </div>
+</nav>
+
+
+<!-- ═══════════════════ HERO ═══════════════════ -->
+<section class="gradient-hero pt-24 md:pt-32 pb-20 px-6 overflow-hidden relative">
+  <!-- декоративні кола -->
+  <div class="absolute top-20 right-0 w-96 h-96 rounded-full bg-brand-gold/5 blur-3xl pointer-events-none"></div>
+  <div class="absolute bottom-0 left-0 w-72 h-72 rounded-full bg-brand-gold/3 blur-3xl pointer-events-none"></div>
+
+  <div class="max-w-6xl mx-auto">
+    <div class="flex flex-col lg:flex-row items-center gap-12">
+
+      <!-- текст -->
+      <div class="lg:w-1/2 text-center lg:text-left">
+        <div class="inline-flex items-center gap-2 bg-brand-gold/10 border border-brand-gold/30 text-brand-gold text-xs font-semibold px-4 py-1.5 rounded-full mb-6">
+          <span class="w-1.5 h-1.5 bg-brand-gold rounded-full animate-pulse"></span>
+          Зроблено в Україні для ветеринарів
+        </div>
+
+        <h1 class="text-4xl lg:text-5xl font-extrabold text-white leading-tight mb-6">
+          CRM для<br>
+          <span class="text-brand-gold">ветеринарної клініки</span><br>
+          яка не гальмує
+        </h1>
+
+        <p class="text-white/70 text-lg mb-8 leading-relaxed">
+          Замість блокнотів, таблиць Excel і кількох месенджерів — одна система. Клієнти, розклад, склад, рахунки, фіскалізація і Telegram-бот для клієнтів.
+        </p>
+
+        <div class="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
+          <a href="/register/"
+             class="px-8 py-3.5 gradient-gold text-brand-dark rounded-xl font-bold text-base hover:brightness-95 transition-all shadow-lg shadow-brand-gold/20">
+            Почати безкоштовно →
+          </a>
+          <a href="#screens"
+             class="px-8 py-3.5 bg-white/10 border border-white/20 text-white rounded-xl font-medium text-base hover:bg-white/15 transition-all">
+            Подивитись систему
+          </a>
+        </div>
+
+        <p class="text-white/40 text-xs mt-4">Без кредитної картки · Готово за 5 хвилин</p>
+      </div>
+
+      <!-- скрін дашборду -->
+      <div class="lg:w-1/2 float-anim">
+        <div class="screen-frame screen-shadow">
+          <img src="{% static 'landing/dashboard.png' %}" alt="Дашборд ветеринарної CRM Kizuna" class="w-full">
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════ БОЛІ ═══════════════════ -->
+<section id="pain" class="py-20 px-6 bg-brand-cream">
+  <div class="max-w-6xl mx-auto">
+    <div class="text-center mb-14">
+      <h2 class="text-3xl lg:text-4xl font-extrabold text-brand-dark mb-4">
+        Впізнаєте себе?
+      </h2>
+      <p class="text-gray-500 text-lg max-w-2xl mx-auto">
+        Більшість ветеринарних клінік в Україні досі ведуть облік у блокноті або Excel. Kizuna CRM вирішує саме ці болі.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+      <div class="pain-card bg-white rounded-2xl p-6 border border-red-100">
+        <div class="text-3xl mb-4">📓</div>
+        <h3 class="font-bold text-brand-dark mb-2">«Де картка цього клієнта?»</h3>
+        <p class="text-gray-500 text-sm leading-relaxed">Паперові журнали, записи в телефоні, Excel-таблиці на флешці. Клієнт дзвонить — ви шукаєте 5 хвилин.</p>
+        <div class="mt-4 pt-4 border-t border-gray-100 text-xs font-semibold text-brand-gold">→ Картка клієнта та всіх його тварин — в одному місці</div>
+      </div>
+
+      <div class="pain-card bg-white rounded-2xl p-6 border border-red-100">
+        <div class="text-3xl mb-4">📅</div>
+        <h3 class="font-bold text-brand-dark mb-2">Записи в чатах і на папірці</h3>
+        <p class="text-gray-500 text-sm leading-relaxed">Розклад в Telegram-чаті, у Viber і ще в блокноті. Накладки, забуті прийоми, лікар не знає хто прийде.</p>
+        <div class="mt-4 pt-4 border-t border-gray-100 text-xs font-semibold text-brand-gold">→ Єдиний розклад для всіх лікарів з нагадуваннями</div>
+      </div>
+
+      <div class="pain-card bg-white rounded-2xl p-6 border border-red-100">
+        <div class="text-3xl mb-4">🧾</div>
+        <h3 class="font-bold text-brand-dark mb-2">РРО і фіскалізація — головний біль</h3>
+        <p class="text-gray-500 text-sm leading-relaxed">Окремий касовий апарат, ручне введення, роздруківка чеків. Час та помилки при кожній оплаті.</p>
+        <div class="mt-4 pt-4 border-t border-gray-100 text-xs font-semibold text-brand-gold">→ Фіскальний чек через Checkbox одним кліком</div>
+      </div>
+
+      <div class="pain-card bg-white rounded-2xl p-6 border border-red-100">
+        <div class="text-3xl mb-4">💊</div>
+        <h3 class="font-bold text-brand-dark mb-2">Склад «на окомір»</h3>
+        <p class="text-gray-500 text-sm leading-relaxed">Медикаменти закінчились раптово, надлишки списані, розхід ніхто не рахував. Гроші просто тануть.</p>
+        <div class="mt-4 pt-4 border-t border-gray-100 text-xs font-semibold text-brand-gold">→ Склад з автосписанням та сигналом при низьких залишках</div>
+      </div>
+
+      <div class="pain-card bg-white rounded-2xl p-6 border border-red-100">
+        <div class="text-3xl mb-4">💬</div>
+        <h3 class="font-bold text-brand-dark mb-2">Клієнти пишуть у 5 місць</h3>
+        <p class="text-gray-500 text-sm leading-relaxed">Viber, Instagram, Telegram, телефон. Відповіді губляться, клієнт нагадує двічі, адміністратор розривається.</p>
+        <div class="mt-4 pt-4 border-t border-gray-100 text-xs font-semibold text-brand-gold">→ Telegram-бот: клієнт сам дивиться записи, аналізи, рахунки</div>
+      </div>
+
+      <div class="pain-card bg-white rounded-2xl p-6 border border-red-100">
+        <div class="text-3xl mb-4">📊</div>
+        <h3 class="font-bold text-brand-dark mb-2">«Ми взагалі в плюсі?»</h3>
+        <p class="text-gray-500 text-sm leading-relaxed">Виручка не рахується, витрати на папері, фінансового звіту не існує. Рішення приймаються наосліп.</p>
+        <div class="mt-4 pt-4 border-t border-gray-100 text-xs font-semibold text-brand-gold">→ Аналітика виручки, топ-послуги, фінансові звіти</div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════ МОЖЛИВОСТІ ═══════════════════ -->
+<section id="features" class="py-20 px-6 bg-white">
+  <div class="max-w-6xl mx-auto">
+    <div class="text-center mb-14">
+      <h2 class="text-3xl lg:text-4xl font-extrabold text-brand-dark mb-4">
+        Все що потрібно клініці — в одній системі
+      </h2>
+      <p class="text-gray-500 text-lg">Жодних зайвих модулів — тільки те, що реально використовують ветклініки</p>
+    </div>
+
+    <!-- Feature 1: Клієнти + скрін -->
+    <div class="flex flex-col lg:flex-row items-center gap-12 mb-24">
+      <div class="lg:w-1/2">
+        <div class="screen-frame screen-shadow">
+          <img src="{% static 'landing/clients.png' %}" alt="База клієнтів та тварин у ветеринарній CRM" class="w-full">
+        </div>
+      </div>
+      <div class="lg:w-1/2">
+        <div class="inline-flex items-center gap-2 bg-blue-50 text-blue-700 text-xs font-semibold px-3 py-1 rounded-full mb-4">🐾 Клієнти та тварини</div>
+        <h3 class="text-2xl font-extrabold text-brand-dark mb-4">Повна карточка клієнта та його улюбленців</h3>
+        <p class="text-gray-500 mb-6 leading-relaxed">Вся історія прийомів, аналізи, вакцинації, призначення — в одному профілі. Щоб лікар бачив усе ще до того, як клієнт зайшов.</p>
+        <ul class="space-y-3 text-sm">
+          <li class="flex items-start gap-3"><span class="text-brand-gold font-bold mt-0.5">✓</span><span>Необмежена кількість тварин на клієнта</span></li>
+          <li class="flex items-start gap-3"><span class="text-brand-gold font-bold mt-0.5">✓</span><span>Завантаження аналізів та фото</span></li>
+          <li class="flex items-start gap-3"><span class="text-brand-gold font-bold mt-0.5">✓</span><span>Пошук по імені, телефону, породі</span></li>
+          <li class="flex items-start gap-3"><span class="text-brand-gold font-bold mt-0.5">✓</span><span>Журнал всіх прийомів з діагнозами</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Feature 2: Розклад + скрін -->
+    <div class="flex flex-col lg:flex-row-reverse items-center gap-12 mb-24">
+      <div class="lg:w-1/2">
+        <div class="screen-frame screen-shadow">
+          <img src="{% static 'landing/appointments.png' %}" alt="Розклад прийомів ветеринарної клініки" class="w-full">
+        </div>
+      </div>
+      <div class="lg:w-1/2">
+        <div class="inline-flex items-center gap-2 bg-green-50 text-green-700 text-xs font-semibold px-3 py-1 rounded-full mb-4">📅 Розклад</div>
+        <h3 class="text-2xl font-extrabold text-brand-dark mb-4">Розклад для всіх лікарів в одному вікні</h3>
+        <p class="text-gray-500 mb-6 leading-relaxed">Адміністратор бачить хто і коли прийде, може перенести запис і не допустити накладки. Більше ніяких «я не знав».</p>
+        <ul class="space-y-3 text-sm">
+          <li class="flex items-start gap-3"><span class="text-brand-gold font-bold mt-0.5">✓</span><span>Кольорове маркування по лікарях</span></li>
+          <li class="flex items-start gap-3"><span class="text-brand-gold font-bold mt-0.5">✓</span><span>Статуси: підтверджено, відмінено, виконано</span></li>
+          <li class="flex items-start gap-3"><span class="text-brand-gold font-bold mt-0.5">✓</span><span>Перегляд по дню, тижню, місяцю</span></li>
+          <li class="flex items-start gap-3"><span class="text-brand-gold font-bold mt-0.5">✓</span><span>Швидке створення запису прямо з картки</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Feature 3: Білінг + скрін -->
+    <div class="flex flex-col lg:flex-row items-center gap-12 mb-24">
+      <div class="lg:w-1/2">
+        <div class="screen-frame screen-shadow">
+          <img src="{% static 'landing/billing.png' %}" alt="Рахунки та фіскалізація у ветеринарній CRM" class="w-full">
+        </div>
+      </div>
+      <div class="lg:w-1/2">
+        <div class="inline-flex items-center gap-2 bg-yellow-50 text-yellow-700 text-xs font-semibold px-3 py-1 rounded-full mb-4">🧾 Білінг та РРО</div>
+        <h3 class="text-2xl font-extrabold text-brand-dark mb-4">Рахунки + фіскальний чек одним кліком</h3>
+        <p class="text-gray-500 mb-6 leading-relaxed">Виставляєте рахунок, клієнт оплачує — чек автоматично реєструється через Checkbox. PDF рахунку відправляється в Telegram.</p>
+        <ul class="space-y-3 text-sm">
+          <li class="flex items-start gap-3"><span class="text-brand-gold font-bold mt-0.5">✓</span><span>Інтеграція з Checkbox (РРО) — без окремого апарата</span></li>
+          <li class="flex items-start gap-3"><span class="text-brand-gold font-bold mt-0.5">✓</span><span>PDF-рахунок у Telegram клієнту</span></li>
+          <li class="flex items-start gap-3"><span class="text-brand-gold font-bold mt-0.5">✓</span><span>Знижки по позиції та на весь рахунок</span></li>
+          <li class="flex items-start gap-3"><span class="text-brand-gold font-bold mt-0.5">✓</span><span>Готівка та картка</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Feature 4: Telegram + скрін -->
+    <div class="flex flex-col lg:flex-row-reverse items-center gap-12 mb-24">
+      <div class="lg:w-1/2">
+        <div class="screen-frame screen-shadow">
+          <img src="{% static 'landing/telegram.png' %}" alt="Telegram бот для ветеринарної клініки" class="w-full">
+        </div>
+      </div>
+      <div class="lg:w-1/2">
+        <div class="inline-flex items-center gap-2 bg-sky-50 text-sky-700 text-xs font-semibold px-3 py-1 rounded-full mb-4">✈️ Telegram-бот</div>
+        <h3 class="text-2xl font-extrabold text-brand-dark mb-4">Клієнт сам отримує все через Telegram</h3>
+        <p class="text-gray-500 mb-6 leading-relaxed">Власний бот клініки відповідає клієнтам 24/7. Аналізи, записи, рахунки — без дзвінків адміністратору.</p>
+        <ul class="space-y-3 text-sm">
+          <li class="flex items-start gap-3"><span class="text-brand-gold font-bold mt-0.5">✓</span><span>Перегляд своїх тварин та прийомів</span></li>
+          <li class="flex items-start gap-3"><span class="text-brand-gold font-bold mt-0.5">✓</span><span>Отримання аналізів та протоколів PDF</span></li>
+          <li class="flex items-start gap-3"><span class="text-brand-gold font-bold mt-0.5">✓</span><span>Чат з адміністратором напряму в CRM</span></li>
+          <li class="flex items-start gap-3"><span class="text-brand-gold font-bold mt-0.5">✓</span><span>Кожна клініка — свій бот зі своїм токеном</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Feature 5: Склад + Аналітика — два у ряд -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div class="bg-brand-cream rounded-2xl p-6">
+        <div class="screen-frame screen-shadow mb-5">
+          <img src="{% static 'landing/inventory.png' %}" alt="Склад медикаментів ветеринарної клініки" class="w-full">
+        </div>
+        <div class="inline-flex items-center gap-2 bg-purple-50 text-purple-700 text-xs font-semibold px-3 py-1 rounded-full mb-3">💊 Склад</div>
+        <h3 class="text-xl font-extrabold text-brand-dark mb-2">Склад медикаментів і товарів</h3>
+        <p class="text-gray-500 text-sm leading-relaxed">Автосписання при продажу, сигнал при низьких залишках, нульовий залишок відразу помітний.</p>
+      </div>
+      <div class="bg-brand-cream rounded-2xl p-6">
+        <div class="screen-frame screen-shadow mb-5">
+          <img src="{% static 'landing/analytics.png' %}" alt="Аналітика ветеринарної клініки" class="w-full">
+        </div>
+        <div class="inline-flex items-center gap-2 bg-rose-50 text-rose-700 text-xs font-semibold px-3 py-1 rounded-full mb-3">📊 Аналітика</div>
+        <h3 class="text-xl font-extrabold text-brand-dark mb-2">Фінансова аналітика і звіти</h3>
+        <p class="text-gray-500 text-sm leading-relaxed">Виручка за день/тиждень/місяць, топ-послуги, динаміка клієнтів. Приймайте рішення на основі цифр.</p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ═══════════════════ СКРІНИ-ГАЛЕРЕЯ ═══════════════════ -->
+<section id="screens" class="py-20 px-6 gradient-hero overflow-hidden">
+  <div class="max-w-6xl mx-auto text-center mb-12">
+    <h2 class="text-3xl lg:text-4xl font-extrabold text-white mb-4">Подивіться на систему зсередини</h2>
+    <p class="text-white/60">Реальні скріни з робочої CRM — дані клініки за березень 2026</p>
+  </div>
+
+  <!-- Головний скрін аналітики — широкий -->
+  <div class="max-w-6xl mx-auto mb-4">
+    <div class="screen-frame screen-shadow">
+      <img src="{% static 'landing/analytics.png' %}" alt="Аналітика за березень — виручка ₴47 850" class="w-full">
+    </div>
+  </div>
+
+  <!-- Сітка скрінів -->
+  <div class="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-3 gap-4">
+    <div class="screen-frame screen-shadow">
+      <img src="{% static 'landing/finance.png' %}" alt="Фінансовий звіт" class="w-full">
+    </div>
+    <div class="screen-frame screen-shadow">
+      <img src="{% static 'landing/analytics_charts.png' %}" alt="Топ послуги та товари" class="w-full">
+    </div>
+    <div class="screen-frame screen-shadow">
+      <img src="{% static 'landing/billing.png' %}" alt="Рахунки" class="w-full">
+    </div>
+    <div class="screen-frame screen-shadow">
+      <img src="{% static 'landing/clients.png' %}" alt="База клієнтів" class="w-full">
+    </div>
+    <div class="screen-frame screen-shadow">
+      <img src="{% static 'landing/appointments.png' %}" alt="Розклад" class="w-full">
+    </div>
+    <div class="screen-frame screen-shadow">
+      <img src="{% static 'landing/inventory.png' %}" alt="Склад" class="w-full">
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════ ТАРИФИ ═══════════════════ -->
+<section id="pricing" class="py-20 px-6 bg-white">
+  <div class="max-w-5xl mx-auto">
+    <div class="text-center mb-14">
+      <h2 class="text-3xl lg:text-4xl font-extrabold text-brand-dark mb-4">Прозорі тарифи</h2>
+      <p class="text-gray-500 text-lg">Без прихованих платежів. Без «дзвоніть для уточнення ціни».</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+
+      <!-- Старт -->
+      <div class="rounded-2xl border border-gray-200 p-8">
+        <div class="text-sm font-semibold text-gray-500 mb-2">Старт</div>
+        <div class="text-4xl font-extrabold text-brand-dark mb-1">₴990<span class="text-lg font-normal text-gray-400">/міс</span></div>
+        <p class="text-gray-500 text-sm mb-8">Для невеликої клініки що тільки починає</p>
+        <ul class="space-y-3 text-sm text-gray-600 mb-8">
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> До 2 лікарів</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Клієнти та тварини</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Розклад</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Білінг та рахунки</li>
+          <li class="flex items-center gap-2 text-gray-300"><span>✗</span> Telegram-бот</li>
+          <li class="flex items-center gap-2 text-gray-300"><span>✗</span> Checkbox РРО</li>
+        </ul>
+        <a href="/register/" class="block text-center py-2.5 border-2 border-brand-gold text-brand-gold rounded-xl font-semibold text-sm hover:bg-brand-gold hover:text-brand-dark transition-all">
+          Спробувати
+        </a>
+      </div>
+
+      <!-- Клініка — highlighted -->
+      <div class="rounded-2xl border-2 border-brand-gold p-8 relative shadow-xl shadow-brand-gold/10">
+        <div class="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 gradient-gold text-brand-dark text-xs font-bold rounded-full">
+          Найпопулярніший
+        </div>
+        <div class="text-sm font-semibold text-brand-gold mb-2">Клініка</div>
+        <div class="text-4xl font-extrabold text-brand-dark mb-1">₴1 990<span class="text-lg font-normal text-gray-400">/міс</span></div>
+        <p class="text-gray-500 text-sm mb-8">Повний функціонал для активної клініки</p>
+        <ul class="space-y-3 text-sm text-gray-600 mb-8">
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> До 10 лікарів</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Клієнти та тварини</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Розклад</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Білінг та рахунки</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Telegram-бот</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Checkbox РРО</li>
+        </ul>
+        <a href="/register/" class="block text-center py-2.5 gradient-gold text-brand-dark rounded-xl font-bold text-sm hover:brightness-95 transition-all">
+          Почати зараз →
+        </a>
+      </div>
+
+      <!-- Мережа -->
+      <div class="rounded-2xl border border-gray-200 p-8">
+        <div class="text-sm font-semibold text-gray-500 mb-2">Мережа</div>
+        <div class="text-4xl font-extrabold text-brand-dark mb-1">₴3 990<span class="text-lg font-normal text-gray-400">/міс</span></div>
+        <p class="text-gray-500 text-sm mb-8">Для мережі клінік або великих центрів</p>
+        <ul class="space-y-3 text-sm text-gray-600 mb-8">
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Необмежена кількість лікарів</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Все з тарифу «Клініка»</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Пріоритетна підтримка</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Персональне налаштування</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Навчання команди</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> SLA підтримка</li>
+        </ul>
+        <a href="/register/" class="block text-center py-2.5 border-2 border-brand-gold text-brand-gold rounded-xl font-semibold text-sm hover:bg-brand-gold hover:text-brand-dark transition-all">
+          Зв'язатись
+        </a>
+      </div>
+
+    </div>
+
+    <p class="text-center text-gray-400 text-sm mt-8">Перші 14 днів безкоштовно для будь-якого тарифу</p>
+  </div>
+</section>
+
+
+<!-- ═══════════════════ FAQ ═══════════════════ -->
+<section class="py-20 px-6 bg-brand-cream">
+  <div class="max-w-3xl mx-auto">
+    <h2 class="text-3xl font-extrabold text-brand-dark text-center mb-12">Часті питання</h2>
+
+    <div class="space-y-4">
+      <details class="bg-white rounded-2xl p-6 group cursor-pointer">
+        <summary class="font-semibold text-brand-dark flex items-start gap-4 justify-between list-none cursor-pointer">
+          Чи потрібно щось встановлювати?
+          <span class="text-brand-gold text-xl group-open:rotate-45 transition-transform">+</span>
+        </summary>
+        <p class="text-gray-500 text-sm mt-3 leading-relaxed">Ні. Kizuna CRM — хмарна система. Достатньо зареєструватись і відкрити в будь-якому браузері. Працює на комп'ютері, планшеті, телефоні.</p>
+      </details>
+
+      <details class="bg-white rounded-2xl p-6 group cursor-pointer">
+        <summary class="font-semibold text-brand-dark flex items-start gap-4 justify-between list-none cursor-pointer">
+          Як швидко можна почати роботу?
+          <span class="text-brand-gold text-xl group-open:rotate-45 transition-transform">+</span>
+        </summary>
+        <p class="text-gray-500 text-sm mt-3 leading-relaxed">Реєстрація займає 2 хвилини. Базове налаштування (назва, контакти, послуги) — ще 15 хвилин. Після цього можна вносити клієнтів і вести запис.</p>
+      </details>
+
+      <details class="bg-white rounded-2xl p-6 group cursor-pointer">
+        <summary class="font-semibold text-brand-dark flex items-start gap-4 justify-between list-none cursor-pointer">
+          Чи є інтеграція з Checkbox (РРО)?
+          <span class="text-brand-gold text-xl group-open:rotate-45 transition-transform">+</span>
+        </summary>
+        <p class="text-gray-500 text-sm mt-3 leading-relaxed">Так, і це рідкість серед ветеринарних CRM. Ви вводите ліцензійний ключ Checkbox у налаштуваннях — і фіскальний чек видається прямо з рахунку одним кліком. Окрема каса не потрібна.</p>
+      </details>
+
+      <details class="bg-white rounded-2xl p-6 group cursor-pointer">
+        <summary class="font-semibold text-brand-dark flex items-start gap-4 justify-between list-none cursor-pointer">
+          Чи можна перенести дані зі старої програми?
+          <span class="text-brand-gold text-xl group-open:rotate-45 transition-transform">+</span>
+        </summary>
+        <p class="text-gray-500 text-sm mt-3 leading-relaxed">Так, ми допоможемо з переносом із Excel або CSV-файлів. Напишіть або зателефонуйте після реєстрації — <a href="tel:+380682398095" class="text-brand-gold hover:underline">+38 068 239 80 95</a>.</p>
+      </details>
+
+      <details class="bg-white rounded-2xl p-6 group cursor-pointer">
+        <summary class="font-semibold text-brand-dark flex items-start gap-4 justify-between list-none cursor-pointer">
+          Де зберігаються дані?
+          <span class="text-brand-gold text-xl group-open:rotate-45 transition-transform">+</span>
+        </summary>
+        <p class="text-gray-500 text-sm mt-3 leading-relaxed">На захищеному сервері в Німеччині (Hetzner). Щоденні резервні копії. Дані клінік повністю ізольовані одна від одної.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════ ROADMAP / АКТИВНА РОЗРОБКА ═══════════════════ -->
+<section class="py-20 px-6 bg-brand-dark overflow-hidden relative">
+  <div class="absolute inset-0 pointer-events-none">
+    <div class="absolute top-0 right-0 w-96 h-96 rounded-full bg-brand-gold/4 blur-3xl"></div>
+    <div class="absolute bottom-0 left-0 w-64 h-64 rounded-full bg-brand-gold/3 blur-3xl"></div>
+  </div>
+
+  <div class="relative max-w-5xl mx-auto">
+
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-14">
+      <div>
+        <div class="flex items-center gap-2.5 mb-3">
+          <span class="relative flex h-3 w-3">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-3 w-3 bg-green-400"></span>
+          </span>
+          <span class="text-green-400 text-sm font-semibold tracking-wide uppercase">Активна розробка</span>
+        </div>
+        <h2 class="text-3xl lg:text-4xl font-extrabold text-white mb-3">
+          Система росте разом<br>з вашою клінікою
+        </h2>
+        <p class="text-white/50 text-base max-w-md">
+          Ми не продаємо готовий продукт і забуваємо про вас. Kizuna CRM оновлюється щотижня —
+          і саме ваші відгуки визначають що з'явиться наступним.
+        </p>
+      </div>
+      <a href="mailto:hello@kizuna.com.ua?subject=Пропозиція для Kizuna CRM"
+         class="flex-shrink-0 inline-flex items-center gap-2 px-6 py-3 bg-brand-gold text-brand-dark rounded-xl font-bold text-sm hover:opacity-90 transition-all shadow-lg shadow-brand-gold/20">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+        </svg>
+        Запропонувати функцію
+      </a>
+    </div>
+
+    <!-- Two columns: changelog + roadmap -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+
+      <!-- Останні оновлення -->
+      <div class="bg-white/5 border border-white/8 rounded-2xl p-6">
+        <div class="flex items-center gap-2 mb-5">
+          <svg class="w-4 h-4 text-brand-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+          </svg>
+          <span class="text-white font-semibold">Нещодавно додали</span>
+        </div>
+        <div class="space-y-3.5">
+          <div class="flex items-start gap-3">
+            <span class="mt-0.5 px-2 py-0.5 bg-green-500/15 text-green-400 text-xs rounded-md font-medium flex-shrink-0">квіт</span>
+            <span class="text-gray-300 text-sm">Онлайн-оплата підписки через WayForPay прямо з системи</span>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="mt-0.5 px-2 py-0.5 bg-green-500/15 text-green-400 text-xs rounded-md font-medium flex-shrink-0">квіт</span>
+            <span class="text-gray-300 text-sm">Email-верифікація при реєстрації для захисту акаунтів</span>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="mt-0.5 px-2 py-0.5 bg-brand-gold/15 text-brand-gold text-xs rounded-md font-medium flex-shrink-0">бер</span>
+            <span class="text-gray-300 text-sm">Аналітика по лікарях — хто скільки заробив за місяць</span>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="mt-0.5 px-2 py-0.5 bg-brand-gold/15 text-brand-gold text-xs rounded-md font-medium flex-shrink-0">бер</span>
+            <span class="text-gray-300 text-sm">Фінансовий журнал — прибутки та витрати з категоріями</span>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="mt-0.5 px-2 py-0.5 bg-white/10 text-gray-400 text-xs rounded-md font-medium flex-shrink-0">лют</span>
+            <span class="text-gray-300 text-sm">Telegram-бот для клієнтів — запис і нагадування автоматично</span>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="mt-0.5 px-2 py-0.5 bg-white/10 text-gray-400 text-xs rounded-md font-medium flex-shrink-0">лют</span>
+            <span class="text-gray-300 text-sm">Checkbox РРО — фіскальний чек одним кліком з рахунку</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Що в роботі -->
+      <div class="bg-white/5 border border-white/8 rounded-2xl p-6">
+        <div class="flex items-center gap-2 mb-5">
+          <svg class="w-4 h-4 text-brand-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+          </svg>
+          <span class="text-white font-semibold">В розробці</span>
+        </div>
+        <div class="space-y-3.5">
+          <div class="flex items-start gap-3">
+            <span class="mt-0.5 w-2 h-2 rounded-full bg-yellow-400 flex-shrink-0 mt-1.5"></span>
+            <div>
+              <span class="text-gray-200 text-sm font-medium">SMS-нагадування про прийом</span>
+              <p class="text-gray-500 text-xs mt-0.5">Автоматичні SMS клієнтам за день до запису</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="mt-0.5 w-2 h-2 rounded-full bg-yellow-400 flex-shrink-0 mt-1.5"></span>
+            <div>
+              <span class="text-gray-200 text-sm font-medium">Медична карта тварини (PDF)</span>
+              <p class="text-gray-500 text-xs mt-0.5">Повна історія хвороб, щеплень, аналізів у PDF</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="mt-0.5 w-2 h-2 rounded-full bg-blue-400 flex-shrink-0 mt-1.5"></span>
+            <div>
+              <span class="text-gray-200 text-sm font-medium">Онлайн-запис для клієнтів</span>
+              <p class="text-gray-500 text-xs mt-0.5">Виджет на сайт клініки — клієнти самі обирають час</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="mt-0.5 w-2 h-2 rounded-full bg-blue-400 flex-shrink-0 mt-1.5"></span>
+            <div>
+              <span class="text-gray-200 text-sm font-medium">Мобільний застосунок</span>
+              <p class="text-gray-500 text-xs mt-0.5">iOS та Android для лікарів та адміністраторів</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="mt-0.5 w-2 h-2 rounded-full bg-purple-400 flex-shrink-0 mt-1.5"></span>
+            <div>
+              <span class="text-gray-200 text-sm font-medium">Автоматичний маркетинг</span>
+              <p class="text-gray-500 text-xs mt-0.5">Email / Telegram кампанії по клієнтській базі</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Feedback CTA -->
+    <div class="bg-gradient-to-r from-brand-gold/10 to-brand-gold/5 border border-brand-gold/20 rounded-2xl p-6 md:p-8 flex flex-col md:flex-row items-center gap-6">
+      <div class="text-4xl flex-shrink-0">💬</div>
+      <div class="flex-1 text-center md:text-left">
+        <h3 class="text-white font-bold text-lg mb-1">Ваш відгук формує продукт</h3>
+        <p class="text-white/50 text-sm">
+          Не вистачає якоїсь функції? Незручно щось? Маєте ідею?
+          Напишіть — і саме ваш запит може стати наступним оновленням системи.
+          Ми читаємо кожне повідомлення.
+        </p>
+      </div>
+      <div class="flex flex-col sm:flex-row gap-3 flex-shrink-0">
+        <a href="mailto:hello@kizuna.com.ua?subject=Ідея для Kizuna CRM"
+           class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-brand-gold text-brand-dark rounded-xl font-semibold text-sm hover:opacity-90 transition-all">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+          Написати ідею
+        </a>
+        <a href="tel:+380682398095"
+           class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 border border-white/15 text-white/70 rounded-xl font-semibold text-sm hover:border-brand-gold hover:text-brand-gold transition-all">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/></svg>
+          +38 068 239 80 95
+        </a>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ═══════════════════ CTA FINAL ═══════════════════ -->
+<section class="py-24 px-6 gradient-hero text-center relative overflow-hidden">
+  <div class="absolute inset-0 pointer-events-none">
+    <div class="absolute top-0 left-1/4 w-64 h-64 rounded-full bg-brand-gold/5 blur-3xl"></div>
+    <div class="absolute bottom-0 right-1/4 w-64 h-64 rounded-full bg-brand-gold/5 blur-3xl"></div>
+  </div>
+  <div class="relative max-w-2xl mx-auto">
+    <h2 class="text-4xl font-extrabold text-white mb-4">Готові спробувати?</h2>
+    <p class="text-white/60 text-lg mb-8">14 днів безкоштовно. Без кредитної картки. Без обмежень функцій.</p>
+    <a href="/register/"
+       class="inline-block px-10 py-4 gradient-gold text-brand-dark rounded-xl font-bold text-lg hover:brightness-95 transition-all shadow-xl shadow-brand-gold/20">
+      Зареєструвати клініку безкоштовно →
+    </a>
+    <p class="text-white/30 text-sm mt-4">Kizuna CRM · Ветеринарна CRM система · Україна</p>
+  </div>
+</section>
+
+
+<!-- ═══════════════════ FOOTER ═══════════════════ -->
+<footer class="bg-brand-dark py-10 px-6">
+  <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+    <div class="flex items-center gap-3">
+      <img src="{% static 'img/logo.svg' %}" alt="Kizuna CRM" class="h-7 w-auto opacity-80">
+      <span class="text-white/60 text-sm">Kizuna CRM — ветеринарна CRM система</span>
+    </div>
+    <div class="flex flex-wrap items-center justify-center md:justify-end gap-x-5 gap-y-2 text-sm text-white/40">
+      <a href="tel:+380682398095" class="hover:text-brand-gold transition-colors flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/></svg>
+        +38 068 239 80 95
+      </a>
+      <a href="/register/" class="hover:text-brand-gold transition-colors">Реєстрація</a>
+      <a href="/login/" class="hover:text-brand-gold transition-colors">Вхід</a>
+      <a href="/terms/" class="hover:text-brand-gold transition-colors">Умови використання</a>
+      <a href="/offer/" class="hover:text-brand-gold transition-colors">Публічна оферта</a>
+      <span>© 2025 Kizuna CRM</span>
+    </div>
+  </div>
+</footer>
+
+<!-- Schema.org structured data для SEO -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Kizuna CRM",
+  "applicationCategory": "BusinessApplication",
+  "operatingSystem": "Web",
+  "description": "Хмарна CRM система для ветеринарних клінік України. Облік клієнтів, тварин, розклад прийомів, склад, білінг, фіскалізація Checkbox, Telegram-бот.",
+  "url": "https://crm.kizuna.com.ua",
+  "offers": {
+    "@type": "Offer",
+    "price": "990",
+    "priceCurrency": "UAH"
+  },
+  "inLanguage": "uk",
+  "availableCountry": "UA"
+}
+</script>
+
+</body>
+</html>

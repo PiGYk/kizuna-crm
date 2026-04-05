@@ -86,6 +86,7 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
         return reverse('inventory:detail', kwargs={'pk': self.object.pk})
 
     def form_valid(self, form):
+        form.instance.organization = self.request.organization
         messages.success(self.request, 'Товар додано')
         return super().form_valid(form)
 
@@ -276,6 +277,10 @@ def import_execute(request):
         return str(val).strip()
 
     created, updated, errors = 0, 0, []
+    # IDs товарів, які потребують перегляду вихідної ціни:
+    # нові товари + існуючі зі зміненою вхідною ціною
+    review_ids = []
+
     for i, row in enumerate(rows, start=2):
         try:
             name_val = _get(row, 'name')
@@ -302,7 +307,11 @@ def import_execute(request):
             cat_name = _get(row, 'category')
             category = None
             if cat_name:
-                category, _ = Category.objects.get_or_create(name=cat_name)
+                org = request.organization
+                category, _ = Category.objects.get_or_create(
+                    name=cat_name,
+                    organization=org,
+                )
 
             # Числа
             buy = float(_get(row, 'buy_price') or 0)
@@ -312,11 +321,11 @@ def import_execute(request):
             notes_val = _get(row, 'notes')
 
             if product:
-                # Оновлюємо існуючий
+                # Визначаємо чи змінилась вхідна ціна
+                buy_changed = buy and abs(float(product.buy_price) - buy) > 0.001
+
                 product.name = name_val
-                if sku_val and not product.sku:
-                    product.sku = sku_val
-                elif sku_val:
+                if sku_val:
                     product.sku = sku_val
                 product.unit = unit
                 if category:
@@ -331,9 +340,12 @@ def import_execute(request):
                     product.notes = notes_val
                 product.save()
                 updated += 1
+
+                if buy_changed:
+                    review_ids.append(product.pk)
             else:
                 # Створюємо новий
-                Product.objects.create(
+                new_product = Product.objects.create(
                     name=name_val,
                     sku=sku_val,
                     unit=unit,
@@ -343,12 +355,15 @@ def import_execute(request):
                     quantity=qty,
                     min_quantity=min_qty,
                     notes=notes_val,
+                    organization=request.organization,
                 )
                 created += 1
+                # Новий товар завжди потрапляє на перегляд (позначаємо префіксом 'n:')
+                review_ids.append(f'n:{new_product.pk}')
         except Exception as e:
             errors.append(f'Рядок {i}: {e}')
 
-    # Чистимо сесію
+    # Чистимо сесію від даних файлу
     for key in ('import_headers', 'import_rows', 'import_filename'):
         request.session.pop(key, None)
 
@@ -358,7 +373,58 @@ def import_execute(request):
         messages.warning(request, msg)
     else:
         messages.success(request, msg)
+
+    # Якщо є товари для перегляду — переходимо на сторінку встановлення цін
+    if review_ids:
+        request.session['price_review_ids'] = review_ids
+        return redirect('inventory:price_review')
+
     return redirect('inventory:list')
+
+
+@login_required
+def price_review(request):
+    """Перегляд і встановлення вихідних цін після імпорту."""
+    raw_ids = request.session.get('price_review_ids', [])
+    if not raw_ids:
+        messages.info(request, 'Немає товарів для перегляду цін.')
+        return redirect('inventory:list')
+
+    # Розбиваємо на нові (n:pk) і ті зі зміненою ціною (pk)
+    new_pks = set()
+    changed_pks = set()
+    for entry in raw_ids:
+        s = str(entry)
+        if s.startswith('n:'):
+            new_pks.add(int(s[2:]))
+        else:
+            changed_pks.add(int(s))
+
+    all_pks = new_pks | changed_pks
+    products = Product.objects.filter(pk__in=all_pks).select_related('category', 'unit').order_by('name')
+
+    if request.method == 'POST':
+        updated_count = 0
+        for product in products:
+            raw = request.POST.get(f'sell_{product.pk}', '').strip()
+            if raw:
+                try:
+                    new_price = float(raw)
+                    if abs(new_price - float(product.sell_price)) > 0.001:
+                        product.sell_price = new_price
+                        product.save(update_fields=['sell_price'])
+                        updated_count += 1
+                except ValueError:
+                    pass
+        request.session.pop('price_review_ids', None)
+        messages.success(request, f'Вихідні ціни оновлено для {updated_count} товар(ів).')
+        return redirect('inventory:list')
+
+    return render(request, 'inventory/price_review.html', {
+        'products': products,
+        'new_pks': new_pks,
+        'total': len(all_pks),
+    })
 
 
 @login_required
@@ -383,8 +449,9 @@ def export_template(request):
     response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
     response['Content-Disposition'] = 'attachment; filename="import_template.csv"'
     writer = csv.writer(response)
-    writer.writerow(['назва', 'артикул', 'категорія', 'одиниця', 'вхідна_ціна', 'вихідна_ціна', 'залишок'])
-    writer.writerow(['Приклад препарату', 'SKU001', 'Вакцини', 'мл', '50.00', '120.00', '100'])
+    writer.writerow(['назва', 'артикул', 'категорія', 'одиниця', 'вхідна_ціна', 'вихідна_ціна', 'залишок', 'мін_залишок', 'нотатки'])
+    writer.writerow(['Приклад препарату', 'SKU001', 'Вакцини', 'мл', '50.00', '120.00', '100', '10', ''])
+    writer.writerow(['Новий товар без SKU', '', 'Препарати', 'шт', '200.00', '350.00', '50', '5', 'Зберігати в холоді'])
     return response
 
 
@@ -413,7 +480,7 @@ def category_create(request):
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
         if name:
-            Category.objects.get_or_create(name=name)
+            Category.objects.get_or_create(name=name, defaults={'organization': request.organization})
     return redirect('inventory:settings')
 
 

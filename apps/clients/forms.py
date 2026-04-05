@@ -57,10 +57,11 @@ class VisitForm(forms.ModelForm):
 class VaccineForm(forms.ModelForm):
     class Meta:
         model = Vaccine
-        fields = ('name', 'date', 'next_date', 'doctor', 'batch_number', 'notes')
+        fields = ('name', 'date', 'next_date', 'valid_until', 'doctor', 'batch_number', 'notes')
         widgets = {
             'date': forms.DateInput(attrs={'type': 'date'}),
             'next_date': forms.DateInput(attrs={'type': 'date'}),
+            'valid_until': forms.DateInput(attrs={'type': 'date'}),
             'notes': forms.Textarea(attrs={'rows': 2}),
         }
 

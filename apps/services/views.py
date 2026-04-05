@@ -16,9 +16,17 @@ class ServiceListView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         qs = Service.objects.prefetch_related('components__product')
-        if self.request.GET.get('inactive'):
-            return qs
-        return qs.filter(is_active=True)
+        if not self.request.GET.get('inactive'):
+            qs = qs.filter(is_active=True)
+        q = self.request.GET.get('q', '').strip()
+        if q:
+            qs = qs.filter(name__icontains=q)
+        return qs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['q'] = self.request.GET.get('q', '').strip()
+        return ctx
 
 
 class ServiceDetailView(LoginRequiredMixin, DetailView):
@@ -37,7 +45,9 @@ def service_create(request):
     form = ServiceForm(request.POST or None)
     formset = ComponentFormSet(request.POST or None, prefix='comp')
     if request.method == 'POST' and form.is_valid() and formset.is_valid():
-        service = form.save()
+        service = form.save(commit=False)
+        service.organization = request.organization
+        service.save()
         formset.instance = service
         formset.save()
         messages.success(request, 'Послугу додано')

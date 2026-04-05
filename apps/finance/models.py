@@ -1,12 +1,71 @@
 from django.db import models
 from django.conf import settings
 from decimal import Decimal
+from apps.clinic.managers import OrgManager
+
+
+class FinanceSettings(models.Model):
+    """Singleton — початкові залишки готівки та карти."""
+    initial_cash = models.DecimalField(
+        'Початковий залишок готівки', max_digits=12, decimal_places=2, default=0
+    )
+    initial_card = models.DecimalField(
+        'Початковий залишок картки', max_digits=12, decimal_places=2, default=0
+    )
+
+    class Meta:
+        verbose_name = 'Налаштування балансу'
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1, defaults={'initial_cash': 0, 'initial_card': 0})
+        return obj
+
+
+def calculate_balances():
+    """Розраховує поточні залишки готівки та карти по всіх операціях."""
+    from apps.billing.models import Invoice
+
+    fs = FinanceSettings.get()
+
+    def _sum(qs, field='amount'):
+        return qs.aggregate(t=models.Sum(field))['t'] or Decimal('0')
+
+    invoices_paid = Invoice.objects.filter(status='paid')
+    income_cash = _sum(invoices_paid.filter(payment_method='cash'), 'total')
+    income_card = _sum(invoices_paid.filter(payment_method='card'), 'total')
+
+    expense_cash = _sum(Expense.objects.filter(payment_method='cash'))
+    expense_card = _sum(Expense.objects.filter(payment_method='card'))
+
+    card_to_cash = _sum(CashOperation.objects.filter(type='card_to_cash'))
+    cash_to_card = _sum(CashOperation.objects.filter(type='cash_to_card'))
+    deposits     = _sum(CashOperation.objects.filter(type='deposit'))
+    withdrawals  = _sum(CashOperation.objects.filter(type='withdrawal'))
+
+    cash = fs.initial_cash + income_cash - expense_cash + card_to_cash - cash_to_card + deposits - withdrawals
+    card = fs.initial_card + income_card - expense_card - card_to_cash + cash_to_card
+
+    return {'cash': cash, 'card': card}
 
 
 class ExpenseCategory(models.Model):
-    name = models.CharField('Назва', max_length=100, unique=True)
+    name = models.CharField('Назва', max_length=100)
     icon = models.CharField('Іконка', max_length=10, blank=True,
                             help_text='Емоджі для відображення')
+    organization = models.ForeignKey(
+        'clinic.Organization',
+        on_delete=models.CASCADE,
+        null=True, blank=True,
+        related_name='expense_categories',
+        verbose_name='Організація',
+    )
+
+    objects = OrgManager()
 
     class Meta:
         verbose_name = 'Категорія витрат'
@@ -24,7 +83,16 @@ class Supplier(models.Model):
     phone = models.CharField('Телефон', max_length=20, blank=True)
     email = models.EmailField('Email', blank=True)
     notes = models.TextField('Нотатки', blank=True)
+    organization = models.ForeignKey(
+        'clinic.Organization',
+        on_delete=models.CASCADE,
+        null=True, blank=True,
+        related_name='suppliers',
+        verbose_name='Організація',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = OrgManager()
 
     class Meta:
         verbose_name = 'Постачальник'
@@ -63,7 +131,16 @@ class Expense(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
         null=True, verbose_name='Хто вніс'
     )
+    organization = models.ForeignKey(
+        'clinic.Organization',
+        on_delete=models.CASCADE,
+        null=True, blank=True,
+        related_name='expenses',
+        verbose_name='Організація',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = OrgManager()
 
     class Meta:
         verbose_name = 'Витрата'
@@ -89,7 +166,16 @@ class CashOperation(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
         null=True, verbose_name='Хто вніс'
     )
+    organization = models.ForeignKey(
+        'clinic.Organization',
+        on_delete=models.CASCADE,
+        null=True, blank=True,
+        related_name='cash_operations',
+        verbose_name='Організація',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = OrgManager()
 
     class Meta:
         verbose_name = 'Касова операція'

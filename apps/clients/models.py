@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from apps.clinic.managers import OrgManager, RelatedOrgManager
 
 
 class Client(models.Model):
@@ -8,7 +9,16 @@ class Client(models.Model):
     phone = models.CharField('Телефон', max_length=20)
     email = models.EmailField('Email', blank=True)
     notes = models.TextField('Нотатки', blank=True)
+    organization = models.ForeignKey(
+        'clinic.Organization',
+        on_delete=models.CASCADE,
+        null=True, blank=True,
+        related_name='clients',
+        verbose_name='Організація',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = OrgManager()
 
     class Meta:
         verbose_name = 'Клієнт'
@@ -57,6 +67,8 @@ class Patient(models.Model):
     notes = models.TextField('Нотатки', blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    objects = RelatedOrgManager('client__organization')
+
     class Meta:
         verbose_name = 'Пацієнт'
         verbose_name_plural = 'Пацієнти'
@@ -64,6 +76,29 @@ class Patient(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.get_species_display()}) — {self.client}"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if self.photo:
+            self._compress_photo()
+
+    def _compress_photo(self):
+        from PIL import Image, ImageOps
+        MAX_SIZE = 1200
+        try:
+            img = Image.open(self.photo.path)
+        except Exception:
+            return
+        img = ImageOps.exif_transpose(img)
+        if img.width <= MAX_SIZE and img.height <= MAX_SIZE:
+            if img.mode in ('RGBA', 'P', 'LA'):
+                img = img.convert('RGB')
+            img.save(self.photo.path, 'JPEG', quality=82, optimize=True)
+            return
+        img.thumbnail((MAX_SIZE, MAX_SIZE), Image.LANCZOS)
+        if img.mode in ('RGBA', 'P', 'LA'):
+            img = img.convert('RGB')
+        img.save(self.photo.path, 'JPEG', quality=82, optimize=True)
 
     def age_display(self):
         if self.age:
@@ -97,6 +132,8 @@ class Visit(models.Model):
     notes = models.TextField('Нотатки', blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    objects = RelatedOrgManager('patient__client__organization')
+
     class Meta:
         verbose_name = 'Візит'
         verbose_name_plural = 'Візити'
@@ -120,6 +157,8 @@ class PatientAnalysis(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
+    objects = RelatedOrgManager('patient__client__organization')
+
     class Meta:
         verbose_name = 'Аналіз'
         verbose_name_plural = 'Аналізи'
@@ -127,6 +166,25 @@ class PatientAnalysis(models.Model):
 
     def __str__(self):
         return f"{self.title} — {self.patient.name} ({self.date:%d.%m.%Y})"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if self.image:
+            self._fix_orientation()
+
+    def _fix_orientation(self):
+        from PIL import Image, ImageOps
+        MAX_SIZE = 2400
+        try:
+            img = Image.open(self.image.path)
+        except Exception:
+            return
+        img = ImageOps.exif_transpose(img)
+        if img.width > MAX_SIZE or img.height > MAX_SIZE:
+            img.thumbnail((MAX_SIZE, MAX_SIZE), Image.LANCZOS)
+        if img.mode in ('RGBA', 'P', 'LA'):
+            img = img.convert('RGB')
+        img.save(self.image.path, 'JPEG', quality=85, optimize=True)
 
 
 class Vaccine(models.Model):
@@ -141,8 +199,11 @@ class Vaccine(models.Model):
     name = models.CharField('Назва вакцини', max_length=200)
     date = models.DateField('Дата щеплення')
     next_date = models.DateField('Наступне щеплення', null=True, blank=True)
+    valid_until = models.DateField('Діє до', null=True, blank=True)
     batch_number = models.CharField('Серія', max_length=100, blank=True)
     notes = models.TextField('Нотатки', blank=True)
+
+    objects = RelatedOrgManager('patient__client__organization')
 
     class Meta:
         verbose_name = 'Вакцина'
@@ -169,6 +230,8 @@ class WeightRecord(models.Model):
         verbose_name='Хто зважував',
     )
     created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = RelatedOrgManager('patient__client__organization')
 
     class Meta:
         verbose_name = 'Вага'

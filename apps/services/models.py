@@ -1,4 +1,5 @@
 from django.db import models
+from apps.clinic.managers import OrgManager
 
 
 class Service(models.Model):
@@ -6,7 +7,16 @@ class Service(models.Model):
     description = models.TextField('Опис', blank=True)
     price = models.DecimalField('Ціна', max_digits=10, decimal_places=2, default=0)
     is_active = models.BooleanField('Активна', default=True)
+    organization = models.ForeignKey(
+        'clinic.Organization',
+        on_delete=models.CASCADE,
+        null=True, blank=True,
+        related_name='services',
+        verbose_name='Організація',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = OrgManager()
 
     class Meta:
         verbose_name = 'Послуга'

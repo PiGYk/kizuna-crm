@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Встановити вихідні ціни — Kizuna CRM{% endblock %}
+
+{% block content %}
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+  <div>
+    <h1 class="text-2xl font-bold">Встановити вихідні ціни</h1>
+    <p class="text-sm text-gray-400 mt-0.5">
+      Після імпорту знайдено <span class="font-semibold text-gray-700">{{ total }}</span>
+      товарів — нових або зі зміненою вхідною ціною. Перевірте та збережіть ціни.
+    </p>
+  </div>
+  <a href="{% url 'inventory:list' %}"
+     class="px-4 py-2 rounded-lg text-sm font-medium bg-white border border-gray-200 hover:bg-gray-50 whitespace-nowrap">
+    Пропустити →
+  </a>
+</div>
+
+<form method="post">
+  {% csrf_token %}
+
+  <div class="flex items-center justify-between mb-3">
+    <p class="text-xs text-gray-400">Порожнє або незмінене поле — ціна не оновлюється</p>
+    <button type="submit"
+      class="px-5 py-2 rounded-lg text-sm font-semibold bg-brand-gold text-brand-dark hover:opacity-90">
+      Зберегти всі ціни
+    </button>
+  </div>
+
+  <div class="bg-white rounded-xl overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+        <tr>
+          <th class="px-4 py-3 text-left">Товар</th>
+          <th class="px-4 py-3 text-left hidden sm:table-cell">Категорія</th>
+          <th class="px-4 py-3 text-left hidden md:table-cell">Артикул</th>
+          <th class="px-4 py-3 text-right">Вхідна ціна</th>
+          <th class="px-4 py-3 text-right w-44">Нова вихідна ціна</th>
+          <th class="px-4 py-3 text-center w-28">Статус</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for p in products %}
+        <tr class="hover:bg-gray-50 {% if p.sell_price == 0 %}bg-red-50{% endif %}">
+          <td class="px-4 py-3">
+            <a href="{% url 'inventory:detail' p.pk %}"
+               class="font-medium text-gray-900 hover:text-brand-gold"
+               target="_blank">
+              {{ p.name }}
+            </a>
+            <div class="text-xs text-gray-400 sm:hidden">{{ p.category.name|default:"—" }}</div>
+          </td>
+          <td class="px-4 py-3 text-gray-500 hidden sm:table-cell">
+            {{ p.category.name|default:"—" }}
+          </td>
+          <td class="px-4 py-3 text-gray-400 font-mono text-xs hidden md:table-cell">
+            {{ p.sku|default:"—" }}
+          </td>
+          <td class="px-4 py-3 text-right font-medium text-gray-700">
+            {{ p.buy_price|floatformat:2 }} ₴
+          </td>
+          <td class="px-4 py-3 text-right">
+            <div class="flex items-center justify-end gap-1">
+              <input
+                type="number"
+                name="sell_{{ p.pk }}"
+                value="{{ p.sell_price|floatformat:2 }}"
+                step="0.01"
+                min="0"
+                class="w-28 rounded-lg border-gray-300 text-sm px-3 py-1.5 text-right
+                       focus:ring-brand-gold focus:border-brand-gold
+                       {% if p.sell_price == 0 %}border-red-300 bg-red-50{% endif %}"
+                aria-label="Вихідна ціна для {{ p.name }}"
+              >
+              <span class="text-gray-400 text-xs">₴</span>
+            </div>
+          </td>
+          <td class="px-4 py-3 text-center">
+            {% if p.pk in new_pks %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                Новий
+              </span>
+            {% else %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
+                Нова вх. ціна
+              </span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="px-4 py-8 text-center text-gray-400">Немає товарів для перегляду</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="flex justify-between items-center mt-4">
+    <a href="{% url 'inventory:list' %}"
+       class="px-4 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-gray-600">
+      ← Пропустити без збереження
+    </a>
+    <button type="submit"
+      class="px-5 py-2.5 rounded-lg text-sm font-semibold bg-brand-gold text-brand-dark hover:opacity-90">
+      Зберегти всі ціни
+    </button>
+  </div>
+</form>
+{% endblock %}

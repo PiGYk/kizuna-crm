@@ -87,6 +87,7 @@ def appointment_create(request):
     if request.method == 'POST' and form.is_valid():
         appt = form.save(commit=False)
         appt.created_by = request.user
+        appt.organization = request.organization
         appt.save()
         form.save_m2m()
         back = request.GET.get('back') or f"/appointments/?date={appt.starts_at.date().isoformat()}"

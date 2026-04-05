@@ -6,12 +6,23 @@
 
   <!-- Список чатів (ліва панель) -->
   <div class="w-72 bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col shrink-0 hidden md:flex">
-    <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+    <div class="px-4 py-3 border-b border-gray-100">
       <span class="text-sm font-semibold text-brand-dark">Telegram чати</span>
+    </div>
+    <!-- Пошук -->
+    <div class="px-3 py-2 border-b border-gray-100">
+      <input type="search" id="chat-search" name="q" placeholder="Клієнт або тварина…"
+             autocomplete="off"
+             hx-get="{% url 'tg:list_partial' %}"
+             hx-trigger="input changed delay:300ms"
+             hx-target="#chat-list-panel"
+             hx-swap="innerHTML"
+             class="w-full text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-brand-gold">
     </div>
     <div class="overflow-y-auto flex-1"
          hx-get="{% url 'tg:list_partial' %}"
          hx-trigger="load, every 10s"
+         hx-include="#chat-search"
          hx-swap="innerHTML"
          id="chat-list-panel">
     </div>
@@ -42,17 +53,44 @@
             {{ chat.client }} →
           </a>
         {% else %}
-          <form method="post" action="{% url 'tg:link' chat.pk %}" class="flex items-center gap-1">
+          <form method="post" action="{% url 'tg:link' chat.pk %}" class="flex items-center gap-1 relative" id="link-form">
             {% csrf_token %}
-            <select name="client_id"
-              class="text-xs border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-brand-gold">
-              <option value="">— прив'язати клієнта —</option>
-              {% for c in unlinked_clients %}
-                <option value="{{ c.pk }}">{{ c }}</option>
-              {% endfor %}
-            </select>
+            <input type="hidden" name="client_id" id="link-client-id">
+            <input type="text" id="link-search" placeholder="Пошук клієнта..."
+              autocomplete="off"
+              class="text-xs border border-gray-300 rounded px-2 py-1 w-48 focus:outline-none focus:ring-1 focus:ring-brand-gold">
+            <div id="link-results" class="absolute top-full left-0 w-48 bg-white border border-gray-200 rounded shadow-lg z-50 hidden max-h-48 overflow-y-auto"></div>
             <button type="submit" class="text-xs text-brand-gold hover:text-brand-dark font-medium px-1">OK</button>
           </form>
+          <script>
+          (function(){
+            const input = document.getElementById('link-search');
+            const results = document.getElementById('link-results');
+            const hiddenId = document.getElementById('link-client-id');
+            let timer = null;
+            input.addEventListener('input', function(){
+              clearTimeout(timer);
+              const q = this.value.trim();
+              if(q.length < 2){ results.classList.add('hidden'); results.innerHTML=''; return; }
+              timer = setTimeout(()=>{
+                fetch('{% url "tg:search_clients" %}?q='+encodeURIComponent(q))
+                  .then(r=>r.json()).then(data=>{
+                    if(!data.length){ results.innerHTML='<div class="px-2 py-1 text-xs text-gray-400">Нічого не знайдено</div>'; results.classList.remove('hidden'); return; }
+                    results.innerHTML = data.map(c=>'<div class="px-2 py-1 text-xs cursor-pointer hover:bg-brand-gold/10" data-id="'+c.id+'">'+c.name+' <span class="text-gray-400">'+c.phone+'</span></div>').join('');
+                    results.classList.remove('hidden');
+                    results.querySelectorAll('[data-id]').forEach(el=>{
+                      el.addEventListener('click',()=>{
+                        hiddenId.value = el.dataset.id;
+                        input.value = el.textContent.trim();
+                        results.classList.add('hidden');
+                      });
+                    });
+                  });
+              }, 250);
+            });
+            document.addEventListener('click', e=>{ if(!e.target.closest('#link-form')) results.classList.add('hidden'); });
+          })();
+          </script>
         {% endif %}
       </div>
     </div>
@@ -69,10 +107,11 @@
 
     <!-- Поле вводу -->
     <div class="px-4 py-3 border-t border-gray-100 bg-white">
-      <form hx-post="{% url 'tg:send' chat.pk %}"
+      <form id="send-form"
+            hx-post="{% url 'tg:send' chat.pk %}"
             hx-target="#messages-container"
             hx-swap="innerHTML"
-            hx-on::after-request="this.reset()"
+            hx-on::after-request="this.reset(); window._tgScrollToBottom=true;"
             class="flex gap-2">
         {% csrf_token %}
         <input type="text" name="text"
@@ -89,4 +128,52 @@
   </div>
 
 </div>
+
+<script>
+(function () {
+  window._tgScrollToBottom = true;
+  window._tgSavedScrollBottom = null; // відстань від низу перед свапом
+
+  function scrollToBottom() {
+    const ml = document.getElementById('messages-list');
+    if (ml) ml.scrollTop = ml.scrollHeight;
+  }
+
+  document.body.addEventListener('htmx:beforeSwap', function (e) {
+    if (e.detail.target.id !== 'messages-container') return;
+    const ml = document.getElementById('messages-list');
+    if (!ml) {
+      window._tgScrollToBottom = true;
+      window._tgSavedScrollBottom = null;
+      return;
+    }
+    const distFromBottom = ml.scrollHeight - ml.scrollTop - ml.clientHeight;
+    if (distFromBottom < 60) {
+      window._tgScrollToBottom = true;
+      window._tgSavedScrollBottom = null;
+    } else {
+      window._tgScrollToBottom = false;
+      // зберігаємо відстань від низу, щоб відновити після свапу
+      window._tgSavedScrollBottom = distFromBottom;
+    }
+  });
+
+  document.body.addEventListener('htmx:afterSwap', function (e) {
+    if (e.detail.target.id !== 'messages-container') return;
+    const ml = document.getElementById('messages-list');
+    if (!ml) return;
+    if (window._tgScrollToBottom) {
+      window._tgScrollToBottom = false;
+      requestAnimationFrame(scrollToBottom);
+    } else if (window._tgSavedScrollBottom !== null) {
+      // відновлюємо позицію (відстань від низу)
+      const savedBottom = window._tgSavedScrollBottom;
+      window._tgSavedScrollBottom = null;
+      requestAnimationFrame(function () {
+        ml.scrollTop = ml.scrollHeight - ml.clientHeight - savedBottom;
+      });
+    }
+  });
+})();
+</script>
 {% endblock %}

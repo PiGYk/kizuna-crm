@@ -11,12 +11,25 @@
   </a>
 </div>
 
-<div class="mb-4">
-  <form method="get">
+<div class="flex flex-wrap items-center gap-3 mb-4">
+  <form method="get" class="flex gap-2 flex-1">
     <input type="text" name="q" value="{{ q }}"
       placeholder="Пошук за ім'ям або телефоном..."
       class="w-full md:w-96 px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+    {% if sort %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
   </form>
+  <div class="flex gap-1.5 shrink-0">
+    <a href="?q={{ q }}"
+       class="px-3 py-2 rounded-lg text-sm font-medium border transition-colors
+         {% if sort != 'new' %}bg-brand-gold text-brand-dark border-brand-gold{% else %}border-gray-200 text-gray-500 hover:border-gray-300{% endif %}">
+      А–Я
+    </a>
+    <a href="?q={{ q }}&sort=new"
+       class="px-3 py-2 rounded-lg text-sm font-medium border transition-colors
+         {% if sort == 'new' %}bg-brand-gold text-brand-dark border-brand-gold{% else %}border-gray-200 text-gray-500 hover:border-gray-300{% endif %}">
+      Нові
+    </a>
+  </div>
 </div>
 
 <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -78,12 +91,12 @@
 {% if is_paginated %}
 <div class="flex justify-center gap-2 mt-4">
   {% if page_obj.has_previous %}
-    <a href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}"
+    <a href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if sort %}&sort={{ sort }}{% endif %}"
        class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">←</a>
   {% endif %}
   <span class="px-3 py-1.5 text-sm text-gray-600">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
   {% if page_obj.has_next %}
-    <a href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}"
+    <a href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if sort %}&sort={{ sort }}{% endif %}"
        class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">→</a>
   {% endif %}
 </div>

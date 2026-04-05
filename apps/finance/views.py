@@ -10,8 +10,8 @@ from django.contrib import messages
 from django.utils import timezone
 
 from apps.billing.models import Invoice
-from .models import ExpenseCategory, Supplier, Expense, CashOperation
-from .forms import ExpenseCategoryForm, SupplierForm, ExpenseForm, CashOperationForm
+from .models import ExpenseCategory, Supplier, Expense, CashOperation, FinanceSettings, calculate_balances
+from .forms import ExpenseCategoryForm, SupplierForm, ExpenseForm, CashOperationForm, FinanceSettingsForm
 
 
 # ── Витрати ──────────────────────────────────────────────
@@ -62,6 +62,7 @@ def expense_create(request):
         if form.is_valid():
             exp = form.save(commit=False)
             exp.created_by = request.user
+            exp.organization = request.organization
             exp.save()
             messages.success(request, f'Витрату {exp.amount} ₴ додано.')
             return redirect('finance:expenses')
@@ -109,7 +110,9 @@ def supplier_create(request):
     if request.method == 'POST':
         form = SupplierForm(request.POST)
         if form.is_valid():
-            form.save()
+            obj = form.save(commit=False)
+            obj.organization = request.organization
+            obj.save()
             messages.success(request, 'Постачальника додано.')
             return redirect('finance:suppliers')
     else:
@@ -166,9 +169,13 @@ def cash_operations(request):
     if date_to:
         ops = ops.filter(date__lte=date_to)
 
+    balances = calculate_balances()
+
     return render(request, 'finance/cash_operations.html', {
         'operations': ops[:100],
         'filter': {'from': date_from or '', 'to': date_to or ''},
+        'cash_balance': balances['cash'],
+        'card_balance': balances['card'],
     })
 
 
@@ -179,6 +186,7 @@ def cash_operation_create(request):
         if form.is_valid():
             op = form.save(commit=False)
             op.created_by = request.user
+            op.organization = request.organization
             op.save()
             messages.success(request, f'Операцію "{op.get_type_display()}" на {op.amount} ₴ додано.')
             return redirect('finance:cash_operations')
@@ -207,7 +215,20 @@ def settings_view(request):
     return render(request, 'finance/settings.html', {
         'categories': categories,
         'form': ExpenseCategoryForm(),
+        'balance_form': FinanceSettingsForm(instance=FinanceSettings.get()),
     })
+
+
+@login_required
+def settings_balance_update(request):
+    if request.method == 'POST':
+        form = FinanceSettingsForm(request.POST, instance=FinanceSettings.get())
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Початкові залишки збережено.')
+        else:
+            messages.error(request, 'Помилка збереження.')
+    return redirect('finance:settings')
 
 
 @login_required
@@ -215,7 +236,9 @@ def category_create(request):
     if request.method == 'POST':
         form = ExpenseCategoryForm(request.POST)
         if form.is_valid():
-            form.save()
+            obj = form.save(commit=False)
+            obj.organization = request.organization
+            obj.save()
             messages.success(request, 'Категорію додано.')
     return redirect('finance:settings')
 

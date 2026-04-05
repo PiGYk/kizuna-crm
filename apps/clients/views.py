@@ -26,11 +26,14 @@ class PatientListView(LoginRequiredMixin, ListView):
                 Q(client__last_name__icontains=q) |
                 Q(breed__icontains=q)
             )
+        if self.request.GET.get('sort') == 'new':
+            qs = qs.order_by('-created_at')
         return qs
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['q'] = self.request.GET.get('q', '')
+        ctx['sort'] = self.request.GET.get('sort', '')
         return ctx
 
 
@@ -49,11 +52,14 @@ class ClientListView(LoginRequiredMixin, ListView):
                 Q(last_name__icontains=q) |
                 Q(phone__icontains=q)
             )
+        if self.request.GET.get('sort') == 'new':
+            qs = qs.order_by('-created_at')
         return qs
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['q'] = self.request.GET.get('q', '')
+        ctx['sort'] = self.request.GET.get('sort', '')
         return ctx
 
 
@@ -66,6 +72,7 @@ class ClientCreateView(LoginRequiredMixin, CreateView):
         return reverse('clients:detail', kwargs={'pk': self.object.pk})
 
     def form_valid(self, form):
+        form.instance.organization = self.request.organization
         messages.success(self.request, 'Клієнта додано')
         return super().form_valid(form)
 
@@ -308,3 +315,51 @@ def weight_delete(request, pk):
     if request.method == 'POST':
         record.delete()
     return redirect('clients:patient_detail', pk=patient_pk)
+
+
+@login_required
+def patients_by_period(request):
+    from datetime import date, timedelta
+    from django.db.models import Q
+
+    # Дефолт: останні 30 днів
+    today = date.today()
+    default_from = today - timedelta(days=30)
+
+    date_from_str = request.GET.get('date_from', default_from.isoformat())
+    date_to_str = request.GET.get('date_to', today.isoformat())
+
+    try:
+        date_from = date.fromisoformat(date_from_str)
+    except ValueError:
+        date_from = default_from
+    try:
+        date_to = date.fromisoformat(date_to_str)
+    except ValueError:
+        date_to = today
+
+    # Пацієнти з будь-якою активністю за період
+    patients_qs = Patient.objects.filter(
+        Q(invoices__date__date__range=(date_from, date_to)) |
+        Q(visits__date__date__range=(date_from, date_to)) |
+        Q(analyses__date__range=(date_from, date_to)) |
+        Q(vaccines__date__range=(date_from, date_to)) |
+        Q(weights__date__range=(date_from, date_to))
+    ).select_related('client', 'assigned_doctor').distinct().order_by('name')
+
+    return render(request, 'clients/patients_period.html', {
+        'patients': patients_qs,
+        'date_from': date_from,
+        'date_to': date_to,
+        'count': patients_qs.count(),
+    })
+
+
+@login_required
+def client_delete(request, pk):
+    client = get_object_or_404(Client, pk=pk)
+    if request.method == 'POST':
+        client.delete()
+        messages.success(request, f'Клієнта {client.first_name} {client.last_name} видалено')
+        return redirect('clients:list')
+    return render(request, 'clients/confirm_delete.html', {'client': client})

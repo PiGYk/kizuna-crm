@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Реєстрація клініки — Kizuna CRM{% endblock %}
+
+{% block auth_content %}
+<div class="min-h-screen flex bg-brand-cream">
+
+  <!-- Left — dark brand panel -->
+  <div class="hidden md:flex flex-col items-center justify-center w-1/2 bg-brand-dark">
+    <img src="{% static 'img/logo.svg' %}" alt="Kizuna CRM" class="w-56 h-56 object-contain">
+    <p class="text-white/60 text-sm mt-4 text-center px-8">Ветеринарна CRM-платформа.<br>Реєстрація займе менше хвилини.</p>
+  </div>
+
+  <!-- Right — form -->
+  <div class="flex flex-col items-center justify-center w-full md:w-1/2 px-8 py-12">
+    <div class="w-full max-w-sm">
+
+      <!-- Mobile logo -->
+      <div class="flex justify-center mb-8 md:hidden">
+        <img src="{% static 'img/logo.svg' %}" alt="Kizuna CRM" class="h-20 w-auto">
+      </div>
+
+      <h2 class="text-2xl font-bold text-brand-dark mb-1">Нова клініка</h2>
+      <p class="text-sm text-gray-500 mb-6">Заповніть форму — отримаєте готову CRM</p>
+
+      <form method="post" class="space-y-4">
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+          <div class="bg-red-50 text-red-700 text-sm px-4 py-3 rounded-lg border border-red-200">
+            {{ form.non_field_errors.0 }}
+          </div>
+        {% endif %}
+
+        <div>
+          <label class="block text-sm font-medium text-brand-dark mb-1">{{ form.clinic_name.label }}</label>
+          {{ form.clinic_name }}
+          {% if form.clinic_name.errors %}<p class="text-xs text-red-500 mt-1">{{ form.clinic_name.errors.0 }}</p>{% endif %}
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-brand-dark mb-1">{{ form.first_name.label }}</label>
+            {{ form.first_name }}
+            {% if form.first_name.errors %}<p class="text-xs text-red-500 mt-1">{{ form.first_name.errors.0 }}</p>{% endif %}
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-brand-dark mb-1">{{ form.last_name.label }}</label>
+            {{ form.last_name }}
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-brand-dark mb-1">{{ form.email.label }}</label>
+          {{ form.email }}
+          {% if form.email.errors %}<p class="text-xs text-red-500 mt-1">{{ form.email.errors.0 }}</p>{% endif %}
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-brand-dark mb-1">{{ form.username.label }}</label>
+          {{ form.username }}
+          {% if form.username.errors %}<p class="text-xs text-red-500 mt-1">{{ form.username.errors.0 }}</p>{% endif %}
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-brand-dark mb-1">{{ form.password1.label }}</label>
+            {{ form.password1 }}
+            {% if form.password1.errors %}<p class="text-xs text-red-500 mt-1">{{ form.password1.errors.0 }}</p>{% endif %}
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-brand-dark mb-1">{{ form.password2.label }}</label>
+            {{ form.password2 }}
+            {% if form.password2.errors %}<p class="text-xs text-red-500 mt-1">{{ form.password2.errors.0 }}</p>{% endif %}
+          </div>
+        </div>
+
+        <button type="submit"
+          class="w-full bg-brand-gold text-brand-dark font-semibold py-2.5 rounded-lg text-sm hover:brightness-95 transition-all mt-2">
+          Зареєструватись
+        </button>
+      </form>
+
+      <p class="text-center text-sm text-gray-500 mt-6">
+        Вже є акаунт?
+        <a href="{% url 'accounts:login' %}" class="text-brand-gold hover:underline font-medium">Увійти</a>
+      </p>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

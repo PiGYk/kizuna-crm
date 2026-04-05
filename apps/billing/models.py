@@ -2,6 +2,7 @@ import json
 from django.db import models
 from django.conf import settings
 from decimal import Decimal
+from apps.clinic.managers import OrgManager
 
 
 class Invoice(models.Model):
@@ -17,6 +18,12 @@ class Invoice(models.Model):
     class PaymentMethod(models.TextChoices):
         CASH = 'cash', 'Готівка'
         CARD = 'card', 'Картка'
+
+    class FiscalStatus(models.TextChoices):
+        NONE = 'none', '—'
+        PENDING = 'pending', 'Очікує оплати'
+        SENT = 'sent', 'Оплачено'
+        ERROR = 'error', 'Помилка'
 
     client = models.ForeignKey(
         'clients.Client', on_delete=models.PROTECT, related_name='invoices',
@@ -48,11 +55,25 @@ class Invoice(models.Model):
         verbose_name='Спосіб оплати'
     )
     notes = models.TextField(blank=True, verbose_name='Нотатки')
+    fiscal_receipt_id = models.CharField(max_length=100, null=True, blank=True, verbose_name='ID чеку Checkbox')
+    fiscal_status = models.CharField(
+        max_length=10, choices=FiscalStatus.choices, default=FiscalStatus.NONE,
+        verbose_name='Статус фіскалізації'
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True,
         related_name='created_invoices'
     )
+    organization = models.ForeignKey(
+        'clinic.Organization',
+        on_delete=models.CASCADE,
+        null=True, blank=True,
+        related_name='invoices',
+        verbose_name='Організація',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = OrgManager()
 
     class Meta:
         ordering = ['-created_at']

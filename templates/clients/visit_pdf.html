@@ -33,8 +33,8 @@
 
 <div class="header">
   <div>
-    <div class="clinic-name">Kizuna Vet Clinic</div>
-    <div class="clinic-sub">crm.kizuna.com.ua</div>
+    <div class="clinic-name">{{ clinic.name }}</div>
+    {% if clinic.website %}<div class="clinic-sub">{{ clinic.website }}</div>{% endif %}
   </div>
   <div>
     <div class="doc-title">Протокол прийому</div>

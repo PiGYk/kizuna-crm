@@ -13,6 +13,7 @@ urlpatterns = [
     path('<int:pk>/delete/', views.product_delete, name='delete'),
     path('import/', views.import_upload, name='import'),
     path('import/execute/', views.import_execute, name='import_execute'),
+    path('import/prices/', views.price_review, name='price_review'),
     path('template/', views.export_template, name='template'),
     path('export/', views.export_page, name='export_page'),
     path('export/download/', views.export_inventory, name='export'),

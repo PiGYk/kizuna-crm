@@ -1,5 +1,5 @@
 from django import forms
-from .models import ExpenseCategory, Supplier, Expense, CashOperation
+from .models import ExpenseCategory, Supplier, Expense, CashOperation, FinanceSettings
 
 
 _tw = 'w-full rounded-lg border-gray-300 bg-white px-3 py-2 text-sm focus:ring-brand-gold focus:border-brand-gold'
@@ -54,4 +54,14 @@ class CashOperationForm(forms.ModelForm):
             'amount': forms.NumberInput(attrs={'class': _tw, 'step': '0.01', 'min': '0.01'}),
             'date': forms.DateInput(attrs={'class': _tw, 'type': 'date'}),
             'description': forms.TextInput(attrs={'class': _tw, 'placeholder': 'Коментар (необов\'язково)'}),
+        }
+
+
+class FinanceSettingsForm(forms.ModelForm):
+    class Meta:
+        model = FinanceSettings
+        fields = ('initial_cash', 'initial_card')
+        widgets = {
+            'initial_cash': forms.NumberInput(attrs={'class': _tw, 'step': '0.01', 'min': '0'}),
+            'initial_card': forms.NumberInput(attrs={'class': _tw, 'step': '0.01', 'min': '0'}),
         }

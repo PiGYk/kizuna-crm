@@ -1,0 +1,112 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Тріал завершено — Kizuna CRM</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { colors: { brand: { dark: '#12100F', gold: '#DEAA01', cream: '#FFF7F3' } } } }
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>body { font-family: 'Inter', sans-serif; }</style>
+</head>
+<body class="bg-brand-dark min-h-screen px-4 py-12">
+
+  <div class="max-w-4xl mx-auto">
+
+    <!-- Header -->
+    <div class="text-center mb-12">
+      <div class="text-5xl mb-4">⏰</div>
+      <h1 class="text-3xl font-bold text-white mb-3">Тріальний період завершено</h1>
+      <p class="text-gray-400">
+        14-денний безкоштовний доступ вичерпано.<br>
+        Оберіть тариф та продовжте роботу — підписка активується автоматично після оплати.
+      </p>
+    </div>
+
+    <!-- Тарифи -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+
+      <!-- Старт -->
+      <div class="bg-white/5 border border-white/10 rounded-2xl p-6">
+        <div class="text-sm font-semibold text-gray-400 mb-2">Старт</div>
+        <div class="text-3xl font-extrabold text-white mb-1">₴990<span class="text-base font-normal text-gray-400">/міс</span></div>
+        <p class="text-gray-500 text-sm mb-6">Для невеликої клініки</p>
+        <ul class="space-y-2 text-sm text-gray-300 mb-6">
+          <li class="flex items-center gap-2"><span class="text-green-400">✓</span> До 2 лікарів</li>
+          <li class="flex items-center gap-2"><span class="text-green-400">✓</span> Клієнти та тварини</li>
+          <li class="flex items-center gap-2"><span class="text-green-400">✓</span> Розклад та рахунки</li>
+          <li class="flex items-center gap-2 text-white/25"><span>✗</span> Telegram-бот</li>
+          <li class="flex items-center gap-2 text-white/25"><span>✗</span> Checkbox РРО</li>
+        </ul>
+        <a href="/subscribe/start/"
+           class="block text-center py-2.5 border-2 border-brand-gold text-brand-gold rounded-xl font-semibold text-sm hover:bg-brand-gold hover:text-brand-dark transition-all">
+          Обрати →
+        </a>
+      </div>
+
+      <!-- Клініка (highlighted) -->
+      <div class="bg-white/5 border-2 border-brand-gold rounded-2xl p-6 relative">
+        <div class="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 bg-brand-gold text-brand-dark text-xs font-bold rounded-full whitespace-nowrap">
+          Найпопулярніший
+        </div>
+        <div class="text-sm font-semibold text-brand-gold mb-2">Клініка</div>
+        <div class="text-3xl font-extrabold text-white mb-1">₴1 990<span class="text-base font-normal text-gray-400">/міс</span></div>
+        <p class="text-gray-500 text-sm mb-6">Повний функціонал</p>
+        <ul class="space-y-2 text-sm text-gray-300 mb-6">
+          <li class="flex items-center gap-2"><span class="text-green-400">✓</span> До 10 лікарів</li>
+          <li class="flex items-center gap-2"><span class="text-green-400">✓</span> Клієнти та тварини</li>
+          <li class="flex items-center gap-2"><span class="text-green-400">✓</span> Розклад та рахунки</li>
+          <li class="flex items-center gap-2"><span class="text-green-400">✓</span> Telegram-бот</li>
+          <li class="flex items-center gap-2"><span class="text-green-400">✓</span> Checkbox РРО</li>
+        </ul>
+        <a href="/subscribe/clinic/"
+           class="block text-center py-2.5 bg-brand-gold text-brand-dark rounded-xl font-bold text-sm hover:opacity-90 transition-all">
+          Обрати →
+        </a>
+      </div>
+
+      <!-- Мережа -->
+      <div class="bg-white/5 border border-white/10 rounded-2xl p-6">
+        <div class="text-sm font-semibold text-gray-400 mb-2">Мережа</div>
+        <div class="text-3xl font-extrabold text-white mb-1">₴3 990<span class="text-base font-normal text-gray-400">/міс</span></div>
+        <p class="text-gray-500 text-sm mb-6">Мережа клінік</p>
+        <ul class="space-y-2 text-sm text-gray-300 mb-6">
+          <li class="flex items-center gap-2"><span class="text-green-400">✓</span> Необмежено лікарів</li>
+          <li class="flex items-center gap-2"><span class="text-green-400">✓</span> Все з «Клініки»</li>
+          <li class="flex items-center gap-2"><span class="text-green-400">✓</span> Пріоритетна підтримка</li>
+          <li class="flex items-center gap-2"><span class="text-green-400">✓</span> SLA</li>
+          <li class="flex items-center gap-2"><span class="text-green-400">✓</span> Навчання команди</li>
+        </ul>
+        <a href="/subscribe/network/"
+           class="block text-center py-2.5 border-2 border-brand-gold text-brand-gold rounded-xl font-semibold text-sm hover:bg-brand-gold hover:text-brand-dark transition-all">
+          Обрати →
+        </a>
+      </div>
+
+    </div>
+
+    <!-- Footer links -->
+    <div class="text-center text-sm text-gray-500 space-y-2">
+      <p>
+        Є питання?
+        <a href="tel:+380682398095" class="text-brand-gold hover:underline">+38 068 239 80 95</a>
+        або
+        <a href="mailto:hello@kizuna.com.ua" class="text-brand-gold hover:underline">hello@kizuna.com.ua</a>
+      </p>
+      <p>
+        <a href="/#pricing" class="text-gray-600 hover:text-gray-400">Детальніше про тарифи</a>
+        <span class="mx-2 text-gray-700">·</span>
+        <a href="/logout/" class="text-gray-600 hover:text-gray-400">Вийти з акаунту</a>
+        <span class="mx-2 text-gray-700">·</span>
+        <a href="/offer/" class="text-gray-600 hover:text-gray-400">Публічна оферта</a>
+      </p>
+    </div>
+
+  </div>
+</body>
+</html>

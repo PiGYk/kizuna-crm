@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from apps.clinic.managers import OrgManager
 
 
 class Appointment(models.Model):
@@ -46,7 +47,16 @@ class Appointment(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
         null=True, related_name='created_appointments'
     )
+    organization = models.ForeignKey(
+        'clinic.Organization',
+        on_delete=models.CASCADE,
+        null=True, blank=True,
+        related_name='appointments',
+        verbose_name='Організація',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = OrgManager()
 
     class Meta:
         ordering = ['starts_at']

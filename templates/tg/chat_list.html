@@ -1,13 +1,25 @@
 {% extends 'base.html' %}
 {% block title %}Telegram — Kizuna CRM{% endblock %}
 {% block content %}
-<div class="mb-6">
-  <h1 class="text-2xl font-bold text-brand-dark">Telegram</h1>
-  <p class="text-sm text-gray-400 mt-1">Оберіть чат зліва або попросіть клієнта написати боту</p>
+<div class="mb-4 flex items-end justify-between gap-4">
+  <div>
+    <h1 class="text-2xl font-bold text-brand-dark">Telegram</h1>
+    <p class="text-sm text-gray-400 mt-1">Оберіть чат або попросіть клієнта написати боту</p>
+  </div>
+  <input type="search" id="chat-search-main" name="q"
+         placeholder="Пошук за клієнтом або твариною…"
+         autocomplete="off"
+         hx-get="{% url 'tg:list_partial' %}"
+         hx-trigger="input changed delay:300ms"
+         hx-target="#chat-list-main"
+         hx-swap="innerHTML"
+         class="border border-gray-200 rounded-xl px-3 py-2 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-brand-gold">
 </div>
 <div class="bg-white rounded-xl border border-gray-200 overflow-hidden max-w-2xl">
-  <div hx-get="{% url 'tg:list_partial' %}"
+  <div id="chat-list-main"
+       hx-get="{% url 'tg:list_partial' %}"
        hx-trigger="load, every 10s"
+       hx-include="#chat-search-main"
        hx-swap="innerHTML">
     <div class="p-8 text-center text-gray-400 text-sm">Завантаження…</div>
   </div>

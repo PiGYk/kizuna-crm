@@ -11,6 +11,22 @@
   </a>
 </div>
 
+<form method="get" class="mb-4 flex gap-2">
+  <input type="text" name="q" value="{{ q }}"
+    placeholder="Пошук послуги..."
+    class="w-full md:w-96 px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+  <button type="submit"
+    class="px-4 py-2.5 bg-brand-dark text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition shrink-0">
+    Знайти
+  </button>
+  {% if q %}
+    <a href="{% url 'services:list' %}"
+       class="px-4 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition shrink-0">
+      Скинути
+    </a>
+  {% endif %}
+</form>
+
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
   {% for service in services %}
   <a href="{% url 'services:detail' service.pk %}"
@@ -36,8 +52,13 @@
   </a>
   {% empty %}
   <div class="col-span-3 bg-white rounded-xl border border-dashed border-gray-300 p-12 text-center text-gray-400">
-    <p>Послуг ще немає</p>
-    <a href="{% url 'services:create' %}" class="mt-2 inline-block text-brand-gold font-medium text-sm">Додати першу</a>
+    {% if q %}
+      <p>Нічого не знайдено за «{{ q }}»</p>
+      <a href="{% url 'services:list' %}" class="mt-2 inline-block text-brand-gold font-medium text-sm">Показати всі</a>
+    {% else %}
+      <p>Послуг ще немає</p>
+      <a href="{% url 'services:create' %}" class="mt-2 inline-block text-brand-gold font-medium text-sm">Додати першу</a>
+    {% endif %}
   </div>
   {% endfor %}
 </div>

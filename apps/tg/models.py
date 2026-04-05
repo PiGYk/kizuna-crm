@@ -1,21 +1,32 @@
 from django.db import models
 from django.conf import settings
+from apps.clinic.managers import OrgManager
 
 
 class TelegramChat(models.Model):
-    tg_user_id = models.BigIntegerField(unique=True)
+    tg_user_id = models.BigIntegerField()
     tg_username = models.CharField(max_length=100, blank=True)
     tg_first_name = models.CharField(max_length=100, blank=True)
     tg_last_name = models.CharField(max_length=100, blank=True)
-    client = models.OneToOneField(
+    client = models.ForeignKey(
         'clients.Client', on_delete=models.SET_NULL,
-        null=True, blank=True, related_name='tg_chat'
+        null=True, blank=True, related_name='tg_chats'
+    )
+    organization = models.ForeignKey(
+        'clinic.Organization',
+        on_delete=models.CASCADE,
+        null=True, blank=True,
+        related_name='tg_chats',
+        verbose_name='Організація',
     )
     created_at = models.DateTimeField(auto_now_add=True)
     last_message_at = models.DateTimeField(null=True, blank=True)
 
+    objects = OrgManager()
+
     class Meta:
         ordering = ['-last_message_at']
+        unique_together = ('tg_user_id', 'organization')
         verbose_name = 'Telegram чат'
         verbose_name_plural = 'Telegram чати'
 
@@ -41,7 +52,10 @@ class TelegramMessage(models.Model):
 
     chat = models.ForeignKey(TelegramChat, on_delete=models.CASCADE, related_name='messages')
     direction = models.CharField(max_length=3, choices=Direction.choices)
-    text = models.TextField()
+    text = models.TextField(blank=True)
+    media_type = models.CharField(max_length=20, blank=True)  # 'photo','image','pdf','document','voice'
+    media_file = models.FileField(upload_to='tg_media/', blank=True)
+    media_filename = models.CharField(max_length=255, blank=True)  # оригінальне ім'я файлу
     tg_message_id = models.BigIntegerField(null=True, blank=True)
     sent_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,

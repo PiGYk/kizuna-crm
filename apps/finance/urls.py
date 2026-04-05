@@ -22,8 +22,9 @@ urlpatterns = [
     path('cash/create/', views.cash_operation_create, name='cash_operation_create'),
     path('cash/<int:pk>/delete/', views.cash_operation_delete, name='cash_operation_delete'),
 
-    # Налаштування (категорії)
+    # Налаштування (категорії + початкові залишки)
     path('settings/', views.settings_view, name='settings'),
+    path('settings/balance/', views.settings_balance_update, name='settings_balance_update'),
     path('settings/category/create/', views.category_create, name='category_create'),
     path('settings/category/<int:pk>/delete/', views.category_delete, name='category_delete'),
 

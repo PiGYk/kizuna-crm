@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="flex items-center gap-3 mb-6">
-  <a href="{% url 'clients:detail' patient.client.pk %}" class="text-gray-400 hover:text-gray-600">
+  <a href="{% url 'clients:detail' patient.client.pk %}" class="text-gray-400 hover:text-gray-600" onclick="if(history.length>1){history.back();return false;}">
     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
   </a>
   <div class="flex-1">
@@ -70,7 +70,7 @@
               <label class="block text-xs text-gray-500 mb-1">Назва *</label>
               {{ vaccine_form.name }}
             </div>
-            <div class="grid grid-cols-2 gap-2">
+            <div class="grid grid-cols-3 gap-2">
               <div>
                 <label class="block text-xs text-gray-500 mb-1">Дата *</label>
                 {{ vaccine_form.date }}
@@ -78,6 +78,10 @@
               <div>
                 <label class="block text-xs text-gray-500 mb-1">Наступна</label>
                 {{ vaccine_form.next_date }}
+              </div>
+              <div>
+                <label class="block text-xs text-gray-500 mb-1">Діє до</label>
+                {{ vaccine_form.valid_until }}
               </div>
             </div>
             <div>
@@ -105,6 +109,9 @@
               <div class="text-xs text-gray-500">{{ v.date|date:"d.m.Y" }}
                 {% if v.next_date %}
                   → <span class="{% if v.is_overdue %}text-red-500 font-medium{% endif %}">{{ v.next_date|date:"d.m.Y" }}</span>
+                {% endif %}
+                {% if v.valid_until %}
+                  · <span class="text-gray-400">діє до {{ v.valid_until|date:"d.m.Y" }}</span>
                 {% endif %}
               </div>
             </div>
@@ -195,7 +202,14 @@
             </div>
             <div>
               <label class="block text-xs text-gray-500 mb-1">Фото *</label>
-              {{ analysis_form.image }}
+              <input type="file" accept="image/*" id="analysis-photo-input"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                onchange="openAnalysisCrop(this)">
+              <input type="file" name="image" id="analysis-photo-hidden" class="hidden">
+              <div id="analysis-crop-preview" class="mt-2 hidden">
+                <img id="analysis-crop-preview-img" class="h-16 rounded border border-brand-gold object-contain">
+                <button type="button" onclick="openAnalysisCrop(document.getElementById('analysis-photo-input'))" class="text-xs text-brand-gold ml-2">Редагувати</button>
+              </div>
             </div>
             <div>
               <label class="block text-xs text-gray-500 mb-1">Дата *</label>
@@ -225,15 +239,26 @@
               <div class="text-xs font-medium text-brand-dark truncate">{{ a.title }}</div>
               <div class="text-xs text-gray-400">{{ a.date|date:"d.m.Y" }}</div>
             </div>
-            <form method="post" action="{% url 'clients:analysis_delete' a.pk %}"
-                  class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onsubmit="return confirm('Видалити аналіз?')">
-              {% csrf_token %}
-              <button type="submit"
-                      class="bg-white/90 text-red-400 hover:text-red-600 rounded px-1.5 py-0.5 text-xs font-medium shadow-sm">
-                ✕
-              </button>
-            </form>
+            <div class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+              {% if patient.client.tg_chats.exists %}
+              <form method="post" action="{% url 'tg:send_analysis_photo' a.pk %}" class="inline">
+                {% csrf_token %}
+                <button type="submit"
+                        class="bg-white/90 text-blue-400 hover:text-blue-600 rounded px-1.5 py-0.5 text-xs font-medium shadow-sm"
+                        title="Відправити в Telegram">
+                  TG
+                </button>
+              </form>
+              {% endif %}
+              <form method="post" action="{% url 'clients:analysis_delete' a.pk %}"
+                    onsubmit="return confirm('Видалити аналіз?')">
+                {% csrf_token %}
+                <button type="submit"
+                        class="bg-white/90 text-red-400 hover:text-red-600 rounded px-1.5 py-0.5 text-xs font-medium shadow-sm">
+                  ✕
+                </button>
+              </form>
+            </div>
           </div>
           {% endfor %}
         </div>
@@ -282,7 +307,7 @@
                class="text-xs text-gray-400 hover:text-brand-gold font-medium">Ред.</a>
             <a href="{% url 'clients:visit_pdf' visit.pk %}" target="_blank"
                class="text-xs text-gray-400 hover:text-brand-gold font-medium">PDF</a>
-            {% if patient.client.tg_chat %}
+            {% if patient.client.tg_chats.exists %}
             <form method="post" action="{% url 'tg:send_visit_pdf' visit.pk %}" class="inline">
               {% csrf_token %}
               <button type="submit" class="text-xs text-blue-400 hover:text-blue-600 font-medium" title="Відправити в Telegram">TG</button>
@@ -411,4 +436,81 @@
 })();
 </script>
 {% endif %}
+
+<!-- Crop Modal for Analysis -->
+<div id="analysis-crop-modal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl max-w-lg w-full p-4">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="font-semibold text-brand-dark">Обрізка фото</h3>
+      <button type="button" onclick="closeAnalysisCrop()" class="text-gray-400 hover:text-gray-600 text-lg">&times;</button>
+    </div>
+    <div class="relative w-full" style="max-height:60vh; overflow:hidden;">
+      <img id="analysis-crop-image" class="w-full" style="max-height:55vh;">
+    </div>
+    <div class="flex items-center gap-2 mt-3">
+      <button type="button" onclick="_aCropper&&_aCropper.setAspectRatio(NaN)" class="px-3 py-1 text-xs rounded border border-gray-300 hover:border-brand-gold">Вільно</button>
+      <button type="button" onclick="_aCropper&&_aCropper.setAspectRatio(1)" class="px-3 py-1 text-xs rounded border border-gray-300 hover:border-brand-gold">1:1</button>
+      <button type="button" onclick="_aCropper&&_aCropper.setAspectRatio(4/3)" class="px-3 py-1 text-xs rounded border border-gray-300 hover:border-brand-gold">4:3</button>
+      <button type="button" onclick="_aCropper&&_aCropper.setAspectRatio(3/4)" class="px-3 py-1 text-xs rounded border border-gray-300 hover:border-brand-gold">3:4</button>
+    </div>
+    <div class="flex gap-2 mt-3">
+      <button type="button" onclick="applyAnalysisCrop()"
+        class="flex-1 bg-brand-gold text-brand-dark py-2 rounded-lg text-sm font-semibold hover:brightness-95">
+        Застосувати
+      </button>
+      <button type="button" onclick="closeAnalysisCrop()"
+        class="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg text-sm hover:bg-gray-50">
+        Скасувати
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+let _aCropper = null;
+let _aCropFile = null;
+
+function openAnalysisCrop(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  _aCropFile = file;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = document.getElementById('analysis-crop-image');
+    img.src = e.target.result;
+    document.getElementById('analysis-crop-modal').classList.remove('hidden');
+    if (_aCropper) _aCropper.destroy();
+    img.onload = () => {
+      _aCropper = new Cropper(img, {
+        viewMode: 1,
+        autoCropArea: 0.95,
+        responsive: true,
+        background: false,
+      });
+    };
+  };
+  reader.readAsDataURL(file);
+}
+
+function closeAnalysisCrop() {
+  document.getElementById('analysis-crop-modal').classList.add('hidden');
+  if (_aCropper) { _aCropper.destroy(); _aCropper = null; }
+}
+
+function applyAnalysisCrop() {
+  if (!_aCropper) return;
+  const canvas = _aCropper.getCroppedCanvas({ maxWidth: 2400, maxHeight: 2400 });
+  canvas.toBlob(blob => {
+    const dt = new DataTransfer();
+    const name = _aCropFile ? _aCropFile.name : 'analysis.jpg';
+    dt.items.add(new File([blob], name, { type: 'image/jpeg' }));
+    document.getElementById('analysis-photo-hidden').files = dt.files;
+    const preview = document.getElementById('analysis-crop-preview');
+    const previewImg = document.getElementById('analysis-crop-preview-img');
+    previewImg.src = canvas.toDataURL('image/jpeg', 0.9);
+    preview.classList.remove('hidden');
+    closeAnalysisCrop();
+  }, 'image/jpeg', 0.92);
+}
+</script>
 {% endblock %}
