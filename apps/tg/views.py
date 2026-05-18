@@ -783,7 +783,9 @@ def _cmd_treatment_for_pet(chat, patient):
 def _send_visit_pdf(chat, patient, visit):
     try:
         from django.template.loader import render_to_string
-        html = render_to_string('clients/visit_pdf.html', {'visit': visit, 'patient': patient})
+        html = render_to_string('clients/visit_pdf.html', {
+            'visit': visit, 'patient': patient, 'clinic': chat.organization,
+        })
         pdf_bytes = _generate_pdf(html, _get_base_url())
         filename = f'treatment-{patient.name}-{visit.date:%d%m%Y}.pdf'
         caption = f'💊 Назначення · {patient.name} · {visit.date:%d.%m.%Y}'
@@ -830,7 +832,9 @@ def _cmd_send_invoice_pdf(chat, invoice_id):
     try:
         from django.template.loader import render_to_string
         lines = invoice.lines.select_related('service', 'product').all()
-        html = render_to_string('billing/pdf.html', {'invoice': invoice, 'lines': lines})
+        html = render_to_string('billing/pdf.html', {
+            'invoice': invoice, 'lines': lines, 'clinic': chat.organization,
+        })
         pdf_bytes = _generate_pdf(html, _get_base_url())
         filename = f'invoice-{invoice.pk}.pdf'
         caption = f'📄 Рахунок #{invoice.pk} · {invoice.total} ₴ · {invoice.created_at:%d.%m.%Y}'
@@ -1632,7 +1636,7 @@ def send_invoice_pdf(request, invoice_pk):
     from django.template.loader import render_to_string
     from apps.billing.models import Invoice
 
-    invoice = get_object_or_404(Invoice, pk=invoice_pk)
+    invoice = get_object_or_404(Invoice, pk=invoice_pk, organization=request.organization)
 
     tg_chats = list(invoice.client.tg_chats.all())
     if not tg_chats:
@@ -1644,6 +1648,7 @@ def send_invoice_pdf(request, invoice_pk):
         html_string = render_to_string('billing/pdf.html', {
             'invoice': invoice,
             'lines': lines,
+            'clinic': request.organization,
             'request': request,
         })
         pdf_bytes = _generate_pdf(html_string, request.build_absolute_uri('/'))
@@ -1686,7 +1691,11 @@ def send_visit_pdf(request, visit_pk):
     from django.template.loader import render_to_string
     from apps.clients.models import Visit
 
-    visit = get_object_or_404(Visit.objects.select_related('patient__client'), pk=visit_pk)
+    visit = get_object_or_404(
+        Visit.objects.select_related('patient__client'),
+        pk=visit_pk,
+        patient__client__organization=request.organization,
+    )
     patient = visit.patient
 
     tg_chats = list(patient.client.tg_chats.all())
@@ -1698,6 +1707,7 @@ def send_visit_pdf(request, visit_pk):
         html_string = render_to_string('clients/visit_pdf.html', {
             'visit': visit,
             'patient': patient,
+            'clinic': request.organization,
             'request': request,
         })
         pdf_bytes = _generate_pdf(html_string, request.build_absolute_uri('/'))
@@ -1740,7 +1750,11 @@ def send_ultrasound_pdf(request, report_pk):
     from django.template.loader import render_to_string
     from apps.clients.models import UltrasoundReport
 
-    report = get_object_or_404(UltrasoundReport.objects.select_related('patient__client', 'doctor'), pk=report_pk)
+    report = get_object_or_404(
+        UltrasoundReport.objects.select_related('patient__client', 'doctor'),
+        pk=report_pk,
+        patient__client__organization=request.organization,
+    )
     patient = report.patient
 
     tg_chats = list(patient.client.tg_chats.all())
@@ -1753,6 +1767,7 @@ def send_ultrasound_pdf(request, report_pk):
             'report': report,
             'patient': patient,
             'client': patient.client,
+            'clinic': request.organization,
             'request': request,
         })
         pdf_bytes = _generate_pdf(html_string, request.build_absolute_uri('/'))
@@ -1797,6 +1812,7 @@ def send_analysis_photo(request, analysis_pk):
     analysis = get_object_or_404(
         PatientAnalysis.objects.select_related('patient__client'),
         pk=analysis_pk,
+        patient__client__organization=request.organization,
     )
     patient = analysis.patient
 
