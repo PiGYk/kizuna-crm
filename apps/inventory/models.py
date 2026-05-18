@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models, transaction
 from django.db.models import F
 from django.conf import settings
 from django.core.validators import MinValueValidator
@@ -136,11 +136,16 @@ class StockMovement(models.Model):
         return f"{self.get_type_display()} {self.product.name} × {self.quantity}"
 
     def save(self, *args, **kwargs):
-        if not self.pk:  # тільки при створенні
-            if self.type == self.Type.IN:
-                Product.objects.filter(pk=self.product_id).update(quantity=F('quantity') + self.quantity)
-            elif self.type == self.Type.OUT:
-                Product.objects.filter(pk=self.product_id).update(quantity=F('quantity') - self.quantity)
-            elif self.type == self.Type.ADJUST:
-                Product.objects.filter(pk=self.product_id).update(quantity=self.quantity)
-        super().save(*args, **kwargs)
+        # Atomic guarantee: спочатку зберігаємо рух, потім оновлюємо залишок.
+        # Якщо update впаде — rollback відкочує і StockMovement, щоб Sum(StockMovement)
+        # завжди == Product.quantity.
+        is_new = not self.pk
+        with transaction.atomic():
+            super().save(*args, **kwargs)
+            if is_new:
+                if self.type == self.Type.IN:
+                    Product.objects.filter(pk=self.product_id).update(quantity=F('quantity') + self.quantity)
+                elif self.type == self.Type.OUT:
+                    Product.objects.filter(pk=self.product_id).update(quantity=F('quantity') - self.quantity)
+                elif self.type == self.Type.ADJUST:
+                    Product.objects.filter(pk=self.product_id).update(quantity=self.quantity)

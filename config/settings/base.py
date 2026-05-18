@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     # third party
     'django_htmx',
     'django_celery_beat',
+    'axes',
     # apps
     'apps.clinic',
     'apps.accounts',
@@ -55,7 +56,21 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django_htmx.middleware.HtmxMiddleware',
     'config.middleware.TenantMiddleware',
+    # django-axes — має бути ОСТАННІМ
+    'axes.middleware.AxesMiddleware',
 ]
+
+AUTHENTICATION_BACKENDS = [
+    'axes.backends.AxesStandaloneBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
+# django-axes: brute-force protection на login
+AXES_FAILURE_LIMIT = 5
+AXES_COOLOFF_TIME = 1  # годин
+AXES_LOCKOUT_PARAMETERS = ['ip_address', 'username']
+AXES_RESET_ON_SUCCESS = True
+AXES_ENABLE_ADMIN = False  # не показуємо у Django admin
 
 ROOT_URLCONF = 'config.urls'
 

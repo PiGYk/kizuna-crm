@@ -296,6 +296,7 @@ def subscribe_callback(request):
                 # юзер може купити «Мережу» за ціною «Старту» якщо підмінить
                 # orderReference на checkout-кроці.
                 expected_price = PLANS.get(plan_key, {}).get('price')
+                paid_amount = 0.0
                 if expected_price is not None:
                     try:
                         paid_amount = float(data.get('amount', 0))
@@ -310,6 +311,25 @@ def subscribe_callback(request):
                             {'error': 'amount mismatch'}, status=400
                         )
 
+                # Idempotency: get_or_create на order_ref. Якщо запис уже існує —
+                # пропускаємо подовження тріалу (WayForPay retry'ить callback при
+                # slow ack і без цього ловила б +30 днів за кожен дубль).
+                from apps.clinic.models import PaymentTransaction
+                from decimal import Decimal
+                _, tx_created = PaymentTransaction.objects.get_or_create(
+                    order_ref=order_ref,
+                    defaults={
+                        'organization_id': org_id,
+                        'plan_key': plan_key,
+                        'amount': Decimal(str(paid_amount)),
+                        'status': 'Approved',
+                        'raw_payload': data,
+                    },
+                )
+                if not tx_created:
+                    logger.info('WayForPay duplicate callback: ref=%s (skip)', order_ref)
+                    return JsonResponse(accept_response(order_ref))
+
                 org = Organization.objects.get(pk=org_id)
                 # Подовжуємо доступ на 30 днів від сьогодні (або від поточної дати закінчення)
                 base = max(timezone.now(), org.trial_expires_at or timezone.now())
@@ -317,7 +337,8 @@ def subscribe_callback(request):
                 org.plan = plan_key
                 org.is_active = True
                 org.save(update_fields=['trial_expires_at', 'plan', 'is_active'])
-            except (ValueError, Organization.DoesNotExist):
-                pass
+            except (ValueError, Organization.DoesNotExist) as exc:
+                logger.warning('WayForPay callback parse/lookup failed: %s', exc)
+                return JsonResponse({'error': 'org not found'}, status=500)
 
     return JsonResponse(accept_response(data.get('orderReference', '')))

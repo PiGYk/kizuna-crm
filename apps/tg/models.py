@@ -46,6 +46,9 @@ class TelegramChat(models.Model):
         unique_together = ('tg_user_id', 'organization')
         verbose_name = 'Telegram чат'
         verbose_name_plural = 'Telegram чати'
+        indexes = [
+            models.Index(fields=['organization', '-last_message_at'], name='tgchat_org_last_idx'),
+        ]
 
     def __str__(self):
         return self.display_name
@@ -84,6 +87,17 @@ class TelegramMessage(models.Model):
     class Meta:
         ordering = ['created_at']
         verbose_name = 'Повідомлення'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['chat', 'tg_message_id'],
+                condition=models.Q(tg_message_id__isnull=False),
+                name='tgmsg_chat_tgmsgid_unique',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['chat', '-id'], name='tgmsg_chat_id_idx'),
+            models.Index(fields=['chat', 'direction', 'is_read'], name='tgmsg_chat_dir_read_idx'),
+        ]
 
     def __str__(self):
         preview = (self.text[:40] + '...') if len(self.text) > 40 else self.text

@@ -198,3 +198,31 @@ class Organization(models.Model):
         if not self.slug:
             self.slug = slugify(self.name)
         super().save(*args, **kwargs)
+
+
+class PaymentTransaction(models.Model):
+    """Лог WayForPay транзакцій для idempotency. Дубль callback з тим самим
+    order_ref не повинен повторно подовжувати тріал."""
+
+    order_ref = models.CharField('Order reference', max_length=200, unique=True)
+    organization = models.ForeignKey(
+        'clinic.Organization',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='payment_transactions',
+    )
+    plan_key = models.CharField('Тариф', max_length=50, blank=True)
+    amount = models.DecimalField('Сума', max_digits=10, decimal_places=2, default=0)
+    status = models.CharField('Статус', max_length=50)
+    raw_payload = models.JSONField('Сирий payload', default=dict, blank=True)
+    processed_at = models.DateTimeField('Оброблено', auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Платіжна транзакція'
+        verbose_name_plural = 'Платіжні транзакції'
+        indexes = [
+            models.Index(fields=['organization', '-processed_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.order_ref} ({self.status})'

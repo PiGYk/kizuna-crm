@@ -326,6 +326,15 @@ def _webhook_process(request, org, data):
             existing.save(update_fields=['text'])
             return HttpResponse('ok')
 
+    # Dedup для звичайних повідомлень — TG retry'ить webhook при timeout/5xx.
+    # UniqueConstraint(chat, tg_message_id) тепер на DB рівні — це додатковий
+    # короткий шлях для swift повернення 200 без зайвої роботи.
+    if incoming_msg_id and not is_edited:
+        if TelegramMessage.objects.filter(
+            chat=chat, tg_message_id=incoming_msg_id,
+        ).exists():
+            return HttpResponse('ok')
+
     if photo:
         file_id = photo[-1]['file_id']
         content_file, filename = _download_tg_file(file_id, org=chat.organization)
