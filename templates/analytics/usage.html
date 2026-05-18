@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+{% block title %}Використання послуг/товарів — Аналітика{% endblock %}
+
+{% block content %}
+<div class="p-4 md:p-6 space-y-6 max-w-screen-2xl mx-auto">
+
+  <!-- Subnav -->
+  <div class="flex items-center gap-2 flex-wrap">
+    <h1 class="text-2xl font-bold text-brand-dark mr-2">Використання послуг/товарів</h1>
+    <a href="{% url 'analytics:index' %}" class="px-4 py-1.5 rounded-lg text-sm font-medium border border-gray-200 text-gray-600 hover:border-brand-gold hover:text-brand-dark transition-colors">← Аналітика</a>
+    <a href="{% url 'analytics:payroll' %}" class="px-4 py-1.5 rounded-lg text-sm font-medium border border-gray-200 text-gray-600 hover:border-brand-gold hover:text-brand-dark transition-colors">Зарплата</a>
+    <a href="{% url 'analytics:services' %}" class="px-4 py-1.5 rounded-lg text-sm font-medium border border-gray-200 text-gray-600 hover:border-brand-gold hover:text-brand-dark transition-colors">Доходність</a>
+    <a href="{% url 'analytics:profit' %}" class="px-4 py-1.5 rounded-lg text-sm font-medium border border-gray-200 text-gray-600 hover:border-brand-gold hover:text-brand-dark transition-colors">Прибуток</a>
+    <a href="{% url 'analytics:debtors' %}" class="px-4 py-1.5 rounded-lg text-sm font-medium border border-gray-200 text-gray-600 hover:border-brand-gold hover:text-brand-dark transition-colors">Боржники</a>
+  </div>
+
+  <!-- Selector + period -->
+  <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-4">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">Тип</label>
+        <div class="flex gap-2">
+          <button type="button" id="kind-service"
+                  class="kind-btn px-4 py-2 rounded-lg text-sm font-medium border bg-brand-gold border-brand-gold text-brand-dark">
+            Послуга
+          </button>
+          <button type="button" id="kind-product"
+                  class="kind-btn px-4 py-2 rounded-lg text-sm font-medium border border-gray-200 text-gray-600">
+            Товар
+          </button>
+        </div>
+      </div>
+
+      <div class="md:col-span-2">
+        <label class="block text-xs font-medium text-gray-500 mb-1">Позиція</label>
+        <select id="item-select"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+          <option value="">— оберіть —</option>
+          {% for s in services %}
+          <option value="{{ s.id }}" data-kind="service">{{ s.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="flex items-end gap-3 flex-wrap">
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">Період</label>
+        <div class="flex flex-wrap gap-1.5">
+          {% for key, label in presets %}
+          <button type="button"
+                  onclick="setPreset('{{ key }}')"
+                  id="preset-{{ key }}"
+                  class="preset-btn px-3 py-1.5 rounded-lg text-xs font-medium border
+                         {% if key == 'month' %}bg-brand-gold border-brand-gold text-brand-dark{% else %}border-gray-200 text-gray-600 hover:border-brand-gold{% endif %}">
+            {{ label }}
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div id="custom-range" class="flex items-end gap-2 {% if true %}hidden{% endif %}">
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1">З</label>
+          <input type="date" id="date-from" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-500 mb-1">По</label>
+          <input type="date" id="date-to" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm">
+        </div>
+        <button type="button" onclick="loadData()" class="px-4 py-1.5 rounded-lg bg-brand-gold text-brand-dark text-sm font-medium">Показати</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hint -->
+  <div id="hint" class="bg-gray-50 border border-gray-200 rounded-xl p-8 text-center text-gray-400 text-sm">
+    Оберіть позицію вище, щоб побачити статистику.
+  </div>
+
+  <!-- Results (hidden until data loaded) -->
+  <div id="results" class="hidden space-y-6">
+
+    <!-- 3 KPI cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <div class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Разів надано/продано</div>
+        <div id="kpi-count" class="text-3xl font-bold text-brand-dark tabular-nums">—</div>
+      </div>
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <div class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Загальна кількість</div>
+        <div id="kpi-qty" class="text-3xl font-bold text-brand-dark tabular-nums">—</div>
+      </div>
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <div class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Виручка, ₴</div>
+        <div id="kpi-revenue" class="text-3xl font-bold text-emerald-600 tabular-nums">—</div>
+      </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+      <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <h2 class="font-semibold text-brand-dark">Динаміка по днях</h2>
+        <div class="flex gap-1.5">
+          <button type="button" onclick="setMetric('count')" id="m-count" class="metric-btn px-3 py-1 rounded-lg text-xs font-medium border bg-brand-gold border-brand-gold text-brand-dark">Разів</button>
+          <button type="button" onclick="setMetric('qty')" id="m-qty" class="metric-btn px-3 py-1 rounded-lg text-xs font-medium border border-gray-200 text-gray-600">Кількість</button>
+          <button type="button" onclick="setMetric('revenue')" id="m-revenue" class="metric-btn px-3 py-1 rounded-lg text-xs font-medium border border-gray-200 text-gray-600">Виручка</button>
+        </div>
+      </div>
+      <div class="h-72">
+        <canvas id="usage-chart"></canvas>
+      </div>
+    </div>
+
+    <!-- Top doctors -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+      <h2 class="font-semibold text-brand-dark mb-3">Топ лікарі</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-xs text-gray-500 border-b">
+              <th class="py-2">Лікар</th>
+              <th class="py-2 text-right">Разів</th>
+              <th class="py-2 text-right">Кількість</th>
+              <th class="py-2 text-right">Виручка, ₴</th>
+            </tr>
+          </thead>
+          <tbody id="doctors-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+  const SERVICES = {{ services|safe }};
+  const PRODUCTS = {{ products|safe }};
+
+  let currentKind = 'service';
+  let currentPreset = 'month';
+  let currentMetric = 'count';
+  let chart = null;
+  let lastData = null;
+
+  function rebuildSelect() {
+    const sel = document.getElementById('item-select');
+    sel.innerHTML = '<option value="">— оберіть —</option>';
+    const list = currentKind === 'service' ? SERVICES : PRODUCTS;
+    for (const item of list) {
+      const opt = document.createElement('option');
+      opt.value = item.id;
+      let label = item.name;
+      if (currentKind === 'product' && item.sku) label += ' [' + item.sku + ']';
+      opt.textContent = label;
+      sel.appendChild(opt);
+    }
+  }
+
+  function setKind(kind) {
+    currentKind = kind;
+    document.querySelectorAll('.kind-btn').forEach(b => {
+      b.classList.remove('bg-brand-gold', 'border-brand-gold', 'text-brand-dark');
+      b.classList.add('border-gray-200', 'text-gray-600');
+    });
+    const active = document.getElementById('kind-' + kind);
+    active.classList.add('bg-brand-gold', 'border-brand-gold', 'text-brand-dark');
+    active.classList.remove('border-gray-200', 'text-gray-600');
+    rebuildSelect();
+  }
+  document.getElementById('kind-service').addEventListener('click', () => setKind('service'));
+  document.getElementById('kind-product').addEventListener('click', () => setKind('product'));
+
+  window.setPreset = function(preset) {
+    currentPreset = preset;
+    document.querySelectorAll('.preset-btn').forEach(b => {
+      b.classList.remove('bg-brand-gold', 'border-brand-gold', 'text-brand-dark');
+      b.classList.add('border-gray-200', 'text-gray-600');
+    });
+    const active = document.getElementById('preset-' + preset);
+    active.classList.add('bg-brand-gold', 'border-brand-gold', 'text-brand-dark');
+    active.classList.remove('border-gray-200', 'text-gray-600');
+    document.getElementById('custom-range').classList.toggle('hidden', preset !== 'custom');
+    if (preset !== 'custom') loadData();
+  };
+
+  window.setMetric = function(metric) {
+    currentMetric = metric;
+    document.querySelectorAll('.metric-btn').forEach(b => {
+      b.classList.remove('bg-brand-gold', 'border-brand-gold', 'text-brand-dark');
+      b.classList.add('border-gray-200', 'text-gray-600');
+    });
+    const active = document.getElementById('m-' + metric);
+    active.classList.add('bg-brand-gold', 'border-brand-gold', 'text-brand-dark');
+    active.classList.remove('border-gray-200', 'text-gray-600');
+    if (lastData) renderChart(lastData.chart);
+  };
+
+  window.loadData = function() {
+    const id = document.getElementById('item-select').value;
+    if (!id) {
+      document.getElementById('hint').classList.remove('hidden');
+      document.getElementById('results').classList.add('hidden');
+      return;
+    }
+    const params = new URLSearchParams({
+      kind: currentKind,
+      id: id,
+      preset: currentPreset,
+    });
+    if (currentPreset === 'custom') {
+      params.set('start', document.getElementById('date-from').value);
+      params.set('end', document.getElementById('date-to').value);
+    }
+    fetch('{% url "analytics:usage_data" %}?' + params.toString())
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) { alert(data.error); return; }
+        lastData = data;
+        document.getElementById('hint').classList.add('hidden');
+        document.getElementById('results').classList.remove('hidden');
+        document.getElementById('kpi-count').textContent = data.summary.count.toLocaleString('uk-UA');
+        document.getElementById('kpi-qty').textContent = formatNumber(data.summary.qty);
+        document.getElementById('kpi-revenue').textContent = formatNumber(data.summary.revenue);
+        renderChart(data.chart);
+        renderDoctors(data.top_doctors);
+      });
+  };
+
+  function formatNumber(v) {
+    if (!v) return '0';
+    return Number(v).toLocaleString('uk-UA', { maximumFractionDigits: 2 });
+  }
+
+  function renderChart(chartData) {
+    const ctx = document.getElementById('usage-chart').getContext('2d');
+    if (chart) chart.destroy();
+    const labelMap = { count: 'Разів', qty: 'Кількість', revenue: 'Виручка, ₴' };
+    chart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: chartData.labels,
+        datasets: [{
+          label: labelMap[currentMetric],
+          data: chartData[currentMetric],
+          backgroundColor: 'rgba(212, 175, 55, 0.7)',
+          borderColor: 'rgba(212, 175, 55, 1)',
+          borderWidth: 1,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: { y: { beginAtZero: true } },
+        plugins: { legend: { display: false } },
+      },
+    });
+  }
+
+  function renderDoctors(list) {
+    const tbody = document.getElementById('doctors-tbody');
+    if (!list.length) {
+      tbody.innerHTML = '<tr><td colspan="4" class="py-4 text-center text-gray-400 text-xs">Немає даних про лікарів за цей період</td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map(d => `
+      <tr class="border-b border-gray-50">
+        <td class="py-2">${escapeHtml(d.name)}</td>
+        <td class="py-2 text-right tabular-nums">${d.cnt}</td>
+        <td class="py-2 text-right tabular-nums">${formatNumber(d.qty)}</td>
+        <td class="py-2 text-right tabular-nums text-emerald-600">${formatNumber(d.rev)}</td>
+      </tr>
+    `).join('');
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  document.getElementById('item-select').addEventListener('change', loadData);
+  document.getElementById('date-from').addEventListener('change', () => {
+    if (currentPreset === 'custom') loadData();
+  });
+  document.getElementById('date-to').addEventListener('change', () => {
+    if (currentPreset === 'custom') loadData();
+  });
+})();
+</script>
+{% endblock %}

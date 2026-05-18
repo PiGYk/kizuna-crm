@@ -228,6 +228,136 @@ def debtors_view(request):
 
 
 @login_required
+def usage_view(request):
+    """Сторінка: статистика використання конкретної послуги/товару за період."""
+    from apps.services.models import Service
+    from apps.inventory.models import Product
+
+    services = Service.objects.filter(
+        organization=request.organization, is_active=True
+    ).order_by('name').values('id', 'name')
+    products = Product.objects.filter(
+        organization=request.organization, is_active=True
+    ).order_by('name').values('id', 'name', 'sku')
+
+    presets = [
+        ('today', 'Сьогодні'), ('week', '7 днів'),
+        ('month', 'Місяць'), ('year', 'Рік'), ('custom', 'Довільно'),
+    ]
+    return render(request, 'analytics/usage.html', {
+        'services': list(services),
+        'products': list(products),
+        'presets': presets,
+    })
+
+
+@login_required
+def usage_data(request):
+    """JSON endpoint: aggregate counts/qty/revenue + daily breakdown + top doctors."""
+    kind = request.GET.get('kind', 'service')  # service | product
+    try:
+        obj_id = int(request.GET.get('id', 0))
+    except (TypeError, ValueError):
+        obj_id = 0
+    start, end, preset = _parse_range(request)
+
+    if not obj_id:
+        return JsonResponse({'error': 'Оберіть позицію'}, status=400)
+
+    paid_invoices = Invoice.objects.filter(
+        status='paid',
+        organization=request.organization,
+        created_at__date__gte=start,
+        created_at__date__lte=end,
+    )
+
+    lines_qs = InvoiceLine.objects.filter(invoice__in=paid_invoices)
+    if kind == 'service':
+        lines_qs = lines_qs.filter(line_type='service', service_id=obj_id)
+        title_name = ''
+        from apps.services.models import Service
+        svc = Service.objects.filter(
+            pk=obj_id, organization=request.organization
+        ).first()
+        if svc:
+            title_name = svc.name
+    elif kind == 'product':
+        lines_qs = lines_qs.filter(line_type='product', product_id=obj_id)
+        title_name = ''
+        from apps.inventory.models import Product
+        prod = Product.objects.filter(
+            pk=obj_id, organization=request.organization
+        ).first()
+        if prod:
+            title_name = prod.name
+    else:
+        return JsonResponse({'error': 'Невідомий тип'}, status=400)
+
+    # Підсумок одним aggregate
+    agg = lines_qs.aggregate(
+        count=Count('id'),
+        qty=Sum('quantity'),
+        revenue=Sum('total'),
+    )
+
+    # По днях для графіка
+    per_day = (
+        lines_qs
+        .annotate(d=TruncDate('invoice__created_at'))
+        .values('d')
+        .annotate(cnt=Count('id'), qty=Sum('quantity'), rev=Sum('total'))
+        .order_by('d')
+    )
+    per_day_map = {row['d']: row for row in per_day}
+
+    labels, cnt_series, qty_series, rev_series = [], [], [], []
+    d = start
+    while d <= end:
+        row = per_day_map.get(d)
+        labels.append(d.strftime('%d.%m'))
+        cnt_series.append(row['cnt'] if row else 0)
+        qty_series.append(float(row['qty']) if row and row['qty'] else 0)
+        rev_series.append(float(row['rev']) if row and row['rev'] else 0)
+        d += timedelta(days=1)
+
+    # Топ-лікарі (хто найбільше надавав/продавав)
+    top_doctors = (
+        lines_qs
+        .filter(invoice__doctor__isnull=False)
+        .values('invoice__doctor_id', 'invoice__doctor__first_name', 'invoice__doctor__last_name')
+        .annotate(cnt=Count('id'), qty=Sum('quantity'), rev=Sum('total'))
+        .order_by('-cnt')[:10]
+    )
+    top_doctors_list = [
+        {
+            'name': f"{r['invoice__doctor__last_name']} {r['invoice__doctor__first_name']}".strip() or '—',
+            'cnt': r['cnt'],
+            'qty': float(r['qty'] or 0),
+            'rev': float(r['rev'] or 0),
+        }
+        for r in top_doctors
+    ]
+
+    return JsonResponse({
+        'kind': kind,
+        'name': title_name,
+        'period': {'start': start.isoformat(), 'end': end.isoformat(), 'preset': preset},
+        'summary': {
+            'count': agg['count'] or 0,
+            'qty': float(agg['qty'] or 0),
+            'revenue': float(agg['revenue'] or 0),
+        },
+        'chart': {
+            'labels': labels,
+            'count': cnt_series,
+            'qty': qty_series,
+            'revenue': rev_series,
+        },
+        'top_doctors': top_doctors_list,
+    })
+
+
+@login_required
 def services_view(request):
     from django.db.models import Avg
 
