@@ -31,13 +31,11 @@
         <span class="text-xs text-gray-400 ml-2 shrink-0">{{ chat.last_message_at|date:"d.m H:i" }}</span>
       {% endif %}
     </div>
-    {% with last=chat.messages.last %}
-    {% if last %}
+    {% if chat.last_msg_text %}
       <div class="text-xs text-gray-400 truncate mt-0.5">
-        {% if last.direction == 'out' %}<span class="text-brand-gold">Ви: </span>{% endif %}{{ last.text }}
+        {% if chat.last_msg_direction == 'out' %}<span class="text-brand-gold">Ви: </span>{% endif %}{{ chat.last_msg_text }}
       </div>
     {% endif %}
-    {% endwith %}
   </div>
   {% if chat.unread_count_ann %}
     <span class="w-5 h-5 rounded-full bg-brand-gold text-brand-dark text-xs font-bold flex items-center justify-center shrink-0">

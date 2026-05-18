@@ -1390,18 +1390,17 @@ def search_clients(request):
 @login_required
 @_require_telegram_plan
 def chat_list(request):
-    from django.db.models import Prefetch, Count, Q
+    from django.db.models import Count, Q, Subquery, OuterRef
+    last_msg = TelegramMessage.objects.filter(chat=OuterRef('pk')).order_by('-id')
     chats = TelegramChat.objects.filter(
         organization=request.organization,
-    ).annotate(
-        # Annotation замість @property — одним SQL для всього списку, не N+1.
-        # Темплейту видно як `chat.unread_count_ann`.
+    ).select_related('client').annotate(
         unread_count_ann=Count(
             'messages',
             filter=Q(messages__direction='in', messages__is_read=False),
         ),
-    ).prefetch_related(
-        Prefetch('messages', queryset=TelegramMessage.objects.order_by('-id')[:50])
+        last_msg_text=Subquery(last_msg.values('text')[:1]),
+        last_msg_direction=Subquery(last_msg.values('direction')[:1]),
     )
     return render(request, 'tg/chat_list.html', {'chats': chats})
 
@@ -1468,18 +1467,12 @@ def chat_messages(request, pk):
 @login_required
 @_require_telegram_plan
 def chat_list_partial(request):
-    from django.db.models import Q, Prefetch, Count
+    from django.db.models import Q, Count, Subquery, OuterRef
     q = request.GET.get('q', '').strip()
+    last_msg = TelegramMessage.objects.filter(chat=OuterRef('pk')).order_by('-id')
     chats = TelegramChat.objects.filter(
         organization=request.organization,
-    ).annotate(
-        unread_count_ann=Count(
-            'messages',
-            filter=Q(messages__direction='in', messages__is_read=False),
-        ),
-    ).prefetch_related(
-        Prefetch('messages', queryset=TelegramMessage.objects.order_by('-id')[:50])
-    )
+    ).select_related('client')
     if q:
         chats = chats.filter(
             Q(tg_first_name__icontains=q) |
@@ -1490,6 +1483,14 @@ def chat_list_partial(request):
             Q(client__phone__icontains=q) |
             Q(client__patients__name__icontains=q)
         ).distinct()
+    chats = chats.annotate(
+        unread_count_ann=Count(
+            'messages',
+            filter=Q(messages__direction='in', messages__is_read=False),
+        ),
+        last_msg_text=Subquery(last_msg.values('text')[:1]),
+        last_msg_direction=Subquery(last_msg.values('direction')[:1]),
+    )
     return render(request, 'tg/partials/chat_list.html', {'chats': chats})
 
 
