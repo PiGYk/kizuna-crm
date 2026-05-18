@@ -6,4 +6,9 @@ app_name = 'analytics'
 urlpatterns = [
     path('', views.analytics_view, name='index'),
     path('data/', views.analytics_data, name='data'),
+    path('payroll/', views.payroll_view, name='payroll'),
+    path('debtors/', views.debtors_view, name='debtors'),
+    path('services/', views.services_view, name='services'),
+    path('profit/', views.profit_view, name='profit'),
+    path('profit/data/', views.profit_data, name='profit_data'),
 ]

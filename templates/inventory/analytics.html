@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+{% block title %}Аналітика складу — Kizuna CRM{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl">
+  <div class="flex items-center gap-3 mb-6">
+    <a href="{% url 'inventory:list' %}" class="text-gray-400 hover:text-gray-600">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+    </a>
+    <h1 class="text-2xl font-bold text-brand-dark">Аналітика складу</h1>
+  </div>
+
+  <!-- KPI -->
+  <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+    <div class="bg-white rounded-xl border border-gray-200 p-4">
+      <div class="text-xs text-gray-400 mb-1">Вартість (закуп.)</div>
+      <div class="text-xl font-bold text-brand-dark tabular-nums">{{ total_buy|floatformat:0 }} ₴</div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 p-4">
+      <div class="text-xs text-gray-400 mb-1">Вартість (продаж.)</div>
+      <div class="text-xl font-bold text-brand-gold tabular-nums">{{ total_sell|floatformat:0 }} ₴</div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 p-4">
+      <div class="text-xs text-gray-400 mb-1">Позицій</div>
+      <div class="text-xl font-bold text-brand-dark">{{ total_items }}</div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 p-4">
+      <div class="text-xs text-gray-400 mb-1">Мало на складі</div>
+      <div class="text-xl font-bold {% if low_stock %}text-amber-500{% else %}text-green-500{% endif %}">{{ low_stock }}</div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 p-4">
+      <div class="text-xs text-gray-400 mb-1">Нуль на складі</div>
+      <div class="text-xl font-bold {% if out_of_stock %}text-red-500{% else %}text-green-500{% endif %}">{{ out_of_stock }}</div>
+    </div>
+  </div>
+
+  <!-- Графік закупок/списань -->
+  <div class="bg-white rounded-xl border border-gray-200 p-5 mb-6">
+    <h2 class="text-sm font-semibold text-gray-700 mb-4">Закупки та списання по місяцях (₴)</h2>
+    <div style="height: 250px">
+      <canvas id="chart-monthly"></canvas>
+    </div>
+  </div>
+
+  <!-- Топ товарів -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <!-- Топ списань -->
+    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div class="px-5 py-3 border-b border-gray-100">
+        <h2 class="text-sm font-semibold text-gray-700">Топ-10 витрачених (30 дн.)</h2>
+      </div>
+      {% if top_consumed %}
+      <div class="divide-y divide-gray-50">
+        {% for item in top_consumed %}
+        <div class="flex items-center justify-between px-5 py-2.5 text-sm">
+          <a href="{% url 'inventory:detail' item.product__pk %}" class="text-brand-dark hover:text-brand-gold font-medium">{{ item.product__name }}</a>
+          <span class="text-gray-500 tabular-nums">{{ item.total_qty|floatformat:"-3" }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="p-6 text-center text-gray-300 text-sm">Немає даних</div>
+      {% endif %}
+    </div>
+
+    <!-- Топ закупок -->
+    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div class="px-5 py-3 border-b border-gray-100">
+        <h2 class="text-sm font-semibold text-gray-700">Топ-10 закупок (30 дн., ₴)</h2>
+      </div>
+      {% if top_purchased %}
+      <div class="divide-y divide-gray-50">
+        {% for item in top_purchased %}
+        <div class="flex items-center justify-between px-5 py-2.5 text-sm">
+          <a href="{% url 'inventory:detail' item.product__pk %}" class="text-brand-dark hover:text-brand-gold font-medium">{{ item.product__name }}</a>
+          <span class="text-gray-500 tabular-nums">{{ item.total_sum|default:0|floatformat:2 }} ₴</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="p-6 text-center text-gray-300 text-sm">Немає даних</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script>
+new Chart(document.getElementById('chart-monthly'), {
+  type: 'bar',
+  data: {
+    labels: {{ chart_labels|safe }},
+    datasets: [
+      {
+        label: 'Закупки',
+        data: {{ chart_purchases|safe }},
+        backgroundColor: 'rgba(222, 170, 1, 0.3)',
+        borderColor: '#DEAA01',
+        borderWidth: 1,
+        borderRadius: 4,
+      },
+      {
+        label: 'Списання',
+        data: {{ chart_writeoffs|safe }},
+        backgroundColor: 'rgba(239, 68, 68, 0.15)',
+        borderColor: '#EF4444',
+        borderWidth: 1,
+        borderRadius: 4,
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'bottom', labels: { boxWidth: 12, padding: 20 } },
+    },
+    scales: {
+      y: { beginAtZero: true, grid: { color: '#f3f4f6' } },
+      x: { grid: { display: false } },
+    }
+  }
+});
+</script>
+{% endblock %}

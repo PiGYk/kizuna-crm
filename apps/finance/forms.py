@@ -21,10 +21,10 @@ class SupplierForm(forms.ModelForm):
         model = Supplier
         fields = ('name', 'contact_person', 'phone', 'email', 'notes')
         widgets = {
-            'name': forms.TextInput(attrs={'class': _tw}),
-            'contact_person': forms.TextInput(attrs={'class': _tw}),
-            'phone': forms.TextInput(attrs={'class': _tw}),
-            'email': forms.EmailInput(attrs={'class': _tw}),
+            'name': forms.TextInput(attrs={'class': _tw, 'placeholder': 'Назва компанії'}),
+            'contact_person': forms.TextInput(attrs={'class': _tw, 'placeholder': "Ім'я контактної особи"}),
+            'phone': forms.TextInput(attrs={'class': _tw, 'placeholder': '+380...'}),
+            'email': forms.EmailInput(attrs={'class': _tw, 'placeholder': 'email@example.com'}),
             'notes': forms.Textarea(attrs={'class': _tw, 'rows': 3}),
         }
 
@@ -38,11 +38,20 @@ class ExpenseForm(forms.ModelForm):
             'category': forms.Select(attrs={'class': _tw_select}),
             'supplier': forms.Select(attrs={'class': _tw_select}),
             'amount': forms.NumberInput(attrs={'class': _tw, 'step': '0.01', 'min': '0.01'}),
-            'date': forms.DateInput(attrs={'class': _tw, 'type': 'date'}),
+            'date': forms.DateInput(format='%Y-%m-%d', attrs={'class': _tw, 'type': 'date'}),
             'payment_method': forms.Select(attrs={'class': _tw_select}),
             'description': forms.TextInput(attrs={'class': _tw}),
             'receipt_photo': forms.ClearableFileInput(attrs={'class': _tw}),
         }
+
+    def __init__(self, *args, org=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if org is not None:
+            self.fields['category'].queryset = ExpenseCategory.objects.filter(organization=org).order_by('name')
+            self.fields['supplier'].queryset = Supplier.objects.filter(organization=org).order_by('name')
+        else:
+            self.fields['category'].queryset = ExpenseCategory.objects.none()
+            self.fields['supplier'].queryset = Supplier.objects.none()
 
 
 class CashOperationForm(forms.ModelForm):
@@ -52,7 +61,7 @@ class CashOperationForm(forms.ModelForm):
         widgets = {
             'type': forms.Select(attrs={'class': _tw_select}),
             'amount': forms.NumberInput(attrs={'class': _tw, 'step': '0.01', 'min': '0.01'}),
-            'date': forms.DateInput(attrs={'class': _tw, 'type': 'date'}),
+            'date': forms.DateInput(format='%Y-%m-%d', attrs={'class': _tw, 'type': 'date'}),
             'description': forms.TextInput(attrs={'class': _tw, 'placeholder': 'Коментар (необов\'язково)'}),
         }
 

@@ -3,6 +3,25 @@
 {% block title %}{% if visit %}Редагувати візит{% else %}Новий візит{% endif %} — Kizuna CRM{% endblock %}
 
 {% block content %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css">
+<style>
+  /* Приховуємо оригінальні textarea — дані підставляємо через JS перед сабмітом */
+  #id_complaint, #id_diagnosis, #id_treatment, #id_notes { display: none !important; }
+
+  .ql-toolbar { border-radius: 8px 8px 0 0 !important; border-color: #d1d5db !important; background: #fafafa; }
+  .ql-container { border-radius: 0 0 8px 8px !important; border-color: #d1d5db !important; font-size: 1rem; font-family: inherit; min-height: 200px; }
+  .ql-container.ql-snow:focus-within { border-color: #C8A84C !important; box-shadow: 0 0 0 2px rgba(200,168,76,.2); }
+  /* iOS не зумить, якщо font-size >=16px */
+  .ql-editor { min-height: 200px; font-size: 16px; }
+  .ql-editor p { margin-bottom: 2px; }
+  .ql-toolbar .ql-formats { margin-right: 8px; }
+  /* На десктопі повертаємо компактніший шрифт */
+  @media (min-width: 768px) {
+    .ql-container { font-size: 0.875rem; }
+    .ql-editor { font-size: 0.875rem; }
+  }
+</style>
+
 <div class="max-w-lg">
   <div class="flex items-center gap-3 mb-6">
     <a href="{% url 'clients:patient_detail' patient.pk %}" class="text-gray-400 hover:text-gray-600" onclick="if(history.length>1){history.back();return false;}">
@@ -15,8 +34,22 @@
   </div>
 
   <div class="bg-white rounded-xl border border-gray-200 p-6">
-    <form method="post" class="space-y-4">
+    <form method="post" id="visit-form" class="space-y-4">
       {% csrf_token %}
+
+      <div class="mb-4 bg-brand-gold/5 border border-brand-gold/20 rounded-xl p-4">
+        <label class="text-xs text-gray-500 block mb-1">📋 Використати шаблон</label>
+        <div class="flex gap-2">
+          <select id="template-select" class="flex-1 min-h-[44px] appearance-none bg-white bg-no-repeat bg-right pr-9 border border-gray-200 rounded-lg px-3 py-2 text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
+                  style="background-image: url(&quot;data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239ca3af' stroke-width='2'%3e%3cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3e%3c/svg%3e&quot;); background-position: right 0.5rem center; background-size: 1.25rem;">
+            <option value="">— без шаблону —</option>
+          </select>
+          <button type="button" onclick="applyTemplate()" class="min-h-[44px] px-3 py-2 bg-brand-gold text-brand-dark rounded-lg text-sm font-medium hover:brightness-95 transition">
+            Застосувати
+          </button>
+        </div>
+      </div>
+
       <div class="grid grid-cols-2 gap-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Дата та час *</label>
@@ -27,33 +60,125 @@
           {{ form.doctor }}
         </div>
       </div>
+
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Скарги</label>
         {{ form.complaint }}
+        <div id="editor-complaint"></div>
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Діагноз</label>
         {{ form.diagnosis }}
+        <div id="editor-diagnosis"></div>
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Лікування</label>
         {{ form.treatment }}
+        <div id="editor-treatment"></div>
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Нотатки</label>
         {{ form.notes }}
+        <div id="editor-notes"></div>
       </div>
-      <div class="flex gap-3 pt-2">
+
+      <div class="mb-4">
+        <label class="text-xs text-gray-500 block mb-1">Контрольний візит</label>
+        {{ form.follow_up_date }}
+      </div>
+
+      <div class="md:static fixed bottom-16 left-0 right-0 bg-white border-t border-gray-200 p-4 z-30
+                  md:bg-transparent md:border-0 md:p-0 md:pt-2 flex gap-3">
         <button type="submit"
-          class="bg-brand-gold text-brand-dark px-6 py-2.5 rounded-lg text-sm font-semibold hover:brightness-95 transition-all">
+          class="flex-1 md:flex-none min-h-[44px] bg-brand-gold text-brand-dark px-6 py-2.5 rounded-lg text-sm font-semibold hover:brightness-95 transition-all">
           Зберегти
         </button>
         <a href="{% url 'clients:patient_detail' patient.pk %}"
-          class="px-6 py-2.5 rounded-lg text-sm font-medium text-gray-700 border border-gray-300 hover:bg-gray-50">
+          class="hidden md:inline-block min-h-[44px] px-6 py-2.5 rounded-lg text-sm font-medium text-gray-700 border border-gray-300 hover:bg-gray-50">
           Скасувати
         </a>
       </div>
+      <div class="h-20 md:hidden"></div>
     </form>
   </div>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
+<script>
+(function () {
+  // Мінімальний toolbar — особливо важливо на моб, де довгий toolbar обертається в 3 ряди
+  const isMobile = window.matchMedia('(max-width: 767px)').matches;
+  const TOOLBAR = isMobile
+    ? [['bold', 'italic', 'underline'], [{ list: 'ordered' }, { list: 'bullet' }]]
+    : [['bold', 'italic'], [{ list: 'ordered' }, { list: 'bullet' }], ['clean']];
+
+  const FIELDS = ['complaint', 'diagnosis', 'treatment', 'notes'];
+
+  window._visitEditors = {};
+  const editors = window._visitEditors;
+
+  FIELDS.forEach(function (name) {
+    const textarea = document.getElementById('id_' + name);
+    const container = document.getElementById('editor-' + name);
+
+    const q = new Quill(container, {
+      theme: 'snow',
+      modules: { toolbar: TOOLBAR },
+      placeholder: '',
+    });
+
+    // Заповнюємо редактор збереженим HTML (при редагуванні)
+    const savedHtml = textarea ? textarea.value : '';
+    if (savedHtml) {
+      q.clipboard.dangerouslyPasteHTML(savedHtml);
+    }
+
+    editors[name] = { quill: q, textarea: textarea };
+  });
+
+  // Перед сабмітом: синхронізуємо HTML з textarea
+  document.getElementById('visit-form').addEventListener('submit', function () {
+    FIELDS.forEach(function (name) {
+      const e = editors[name];
+      if (!e || !e.textarea) return;
+      const html = e.quill.getSemanticHTML();
+      // Якщо редактор пустий — зберігаємо порожній рядок
+      e.textarea.value = (html === '<p></p>' || html === '<p><br></p>') ? '' : html;
+    });
+  });
+})();
+
+// Завантажити шаблони візитів
+(async function() {
+  try {
+    const resp = await fetch('{% url "clients:visit_templates_json" %}');
+    const data = await resp.json();
+    const sel = document.getElementById('template-select');
+    data.templates.forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = JSON.stringify(t);
+      opt.textContent = t.name;
+      sel.appendChild(opt);
+    });
+  } catch(e) { /* шаблони недоступні — нічого страшного */ }
+})();
+
+function applyTemplate() {
+  const sel = document.getElementById('template-select');
+  if (!sel.value) return;
+  const t = JSON.parse(sel.value);
+  const editors = window._visitEditors || {};
+  ['complaint', 'diagnosis', 'treatment', 'notes'].forEach(field => {
+    if (!t[field]) return;
+    const ed = editors[field];
+    if (ed && ed.quill) {
+      ed.quill.root.innerHTML = t[field];
+      if (ed.textarea) ed.textarea.value = t[field];
+    } else {
+      const el = document.querySelector('[name="' + field + '"]');
+      if (el) el.value = t[field];
+    }
+  });
+}
+</script>
 {% endblock %}

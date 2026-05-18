@@ -1,14 +1,21 @@
 from django.db import models
 from django.conf import settings
+from django.core.validators import MinValueValidator, MaxValueValidator
 from apps.clinic.managers import OrgManager, RelatedOrgManager
+from apps.clinic.uploads import patient_photo_path, analysis_image_path
 
 
 class Client(models.Model):
     first_name = models.CharField('Ім\'я', max_length=100)
     last_name = models.CharField('Прізвище', max_length=100)
-    phone = models.CharField('Телефон', max_length=20)
+    phone = models.CharField('Телефон', max_length=20, db_index=True)
     email = models.EmailField('Email', blank=True)
     notes = models.TextField('Нотатки', blank=True)
+    discount_percent = models.DecimalField(
+        'Знижка, %', max_digits=5, decimal_places=2, default=0,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text='Персональна знижка клієнта (0–100)'
+    )
     organization = models.ForeignKey(
         'clinic.Organization',
         on_delete=models.CASCADE,
@@ -38,7 +45,15 @@ class Patient(models.Model):
         CAT = 'cat', 'Кіт'
         RABBIT = 'rabbit', 'Кролик'
         BIRD = 'bird', 'Птах'
-        REPTILE = 'reptile', 'Рептилія'
+        HAMSTER = 'hamster', 'Хом\'як'
+        GUINEA_PIG = 'guinea_pig', 'Морська свинка'
+        FERRET = 'ferret', 'Тхір'
+        CHINCHILLA = 'chinchilla', 'Шиншила'
+        RAT = 'rat', 'Щур / Миша'
+        TURTLE = 'turtle', 'Черепаха'
+        REPTILE = 'reptile', 'Ящірка / Змія'
+        FISH = 'fish', 'Риба'
+        HEDGEHOG = 'hedgehog', 'Їжак'
         OTHER = 'other', 'Інше'
 
     class Sex(models.TextChoices):
@@ -55,7 +70,7 @@ class Patient(models.Model):
     age = models.CharField('Вік', max_length=30, blank=True)
     is_neutered = models.BooleanField('Кастрований/стерилізований', default=False)
     color = models.CharField('Масть/колір', max_length=100, blank=True)
-    photo = models.ImageField('Фото', upload_to='patients/', null=True, blank=True)
+    photo = models.ImageField('Фото', upload_to=patient_photo_path, null=True, blank=True)
     assigned_doctor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -65,6 +80,8 @@ class Patient(models.Model):
         limit_choices_to={'role__in': ['admin', 'doctor']},
     )
     notes = models.TextField('Нотатки', blank=True)
+    allergies = models.TextField('Алергії / хронічні', blank=True,
+        help_text='Алергії на препарати, хронічні захворювання — видно на картці червоним')
     created_at = models.DateTimeField(auto_now_add=True)
 
     objects = RelatedOrgManager('client__organization')
@@ -130,6 +147,8 @@ class Visit(models.Model):
     diagnosis = models.TextField('Діагноз', blank=True)
     treatment = models.TextField('Лікування', blank=True)
     notes = models.TextField('Нотатки', blank=True)
+    follow_up_date = models.DateField('Контрольний візит', null=True, blank=True,
+        help_text='Дата повторного огляду')
     created_at = models.DateTimeField(auto_now_add=True)
 
     objects = RelatedOrgManager('patient__client__organization')
@@ -143,10 +162,55 @@ class Visit(models.Model):
         return f"{self.patient.name} — {self.date:%d.%m.%Y}"
 
 
+class VisitTemplate(models.Model):
+    """Шаблон для швидкого створення типового візиту."""
+    name = models.CharField('Назва шаблону', max_length=200)
+    complaint = models.TextField('Скарги', blank=True)
+    diagnosis = models.TextField('Діагноз', blank=True)
+    treatment = models.TextField('Лікування', blank=True)
+    notes = models.TextField('Нотатки', blank=True)
+    organization = models.ForeignKey(
+        'clinic.Organization', on_delete=models.CASCADE,
+        null=True, blank=True, related_name='visit_templates',
+    )
+    is_active = models.BooleanField('Активний', default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = OrgManager()
+
+    class Meta:
+        verbose_name = 'Шаблон візиту'
+        verbose_name_plural = 'Шаблони візитів'
+        ordering = ('name',)
+
+    def __str__(self):
+        return self.name
+
+
+class Prescription(models.Model):
+    """Призначення лікаря після візиту."""
+    visit = models.ForeignKey(Visit, on_delete=models.CASCADE, related_name='prescriptions', verbose_name='Візит')
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='prescriptions', verbose_name='Пацієнт')
+    medication = models.CharField('Препарат', max_length=200)
+    dosage = models.CharField('Дозування', max_length=200)
+    frequency = models.CharField('Частота', max_length=100, help_text='Наприклад: 2 рази на день')
+    duration = models.CharField('Тривалість', max_length=100, help_text='Наприклад: 7 днів')
+    notes = models.TextField('Примітки', blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Призначення'
+        verbose_name_plural = 'Призначення'
+        ordering = ('-created_at',)
+
+    def __str__(self):
+        return f'{self.medication} — {self.patient.name}'
+
+
 class PatientAnalysis(models.Model):
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='analyses', verbose_name='Пацієнт')
     title = models.CharField('Назва', max_length=200)
-    image = models.ImageField('Фото', upload_to='analyses/')
+    image = models.ImageField('Фото', upload_to=analysis_image_path)
     date = models.DateField('Дата')
     notes = models.TextField('Нотатки', blank=True)
     uploaded_by = models.ForeignKey(
@@ -187,6 +251,50 @@ class PatientAnalysis(models.Model):
         img.save(self.image.path, 'JPEG', quality=85, optimize=True)
 
 
+def patient_document_path(instance, filename):
+    return f'patients/{instance.patient.client_id}/{instance.patient_id}/docs/{filename}'
+
+
+class PatientDocument(models.Model):
+    """Документ пацієнта (PDF, відео, інші файли)."""
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='documents', verbose_name='Пацієнт')
+    title = models.CharField('Назва', max_length=200)
+    file = models.FileField('Файл', upload_to=patient_document_path)
+    date = models.DateField('Дата')
+    notes = models.TextField('Нотатки', blank=True)
+    uploaded_by = models.ForeignKey(
+        'accounts.User', on_delete=models.SET_NULL,
+        null=True, blank=True, verbose_name='Завантажив',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = RelatedOrgManager('patient__client__organization')
+
+    class Meta:
+        verbose_name = 'Документ'
+        verbose_name_plural = 'Документи'
+        ordering = ('-date',)
+
+    def __str__(self):
+        return f'{self.title} — {self.patient.name}'
+
+    @property
+    def extension(self):
+        import os
+        return os.path.splitext(self.file.name)[1].lower()
+
+    @property
+    def is_image(self):
+        return self.extension in ('.jpg', '.jpeg', '.png', '.webp', '.gif')
+
+    @property
+    def is_pdf(self):
+        return self.extension == '.pdf'
+
+
+from .models_health import HealthCheck  # noqa: E402, F401
+
+
 class Vaccine(models.Model):
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='vaccines', verbose_name='Пацієнт')
     doctor = models.ForeignKey(
@@ -202,6 +310,7 @@ class Vaccine(models.Model):
     valid_until = models.DateField('Діє до', null=True, blank=True)
     batch_number = models.CharField('Серія', max_length=100, blank=True)
     notes = models.TextField('Нотатки', blank=True)
+    reminder_sent = models.BooleanField('Нагадування відправлено', default=False)
 
     objects = RelatedOrgManager('patient__client__organization')
 
@@ -216,6 +325,45 @@ class Vaccine(models.Model):
     def is_overdue(self):
         from datetime import date
         return self.next_date and self.next_date < date.today()
+
+
+class Hospitalization(models.Model):
+    class Status(models.TextChoices):
+        ACTIVE = 'active', 'На стаціонарі'
+        DISCHARGED = 'discharged', 'Виписаний'
+
+    patient = models.ForeignKey(
+        Patient, on_delete=models.CASCADE,
+        related_name='hospitalizations', verbose_name='Пацієнт'
+    )
+    doctor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='hospitalizations', verbose_name='Лікар'
+    )
+    organization = models.ForeignKey(
+        'clinic.Organization', on_delete=models.CASCADE,
+        related_name='hospitalizations', verbose_name='Організація'
+    )
+    reason = models.TextField('Причина госпіталізації')
+    diagnosis = models.TextField('Діагноз', blank=True)
+    treatment = models.TextField('Призначення', blank=True)
+    notes = models.TextField('Нотатки', blank=True)
+    status = models.CharField(
+        'Статус', max_length=20, choices=Status.choices, default=Status.ACTIVE
+    )
+    admitted_at = models.DateTimeField('Дата надходження', auto_now_add=True)
+    discharged_at = models.DateTimeField('Дата виписки', null=True, blank=True)
+    discharge_notes = models.TextField('Нотатки при виписці', blank=True)
+
+    objects = RelatedOrgManager('patient__client__organization')
+
+    class Meta:
+        verbose_name = 'Госпіталізація'
+        verbose_name_plural = 'Стаціонар'
+        ordering = ('-admitted_at',)
+
+    def __str__(self):
+        return f"{self.patient.name} — {self.get_status_display()} ({self.admitted_at:%d.%m.%Y})"
 
 
 class WeightRecord(models.Model):
@@ -240,3 +388,73 @@ class WeightRecord(models.Model):
 
     def __str__(self):
         return f"{self.patient.name} — {self.weight} кг ({self.date:%d.%m.%Y})"
+
+
+class UltrasoundReport(models.Model):
+    """Протокол УЗД черевної порожнини."""
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='ultrasounds', verbose_name='Пацієнт')
+    visit = models.ForeignKey('Visit', on_delete=models.SET_NULL, null=True, blank=True, related_name='ultrasounds')
+    doctor = models.ForeignKey(
+        'accounts.User', on_delete=models.SET_NULL,
+        null=True, blank=True, verbose_name='Лікар',
+    )
+    date = models.DateField('Дата дослідження')
+
+    # ── Печінка ──
+    liver_size = models.CharField('Розмір печінки', max_length=50, blank=True, help_text='Норма / збільшена / зменшена')
+    liver_echogenicity = models.CharField('Ехогенність печінки', max_length=50, blank=True, help_text='Нормальна / підвищена / знижена / неоднорідна')
+    liver_structure = models.CharField('Структура печінки', max_length=100, blank=True, help_text='Однорідна / неоднорідна, дифузні зміни')
+    liver_vessels = models.CharField('Судини печінки', max_length=100, blank=True, help_text='Не розширені / розширені')
+    liver_notes = models.TextField('Коментар (печінка)', blank=True)
+
+    # ── Жовчний міхур ──
+    gallbladder_size = models.CharField('Розмір ЖМ', max_length=50, blank=True, help_text='Довжина × ширина мм')
+    gallbladder_wall = models.CharField('Стінка ЖМ', max_length=50, blank=True, help_text='Не потовщена / потовщена до ___ мм')
+    gallbladder_content = models.CharField('Вміст ЖМ', max_length=100, blank=True, help_text='Анехогенний / сладж / конкременти')
+    gallbladder_notes = models.TextField('Коментар (ЖМ)', blank=True)
+
+    # ── Селезінка ──
+    spleen_size = models.CharField('Розмір селезінки', max_length=50, blank=True, help_text='Норма / збільшена')
+    spleen_echogenicity = models.CharField('Ехогенність селезінки', max_length=50, blank=True)
+    spleen_structure = models.CharField('Структура селезінки', max_length=100, blank=True)
+    spleen_notes = models.TextField('Коментар (селезінка)', blank=True)
+
+    # ── Нирки ──
+    kidney_left_size = models.CharField('Ліва нирка розмір', max_length=50, blank=True, help_text='Довжина × ширина мм')
+    kidney_left_cortex = models.CharField('Кірковий шар лівої', max_length=50, blank=True, help_text='мм')
+    kidney_right_size = models.CharField('Права нирка розмір', max_length=50, blank=True, help_text='Довжина × ширина мм')
+    kidney_right_cortex = models.CharField('Кірковий шар правої', max_length=50, blank=True, help_text='мм')
+    kidney_echogenicity = models.CharField('Ехогенність нирок', max_length=50, blank=True)
+    kidney_pelvis = models.CharField('Ниркова миска', max_length=100, blank=True, help_text='Не розширена / розширена до ___ мм')
+    kidney_notes = models.TextField('Коментар (нирки)', blank=True)
+
+    # ── Сечовий міхур ──
+    bladder_filling = models.CharField('Наповнення СМ', max_length=50, blank=True, help_text='Помірне / достатнє / переповнений')
+    bladder_wall = models.CharField('Стінка СМ', max_length=50, blank=True, help_text='Не потовщена / потовщена до ___ мм')
+    bladder_content = models.CharField('Вміст СМ', max_length=100, blank=True, help_text='Анехогенний / осад / конкременти')
+    bladder_notes = models.TextField('Коментар (СМ)', blank=True)
+
+    # ── Шлунок / кишківник ──
+    gi_notes = models.TextField('ШКТ', blank=True, help_text='Стінка, перистальтика, вміст, лімфовузли')
+
+    # ── Матка / простата ──
+    reproductive_notes = models.TextField('Репродуктивна система', blank=True, help_text='Матка / простата / яєчники')
+
+    # ── Вільна рідина ──
+    free_fluid = models.CharField('Вільна рідина', max_length=100, blank=True, help_text='Відсутня / присутня (локалізація, об\'єм)')
+
+    # ── Висновок ──
+    conclusion = models.TextField('Висновок', blank=True)
+    recommendations = models.TextField('Рекомендації', blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = RelatedOrgManager('patient__client__organization')
+
+    class Meta:
+        ordering = ['-date']
+        verbose_name = 'Протокол УЗД'
+        verbose_name_plural = 'Протоколи УЗД'
+
+    def __str__(self):
+        return f'УЗД {self.patient.name} — {self.date:%d.%m.%Y}'

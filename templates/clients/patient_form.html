@@ -34,6 +34,7 @@
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Порода</label>
           {{ form.breed }}
+          <datalist id="breed-list"></datalist>
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Стать</label>
@@ -69,8 +70,8 @@
         {% if patient.photo %}
           <img src="{{ patient.photo.url }}" class="w-20 h-20 rounded-full object-cover mb-2" id="current-photo">
         {% endif %}
-        <input type="file" accept="image/*" id="photo-input"
-          class="{{ form.photo.field.widget.attrs.class|default:'' }} w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm"
+        <input type="file" accept="image/*" capture="environment" id="photo-input"
+          class="{{ form.photo.field.widget.attrs.class|default:'' }} w-full px-4 py-2.5 border border-gray-300 rounded-lg text-base md:text-sm"
           onchange="openCropModal(this)">
         <input type="file" name="photo" id="photo-hidden" class="hidden">
         <div id="crop-preview" class="mt-2 hidden">
@@ -82,16 +83,21 @@
         <label class="block text-sm font-medium text-gray-700 mb-1">Нотатки</label>
         {{ form.notes }}
       </div>
-      <div class="flex gap-3 pt-2">
+      <!-- Sticky submit на моб (бо клавіатура iOS закриває звичайну кнопку),
+           звичайний flex-блок на десктопі. bottom-16 = висота bottom-nav (~64px). -->
+      <div class="md:static fixed bottom-16 left-0 right-0 bg-white border-t border-gray-200 p-4 z-30
+                  md:bg-transparent md:border-0 md:p-0 md:pt-2 flex gap-3">
         <button type="submit"
-          class="bg-brand-gold text-brand-dark px-6 py-2.5 rounded-lg text-sm font-medium hover:brightness-95 transition-colors">
+          class="flex-1 md:flex-none min-h-[44px] bg-brand-gold text-brand-dark px-6 py-2.5 rounded-lg text-sm font-semibold hover:brightness-95 transition-colors">
           Зберегти
         </button>
         <a href="{% url 'clients:detail' client.pk %}"
-          class="px-6 py-2.5 rounded-lg text-sm font-medium text-gray-700 border border-gray-300 hover:bg-gray-50">
+          class="hidden md:inline-block min-h-[44px] px-6 py-2.5 rounded-lg text-sm font-medium text-gray-700 border border-gray-300 hover:bg-gray-50">
           Скасувати
         </a>
       </div>
+      <!-- Spacer щоб контент не ховався за sticky-кнопкою на моб -->
+      <div class="h-20 md:hidden"></div>
     </form>
   </div>
 </div>
@@ -126,6 +132,25 @@
 </div>
 
 <script>
+document.addEventListener('DOMContentLoaded', function() {
+  const breedInput = document.getElementById('id_breed');
+  if (breedInput) {
+    breedInput.setAttribute('list', 'breed-list');
+    const speciesSelect = document.getElementById('id_species');
+    async function loadBreeds() {
+      try {
+        const species = speciesSelect ? speciesSelect.value : '';
+        const resp = await fetch('{% url "clients:breed_suggestions" %}?species=' + encodeURIComponent(species));
+        const data = await resp.json();
+        const dl = document.getElementById('breed-list');
+        dl.innerHTML = data.breeds.map(b => '<option value="' + b + '">').join('');
+      } catch(e) { /* породи недоступні */ }
+    }
+    loadBreeds();
+    if (speciesSelect) speciesSelect.addEventListener('change', loadBreeds);
+  }
+});
+
 let _cropper = null;
 let _cropFile = null;
 

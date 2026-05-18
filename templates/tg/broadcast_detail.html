@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% block title %}Розсилка #{{ broadcast.pk }} — Kizuna CRM{% endblock %}
+{% block content %}
+
+<div class="max-w-2xl">
+  <div class="flex items-center gap-3 mb-6">
+    <a href="{% url 'tg:broadcast_list' %}" class="text-gray-400 hover:text-gray-600 transition-colors">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+      </svg>
+    </a>
+    <h1 class="text-2xl font-bold text-brand-dark">Розсилка #{{ broadcast.pk }}</h1>
+    <span class="ml-1
+      {% if broadcast.status == 'draft' %}bg-gray-100 text-gray-600
+      {% elif broadcast.status == 'sending' %}bg-blue-100 text-blue-700
+      {% else %}bg-green-100 text-green-700{% endif %}
+      text-xs font-medium px-2.5 py-1 rounded-full">
+      {{ broadcast.get_status_display }}
+    </span>
+  </div>
+
+  <!-- Статистика -->
+  {% if broadcast.total or broadcast.status != 'draft' %}
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-4 text-center">
+      <div class="text-2xl font-bold text-brand-dark">{{ broadcast.total }}</div>
+      <div class="text-xs text-gray-400 mt-0.5">Адресатів</div>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-4 text-center">
+      <div class="text-2xl font-bold text-green-600">{{ broadcast.sent }}</div>
+      <div class="text-xs text-gray-400 mt-0.5">Відправлено</div>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-4 text-center">
+      <div class="text-2xl font-bold {% if broadcast.failed %}text-red-500{% else %}text-gray-300{% endif %}">{{ broadcast.failed }}</div>
+      <div class="text-xs text-gray-400 mt-0.5">Помилок</div>
+    </div>
+    <div class="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-4 text-center">
+      <div class="text-2xl font-bold {% if skipped %}text-amber-500{% else %}text-gray-300{% endif %}">{{ skipped }}</div>
+      <div class="text-xs text-gray-400 mt-0.5">Пропущено</div>
+    </div>
+  </div>
+  {% if broadcast.cooldown_days %}
+  <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 mb-4 text-xs text-amber-700 flex items-center gap-2">
+    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+    </svg>
+    Фільтр: не надсилалась тим, хто вже отримував розсилку протягом {{ broadcast.cooldown_days }} дн.
+  </div>
+  {% endif %}
+  {% endif %}
+
+  <!-- Текст -->
+  <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-5">
+    <p class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">Текст повідомлення</p>
+    <div class="bg-gray-50 rounded-xl p-4 text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{{ broadcast.text }}</div>
+    <div class="flex items-center justify-between mt-4 text-xs text-gray-400">
+      <span>{{ broadcast.created_at|date:"d.m.Y \о H:i" }}</span>
+      {% if broadcast.created_by %}
+      <span>{{ broadcast.created_by.get_full_name|default:broadcast.created_by.username }}</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Дії -->
+  {% if broadcast.status == 'draft' %}
+  <div class="flex gap-3">
+    <form method="post" action="{% url 'tg:broadcast_send' broadcast.pk %}" class="flex-1">
+      {% csrf_token %}
+      <button type="submit"
+        class="w-full bg-brand-gold text-brand-dark py-2.5 rounded-xl text-sm font-semibold hover:brightness-95 transition-all">
+        Відправити зараз
+      </button>
+    </form>
+    <a href="{% url 'tg:broadcast_create' %}"
+       class="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50 transition-all">
+      Нова розсилка
+    </a>
+  </div>
+  {% elif broadcast.status == 'sending' %}
+  <div class="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm text-blue-700 flex items-center gap-3">
+    <svg class="w-4 h-4 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+    </svg>
+    Відправляється… Оновіть сторінку через кілька секунд.
+  </div>
+  <script>setTimeout(() => location.reload(), 4000);</script>
+  {% else %}
+  <a href="{% url 'tg:broadcast_create' %}"
+     class="inline-flex items-center gap-2 bg-brand-gold text-brand-dark px-5 py-2.5 rounded-xl text-sm font-semibold hover:brightness-95 transition-all">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+    </svg>
+    Нова розсилка
+  </a>
+  {% endif %}
+</div>
+
+{% endblock %}

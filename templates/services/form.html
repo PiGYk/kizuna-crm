@@ -24,6 +24,11 @@
         {% if form.name.errors %}<p class="text-red-500 text-xs mt-1">{{ form.name.errors|join:", " }}</p>{% endif %}
       </div>
       <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Категорія</label>
+        {{ form.category }}
+        {% if form.category.errors %}<p class="text-red-500 text-xs mt-1">{{ form.category.errors|join:", " }}</p>{% endif %}
+      </div>
+      <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Опис</label>
         {{ form.description }}
       </div>
@@ -38,6 +43,15 @@
           </label>
         </div>
       </div>
+      <div class="pt-3 border-t border-gray-100">
+        <label class="flex items-start gap-2 text-sm text-gray-700">
+          {{ form.show_on_website }}
+          <span>
+            <span class="font-medium">Показувати на сайті</span>
+            <span class="block text-xs text-gray-400">Послуга з'явиться на kizuna.com.ua/pricelist/ (оновлення за ~5 хв)</span>
+          </span>
+        </label>
+      </div>
     </div>
 
     <!-- Components formset -->
@@ -49,7 +63,7 @@
       <!-- пошук для фільтрації select-ів товарів у formset -->
       <div class="mb-2">
         <input type="text" id="comp-search" placeholder="Фільтр товарів у рядках нижче…"
-          class="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-gold"
+          class="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-base md:text-sm focus:outline-none focus:ring-1 focus:ring-brand-gold"
           oninput="filterFormsetSelects(this.value)">
       </div>
 
@@ -72,16 +86,18 @@
       </button>
     </div>
 
-    <div class="flex gap-3">
+    <div class="md:static fixed bottom-16 left-0 right-0 bg-white border-t border-gray-200 p-4 z-30
+                md:bg-transparent md:border-0 md:p-0 flex gap-3">
       <button type="submit"
-        class="bg-brand-gold text-brand-dark px-6 py-2.5 rounded-lg text-sm font-semibold hover:brightness-95">
+        class="flex-1 md:flex-none min-h-[44px] bg-brand-gold text-brand-dark px-6 py-2.5 rounded-lg text-sm font-semibold hover:brightness-95">
         Зберегти
       </button>
       <a href="{% url 'services:list' %}"
-        class="px-6 py-2.5 rounded-lg text-sm font-medium text-gray-700 border border-gray-300 hover:bg-gray-50">
+        class="hidden md:inline-block min-h-[44px] px-6 py-2.5 rounded-lg text-sm font-medium text-gray-700 border border-gray-300 hover:bg-gray-50">
         Скасувати
       </a>
     </div>
+    <div class="h-20 md:hidden"></div>
   </form>
 
   {% if service %}

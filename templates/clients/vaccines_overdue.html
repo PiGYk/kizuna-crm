@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% block title %}Вакцини — Kizuna CRM{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-bold text-brand-dark">Нагадування про вакцини</h1>
+</div>
+
+<!-- Tabs -->
+<div class="flex gap-1 mb-5" id="vaccine-tabs">
+  <button onclick="showTab('overdue')"
+    id="tab-overdue"
+    class="tab-btn px-4 py-2 rounded-lg text-sm font-medium border transition-colors bg-red-50 text-red-700 border-red-200">
+    Прострочені
+    {% if overdue %}<span class="ml-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5">{{ overdue|length }}</span>{% endif %}
+  </button>
+  <button onclick="showTab('week')"
+    id="tab-week"
+    class="tab-btn px-4 py-2 rounded-lg text-sm font-medium border transition-colors border-gray-200 text-gray-500 hover:border-gray-300">
+    Цього тижня
+    {% if due_week %}<span class="ml-1 bg-yellow-400 text-brand-dark text-xs rounded-full px-1.5 py-0.5">{{ due_week|length }}</span>{% endif %}
+  </button>
+  <button onclick="showTab('month')"
+    id="tab-month"
+    class="tab-btn px-4 py-2 rounded-lg text-sm font-medium border transition-colors border-gray-200 text-gray-500 hover:border-gray-300">
+    Цього місяця
+    {% if due_month %}<span class="ml-1 bg-gray-300 text-gray-700 text-xs rounded-full px-1.5 py-0.5">{{ due_month|length }}</span>{% endif %}
+  </button>
+  <button onclick="showTab('all')"
+    id="tab-all"
+    class="tab-btn px-4 py-2 rounded-lg text-sm font-medium border transition-colors border-gray-200 text-gray-500 hover:border-gray-300">
+    Всі
+    <span class="ml-1 text-xs text-gray-400">{{ all_vaccines|length }}</span>
+  </button>
+</div>
+
+<!-- Overdue panel -->
+<div id="panel-overdue" class="vaccine-panel">
+  {% include 'clients/partials/vaccine_table.html' with vaccines=overdue show_overdue_days=True empty_msg="Прострочених вакцин немає 🎉" %}
+</div>
+
+<!-- Week panel -->
+<div id="panel-week" class="vaccine-panel hidden">
+  {% include 'clients/partials/vaccine_table.html' with vaccines=due_week show_overdue_days=False empty_msg="На цьому тижні планових вакцин немає" %}
+</div>
+
+<!-- Month panel -->
+<div id="panel-month" class="vaccine-panel hidden">
+  {% include 'clients/partials/vaccine_table.html' with vaccines=due_month show_overdue_days=False empty_msg="Цього місяця планових вакцин немає" %}
+</div>
+
+<!-- All panel -->
+<div id="panel-all" class="vaccine-panel hidden">
+  {% include 'clients/partials/vaccine_table.html' with vaccines=all_vaccines show_overdue_days=False empty_msg="Вакцин ще не задокументовано" %}
+</div>
+
+<script>
+function showTab(name) {
+  document.querySelectorAll('.vaccine-panel').forEach(p => p.classList.add('hidden'));
+  document.getElementById('panel-' + name).classList.remove('hidden');
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.remove('bg-red-50','text-red-700','border-red-200','bg-brand-gold','text-brand-dark','border-brand-gold');
+    b.classList.add('border-gray-200','text-gray-500');
+  });
+  const btn = document.getElementById('tab-' + name);
+  btn.classList.remove('border-gray-200','text-gray-500');
+  if (name === 'overdue') {
+    btn.classList.add('bg-red-50','text-red-700','border-red-200');
+  } else {
+    btn.classList.add('bg-brand-gold','text-brand-dark','border-brand-gold');
+  }
+}
+</script>
+{% endblock %}

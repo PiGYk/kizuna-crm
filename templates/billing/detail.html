@@ -15,7 +15,8 @@
       PDF
     </a>
     {% if invoice.client.tg_chats.exists %}
-    <form method="post" action="{% url 'tg:send_invoice_pdf' invoice.pk %}">
+    <form method="post" action="{% url 'tg:send_invoice_pdf' invoice.pk %}"
+          onsubmit="var b=this.querySelector('button');b.disabled=true;b.innerHTML='&#9203; Відправляю...';">
       {% csrf_token %}
       <button type="submit"
               class="text-sm text-blue-500 hover:text-blue-700 font-medium flex items-center gap-1"
@@ -99,17 +100,29 @@
   <div class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-4">
     <div class="divide-y divide-gray-50">
       {% for line in lines %}
-      <div class="flex items-center justify-between px-5 py-3 text-sm">
-        <div class="flex-1">
-          <div class="font-medium text-brand-dark">{{ line.name }}</div>
-          <div class="text-xs text-gray-400">
-            {{ line.quantity|floatformat:"-3" }} × {{ line.unit_price }} ₴
-            {% if line.discount %}
-              · знижка {{ line.discount }}{% if line.discount_type == 'percent' %}%{% else %} ₴{% endif %}
+      <div class="{% if line.parent_line_id %}bg-stone-50/60{% endif %}">
+        <div class="flex items-center justify-between px-5 py-3 text-sm {% if line.parent_line_id %}pl-10{% endif %}">
+          <div class="flex-1">
+            {% if line.parent_line_id %}
+            <div class="flex items-center gap-1.5">
+              <div class="w-1.5 h-1.5 rounded-full bg-gray-300 shrink-0"></div>
+              <span class="text-gray-500">{{ line.name }}</span>
+            </div>
+            <div class="text-xs text-gray-400 ml-3">{{ line.quantity|floatformat:"-3" }} — витратний матеріал</div>
+            {% else %}
+            <div class="font-medium text-brand-dark">{{ line.name }}</div>
+            <div class="text-xs text-gray-400">
+              {{ line.quantity|floatformat:"-3" }} × {{ line.unit_price }} ₴
+              {% if line.discount %}
+                · знижка {{ line.discount }}{% if line.discount_type == 'percent' %}%{% else %} ₴{% endif %}
+              {% endif %}
+            </div>
             {% endif %}
           </div>
+          {% if not line.parent_line_id %}
+          <div class="font-semibold text-brand-dark">{{ line.total }} ₴</div>
+          {% endif %}
         </div>
-        <div class="font-semibold text-brand-dark">{{ line.total }} ₴</div>
       </div>
       {% endfor %}
     </div>
@@ -174,6 +187,20 @@
         Видалити рахунок
       </button>
     </form>
+  </div>
+  {% elif invoice.status == 'paid' and user.is_admin %}
+  <div class="mt-4 pt-4 border-t border-gray-100">
+    <form method="post" action="{% url 'billing:delete' invoice.pk %}"
+          onsubmit="return confirm('УВАГА! Видалити ОПЛАЧЕНИЙ рахунок #{{ invoice.pk }}?\n\nТовари автоматично повернуться на склад.\nЗапис буде видалено з фінансової аналітики.\n{% if invoice.fiscal_status == 'success' %}⚠️ Цей чек був фіскалізований через Checkbox — перед видаленням скасуйте фіскальний чек окремо.\n\n{% endif %}Продовжити?')">
+      {% csrf_token %}
+      <button type="submit"
+        class="px-4 py-2.5 rounded-lg text-sm font-medium text-red-500 border border-red-300 hover:bg-red-50 transition-colors">
+        🗑 Видалити оплачений рахунок (admin)
+      </button>
+    </form>
+    <p class="text-xs text-gray-400 mt-2">
+      Доступно тільки адміністраторам. Товари повернуться на склад. Чек зникне з аналітики.
+    </p>
   </div>
   {% endif %}
 </div>

@@ -1,3 +1,4 @@
+import functools
 import json
 import logging
 from datetime import timedelta
@@ -21,17 +22,130 @@ from .wayforpay import PLANS, WAYFORPAY_URL, accept_response, build_payment_fiel
 
 
 class ClinicSettingsView(AdminRequiredMixin, View):
+    def _ctx(self, request, form):
+        from apps.accounts.models import User
+        from apps.finance.models import FinanceSettings, calculate_balances
+        from apps.finance.forms import FinanceSettingsForm
+        from apps.clients.tasks import REMIND_DAYS_BEFORE
+
+        users = User.objects.filter(
+            organization=request.organization
+        ).order_by('role', 'last_name', 'first_name')
+
+        fs = FinanceSettings.get_for_org(request.organization)
+        balances = calculate_balances(request.organization)
+
+        from apps.clinic.models import Organization
+        sections = [
+            ('clinic',    'Клініка',       '🏥'),
+            ('design',    'Дизайн',        '🎨'),
+            ('staff',     'Команда',       '👥'),
+            ('finance',   'Фінанси',       '💰'),
+            ('telegram',  'Telegram',      '✈️'),
+            ('reminders', 'Нагадування',   '🔔'),
+            ('inventory', 'Склад',         '📦'),
+            ('fiscal',    'Фіскалізація',  '🧾'),
+            ('menu_access', 'Доступ до меню', '🔐'),
+            ('billing',   'Підписка',      '💳'),
+        ]
+
+        org = request.organization
+        from apps.tg.models import TelegramChat
+        tg_chats = TelegramChat.objects.filter(
+            organization=org, receive_leads=True
+        ).select_related('client').order_by('-last_message_at')
+
+        return {
+            'form': form,
+            'users': users,
+            'fs': fs,
+            'finance_form': FinanceSettingsForm(instance=fs),
+            'balances': balances,
+            'org': org,
+            'tg_chats': tg_chats,
+            'vaccine_remind_days': REMIND_DAYS_BEFORE,
+            'sections': sections,
+            'menu_items': Organization.MENU_ITEMS,
+            'menu_roles': Organization.ROLES_WITH_MENU,
+            'menu_config': org.get_menu_config() if org else {},
+            'menu_config_json': json.dumps(org.get_menu_config() if org else {}),
+        }
+
+    def _limit_doctor_queryset(self, form, org):
+        from apps.accounts.models import User
+        form.fields['default_doctor'].queryset = User.objects.filter(
+            organization=org,
+            role__in=['admin', 'doctor'],
+        ).order_by('last_name', 'first_name')
+        form.fields['default_doctor'].empty_label = '— не вибрано —'
+
     def get(self, request):
         form = OrganizationSettingsForm(instance=request.organization)
-        return render(request, 'clinic/settings.html', {'form': form})
+        self._limit_doctor_queryset(form, request.organization)
+        return render(request, 'clinic/settings.html', self._ctx(request, form))
 
     def post(self, request):
-        form = OrganizationSettingsForm(request.POST, instance=request.organization)
+        # Збереження отримувачів заявок з сайту
+        if request.POST.get('action') == 'save_lead_recipients':
+            from apps.tg.models import TelegramChat
+            org = request.organization
+            selected_ids = set(request.POST.getlist('lead_chat_ids'))
+            chats = TelegramChat.objects.filter(organization=org)
+            for chat in chats:
+                chat.receive_leads = str(chat.pk) in selected_ids
+            TelegramChat.objects.bulk_update(chats, ['receive_leads'])
+            messages.success(request, 'Отримувачів заявок збережено.')
+            return redirect('clinic:settings')
+
+        # Збереження графіку роботи
+        if request.POST.get('action') == 'save_schedule':
+            org = request.organization
+            work_days = [d for d in range(7) if request.POST.get(f'work_day_{d}')]
+            form = OrganizationSettingsForm(request.POST, request.FILES, instance=org)
+            self._limit_doctor_queryset(form, org)
+            if form.is_valid():
+                org.work_days = work_days
+                form.save()
+                messages.success(request, 'Графік роботи збережено.')
+            else:
+                messages.error(request, 'Перевірте правильність даних.')
+            return redirect(request.path + '#schedule')
+
+        # Збереження нотифікацій
+        if request.POST.get('action') == 'save_notifications':
+            org = request.organization
+            org.notify_appointment_24h = request.POST.get('notify_appointment_24h') == 'on'
+            org.notify_appointment_2h = request.POST.get('notify_appointment_2h') == 'on'
+            org.notify_vaccines = request.POST.get('notify_vaccines') == 'on'
+            org.save(update_fields=['notify_appointment_24h', 'notify_appointment_2h', 'notify_vaccines'])
+            messages.success(request, 'Налаштування нотифікацій збережено.')
+            return redirect(request.path + '#notifications')
+
+        # Збереження конфігу меню по ролях
+        if request.POST.get('action') == 'save_menu_config':
+            org = request.organization
+            from apps.clinic.models import Organization
+            cfg = {}
+            for role, _ in Organization.ROLES_WITH_MENU:
+                cfg[role] = {}
+                for item, _ in Organization.MENU_ITEMS:
+                    cfg[role][item] = request.POST.get(f'menu_{role}_{item}') == 'on'
+            org.role_menu_config = cfg
+            org.save(update_fields=['role_menu_config'])
+            messages.success(request, 'Права доступу до меню збережено.')
+            return redirect('clinic:settings')
+
+        form = OrganizationSettingsForm(request.POST, request.FILES, instance=request.organization)
+        self._limit_doctor_queryset(form, request.organization)
         if form.is_valid():
-            form.save()
+            org = form.save(commit=False)
+            if request.POST.get('logo-clear') and org.logo:
+                org.logo.delete(save=False)
+                org.logo = None
+            org.save()
             messages.success(request, 'Налаштування збережено.')
             return redirect('clinic:settings')
-        return render(request, 'clinic/settings.html', {'form': form})
+        return render(request, 'clinic/settings.html', self._ctx(request, form))
 
 
 # ---------------------------------------------------------------------------
@@ -40,6 +154,7 @@ class ClinicSettingsView(AdminRequiredMixin, View):
 
 def _superuser_required(view_fn):
     """Декоратор: тільки суперюзер."""
+    @functools.wraps(view_fn)
     def wrapper(request, *args, **kwargs):
         if not request.user.is_authenticated:
             from django.conf import settings
@@ -47,7 +162,6 @@ def _superuser_required(view_fn):
         if not request.user.is_superuser:
             raise PermissionDenied
         return view_fn(request, *args, **kwargs)
-    wrapper.__name__ = view_fn.__name__
     return login_required(wrapper)
 
 
@@ -116,15 +230,18 @@ def superadmin_remove_trial(request, pk):
 
 @login_required
 def subscribe_checkout(request, plan_key):
+    # Жорстко відмовляємо для невалідних планів — інакше зловмисник може
+    # підтасувати orderReference з custom plan і отримати network за start.
     if plan_key not in PLANS:
-        return redirect('trial_expired')
+        from django.http import Http404
+        raise Http404('Unknown plan')
 
     org = request.organization
     if org is None:
         return redirect('trial_expired')
 
     return_url = request.build_absolute_uri('/subscribe/success/')
-    callback_url = 'https://crm.kizuna.com.ua/subscribe/callback/'
+    callback_url = request.build_absolute_uri('/subscribe/callback/')
 
     fields = build_payment_fields(plan_key, org.pk, return_url, callback_url)
     return render(request, 'clinic/subscribe_checkout.html', {
@@ -172,6 +289,27 @@ def subscribe_callback(request):
             try:
                 org_id = int(parts[1])
                 plan_key = parts[2]
+                if plan_key not in dict(Organization.PLAN_CHOICES):
+                    return JsonResponse({'error': 'Invalid plan'}, status=400)
+
+                # Перевірка узгодженості суми платежу з ціною плану. Без цього
+                # юзер може купити «Мережу» за ціною «Старту» якщо підмінить
+                # orderReference на checkout-кроці.
+                expected_price = PLANS.get(plan_key, {}).get('price')
+                if expected_price is not None:
+                    try:
+                        paid_amount = float(data.get('amount', 0))
+                    except (TypeError, ValueError):
+                        paid_amount = 0.0
+                    if abs(paid_amount - float(expected_price)) > 0.01:
+                        logger.warning(
+                            'WayForPay amount mismatch: ref=%s plan=%s expected=%s got=%s',
+                            order_ref, plan_key, expected_price, paid_amount,
+                        )
+                        return JsonResponse(
+                            {'error': 'amount mismatch'}, status=400
+                        )
+
                 org = Organization.objects.get(pk=org_id)
                 # Подовжуємо доступ на 30 днів від сьогодні (або від поточної дати закінчення)
                 base = max(timezone.now(), org.trial_expires_at or timezone.now())

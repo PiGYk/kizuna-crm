@@ -16,11 +16,20 @@ services:
 
   web:
     build: .
+    image: kizuna-crm:latest
     restart: unless-stopped
     command: >
       sh -c "python manage.py migrate --noinput &&
              python manage.py collectstatic --noinput &&
-             python manage.py runserver 0.0.0.0:8000"
+             gunicorn config.wsgi:application
+               --bind 0.0.0.0:8000
+               --workers ${GUNICORN_WORKERS:-3}
+               --worker-class gthread
+               --threads ${GUNICORN_THREADS:-4}
+               --timeout 120
+               --max-requests 1000
+               --max-requests-jitter 50
+               --access-logfile - --error-logfile -"
     volumes:
       - .:/app
       - ./media:/app/media
@@ -30,6 +39,38 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+  celery:
+    image: kizuna-crm:latest
+    restart: unless-stopped
+    command: celery -A config.celery worker -l info -Q default
+    volumes:
+      - .:/app
+    env_file: .env
+    depends_on:
+      - redis
+      - db
+
+  celery-beat:
+    image: kizuna-crm:latest
+    restart: unless-stopped
+    command: celery -A config.celery beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    volumes:
+      - .:/app
+    env_file: .env
+    depends_on:
+      - redis
+      - db
 
 volumes:
   postgres_data:

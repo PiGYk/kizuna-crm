@@ -6,10 +6,8 @@ from django.http import HttpResponse
 from django.utils import timezone
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
-from django.utils import timezone
-from django.db.models import Sum, Count, ExpressionWrapper, DecimalField, F
-from datetime import timedelta
 
+from apps.clinic.media_serve import serve_media
 from apps.clinic.views import (
     superadmin_dashboard,
     superadmin_toggle_active,
@@ -20,6 +18,7 @@ from apps.clinic.views import (
     subscribe_callback,
 )
 from apps.clinic.wayforpay import WAYFORPAY_URL, _sign, MERCHANT_DOMAIN
+from apps.dashboard_builder.views import dashboard_view
 import time as _time
 
 
@@ -48,7 +47,7 @@ def subscribe_test_payment(request):
         'productCount[]': '1',
         'productPrice[]': amount,
         'returnUrl': request.build_absolute_uri('/subscribe/success/'),
-        'serviceUrl': 'https://crm.kizuna.com.ua/subscribe/callback/',
+        'serviceUrl': request.build_absolute_uri('/subscribe/callback/'),
         'language': 'UA',
     }
     return render(request, 'clinic/subscribe_checkout.html', {
@@ -135,70 +134,6 @@ def landing(request):
     return render(request, 'landing.html')
 
 
-@login_required
-def dashboard(request):
-    now = timezone.now()
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    week_start = today_start - timedelta(days=now.weekday())
-    month_start = today_start.replace(day=1)
-
-    from apps.billing.models import Invoice, InvoiceLine
-    from apps.clients.models import Client, Patient
-    from apps.inventory.models import Product
-
-    paid = Invoice.objects.filter(status='paid')
-
-    def revenue(qs):
-        return qs.aggregate(t=Sum('total'))['t'] or 0
-
-    ctx = {
-        # лічильники
-        'clients_total': Client.objects.count(),
-        'patients_total': Patient.objects.count(),
-
-        # виручка
-        'revenue_today':   revenue(paid.filter(created_at__gte=today_start)),
-        'revenue_week':    revenue(paid.filter(created_at__gte=week_start)),
-        'revenue_month':   revenue(paid.filter(created_at__gte=month_start)),
-
-        # чеки сьогодні
-        'invoices_today': paid.filter(created_at__gte=today_start).count(),
-
-        # топ-5 послуг за місяць
-        'top_services': (
-            InvoiceLine.objects
-            .filter(invoice__status='paid', invoice__created_at__gte=month_start, line_type='service')
-            .values('name')
-            .annotate(cnt=Count('id'), total=Sum('total'))
-            .order_by('-cnt')[:5]
-        ),
-
-        # топ-5 товарів за місяць
-        'top_products': (
-            InvoiceLine.objects
-            .filter(invoice__status='paid', invoice__created_at__gte=month_start, line_type='product')
-            .values('name')
-            .annotate(cnt=Count('id'), total=Sum('total'))
-            .order_by('-cnt')[:5]
-        ),
-
-        # малий залишок
-        'low_stock': Product.objects.filter(
-            is_active=True, min_quantity__gt=0
-        ).filter(quantity__lte=F('min_quantity')).order_by('quantity')[:10],
-
-        # нульовий залишок
-        'out_of_stock': Product.objects.filter(is_active=True, quantity__lte=0).count(),
-
-        # останні 8 рахунків
-        'recent_invoices': (
-            paid.select_related('client', 'patient', 'doctor')
-            .order_by('-created_at')[:8]
-        ),
-    }
-    return render(request, 'dashboard.html', ctx)
-
-
 superadmin_urls = ([
     path('', superadmin_dashboard, name='dashboard'),
     path('<int:pk>/toggle/', superadmin_toggle_active, name='toggle_active'),
@@ -217,7 +152,11 @@ urlpatterns = [
     path('offer/', legal_offer, name='legal_offer'),
     path('terms/', legal_terms, name='legal_terms'),
     path('', landing, name='landing'),
-    path('dashboard/', dashboard, name='dashboard'),
+    # Back-compat: name='dashboard' використовується у багатьох шаблонах
+    # ({% url 'dashboard' %}). Залишаємо короткий alias на головну view нового
+    # dashboard_builder, а під /dashboards/ — повний include з усіма під-URL.
+    path('dashboard/', dashboard_view, name='dashboard'),
+    path('dashboards/', include('apps.dashboard_builder.urls')),
     path('', include('apps.accounts.urls')),
     path('clients/', include('apps.clients.urls')),
     path('inventory/', include('apps.inventory.urls')),
@@ -228,6 +167,9 @@ urlpatterns = [
     path('analytics/', include('apps.analytics.urls')),
     path('finance/', include('apps.finance.urls')),
     path('clinic/', include('apps.clinic.urls')),
+    path('api/public/', include('apps.appointments.urls_public')),
+    path('api/public/', include('apps.services.urls_public')),
+    path('media/<path:path>', serve_media, name='serve_media'),
     path('health/', lambda r: HttpResponse('ok')),
     path('robots.txt', robots_txt),
     path('sitemap.xml', sitemap_xml),

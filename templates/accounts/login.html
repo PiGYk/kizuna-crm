@@ -35,7 +35,11 @@
             class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold focus:border-transparent bg-white">
         </div>
         <div>
-          <label class="block text-sm font-medium text-brand-dark mb-1">Пароль</label>
+          <div class="flex items-center justify-between mb-1">
+            <label class="block text-sm font-medium text-brand-dark">Пароль</label>
+            <a href="{% url 'accounts:password_reset' %}"
+              class="text-xs text-brand-gold hover:underline">Забули пароль?</a>
+          </div>
           <input type="password" name="password" required
             class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold focus:border-transparent bg-white">
         </div>

@@ -6,7 +6,13 @@ import time
 from django.conf import settings
 
 WAYFORPAY_URL = 'https://secure.wayforpay.com/pay'
-MERCHANT_DOMAIN = 'crm.kizuna.com.ua'
+# MERCHANT_DOMAIN береться з env (MERCHANT_DOMAIN або MAIN_DOMAIN). Hardcode прибрано — щоб
+# на staging/інших інсталяціях не йшов фальшивий signature з продакшн доменом.
+MERCHANT_DOMAIN = (
+    getattr(settings, 'MERCHANT_DOMAIN', None)
+    or getattr(settings, 'MAIN_DOMAIN', None)
+    or 'crm.kizuna.com.ua'
+)
 
 PLANS = {
     'start': {

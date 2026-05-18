@@ -1,17 +1,20 @@
 import csv
 import io
+from decimal import Decimal
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db.models import Q, Sum, ExpressionWrapper, DecimalField, F
-from django.http import HttpResponse
+from django.db.models import Q, Sum, ExpressionWrapper, DecimalField, F, OuterRef, Subquery
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.generic import ListView, CreateView, UpdateView, DetailView
 from django.urls import reverse_lazy, reverse
 
 from .forms import ProductForm, StockInForm, StockAdjustForm, ImportForm
 from .models import Category, Product, StockMovement, Unit
+from apps.finance.models import Supplier
 
 
 class ProductListView(LoginRequiredMixin, ListView):
@@ -19,6 +22,15 @@ class ProductListView(LoginRequiredMixin, ListView):
     template_name = 'inventory/list.html'
     context_object_name = 'products'
     paginate_by = 50
+
+    PER_PAGE_CHOICES = (50, 100, 200)
+
+    def get_paginate_by(self, queryset):
+        try:
+            value = int(self.request.GET.get('per_page', self.paginate_by))
+        except (TypeError, ValueError):
+            return self.paginate_by
+        return value if value in self.PER_PAGE_CHOICES else self.paginate_by
 
     SORT_FIELDS = {
         'name': 'name',
@@ -34,6 +46,7 @@ class ProductListView(LoginRequiredMixin, ListView):
         q = self.request.GET.get('q', '').strip()
         stock = self.request.GET.get('stock', '')
         cat = self.request.GET.get('cat', '')
+        expiry = self.request.GET.get('expiry', '')
         if q:
             qs = qs.filter(name__icontains=q)
         if cat:
@@ -48,9 +61,16 @@ class ProductListView(LoginRequiredMixin, ListView):
         qs = qs.order_by(db_field)
 
         if stock == 'low':
-            qs = [p for p in qs if p.is_low_stock()]
+            qs = qs.filter(min_quantity__gt=0, quantity__lte=F('min_quantity'))
         elif stock == 'out':
-            qs = [p for p in qs if p.is_out_of_stock()]
+            qs = qs.filter(quantity__lte=0)
+        elif expiry == 'expired':
+            from datetime import date
+            qs = qs.filter(expiry_date__lt=date.today())
+        elif expiry == 'expiring':
+            from datetime import date, timedelta
+            today = date.today()
+            qs = qs.filter(expiry_date__gte=today, expiry_date__lte=today + timedelta(days=30))
         return qs
 
     def get_context_data(self, **kwargs):
@@ -58,13 +78,19 @@ class ProductListView(LoginRequiredMixin, ListView):
         ctx['q'] = self.request.GET.get('q', '')
         ctx['stock'] = self.request.GET.get('stock', '')
         ctx['cat'] = self.request.GET.get('cat', '')
+        ctx['expiry'] = self.request.GET.get('expiry', '')
         ctx['sort'] = self.request.GET.get('sort', 'name')
         ctx['dir'] = self.request.GET.get('dir', 'asc')
-        ctx['categories'] = Category.objects.all()
+        ctx['categories'] = Category.objects.filter(organization=self.request.organization)
+        ctx['per_page'] = self.get_paginate_by(None)
+        ctx['per_page_choices'] = self.PER_PAGE_CHOICES
 
-        # суми по всьому складу (незалежно від поточних фільтрів)
+        # суми по всьому складу (незалежно від поточних фільтрів) — лише для своєї org
         money_field = DecimalField(max_digits=14, decimal_places=2)
-        totals = Product.objects.filter(is_active=True).aggregate(
+        totals = Product.objects.filter(
+            is_active=True,
+            organization=self.request.organization,
+        ).aggregate(
             total_buy=Sum(
                 ExpressionWrapper(F('quantity') * F('buy_price'), output_field=money_field)
             ),
@@ -82,6 +108,11 @@ class ProductCreateView(LoginRequiredMixin, CreateView):
     form_class = ProductForm
     template_name = 'inventory/form.html'
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['org'] = self.request.organization
+        return kwargs
+
     def get_success_url(self):
         return reverse('inventory:detail', kwargs={'pk': self.object.pk})
 
@@ -95,6 +126,11 @@ class ProductUpdateView(LoginRequiredMixin, UpdateView):
     model = Product
     form_class = ProductForm
     template_name = 'inventory/form.html'
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['org'] = self.request.organization
+        return kwargs
 
     def get_success_url(self):
         return reverse('inventory:detail', kwargs={'pk': self.object.pk})
@@ -111,16 +147,20 @@ class ProductDetailView(LoginRequiredMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['movements'] = self.object.movements.select_related('created_by').all()[:30]
-        ctx['in_form'] = StockInForm()
+        org = getattr(self.request, 'organization', None)
+        suppliers_qs = Supplier.objects.filter(organization=org).order_by('name')
+        ctx['movements'] = self.object.movements.select_related('created_by', 'supplier').all()[:30]
+        ctx['in_form'] = StockInForm(suppliers_qs=suppliers_qs)
         ctx['adjust_form'] = StockAdjustForm()
         return ctx
 
 
 @login_required
 def stock_in(request, pk):
-    product = get_object_or_404(Product, pk=pk)
-    form = StockInForm(request.POST)
+    product = get_object_or_404(Product, pk=pk, organization=request.organization)
+    org = getattr(request, 'organization', None)
+    suppliers_qs = Supplier.objects.filter(organization=org).order_by('name')
+    form = StockInForm(request.POST, suppliers_qs=suppliers_qs)
     if form.is_valid():
         mv = form.save(commit=False)
         mv.product = product
@@ -131,12 +171,15 @@ def stock_in(request, pk):
             product.save(update_fields=['buy_price'])
         mv.save()
         messages.success(request, f'Прихід {mv.quantity} {product.unit} записано')
+    next_url = request.POST.get('next', '')
+    if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+        return redirect(next_url)
     return redirect('inventory:detail', pk=pk)
 
 
 @login_required
 def stock_adjust(request, pk):
-    product = get_object_or_404(Product, pk=pk)
+    product = get_object_or_404(Product, pk=pk, organization=request.organization)
     form = StockAdjustForm(request.POST)
     if form.is_valid():
         mv = form.save(commit=False)
@@ -267,6 +310,8 @@ def import_execute(request):
         messages.error(request, 'Поле "Назва" обов\'язкове для маппінгу.')
         return redirect('inventory:import')
 
+    org = request.organization
+
     def _get(row, key):
         col = mapping.get(key)
         if not col:
@@ -289,25 +334,31 @@ def import_execute(request):
 
             sku_val = _get(row, 'sku')
 
-            # Пошук існуючого товару: спочатку по SKU, потім по назві
+            # Пошук існуючого товару: спочатку по SKU, потім по назві (тільки в межах org)
             product = None
             if sku_val:
-                product = Product.objects.filter(sku__iexact=sku_val).first()
+                product = Product.objects.filter(
+                    sku__iexact=sku_val, organization=org
+                ).first()
             if not product:
-                product = Product.objects.filter(name__iexact=name_val).first()
+                product = Product.objects.filter(
+                    name__iexact=name_val, organization=org
+                ).first()
 
-            # Одиниця виміру
+            # Одиниця виміру — спочатку шукаємо глобальну, потім org-специфічну
             unit_short = _get(row, 'unit') or 'шт'
-            unit, _ = Unit.objects.get_or_create(
-                short__iexact=unit_short,
-                defaults={'name': unit_short, 'short': unit_short}
+            unit = (
+                Unit.objects.filter(short__iexact=unit_short).filter(
+                    Q(organization__isnull=True) | Q(organization=org)
+                ).first()
             )
+            if not unit:
+                unit = Unit.objects.create(name=unit_short, short=unit_short, organization=org)
 
             # Категорія
             cat_name = _get(row, 'category')
             category = None
             if cat_name:
-                org = request.organization
                 category, _ = Category.objects.get_or_create(
                     name=cat_name,
                     organization=org,
@@ -430,11 +481,17 @@ def price_review(request):
 @login_required
 def product_delete(request, pk):
     from django.db.models import ProtectedError
+    if not request.user.is_admin():
+        messages.error(request, 'Видаляти товари може лише адміністратор')
+        return redirect('inventory:detail', pk=pk)
     product = get_object_or_404(Product, pk=pk)
     if request.method == 'POST':
         try:
             product.delete()
             messages.success(request, f'Товар «{product.name}» видалено')
+            next_url = request.POST.get('next')
+            if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+                return redirect(next_url)
             return redirect('inventory:list')
         except ProtectedError:
             services = product.servicecomponent_set.select_related('service').values_list('service__name', flat=True)
@@ -442,6 +499,132 @@ def product_delete(request, pk):
             messages.error(request, f'Не можна видалити — товар використовується в послугах: {names}')
             return redirect('inventory:detail', pk=pk)
     return redirect('inventory:detail', pk=pk)
+
+
+@login_required
+def product_bulk_delete(request):
+    from django.db.models import ProtectedError
+    if request.method != 'POST':
+        return redirect('inventory:list')
+    if not request.user.is_admin():
+        messages.error(request, 'Видаляти товари може лише адміністратор')
+        return redirect('inventory:list')
+
+    ids = request.POST.getlist('ids')
+    if not ids:
+        messages.warning(request, 'Не вибрано жодного товару')
+        return redirect('inventory:list')
+
+    products = Product.objects.filter(pk__in=ids)
+    deleted = 0
+    protected = []
+    for product in products:
+        try:
+            name = product.name
+            product.delete()
+            deleted += 1
+        except ProtectedError:
+            protected.append(product.name)
+
+    if deleted:
+        messages.success(request, f'Видалено товар(ів): {deleted}')
+    if protected:
+        preview = ', '.join(protected[:5])
+        extra = f' та ще {len(protected) - 5}' if len(protected) > 5 else ''
+        messages.error(
+            request,
+            f'Не вдалось видалити (використовуються в послугах): {preview}{extra}'
+        )
+
+    next_url = request.POST.get('next')
+    if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+        return redirect(next_url)
+    return redirect('inventory:list')
+
+
+@login_required
+def reorder_view(request):
+    # Subquery: ім'я останнього постачальника для кожного товару
+    last_supplier_name = Subquery(
+        StockMovement.objects.filter(
+            product=OuterRef('pk'),
+            type=StockMovement.Type.IN,
+            supplier__isnull=False,
+        ).order_by('-created_at').values('supplier__name')[:1]
+    )
+
+    products = Product.objects.filter(
+        is_active=True,
+        min_quantity__gt=0,
+    ).select_related('unit', 'category').annotate(
+        last_supplier_name=last_supplier_name,
+    ).order_by('name')
+
+    low = [p for p in products if p.quantity <= p.min_quantity]
+
+    for p in low:
+        p.shortage = max(float(p.min_quantity) - float(p.quantity), 0)
+
+    return render(request, 'inventory/reorder.html', {
+        'products': low,
+        'count': len(low),
+    })
+
+
+@login_required
+def reorder_export(request):
+    """Експорт замовлення в XLSX."""
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from django.utils import timezone
+
+    products = Product.objects.filter(
+        is_active=True,
+        min_quantity__gt=0,
+    ).select_related('unit', 'category').order_by('name')
+    low = [p for p in products if p.quantity <= p.min_quantity]
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Замовлення'
+
+    header_fill = PatternFill(start_color='DEAA01', end_color='DEAA01', fill_type='solid')
+    bold = Font(bold=True)
+
+    headers = ['Назва', 'Категорія', 'Артикул', 'Од. виміру', 'На складі',
+               'Мін. залишок', 'Потрібно замовити', 'Вхідна ціна', 'Нотатки']
+    ws.append(headers)
+    for col_num, _ in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_num)
+        cell.font = bold
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center')
+
+    for p in low:
+        shortage = max(float(p.min_quantity) - float(p.quantity), 0)
+        ws.append([
+            p.name,
+            p.category.name if p.category else '',
+            p.sku,
+            p.unit.short if p.unit else '',
+            float(p.quantity),
+            float(p.min_quantity),
+            shortage,
+            float(p.buy_price),
+            p.notes,
+        ])
+
+    for col in ws.columns:
+        max_len = max(len(str(cell.value or '')) for cell in col)
+        ws.column_dimensions[col[0].column_letter].width = min(max_len + 4, 40)
+
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    today = timezone.localdate().strftime('%Y-%m-%d')
+    response['Content-Disposition'] = f'attachment; filename="reorder-{today}.xlsx"'
+    wb.save(response)
+    return response
 
 
 @login_required
@@ -461,7 +644,7 @@ def export_template(request):
 def inventory_settings(request):
     return render(request, 'inventory/settings.html', {
         'categories': Category.objects.annotate_product_count() if hasattr(Category, 'annotate_product_count') else _categories_with_count(),
-        'units': _units_with_count(),
+        'units': _units_with_count(org=request.organization),
     })
 
 
@@ -470,9 +653,12 @@ def _categories_with_count():
     return Category.objects.annotate(product_count=Count('products')).order_by('name')
 
 
-def _units_with_count():
+def _units_with_count(org=None):
     from django.db.models import Count
-    return Unit.objects.annotate(product_count=Count('product')).order_by('name')
+    qs = Unit.objects.filter(
+        Q(organization__isnull=True) | Q(organization=org)
+    ).annotate(product_count=Count('product')).order_by('name')
+    return qs
 
 
 @login_required
@@ -488,7 +674,12 @@ def category_create(request):
 def category_delete(request, pk):
     if request.method == 'POST':
         cat = get_object_or_404(Category, pk=pk)
+        count = Product.objects.filter(category=cat).count()
         cat.delete()
+        if count:
+            messages.warning(request, f'Категорію видалено. {count} товарів залишились без категорії.')
+        else:
+            messages.success(request, 'Категорію видалено.')
     return redirect('inventory:settings')
 
 
@@ -498,7 +689,15 @@ def unit_create(request):
         name = request.POST.get('name', '').strip()
         short = request.POST.get('short', '').strip()
         if name and short:
-            Unit.objects.get_or_create(name=name, defaults={'short': short})
+            org = request.organization
+            # Перевірити чи немає глобальної з такою назвою
+            if not Unit.objects.filter(name=name, organization__isnull=True).exists():
+                Unit.objects.get_or_create(
+                    name=name, organization=org,
+                    defaults={'short': short},
+                )
+            else:
+                messages.info(request, f'Одиниця «{name}» вже існує як стандартна.')
     return redirect('inventory:settings')
 
 
@@ -506,10 +705,14 @@ def unit_create(request):
 def unit_delete(request, pk):
     if request.method == 'POST':
         unit = get_object_or_404(Unit, pk=pk)
-        try:
-            unit.delete()
-        except Exception:
-            messages.error(request, f'Одиницю «{unit.short}» не можна видалити — вона використовується в товарах')
+        if unit.organization is None:
+            messages.error(request, f'Одиницю «{unit.short}» не можна видалити — вона стандартна.')
+        else:
+            try:
+                unit.delete()
+                messages.success(request, f'Одиницю «{unit.short}» видалено.')
+            except Exception:
+                messages.error(request, f'Одиницю «{unit.short}» не можна видалити — вона використовується в товарах.')
     return redirect('inventory:settings')
 
 
@@ -519,7 +722,7 @@ def unit_delete(request, pk):
 def export_page(request):
     """Сторінка з параметрами експорту."""
     return render(request, 'inventory/export.html', {
-        'categories': Category.objects.all(),
+        'categories': Category.objects.filter(organization=request.organization),
     })
 
 
@@ -558,9 +761,9 @@ def export_inventory(request):
         products = products.filter(category_id=cat)
     products = products.order_by('name')
     if stock == 'low':
-        products = [p for p in products if p.is_low_stock()]
+        products = products.filter(min_quantity__gt=0, quantity__lte=F('min_quantity'))
     elif stock == 'out':
-        products = [p for p in products if p.is_out_of_stock()]
+        products = products.filter(quantity__lte=0)
 
     headers = [h for _, h, _ in columns]
 
@@ -623,3 +826,233 @@ def export_inventory(request):
     response['Content-Disposition'] = 'attachment; filename="inventory.xlsx"'
     wb.save(response)
     return response
+
+
+@login_required
+def batch_intake(request):
+    """Масовий прихід товарів за накладною."""
+    org = request.organization
+    suppliers = Supplier.objects.filter(organization=org).order_by('name')
+
+    if request.method == 'POST':
+        supplier_id = request.POST.get('supplier_id')
+        supplier = Supplier.objects.filter(pk=supplier_id, organization=org).first() if supplier_id else None
+        note = request.POST.get('note', '').strip()
+
+        product_ids = request.POST.getlist('product_id')
+        quantities = request.POST.getlist('qty')
+        prices = request.POST.getlist('price')
+        sell_prices = request.POST.getlist('sell_price')
+
+        created = 0
+        for i, (pid, qty_str, price_str) in enumerate(zip(product_ids, quantities, prices)):
+            if not pid or not qty_str:
+                continue
+            try:
+                product = Product.objects.get(pk=pid, organization=org)
+                qty = Decimal(qty_str)
+                if qty <= 0:
+                    continue
+                price = Decimal(price_str) if price_str else None
+                sell = Decimal(sell_prices[i]) if i < len(sell_prices) and sell_prices[i] else None
+
+                StockMovement.objects.create(
+                    product=product,
+                    type=StockMovement.Type.IN,
+                    quantity=qty,
+                    price=price,
+                    supplier=supplier,
+                    reason=note or 'Масовий прихід',
+                    created_by=request.user,
+                )
+                # Оновити ціни якщо передано
+                update_fields = []
+                if price and price > 0:
+                    product.buy_price = price
+                    update_fields.append('buy_price')
+                if sell and sell > 0:
+                    product.sell_price = sell
+                    update_fields.append('sell_price')
+                if update_fields:
+                    product.save(update_fields=update_fields)
+                created += 1
+            except (Product.DoesNotExist, Exception):
+                continue
+
+        if created:
+            messages.success(request, f'Прихід записано: {created} позицій.')
+        else:
+            messages.warning(request, 'Жоден рядок не було оброблено.')
+        return redirect('inventory:batch_intake')
+
+    return render(request, 'inventory/batch_intake.html', {
+        'suppliers': suppliers,
+    })
+
+
+@login_required
+def product_search_json(request):
+    """JSON-пошук товарів для autocomplete."""
+    q = request.GET.get('q', '').strip()
+    org = request.organization
+    qs = Product.objects.filter(organization=org, is_active=True).select_related('unit').order_by('name')
+    if q:
+        qs = qs.filter(Q(name__icontains=q) | Q(sku__icontains=q))
+    qs = qs[:20]
+    return JsonResponse({'results': [
+        {
+            'id': p.pk,
+            'name': p.name,
+            'sku': p.sku or '',
+            'unit': p.unit.short if p.unit else '',
+            'qty': str(p.quantity),
+            'buy_price': str(p.buy_price),
+            'sell_price': str(p.sell_price),
+        }
+        for p in qs
+    ]})
+
+
+@login_required
+def movements_list(request):
+    """Глобальна історія руху складу з фільтрами."""
+    org = request.organization
+    qs = StockMovement.objects.filter(
+        product__organization=org
+    ).select_related('product', 'product__unit', 'supplier', 'created_by').order_by('-created_at')
+
+    # Фільтр по типу
+    move_type = request.GET.get('type', '')
+    if move_type in StockMovement.Type.values:
+        qs = qs.filter(type=move_type)
+
+    # Фільтр по товару (пошук)
+    q = request.GET.get('q', '').strip()
+    if q:
+        qs = qs.filter(Q(product__name__icontains=q) | Q(reason__icontains=q))
+
+    # Фільтр по даті
+    date_from = request.GET.get('from', '')
+    date_to = request.GET.get('to', '')
+    if date_from:
+        qs = qs.filter(created_at__date__gte=date_from)
+    if date_to:
+        qs = qs.filter(created_at__date__lte=date_to)
+
+    # Фільтр по постачальнику
+    sup = request.GET.get('supplier', '')
+    if sup:
+        qs = qs.filter(supplier_id=sup)
+
+    # Пагінація
+    from django.core.paginator import Paginator
+    paginator = Paginator(qs, 50)
+    page = paginator.get_page(request.GET.get('page', 1))
+
+    suppliers = Supplier.objects.filter(organization=org).order_by('name')
+
+    return render(request, 'inventory/movements.html', {
+        'movements': page,
+        'move_type': move_type,
+        'q': q,
+        'date_from': date_from,
+        'date_to': date_to,
+        'supplier_filter': sup,
+        'suppliers': suppliers,
+        'type_choices': StockMovement.Type.choices,
+    })
+
+
+@login_required
+def stocktake(request):
+    """Інвентаризація — звірка залишків."""
+    org = request.organization
+    products = Product.objects.filter(
+        organization=org, is_active=True
+    ).select_related('unit', 'category').order_by('category__name', 'name')
+
+    if request.method == 'POST':
+        adjusted = 0
+        for product in products:
+            key = f'actual_{product.pk}'
+            val = request.POST.get(key, '').strip()
+            if not val:
+                continue
+            try:
+                actual = Decimal(val)
+            except Exception:
+                continue
+            if actual != product.quantity:
+                diff = actual - product.quantity
+                StockMovement.objects.create(
+                    product=product,
+                    type=StockMovement.Type.ADJUST,
+                    quantity=actual,
+                    reason=f'Інвентаризація: було {product.quantity}, факт {actual} (різниця {diff:+})',
+                    created_by=request.user,
+                )
+                adjusted += 1
+
+        if adjusted:
+            messages.success(request, f'Інвентаризація завершена: скориговано {adjusted} позицій.')
+        else:
+            messages.info(request, 'Розбіжностей не знайдено.')
+        return redirect('inventory:list')
+
+    return render(request, 'inventory/stocktake.html', {
+        'products': products,
+    })
+
+
+@login_required
+def stock_writeoff(request, pk):
+    """Списання товару з причиною."""
+    product = get_object_or_404(Product, pk=pk, organization=request.organization)
+
+    WRITEOFF_REASONS = [
+        ('expired', 'Прострочений'),
+        ('damaged', 'Бій / пошкодження'),
+        ('internal', 'Внутрішнє використання'),
+        ('return', 'Повернення постачальнику'),
+        ('other', 'Інше'),
+    ]
+
+    if request.method == 'POST':
+        try:
+            qty = Decimal(request.POST.get('quantity', '0'))
+        except Exception:
+            messages.error(request, 'Невірна кількість.')
+            return redirect('inventory:detail', pk=pk)
+
+        if qty <= 0:
+            messages.error(request, 'Кількість має бути більше 0.')
+            return redirect('inventory:detail', pk=pk)
+
+        reason_key = request.POST.get('reason', 'other')
+        reason_label = dict(WRITEOFF_REASONS).get(reason_key, reason_key)
+        custom_note = request.POST.get('note', '').strip()
+        full_reason = f'Списання: {reason_label}'
+        if custom_note:
+            full_reason += f' — {custom_note}'
+
+        StockMovement.objects.create(
+            product=product,
+            type=StockMovement.Type.OUT,
+            quantity=qty,
+            reason=full_reason,
+            created_by=request.user,
+        )
+        messages.success(request, f'Списано {qty} {product.unit.short if product.unit else ""} — {reason_label}.')
+        return redirect('inventory:detail', pk=pk)
+
+    return render(request, 'inventory/writeoff.html', {
+        'product': product,
+        'reasons': WRITEOFF_REASONS,
+    })
+
+
+@login_required
+def quick_intake_modal(request, pk):
+    """HTMX: рендерить модалку швидкого приходу."""
+    product = get_object_or_404(Product, pk=pk, organization=request.organization)
+    return render(request, 'inventory/partials/quick_intake_modal.html', {'product': product})

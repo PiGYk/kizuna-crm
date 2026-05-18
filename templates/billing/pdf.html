@@ -3,73 +3,96 @@
 <head>
   <meta charset="UTF-8">
   <style>
+    @page {
+      size: A4;
+      margin: 15mm 20mm;
+    }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: Arial, sans-serif; font-size: 12px; color: #12100F; padding: 30px; }
-    .header { border-bottom: 2px solid #DEAA01; padding-bottom: 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-start; }
-    .title { font-size: 22px; font-weight: bold; color: #12100F; }
-    .subtitle { color: #666; margin-top: 4px; }
-    .meta { text-align: right; font-size: 11px; color: #555; }
-    .meta-row { margin-top: 4px; }
+    body { font-family: Arial, sans-serif; font-size: 12px; color: #12100F; }
+
+    /* Header — table layout, WeasyPrint-safe */
+    .header-table { width: 100%; border-bottom: 2px solid #DEAA01; padding-bottom: 14px; margin-bottom: 20px; }
+    .header-table td { vertical-align: top; }
+    .header-table .td-right { text-align: right; white-space: nowrap; }
+    .title { font-size: 20px; font-weight: bold; color: #12100F; }
+    .subtitle { color: #666; margin-top: 4px; font-size: 12px; }
+    .meta-row { font-size: 11px; color: #555; margin-top: 4px; }
+
+    /* Items table */
     .section { margin-bottom: 16px; }
     .section-title { font-size: 11px; text-transform: uppercase; color: #888; letter-spacing: 0.05em; margin-bottom: 8px; }
-    table { width: 100%; border-collapse: collapse; }
-    th { text-align: left; padding: 8px 10px; border-bottom: 1px solid #e5e5e5; font-size: 11px; color: #888; }
-    td { padding: 8px 10px; border-bottom: 1px solid #f0f0f0; }
-    .text-right { text-align: right; }
-    .total-row td { font-weight: bold; font-size: 14px; color: #12100F; border-top: 2px solid #DEAA01; border-bottom: none; padding-top: 12px; }
+    table.items { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    table.items col.col-name  { width: 45%; }
+    table.items col.col-qty   { width: 10%; }
+    table.items col.col-price { width: 15%; }
+    table.items col.col-disc  { width: 15%; }
+    table.items col.col-total { width: 15%; }
+    table.items th { text-align: left; padding: 7px 8px; border-bottom: 1px solid #e5e5e5; font-size: 11px; color: #888; }
+    table.items th.text-right { text-align: right; }
+    table.items td { padding: 7px 8px; border-bottom: 1px solid #f0f0f0; word-break: break-word; overflow-wrap: break-word; }
+    table.items td.text-right { text-align: right; }
+    .total-row td { font-weight: bold; font-size: 14px; color: #12100F; border-top: 2px solid #DEAA01; border-bottom: none; padding-top: 10px; }
     .gold { color: #DEAA01; }
-    .notes { margin-top: 16px; padding: 10px; background: #f8f8f8; border-radius: 4px; font-size: 11px; color: #666; }
-    .footer { margin-top: 30px; padding-top: 12px; border-top: 1px solid #e5e5e5; font-size: 10px; color: #aaa; text-align: center; }
+
+    .notes { margin-top: 14px; padding: 10px; background: #f8f8f8; border-radius: 4px; font-size: 11px; color: #666; }
+    .footer { margin-top: 28px; padding-top: 10px; border-top: 1px solid #e5e5e5; font-size: 10px; color: #aaa; text-align: center; }
   </style>
 </head>
 <body>
 
-<div class="header">
-  <div>
-    <div class="title">{{ clinic.name }}</div>
-    <div class="subtitle">Рахунок #{{ invoice.pk }}</div>
-  </div>
-  <div class="meta">
-    <div class="meta-row"><strong>Дата:</strong> {{ invoice.created_at|date:"d.m.Y H:i" }}</div>
-    <div class="meta-row"><strong>Клієнт:</strong> {{ invoice.client }}</div>
-    {% if invoice.patient %}<div class="meta-row"><strong>Пацієнт:</strong> {{ invoice.patient.name }}</div>{% endif %}
-    {% if invoice.doctor %}<div class="meta-row"><strong>Лікар:</strong> {{ invoice.doctor.get_full_name|default:invoice.doctor.username }}</div>{% endif %}
-  </div>
-</div>
+<table class="header-table" cellpadding="0" cellspacing="0">
+  <tr>
+    <td>
+      <div class="title">{{ clinic.name }}</div>
+      <div class="subtitle">Рахунок&nbsp;#{{ invoice.pk }}</div>
+    </td>
+    <td class="td-right">
+      <div class="meta-row"><strong>Дата:</strong> {{ invoice.created_at|date:"d.m.Y H:i" }}</div>
+      <div class="meta-row"><strong>Клієнт:</strong> {{ invoice.client }}</div>
+      {% if invoice.patient %}<div class="meta-row"><strong>Пацієнт:</strong> {{ invoice.patient.name }}</div>{% endif %}
+      {% if invoice.doctor %}<div class="meta-row"><strong>Лікар:</strong> {{ invoice.doctor.get_full_name|default:invoice.doctor.username }}</div>{% endif %}
+    </td>
+  </tr>
+</table>
 
 <div class="section">
   <div class="section-title">Позиції</div>
-  <table>
+  <table class="items" cellpadding="0" cellspacing="0">
+    <col class="col-name">
+    <col class="col-qty">
+    <col class="col-price">
+    <col class="col-disc">
+    <col class="col-total">
     <thead>
       <tr>
         <th>Найменування</th>
         <th class="text-right">К-сть</th>
-        <th class="text-right">Ціна, ₴</th>
+        <th class="text-right">Ціна,&nbsp;₴</th>
         <th class="text-right">Знижка</th>
-        <th class="text-right">Сума, ₴</th>
+        <th class="text-right">Сума,&nbsp;₴</th>
       </tr>
     </thead>
     <tbody>
       {% for line in lines %}
-      <tr>
-        <td>{{ line.name }}</td>
+      <tr{% if line.parent_line_id %} style="color:#888; font-size:11px"{% endif %}>
+        <td>{% if line.parent_line_id %}&nbsp;&nbsp;&nbsp;↳ {% endif %}{{ line.name }}</td>
         <td class="text-right">{{ line.quantity|floatformat:"-3" }}</td>
-        <td class="text-right">{{ line.unit_price }}</td>
+        <td class="text-right">{% if line.parent_line_id %}—{% else %}{{ line.unit_price }}{% endif %}</td>
         <td class="text-right">
-          {% if line.discount %}{{ line.discount }}{% if line.discount_type == 'percent' %}%{% else %} ₴{% endif %}{% else %}—{% endif %}
+          {% if line.parent_line_id %}—{% elif line.discount %}{{ line.discount }}{% if line.discount_type == 'percent' %}%{% else %}&nbsp;₴{% endif %}{% else %}—{% endif %}
         </td>
-        <td class="text-right">{{ line.total }}</td>
+        <td class="text-right">{% if line.parent_line_id %}—{% else %}{{ line.total }}{% endif %}</td>
       </tr>
       {% endfor %}
       {% if invoice.discount %}
       <tr>
         <td colspan="4" class="text-right" style="color:#888; font-size:11px;">Знижка на чек</td>
-        <td class="text-right" style="color:#888;">−{{ invoice.discount }}{% if invoice.discount_type == 'percent' %}%{% else %} ₴{% endif %}</td>
+        <td class="text-right" style="color:#888;">−{{ invoice.discount }}{% if invoice.discount_type == 'percent' %}%{% else %}&nbsp;₴{% endif %}</td>
       </tr>
       {% endif %}
       <tr class="total-row">
         <td colspan="4" class="text-right">Разом до сплати:</td>
-        <td class="text-right gold">{{ invoice.total }} ₴</td>
+        <td class="text-right gold">{{ invoice.total }}&nbsp;₴</td>
       </tr>
     </tbody>
   </table>
@@ -79,6 +102,8 @@
 <div class="notes"><strong>Нотатки:</strong> {{ invoice.notes }}</div>
 {% endif %}
 
-<div class="footer">Kizuna Vet CRM · crm.kizuna.com.ua</div>
+<div class="footer">
+  {{ clinic.name }}{% with footer_url=clinic.website|default:clinic.bot_base_url %}{% if footer_url %} · {{ footer_url }}{% endif %}{% endwith %}
+</div>
 </body>
 </html>

@@ -1,0 +1,48 @@
+<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 border-b border-gray-200">
+      <tr>
+        <th class="px-4 py-3 text-left font-medium text-gray-600">Пацієнт</th>
+        <th class="px-4 py-3 text-left font-medium text-gray-600">Хазяїн</th>
+        <th class="px-4 py-3 text-left font-medium text-gray-600 hidden md:table-cell">Вид</th>
+        <th class="px-4 py-3 text-left font-medium text-gray-600">Вакцина</th>
+        <th class="px-4 py-3 text-left font-medium text-gray-600 hidden md:table-cell">Дата щеплення</th>
+        <th class="px-4 py-3 text-left font-medium text-gray-600">Наступне</th>
+        {% if show_overdue_days %}<th class="px-4 py-3 text-left font-medium text-gray-600">Прострочено</th>{% endif %}
+        <th class="px-4 py-3"></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">
+      {% for v in vaccines %}
+      <tr class="hover:bg-gray-50 cursor-pointer" onclick="location.href='{% url 'clients:patient_detail' v.patient.pk %}'">
+        <td class="px-4 py-3 font-semibold text-brand-dark">{{ v.patient.name }}</td>
+        <td class="px-4 py-3 text-gray-700">
+          <a href="{% url 'clients:detail' v.patient.client.pk %}" class="hover:text-brand-gold" onclick="event.stopPropagation()">
+            {{ v.patient.client.full_name }}
+          </a>
+        </td>
+        <td class="px-4 py-3 text-gray-500 hidden md:table-cell">{{ v.patient.get_species_display }}</td>
+        <td class="px-4 py-3 text-gray-700">{{ v.name }}</td>
+        <td class="px-4 py-3 text-gray-500 hidden md:table-cell">{{ v.date|date:"d.m.Y" }}</td>
+        <td class="px-4 py-3 {% if show_overdue_days %}text-red-600 font-medium{% else %}text-gray-700{% endif %}">
+          {% if v.next_date %}{{ v.next_date|date:"d.m.Y" }}{% else %}—{% endif %}
+        </td>
+        {% if show_overdue_days %}
+        <td class="px-4 py-3 text-red-500 font-medium">
+          {% if v.next_date %}
+            {% with days=v.next_date|timesince:today %}{{ days }}{% endwith %}
+          {% else %}—{% endif %}
+        </td>
+        {% endif %}
+        <td class="px-4 py-3 text-right">
+          <a href="{% url 'clients:patient_detail' v.patient.pk %}" class="text-brand-gold hover:text-brand-dark text-xs font-medium" onclick="event.stopPropagation()">Відкрити</a>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="{% if show_overdue_days %}8{% else %}7{% endif %}" class="px-4 py-12 text-center text-gray-400">{{ empty_msg }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

@@ -1,32 +1,40 @@
-<div id="lines-section" class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-  <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-    <h2 class="text-sm font-semibold text-gray-700">Рядки рахунку</h2>
-    <span class="text-xs text-gray-400">{{ lines|length }} позицій</span>
-  </div>
+<div id="lines-section" class="space-y-2">
+{% if lines %}
 
-  {% if lines %}
-  <div class="divide-y divide-gray-50">
-    {% for line in lines %}
-    <div class="px-4 py-3 text-sm"
-      data-line-id="{{ line.pk }}"
-      data-service-id="{{ line.service_id|default:'' }}"
-      data-service-name="{{ line.name|escapejs }}"
-      data-has-components="{% if line.line_type == 'service' and line.service and line.service.components.exists %}true{% else %}false{% endif %}"
-      data-components="{{ line.components_json }}">
+  {% for line in lines %}
+  <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
 
-      <!-- Назва + сума + видалити -->
+    <!-- ── Основний рядок ─────────────────────────────────────── -->
+    <div class="p-4">
       <div class="flex items-start gap-3">
-        <div class="flex-1 min-w-0">
-          <div class="font-medium text-brand-dark break-words">{{ line.name }}</div>
-          <div class="text-xs text-gray-400 mt-0.5">{{ line.get_line_type_display }}</div>
+        <!-- Іконка -->
+        <div class="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 mt-0.5
+          {% if line.line_type == 'service' %}bg-amber-50{% else %}bg-blue-50{% endif %}">
+          {% if line.line_type == 'service' %}
+            <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          {% else %}
+            <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+          {% endif %}
         </div>
-        <div class="font-semibold text-brand-dark shrink-0 text-right">{{ line.total|floatformat:2 }} ₴</div>
+
+        <!-- Назва + тип -->
+        <div class="flex-1 min-w-0">
+          <div class="font-semibold text-brand-dark leading-tight">{{ line.name }}</div>
+          <div class="text-xs text-gray-400 mt-0.5">
+            {{ line.get_line_type_display }}
+            {% if line.discount %} &middot; знижка {{ line.discount }}{% if line.discount_type == 'percent' %}%{% else %} ₴{% endif %}{% endif %}
+          </div>
+        </div>
+
+        <!-- Сума -->
+        <div class="font-bold text-lg text-brand-dark shrink-0 tabular-nums">{{ line.total|floatformat:2 }}&nbsp;₴</div>
+
+        <!-- Видалити -->
         <form hx-post="{% url 'billing:remove_line' invoice.pk line.pk %}"
-              hx-target="#lines-section"
-              hx-swap="outerHTML"
-              hx-confirm="Видалити рядок?">
+              hx-target="#lines-section" hx-swap="outerHTML"
+              hx-confirm="Видалити{% if line.children.count %} разом з матеріалами{% endif %}?">
           {% csrf_token %}
-          <button type="submit" class="text-gray-300 hover:text-red-400 transition-colors p-1">
+          <button type="submit" class="text-gray-300 hover:text-red-400 transition-colors p-1 -mr-1">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
             </svg>
@@ -34,143 +42,215 @@
         </form>
       </div>
 
-      <!-- К-сть та ціна -->
+      <!-- К-сть і ціна (інлайн) -->
       <form hx-post="{% url 'billing:update_line' invoice.pk line.pk %}"
-            hx-target="#lines-section"
-            hx-swap="outerHTML"
-            hx-trigger="change"
-            class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
+            hx-target="#lines-section" hx-swap="outerHTML"
+            hx-trigger="change delay:500ms"
+            class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2.5 ml-12">
         {% csrf_token %}
         <div class="flex items-center gap-1.5">
-          <label class="text-xs text-gray-400">К-сть:</label>
+          <span class="text-xs text-gray-400">К-сть:</span>
           <input type="number" name="quantity" value="{{ line.quantity|floatformat:'-3' }}"
+            inputmode="decimal" autocomplete="off" enterkeyhint="done"
             min="0" step="any"
-            class="w-24 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-gold">
+            class="w-20 border border-gray-200 rounded-lg px-2.5 py-1.5 text-base md:text-sm text-center
+              focus:outline-none focus:ring-1 focus:ring-brand-gold">
         </div>
         <div class="flex items-center gap-1.5">
-          <label class="text-xs text-gray-400">Ціна ₴:</label>
+          <span class="text-xs text-gray-400">Ціна:</span>
           <input type="number" name="unit_price" value="{{ line.unit_price }}"
+            inputmode="decimal" autocomplete="off" enterkeyhint="done"
             min="0" step="0.01"
-            class="w-28 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-gold">
+            class="w-24 border border-gray-200 rounded-lg px-2.5 py-1.5 text-base md:text-sm text-center
+              focus:outline-none focus:ring-1 focus:ring-brand-gold">
         </div>
-        {% if line.discount %}
-        <span class="text-xs text-gray-400">знижка {{ line.discount }}{% if line.discount_type == 'percent' %}%{% else %} ₴{% endif %}</span>
-        {% endif %}
       </form>
-
-      <!-- Компоненти послуги (інлайн) -->
-      {% if line.line_type == 'service' and line.service %}
-        {% with comps=line.service.components.all %}
-        {% if comps %}
-        <div class="mt-2 ml-1 pl-3 border-l-2 border-brand-gold/30">
-          <div class="text-xs font-medium text-gray-500 mb-1">Склад послуги (буде списано):</div>
-          {% for comp in comps %}
-          <div class="flex items-center gap-2 py-0.5">
-            <span class="text-xs text-gray-500 flex-1">{{ comp.product.name }}</span>
-            <input type="number"
-              data-comp-line="{{ line.pk }}" data-comp-id="{{ comp.pk }}"
-              class="comp-qty-input w-20 border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-gold"
-              value="{{ comp.quantity|floatformat:'-3' }}" min="0" step="any">
-            <span class="text-xs text-gray-400 w-8">{{ comp.product.unit.short }}</span>
-            <span class="text-xs text-gray-300">(залишок: {{ comp.product.quantity|floatformat:'-3' }})</span>
-          </div>
-          {% endfor %}
-        </div>
-        {% endif %}
-        {% endwith %}
-      {% endif %}
     </div>
-    {% endfor %}
-  </div>
 
-  <!-- Вакцини (показується тільки якщо є послуга вакцинації) -->
+    <!-- ── Дочірні рядки (витратні матеріали) ────────────────── -->
+    {% with children=line.children.all %}
+    {% if children %}
+    <div class="border-t border-gray-100 bg-stone-50/80 px-4 py-3">
+      <div class="flex items-center gap-1.5 mb-2 ml-12">
+        <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+        </svg>
+        <span class="text-xs font-medium text-gray-400 uppercase tracking-wider">Витратні матеріали</span>
+      </div>
+
+      <div class="space-y-0.5">
+        {% for child in children %}
+        <div class="flex items-center gap-2 py-1.5 ml-12 group">
+          <div class="w-1.5 h-1.5 rounded-full bg-gray-300 shrink-0"></div>
+          <span class="text-sm text-gray-600 flex-1 min-w-0 truncate">{{ child.name }}</span>
+
+          <form hx-post="{% url 'billing:update_line' invoice.pk child.pk %}"
+                hx-target="#lines-section" hx-swap="outerHTML"
+                hx-trigger="change delay:500ms"
+                class="flex items-center gap-1 shrink-0">
+            {% csrf_token %}
+            <input type="hidden" name="unit_price" value="0">
+            <input type="number" name="quantity" value="{{ child.quantity|floatformat:'-3' }}"
+              inputmode="decimal" autocomplete="off" enterkeyhint="done"
+              min="0" step="any"
+              class="w-[4.5rem] border border-gray-200 rounded-lg px-2 py-1 text-base md:text-xs text-center
+                bg-white focus:outline-none focus:ring-1 focus:ring-brand-gold">
+          </form>
+
+          {% if child.product.unit %}
+          <span class="text-xs text-gray-400 w-8 shrink-0">{{ child.product.unit.short }}</span>
+          {% endif %}
+
+          <span class="text-xs text-gray-300 shrink-0 tabular-nums" title="Залишок на складі">{{ child.product.quantity|floatformat:"-3" }}</span>
+
+          <form hx-post="{% url 'billing:remove_line' invoice.pk child.pk %}"
+                hx-target="#lines-section" hx-swap="outerHTML"
+                hx-confirm="Прибрати {{ child.name }}?"
+                class="shrink-0">
+            {% csrf_token %}
+            <button type="submit" class="text-gray-300 hover:text-red-400 p-0.5">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </form>
+        </div>
+        {% endfor %}
+      </div>
+
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <!-- Додати препарат (для будь-якої послуги) -->
+    {% if line.line_type == 'service' %}
+    <div class="border-t border-gray-100 px-4 py-2">
+      <div class="ml-12 relative" id="comp-add-{{ line.pk }}">
+        <button type="button" onclick="toggleCompAdd({{ line.pk }})"
+          class="text-xs text-brand-gold hover:text-brand-dark font-medium">+ Препарат</button>
+        <div id="comp-form-{{ line.pk }}" class="hidden mt-1">
+          <form hx-post="{% url 'billing:add_component' invoice.pk line.pk %}"
+                hx-target="#lines-section" hx-swap="outerHTML"
+                class="flex items-end gap-2">
+            {% csrf_token %}
+            <div class="relative flex-1">
+              <input type="text" placeholder="Пошук препарату…" autocomplete="off"
+                id="comp-search-{{ line.pk }}"
+                class="w-full border border-gray-200 rounded-lg px-2 py-1 text-base md:text-xs focus:outline-none focus:ring-1 focus:ring-brand-gold"
+                oninput="searchComp({{ line.pk }}, this.value)">
+              <input type="hidden" name="product_id" id="comp-pid-{{ line.pk }}">
+              <div id="comp-drop-{{ line.pk }}" class="absolute z-20 w-full bg-white border border-gray-200 rounded-lg shadow-lg hidden max-h-36 overflow-y-auto text-xs bottom-full mb-1"></div>
+            </div>
+            <input type="number" name="quantity" value="1" min="0" step="any"
+              class="w-16 border border-gray-200 rounded-lg px-2 py-1 text-base md:text-xs text-center focus:outline-none focus:ring-1 focus:ring-brand-gold">
+            <button type="submit" class="px-2 py-1 bg-brand-gold text-brand-dark rounded-lg text-xs font-medium hover:brightness-95">OK</button>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+  {% endfor %}
+
+  <!-- ── Вакцини ───────────────────────────────────────────────── -->
   {% if has_vaccination %}
-  <div class="border-t border-yellow-100 bg-yellow-50 px-4 py-3">
-    <div class="text-xs font-semibold text-yellow-700 mb-2">💉 Оберіть вакцину (додається до чеку без ціни):</div>
-    <div class="grid grid-cols-1 gap-1">
-      {% for vaccine in vaccine_products %}
-      <label class="flex items-center gap-2 cursor-pointer py-1 px-2 rounded-lg hover:bg-yellow-100 text-sm">
-        <input type="checkbox"
-          {% if vaccine.pk in vaccine_in_invoice %}checked{% endif %}
-          class="rounded border-gray-300 text-yellow-500 focus:ring-yellow-400"
-          hx-post="{% url 'billing:toggle_vaccine' invoice.pk %}"
-          hx-target="#lines-section"
-          hx-swap="outerHTML"
-          hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
-          hx-vals='{"product_id": "{{ vaccine.pk }}", "checked": "{% if vaccine.pk in vaccine_in_invoice %}false{% else %}true{% endif %}"}'
-          hx-trigger="change">
-        <span class="flex-1 text-gray-700">{{ vaccine.name }}</span>
-        <span class="text-xs text-gray-400">{{ vaccine.sell_price }} ₴</span>
-      </label>
-      {% endfor %}
+  <div class="bg-white rounded-xl border border-yellow-200 overflow-hidden">
+    <div class="px-4 py-3">
+      <div class="text-xs font-semibold text-yellow-700 mb-2 flex items-center gap-1.5">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        Оберіть вакцину (додається без ціни)
+      </div>
+      <div class="grid grid-cols-1 gap-0.5">
+        {% for vaccine in vaccine_products %}
+        <label class="flex items-center gap-2 cursor-pointer py-1.5 px-2 rounded-lg hover:bg-yellow-50 text-sm">
+          <input type="checkbox"
+            {% if vaccine.pk in vaccine_in_invoice %}checked{% endif %}
+            class="rounded border-gray-300 text-yellow-500 focus:ring-yellow-400"
+            hx-post="{% url 'billing:toggle_vaccine' invoice.pk %}"
+            hx-target="#lines-section" hx-swap="outerHTML"
+            hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+            hx-vals='{"product_id": "{{ vaccine.pk }}", "checked": "{% if vaccine.pk in vaccine_in_invoice %}false{% else %}true{% endif %}"}'
+            hx-trigger="change">
+          <span class="flex-1 text-gray-700">{{ vaccine.name }}</span>
+          <span class="text-xs text-gray-400 tabular-nums">{{ vaccine.sell_price }} ₴</span>
+        </label>
+        {% endfor %}
+      </div>
     </div>
   </div>
   {% endif %}
 
-  <!-- Знижка на весь рахунок -->
-  <div class="border-t border-gray-100 px-4 py-3">
-    <form hx-post="{% url 'billing:update_discount' invoice.pk %}"
-          hx-target="#lines-section"
-          hx-swap="outerHTML">
-      {% csrf_token %}
-      <div class="flex flex-wrap items-center gap-2 text-sm">
-        <span class="text-gray-500">Знижка на чек:</span>
-        <input type="number" name="discount" value="{{ invoice.discount }}" min="0" step="0.01"
-          class="w-24 border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-gold">
-        <select name="discount_type"
-          class="w-16 shrink-0 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-gold">
-          <option value="percent" {% if invoice.discount_type == 'percent' %}selected{% endif %}>%</option>
-          <option value="amount" {% if invoice.discount_type == 'amount' %}selected{% endif %}>₴</option>
-        </select>
-        <button type="submit" class="text-xs text-brand-gold hover:text-brand-dark font-medium">OK</button>
-      </div>
-      <div class="mt-2">
-        <input type="text" name="notes" value="{{ invoice.notes }}" placeholder="Нотатки…"
-          class="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-brand-gold">
-      </div>
-    </form>
-  </div>
-
-  <!-- Підсумок -->
-  <div class="border-t border-gray-200 bg-gray-50 px-4 py-4">
-    <div class="flex items-center justify-between">
-      <span class="font-semibold text-gray-700">Разом:</span>
-      <span class="text-2xl font-bold text-brand-gold">{{ invoice.total|floatformat:2 }} ₴</span>
-    </div>
-    <div class="flex gap-2 mt-3">
-      <button type="button" onclick="openFiscalModal()"
-        class="flex-1 bg-brand-gold text-brand-dark py-2.5 rounded-lg text-sm font-semibold hover:brightness-95">
-        Розрахувати
-      </button>
-      <button type="button" onclick="openPayModal()"
-        class="flex-1 border border-brand-gold text-brand-dark py-2.5 rounded-lg text-sm font-semibold hover:bg-brand-gold/10"
-        title="Підтвердити оплату та списати зі складу">
-        Оплатити ✓
-      </button>
-      <form method="post" action="{% url 'billing:cancel' invoice.pk %}">
+  <!-- ── Знижка + підсумок ─────────────────────────────────────── -->
+  <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div class="px-4 py-3">
+      <form hx-post="{% url 'billing:update_discount' invoice.pk %}"
+            hx-target="#lines-section" hx-swap="outerHTML">
         {% csrf_token %}
-        <button type="submit"
-          onclick="return confirm('Скасувати рахунок?')"
-          class="px-4 py-2.5 border border-gray-300 text-gray-500 rounded-lg text-sm hover:bg-gray-100">
-          ✕
-        </button>
+        <div class="flex flex-wrap items-center gap-2 text-sm">
+          <span class="text-gray-500">Знижка на чек:</span>
+          <input type="number" name="discount" value="{{ invoice.discount }}" min="0" step="0.01"
+            class="w-24 border border-gray-200 rounded-lg px-2.5 py-1.5 text-base md:text-sm focus:outline-none focus:ring-1 focus:ring-brand-gold">
+          <select name="discount_type"
+            class="w-16 shrink-0 border border-gray-200 rounded-lg px-2 py-1.5 text-base md:text-sm focus:outline-none focus:ring-1 focus:ring-brand-gold">
+            <option value="percent" {% if invoice.discount_type == 'percent' %}selected{% endif %}>%</option>
+            <option value="amount" {% if invoice.discount_type == 'amount' %}selected{% endif %}>₴</option>
+          </select>
+          <button type="submit" class="text-xs text-brand-gold hover:text-brand-dark font-medium">OK</button>
+        </div>
+        <div class="mt-2">
+          <input type="text" name="notes" value="{{ invoice.notes }}" placeholder="Нотатки…"
+            class="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-base md:text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-brand-gold">
+        </div>
       </form>
     </div>
+
+    <div class="border-t border-gray-200 bg-gray-50 px-4 py-4">
+      <div class="flex items-center justify-between mb-3">
+        <span class="font-semibold text-gray-700">Разом:</span>
+        <span class="text-2xl font-bold text-brand-gold tabular-nums">{{ invoice.total|floatformat:2 }} ₴</span>
+      </div>
+      <div class="flex gap-2">
+        <button type="button" onclick="openFiscalModal()"
+          class="flex-1 bg-brand-gold text-brand-dark py-2.5 rounded-lg text-sm font-semibold hover:brightness-95 transition">
+          Розрахувати
+        </button>
+        <button type="button" onclick="openPayModal()"
+          class="flex-1 border-2 border-brand-gold text-brand-dark py-2.5 rounded-lg text-sm font-semibold hover:bg-brand-gold/10 transition"
+          title="Підтвердити оплату та списати зі складу">
+          Оплатити
+        </button>
+        <form method="post" action="{% url 'billing:cancel' invoice.pk %}">
+          {% csrf_token %}
+          <button type="submit" onclick="return confirm('Скасувати рахунок?')"
+            class="px-4 py-2.5 border border-gray-200 text-gray-400 rounded-lg text-sm hover:bg-gray-50 transition">
+            &times;
+          </button>
+        </form>
+      </div>
+    </div>
   </div>
 
-  {% else %}
-  <div class="p-10 text-center text-gray-300 text-sm">
-    Додайте послуги або товари
+{% else %}
+
+  <!-- Порожній чек -->
+  <div class="bg-white rounded-xl border border-dashed border-gray-300 p-12 text-center">
+    <svg class="w-10 h-10 text-gray-200 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+    </svg>
+    <div class="text-sm text-gray-300">Додайте послуги або товари</div>
   </div>
-  <div class="border-t border-gray-100 px-4 py-4">
+  <div class="mt-2">
     <form method="post" action="{% url 'billing:cancel' invoice.pk %}">
       {% csrf_token %}
-      <button type="submit"
-        onclick="return confirm('Скасувати рахунок?')"
-        class="w-full border border-gray-200 text-gray-400 py-2 rounded-lg text-sm hover:bg-gray-50">
+      <button type="submit" onclick="return confirm('Скасувати рахунок?')"
+        class="w-full border border-gray-200 text-gray-400 py-2 rounded-xl text-sm hover:bg-gray-50 transition">
         Скасувати чек
       </button>
     </form>
   </div>
-  {% endif %}
+
+{% endif %}
 </div>

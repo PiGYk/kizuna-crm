@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% block title %}Зарплата — Kizuna CRM{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-bold text-brand-dark">Розрахунок зарплати</h1>
+</div>
+
+<!-- Фільтр -->
+<form method="get" class="flex flex-wrap items-end gap-3 mb-5 bg-white border border-gray-200 rounded-xl p-4">
+  <div class="flex gap-1">
+    {% for value, label in presets %}
+    <a href="?preset={{ value }}{% if selected_doctor %}&doctor={{ selected_doctor }}{% endif %}"
+       class="px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors
+              {% if preset == value %}bg-brand-gold text-brand-dark border-brand-gold{% else %}border-gray-200 text-gray-500 hover:border-gray-300{% endif %}">
+      {{ label }}
+    </a>
+    {% endfor %}
+  </div>
+  {% if preset == 'custom' %}
+  <input type="date" name="start" value="{{ start|date:'Y-m-d' }}"
+    class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+  <input type="date" name="end" value="{{ end|date:'Y-m-d' }}"
+    class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+  <input type="hidden" name="preset" value="custom">
+  {% endif %}
+  <select name="doctor" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+    <option value="">Всі лікарі</option>
+    {% for d in doctors %}<option value="{{ d.pk }}" {% if selected_doctor == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.get_full_name|default:d.username }}</option>{% endfor %}
+  </select>
+  <button type="submit" class="bg-brand-gold text-brand-dark px-4 py-1.5 rounded-lg text-sm font-medium hover:brightness-95">Показати</button>
+</form>
+
+<!-- Підсумок -->
+<div class="grid grid-cols-2 gap-4 mb-5">
+  <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+    <div class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Виручка за період</div>
+    <div class="text-2xl font-bold text-brand-dark">{{ total_revenue|floatformat:0 }} ₴</div>
+  </div>
+  <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+    <div class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">До нарахування</div>
+    <div class="text-2xl font-bold text-brand-gold">{{ total_salary|floatformat:2 }} ₴</div>
+  </div>
+</div>
+
+<!-- Таблиця -->
+<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 border-b border-gray-200">
+      <tr>
+        <th class="px-4 py-3 text-left font-medium text-gray-600">Лікар</th>
+        <th class="px-4 py-3 text-right font-medium text-gray-600">Рахунків</th>
+        <th class="px-4 py-3 text-right font-medium text-gray-600">Виручка, ₴</th>
+        <th class="px-4 py-3 text-left font-medium text-gray-600 hidden md:table-cell">Тип нарахування</th>
+        <th class="px-4 py-3 text-right font-medium text-gray-600">Зарплата, ₴</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">
+      {% for r in results %}
+      <tr class="hover:bg-gray-50">
+        <td class="px-4 py-3 font-medium text-brand-dark">{{ r.doctor.get_full_name|default:r.doctor.username }}</td>
+        <td class="px-4 py-3 text-right text-gray-500">{{ r.count }}</td>
+        <td class="px-4 py-3 text-right text-gray-700">{{ r.revenue|floatformat:0 }}</td>
+        <td class="px-4 py-3 text-gray-400 text-xs hidden md:table-cell">
+          {{ r.salary_type }}
+          {% if r.doctor.salary_type == 'percent' or r.doctor.salary_type == 'mixed' %}
+            ({{ r.doctor.salary_percent }}%)
+          {% endif %}
+          {% if r.doctor.salary_type == 'fixed' or r.doctor.salary_type == 'mixed' %}
+            {% if r.doctor.salary_fixed %}+ {{ r.doctor.salary_fixed }} ₴{% endif %}
+          {% endif %}
+        </td>
+        <td class="px-4 py-3 text-right font-semibold text-brand-gold">{{ r.salary|floatformat:2 }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5" class="px-4 py-10 text-center text-gray-400">За вказаний період даних немає</td></tr>
+      {% endfor %}
+    </tbody>
+    {% if results %}
+    <tfoot class="border-t-2 border-brand-gold">
+      <tr>
+        <td colspan="4" class="px-4 py-3 text-right font-bold text-gray-700">Разом до нарахування:</td>
+        <td class="px-4 py-3 text-right font-bold text-brand-gold text-base">{{ total_salary|floatformat:2 }} ₴</td>
+      </tr>
+    </tfoot>
+    {% endif %}
+  </table>
+</div>
+
+<p class="text-xs text-gray-400 mt-3">* Розрахунок базується на оплачених рахунках. Для зміни ставок лікарів — зверніться до адміністратора системи (Django Admin або форма редагування користувача).</p>
+{% endblock %}

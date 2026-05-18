@@ -26,6 +26,16 @@
           <span class="text-xs truncate max-w-[160px]">{{ msg.media_filename|default:"document.pdf" }}</span>
         </a>
 
+      {% elif msg.media_type == 'video' %}
+        {% if msg.media_file %}
+        <video controls class="rounded-lg max-w-[240px] max-h-[180px] mt-1" preload="metadata">
+          <source src="{{ msg.media_file.url }}">
+        </video>
+        {% endif %}
+        {% if msg.media_filename %}
+        <span class="text-xs opacity-60 mt-0.5 block truncate max-w-[200px]">{{ msg.media_filename }}</span>
+        {% endif %}
+
       {% elif msg.media_type == 'document' %}
         <a href="{{ msg.media_file.url }}" download="{{ msg.media_filename|default:'file' }}"
            class="flex items-center gap-2 py-1 hover:opacity-80 transition">
@@ -34,6 +44,15 @@
                   d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
           </svg>
           <span class="text-xs truncate max-w-[160px]">{{ msg.media_filename|default:"файл" }}</span>
+        </a>
+
+      {% elif msg.media_type == 'location' %}
+        <a href="https://www.google.com/maps?q={{ msg.text }}" target="_blank" rel="noopener"
+           class="flex items-center gap-2 py-1 hover:opacity-80 transition">
+          <svg class="w-6 h-6 shrink-0 text-green-500" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"/>
+          </svg>
+          <span class="text-xs">Геолокація — відкрити на карті</span>
         </a>
 
       {% elif msg.media_type == 'voice' %}

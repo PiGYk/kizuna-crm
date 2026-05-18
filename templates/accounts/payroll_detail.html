@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+{% block title %}Зарплата {{ payroll.user.get_full_name|default:payroll.user.username }} — Kizuna CRM{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl">
+  <div class="flex items-center gap-3 mb-6">
+    <a href="{% url 'accounts:payroll_list' %}" class="text-gray-400 hover:text-gray-600">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+    </a>
+    <h1 class="text-2xl font-bold text-gray-900">
+      Зарплата: {{ payroll.user.get_full_name|default:payroll.user.username }}
+    </h1>
+    <div class="ml-auto">
+      {% if payroll.status == 'draft' %}
+        <span class="inline-block px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">Чернетка</span>
+      {% elif payroll.status == 'approved' %}
+        <span class="inline-block px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">Затверджено</span>
+      {% elif payroll.status == 'paid' %}
+        <span class="inline-block px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">Виплачено</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Інформація про період -->
+  <div class="bg-white rounded-xl border border-gray-200 p-6 mb-4">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div>
+        <div class="text-xs text-gray-400 mb-1">Працівник</div>
+        <div class="text-sm font-medium text-brand-dark">{{ payroll.user.get_full_name|default:payroll.user.username }}</div>
+        <div class="text-xs text-gray-400">{{ payroll.user.get_role_display }}</div>
+      </div>
+      <div>
+        <div class="text-xs text-gray-400 mb-1">Період</div>
+        <div class="text-sm font-medium text-brand-dark">{{ payroll.period_start|date:"d.m" }} — {{ payroll.period_end|date:"d.m.Y" }}</div>
+      </div>
+      <div>
+        <div class="text-xs text-gray-400 mb-1">Тип ЗП</div>
+        <div class="text-sm font-medium text-brand-dark">{{ payroll.user.get_salary_type_display|default:"—" }}</div>
+      </div>
+      <div>
+        <div class="text-xs text-gray-400 mb-1">Змін / Годин</div>
+        <div class="text-sm font-medium text-brand-dark">{{ payroll.shifts_count }} змін / {{ payroll.hours_total }} год</div>
+      </div>
+    </div>
+
+    <!-- Розбивка зарплати -->
+    <div class="border-t border-gray-100 pt-4">
+      <h3 class="text-sm font-semibold text-gray-700 mb-3">Розрахунок</h3>
+      <div class="space-y-2">
+        {% if payroll.salary_fixed %}
+        <div class="flex items-center justify-between text-sm">
+          <span class="text-gray-500">Фіксована частина</span>
+          <span class="font-medium text-brand-dark">{{ payroll.salary_fixed }} ₴</span>
+        </div>
+        {% endif %}
+        {% if payroll.salary_bonus %}
+        <div class="flex items-center justify-between text-sm">
+          <span class="text-gray-500">Бонус (% від виручки {{ payroll.revenue_total }} ₴)</span>
+          <span class="font-medium text-brand-dark">+ {{ payroll.salary_bonus }} ₴</span>
+        </div>
+        {% endif %}
+        {% if payroll.salary_hourly_total %}
+        <div class="flex items-center justify-between text-sm">
+          <span class="text-gray-500">За години ({{ payroll.hours_total }} год)</span>
+          <span class="font-medium text-brand-dark">+ {{ payroll.salary_hourly_total }} ₴</span>
+        </div>
+        {% endif %}
+        {% if payroll.deductions %}
+        <div class="flex items-center justify-between text-sm">
+          <span class="text-gray-500">Утримання</span>
+          <span class="font-medium text-red-600">- {{ payroll.deductions }} ₴</span>
+        </div>
+        {% endif %}
+        <div class="flex items-center justify-between text-sm border-t border-gray-100 pt-2 mt-2">
+          <span class="font-semibold text-brand-dark">До виплати</span>
+          <span class="text-lg font-bold text-brand-dark">{{ payroll.salary_total }} ₴</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Зміни за період -->
+  {% if shifts %}
+  <div class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-4">
+    <div class="px-4 py-3 border-b border-gray-100 bg-gray-50">
+      <h3 class="text-sm font-semibold text-gray-700">Зміни за період ({{ shifts|length }})</h3>
+    </div>
+    <table class="w-full text-sm">
+      <thead class="border-b border-gray-100">
+        <tr>
+          <th class="text-left px-4 py-2 text-gray-500 font-medium">Дата</th>
+          <th class="text-left px-4 py-2 text-gray-500 font-medium">Час</th>
+          <th class="text-right px-4 py-2 text-gray-500 font-medium">Годин</th>
+          <th class="text-left px-4 py-2 text-gray-500 font-medium">Нотатки</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-50">
+        {% for shift in shifts %}
+        <tr class="hover:bg-gray-50">
+          <td class="px-4 py-2 text-gray-700">{{ shift.date|date:"d.m.Y" }}</td>
+          <td class="px-4 py-2 text-gray-500">
+            {% if shift.start_time %}{{ shift.start_time|time:"H:i" }} — {{ shift.end_time|time:"H:i" }}{% else %}—{% endif %}
+          </td>
+          <td class="px-4 py-2 text-right text-gray-700">{{ shift.hours }}</td>
+          <td class="px-4 py-2 text-gray-400 text-xs">{{ shift.notes }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {% if payroll.notes %}
+  <div class="bg-white rounded-xl border border-gray-200 p-4 mb-4">
+    <h3 class="text-sm font-semibold text-gray-700 mb-2">Нотатки</h3>
+    <p class="text-sm text-gray-600">{{ payroll.notes }}</p>
+  </div>
+  {% endif %}
+
+  <!-- Кнопки дій -->
+  <div class="flex flex-wrap gap-3">
+    {% if payroll.status == 'draft' %}
+    <form method="post" action="{% url 'accounts:payroll_approve' payroll.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="bg-blue-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+        Затвердити
+      </button>
+    </form>
+    <form method="post" action="{% url 'accounts:payroll_recalculate' payroll.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="border border-gray-200 text-gray-600 px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
+        Перерахувати
+      </button>
+    </form>
+    <form method="post" action="{% url 'accounts:payroll_delete' payroll.pk %}"
+          onsubmit="return confirm('Видалити розрахунок зарплати?')">
+      {% csrf_token %}
+      <button type="submit" class="border border-red-200 text-red-500 px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors">
+        Видалити
+      </button>
+    </form>
+    {% elif payroll.status == 'approved' %}
+    <form method="post" action="{% url 'accounts:payroll_pay' payroll.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="bg-green-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-green-700 transition-colors">
+        Виплатити
+      </button>
+    </form>
+    <form method="post" action="{% url 'accounts:payroll_recalculate' payroll.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="border border-gray-200 text-gray-600 px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
+        Перерахувати
+      </button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

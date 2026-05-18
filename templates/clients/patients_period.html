@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="flex items-center justify-between mb-6">
-  <h1 class="text-2xl font-bold text-brand-dark">Пацієнти за період</h1>
+  <h1 class="text-2xl font-bold text-brand-dark">Пацієнти з протоколами за період</h1>
 </div>
 
 <!-- Вкладки -->
@@ -35,7 +35,7 @@
     class="bg-brand-gold text-brand-dark px-4 py-2 rounded-lg text-sm font-medium hover:brightness-95 transition-all">
     Показати
   </button>
-  <span class="text-sm text-gray-400 self-end pb-2">Знайдено: <strong class="text-brand-dark">{{ count }}</strong></span>
+  <span class="text-sm text-gray-400 self-end pb-2">Знайдено: <strong class="text-brand-dark">{{ count }}</strong> пацієнтів з протоколами</span>
 </form>
 
 <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -47,6 +47,7 @@
         <th class="px-4 py-3 text-left font-medium text-gray-600">Хазяїн</th>
         <th class="px-4 py-3 text-left font-medium text-gray-600 hidden md:table-cell">Вид / Порода</th>
         <th class="px-4 py-3 text-left font-medium text-gray-600 hidden md:table-cell">Лікар</th>
+        <th class="px-4 py-3 text-left font-medium text-gray-600 hidden md:table-cell">Останній прийом</th>
         <th class="px-4 py-3"></th>
       </tr>
     </thead>
@@ -82,6 +83,9 @@
         <td class="px-4 py-3 text-gray-400 text-xs hidden md:table-cell">
           {% if patient.assigned_doctor %}{{ patient.assigned_doctor.get_full_name|default:patient.assigned_doctor.username }}{% else %}—{% endif %}
         </td>
+        <td class="px-4 py-3 text-gray-500 text-sm hidden md:table-cell">
+          {% if patient.last_visit %}{{ patient.last_visit|date:"d.m.Y" }}{% else %}—{% endif %}
+        </td>
         <td class="px-4 py-3 text-right">
           <a href="{% url 'clients:patient_detail' patient.pk %}"
              class="text-brand-gold hover:text-brand-dark text-xs font-medium"
@@ -90,8 +94,8 @@
       </tr>
       {% empty %}
       <tr>
-        <td colspan="6" class="px-4 py-12 text-center text-gray-400">
-          За вказаний період активності не знайдено
+        <td colspan="7" class="px-4 py-12 text-center text-gray-400">
+          За вказаний період протоколів не знайдено
         </td>
       </tr>
       {% endfor %}

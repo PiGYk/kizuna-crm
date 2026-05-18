@@ -21,7 +21,10 @@
 
       <!-- Додати послугу -->
       <div class="bg-white rounded-xl border border-gray-200 p-4">
-        <h2 class="text-sm font-semibold text-gray-700 mb-3">+ Послуга</h2>
+        <h2 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+          Послуга
+        </h2>
         <form hx-post="{% url 'billing:add_line' invoice.pk %}"
               hx-target="#lines-section"
               hx-swap="outerHTML"
@@ -31,41 +34,47 @@
           <input type="hidden" name="service_id" id="svc-id">
           <div class="relative mb-2" id="svc-wrap">
             <input type="text" id="svc-input" placeholder="Пошук послуги…" autocomplete="off"
-              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
-              oninput="searchSelect('svc', '/billing/service-search/', this.value, onServicePick); document.getElementById('svc-submit').disabled = true;">
-            <div id="svc-drop" class="absolute z-20 w-full bg-white border border-gray-200 rounded-lg shadow-lg hidden max-h-56 overflow-y-auto text-sm"></div>
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
+              oninput="searchSelect('svc', '/billing/service-search/', this.value); document.getElementById('svc-submit').disabled = true;">
+            <div id="svc-drop" class="absolute z-20 w-full bg-white border border-gray-200 rounded-xl shadow-lg hidden max-h-56 overflow-y-auto text-sm"></div>
           </div>
-          <div class="mb-2">
-            <label class="text-xs text-gray-500">К-сть</label>
-            <input type="number" name="quantity" value="1" min="0" step="any" required
-              class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+          <!-- Прев'ю компонентів -->
+          <div id="svc-components" class="mb-2 text-xs text-gray-400 hidden">
+            <div class="font-medium text-gray-500 mb-1">Включає витратні матеріали:</div>
+            <div id="svc-components-list" class="space-y-0.5"></div>
           </div>
-          <div class="mb-2">
-            <label class="text-xs text-gray-500">Знижка</label>
-            <div class="flex gap-1">
-              <input type="number" name="discount" value="0" min="0" step="0.01"
-                class="w-full min-w-0 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
-              <select name="discount_type"
-                class="w-20 shrink-0 border border-gray-300 rounded-lg px-1 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
-                <option value="percent">%</option>
-                <option value="amount">₴</option>
-              </select>
+          <div class="grid grid-cols-2 gap-2 mb-2">
+            <div>
+              <label class="text-xs text-gray-400">К-сть</label>
+              <input type="number" name="quantity" value="1" min="0" step="any" required
+                class="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+            </div>
+            <div>
+              <label class="text-xs text-gray-400">Знижка</label>
+              <div class="flex gap-1">
+                <input type="number" name="discount" value="0" min="0" step="0.01"
+                  class="w-full min-w-0 border border-gray-200 rounded-lg px-2 py-1.5 text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+                <select name="discount_type"
+                  class="w-14 shrink-0 border border-gray-200 rounded-lg px-1 py-1.5 text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+                  <option value="percent">%</option>
+                  <option value="amount">₴</option>
+                </select>
+              </div>
             </div>
           </div>
-          <div id="service-components-preview" class="mb-2 text-xs text-gray-400 hidden">
-            <div class="font-medium text-gray-500 mb-1">Склад послуги:</div>
-            <div id="components-list"></div>
-          </div>
           <button type="submit" id="svc-submit" disabled
-            class="w-full bg-brand-gold text-brand-dark py-1.5 rounded-lg text-sm font-medium hover:brightness-95 disabled:opacity-40 disabled:cursor-not-allowed">
-            Додати
+            class="w-full bg-brand-gold text-brand-dark py-2 rounded-lg text-sm font-medium hover:brightness-95 disabled:opacity-40 disabled:cursor-not-allowed transition">
+            Додати послугу
           </button>
         </form>
       </div>
 
       <!-- Додати товар -->
       <div class="bg-white rounded-xl border border-gray-200 p-4">
-        <h2 class="text-sm font-semibold text-gray-700 mb-3">+ Товар</h2>
+        <h2 class="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
+          <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+          Товар
+        </h2>
         <form hx-post="{% url 'billing:add_line' invoice.pk %}"
               hx-target="#lines-section"
               hx-swap="outerHTML"
@@ -75,30 +84,32 @@
           <input type="hidden" name="product_id" id="prd-id">
           <div class="relative mb-2" id="prd-wrap">
             <input type="text" id="prd-input" placeholder="Пошук товару…" autocomplete="off"
-              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
-              oninput="searchSelect('prd', '/billing/product-search/', this.value, onProductPick); document.getElementById('prd-submit').disabled = true;">
-            <div id="prd-drop" class="absolute z-20 w-full bg-white border border-gray-200 rounded-lg shadow-lg hidden max-h-56 overflow-y-auto text-sm"></div>
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
+              oninput="searchSelect('prd', '/billing/product-search/', this.value); document.getElementById('prd-submit').disabled = true;">
+            <div id="prd-drop" class="absolute z-20 w-full bg-white border border-gray-200 rounded-xl shadow-lg hidden max-h-56 overflow-y-auto text-sm"></div>
           </div>
-          <div class="mb-2">
-            <label class="text-xs text-gray-500">К-сть</label>
-            <input type="number" name="quantity" value="1" min="0" step="any" required
-              class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
-          </div>
-          <div class="mb-2">
-            <label class="text-xs text-gray-500">Знижка</label>
-            <div class="flex gap-1">
-              <input type="number" name="discount" value="0" min="0" step="0.01"
-                class="w-full min-w-0 border border-gray-300 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
-              <select name="discount_type"
-                class="w-20 shrink-0 border border-gray-300 rounded-lg px-1 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
-                <option value="percent">%</option>
-                <option value="amount">₴</option>
-              </select>
+          <div class="grid grid-cols-2 gap-2 mb-2">
+            <div>
+              <label class="text-xs text-gray-400">К-сть</label>
+              <input type="number" name="quantity" value="1" min="0" step="any" required
+                class="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+            </div>
+            <div>
+              <label class="text-xs text-gray-400">Знижка</label>
+              <div class="flex gap-1">
+                <input type="number" name="discount" value="0" min="0" step="0.01"
+                  class="w-full min-w-0 border border-gray-200 rounded-lg px-2 py-1.5 text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+                <select name="discount_type"
+                  class="w-14 shrink-0 border border-gray-200 rounded-lg px-1 py-1.5 text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+                  <option value="percent">%</option>
+                  <option value="amount">₴</option>
+                </select>
+              </div>
             </div>
           </div>
           <button type="submit" id="prd-submit" disabled
-            class="w-full bg-brand-gold text-brand-dark py-1.5 rounded-lg text-sm font-medium hover:brightness-95 disabled:opacity-40 disabled:cursor-not-allowed">
-            Додати
+            class="w-full bg-brand-gold text-brand-dark py-2 rounded-lg text-sm font-medium hover:brightness-95 disabled:opacity-40 disabled:cursor-not-allowed transition">
+            Додати товар
           </button>
         </form>
       </div>
@@ -116,19 +127,25 @@
 <div class="mt-4 flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
   <svg class="w-5 h-5 shrink-0 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
   <span class="flex-1 font-medium">Очікуємо оплату через Monobank QR...</span>
-  <div class="flex gap-2 shrink-0">
+  <div class="flex gap-2 shrink-0 flex-wrap">
     <form method="post" action="{% url 'billing:confirm_payment' invoice.pk %}">
       {% csrf_token %}
-      <button type="submit"
-        class="px-3 py-1.5 rounded-lg text-xs font-medium bg-green-600 text-white hover:bg-green-700">
-        ✓ Перевірити оплату
+      <button type="submit" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-green-600 text-white hover:bg-green-700">
+        Перевірити оплату
       </button>
     </form>
+    {% if invoice.fiscal_page_url %}
+    <form method="post" action="{% url 'billing:send_tg_payment' invoice.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-500 text-white hover:bg-blue-600">
+        Telegram
+      </button>
+    </form>
+    {% endif %}
     <form method="post" action="{% url 'billing:cancel_fiscal' invoice.pk %}"
           onsubmit="return confirm('Скасувати очікування оплати?')">
       {% csrf_token %}
-      <button type="submit"
-        class="px-3 py-1.5 rounded-lg text-xs font-medium bg-white border border-red-200 text-red-500 hover:bg-red-50">
+      <button type="submit" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-white border border-red-200 text-red-500 hover:bg-red-50">
         Скасувати
       </button>
     </form>
@@ -187,28 +204,23 @@
   </div>
 </div>
 
-<!-- Попап підтвердження оплати -->
+<!-- Попап оплати (спрощений) -->
 <div id="pay-modal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4">
-  <div class="bg-white rounded-xl p-6 max-w-lg w-full shadow-xl max-h-[90vh] overflow-y-auto">
-    <h2 class="text-lg font-bold text-brand-dark mb-4">Підтвердження оплати</h2>
-    <p class="text-sm text-gray-600 mb-4">Оберіть, для яких послуг списати товари зі складу:</p>
-    <form method="post" action="{% url 'billing:pay' invoice.pk %}" id="pay-form">
+  <div class="bg-white rounded-xl p-6 max-w-sm w-full shadow-xl">
+    <h2 class="text-lg font-bold text-brand-dark mb-4">Оплата без фіскалізації</h2>
+    <form method="post" action="{% url 'billing:pay' invoice.pk %}">
       {% csrf_token %}
-      <div id="service-writeoff-list" class="space-y-2 mb-4"></div>
-      <p class="text-xs text-gray-400 mb-2">Товари, додані напряму, списуються автоматично.</p>
       <input type="hidden" name="payment_method" id="pay-method-input" value="cash">
-      <div class="mb-4">
-        <label class="text-xs text-gray-500 block mb-1.5">Спосіб оплати</label>
+      <div class="mb-5">
+        <label class="text-xs text-gray-500 block mb-2">Спосіб оплати</label>
         <div class="flex gap-2">
-          <button type="button" id="btn-cash"
-            onclick="selectPayMethod('cash')"
-            class="flex-1 py-2 rounded-lg text-sm font-medium border-2 border-brand-gold bg-brand-gold/10 text-brand-dark">
-            Готівка
+          <button type="button" id="btn-cash" onclick="selectPayMethod('cash')"
+            class="flex-1 py-2.5 rounded-lg text-sm font-medium border-2 border-brand-gold bg-brand-gold/10 text-brand-dark flex items-center justify-center gap-1.5">
+            <span>💵</span> Готівка
           </button>
-          <button type="button" id="btn-card"
-            onclick="selectPayMethod('card')"
-            class="flex-1 py-2 rounded-lg text-sm font-medium border-2 border-gray-200 text-gray-500 hover:border-gray-300">
-            Картка
+          <button type="button" id="btn-card" onclick="selectPayMethod('card')"
+            class="flex-1 py-2.5 rounded-lg text-sm font-medium border-2 border-gray-200 text-gray-500 hover:border-gray-300 flex items-center justify-center gap-1.5">
+            <span>💳</span> Картка
           </button>
         </div>
       </div>
@@ -229,9 +241,9 @@
 <script>
 // ── Пошук-select ─────────────────────────────────────────────────────────────
 const _searchTimers = {};
-const _componentCache = {};
+let _lastPickedService = null;
 
-function searchSelect(key, url, q, onPick) {
+function searchSelect(key, url, q) {
   clearTimeout(_searchTimers[key]);
   const drop = document.getElementById(key + '-drop');
   if (!q) { drop.classList.add('hidden'); return; }
@@ -241,10 +253,24 @@ function searchSelect(key, url, q, onPick) {
     if (!data.results.length) {
       drop.innerHTML = '<div class="px-3 py-2 text-gray-400">Нічого не знайдено</div>';
     } else {
-      drop.innerHTML = data.results.map(r => onPick.render(r)).join('');
+      drop.innerHTML = data.results.map(r => renderDropItem(key, r)).join('');
     }
     drop.classList.remove('hidden');
   }, 220);
+}
+
+function renderDropItem(key, r) {
+  const extra = key === 'prd'
+    ? `<span class="text-gray-400 shrink-0">${r.qty} ${r.unit} &middot; ${r.price} ₴</span>`
+    : `<span class="text-gray-400 shrink-0">${r.price} ₴</span>`;
+  let comps = '';
+  if (key === 'svc' && r.components && r.components.length) {
+    comps = '<div class="text-xs text-gray-300 mt-0.5">' +
+      r.components.map(c => c.name + ' &times;' + c.qty).join(', ') + '</div>';
+  }
+  return `<div class="px-3 py-2 hover:bg-brand-gold/10 cursor-pointer" data-type="${key}" data-id="${r.id}" data-name="${r.name}" data-components='${JSON.stringify(r.components || [])}'>
+    <div class="flex justify-between gap-2"><span class="break-words">${r.name}</span>${extra}</div>${comps}
+  </div>`;
 }
 
 function pickItem(key, id, label) {
@@ -262,11 +288,11 @@ function resetSearchSelect(key) {
   const btn = document.getElementById(key + '-submit');
   if (btn) btn.disabled = true;
   if (key === 'svc') {
-    document.getElementById('service-components-preview').classList.add('hidden');
+    document.getElementById('svc-components').classList.add('hidden');
   }
 }
 
-// закрити дропдаун при кліку поза
+// Закрити дропдаун при кліку поза
 document.addEventListener('click', e => {
   ['svc', 'prd'].forEach(key => {
     const wrap = document.getElementById(key + '-wrap');
@@ -275,61 +301,32 @@ document.addEventListener('click', e => {
   });
 });
 
-// ── Обробники для послуги ────────────────────────────────────────────────────
-const onServicePick = {
-  render: r => {
-    const div = document.createElement('div');
-    div.className = 'px-3 py-2 hover:bg-brand-gold/10 cursor-pointer flex justify-between gap-2';
-    div.dataset.id = r.id;
-    div.dataset.name = r.name;
-    div.dataset.price = r.price;
-    div.dataset.type = 'svc';
-    div.innerHTML = `<span class="break-words">${r.name}</span><span class="text-gray-400 shrink-0">${r.price} ₴</span>`;
-    return div.outerHTML;
-  }
-};
-
-// ── Обробники для товару ─────────────────────────────────────────────────────
-const onProductPick = {
-  render: r => {
-    const div = document.createElement('div');
-    div.className = 'px-3 py-2 hover:bg-brand-gold/10 cursor-pointer flex justify-between gap-2';
-    div.dataset.id = r.id;
-    div.dataset.name = r.name;
-    div.dataset.type = 'prd';
-    div.innerHTML = `<span class="break-words">${r.name}</span><span class="text-gray-400 shrink-0">${r.qty} ${r.unit} · ${r.price} ₴</span>`;
-    return div.outerHTML;
-  }
-};
-
 // ── Делегований клік по дропдауну ────────────────────────────────────────────
-document.addEventListener('mousedown', async e => {
+document.addEventListener('mousedown', e => {
   const item = e.target.closest('[data-type]');
   if (!item) return;
   e.preventDefault();
   const key = item.dataset.type;
-  const id = item.dataset.id;
-  const name = item.dataset.name;
-  pickItem(key, id, name);
+  pickItem(key, item.dataset.id, item.dataset.name);
+
   if (key === 'svc') {
-    const preview = document.getElementById('service-components-preview');
-    const list = document.getElementById('components-list');
-    if (!_componentCache[id]) {
-      const resp = await fetch('/billing/service-components/' + id + '/');
-      _componentCache[id] = await resp.text();
+    const comps = JSON.parse(item.dataset.components || '[]');
+    const preview = document.getElementById('svc-components');
+    const list = document.getElementById('svc-components-list');
+    if (comps.length) {
+      list.innerHTML = comps.map(c =>
+        `<div class="flex items-center gap-1"><span class="w-1 h-1 rounded-full bg-gray-300 inline-block"></span> ${c.name} <span class="text-gray-300">&times;${c.qty} ${c.unit}</span></div>`
+      ).join('');
+      preview.classList.remove('hidden');
+    } else {
+      preview.classList.add('hidden');
     }
-    list.innerHTML = _componentCache[id];
-    preview.classList.toggle('hidden', !list.textContent.trim().length);
   }
 });
 
 // ── Попап фіскалізації ───────────────────────────────────────────────────────
-function openFiscalModal() {
-  document.getElementById('fiscal-modal').classList.remove('hidden');
-}
-function closeFiscalModal() {
-  document.getElementById('fiscal-modal').classList.add('hidden');
-}
+function openFiscalModal() { document.getElementById('fiscal-modal').classList.remove('hidden'); }
+function closeFiscalModal() { document.getElementById('fiscal-modal').classList.add('hidden'); }
 function selectFiscalType(type) {
   document.getElementById('fiscal-type-input').value = type;
   const btns = { card: 'fiscal-btn-card', cash: 'fiscal-btn-cash' };
@@ -346,70 +343,62 @@ function selectFiscalType(type) {
 }
 
 // ── Попап оплати ─────────────────────────────────────────────────────────────
-function openPayModal() {
-  const rows = document.querySelectorAll('[data-service-id]');
-  const list = document.getElementById('service-writeoff-list');
-  list.innerHTML = '';
-
-  rows.forEach(row => {
-    const sid = row.dataset.serviceId;
-    const lid = row.dataset.lineId;
-    const name = row.dataset.serviceName;
-    const hasComps = row.dataset.hasComponents === 'true';
-    if (!hasComps) return;
-
-    // Зчитуємо значення з інлайн-інпутів компонентів
-    const inlineInputs = row.querySelectorAll('.comp-qty-input');
-    let compsHtml = '';
-    inlineInputs.forEach(inp => {
-      const compId = inp.dataset.compId;
-      const qty = inp.value;
-      const label = inp.closest('.flex').querySelector('.text-gray-500').textContent;
-      const unit = inp.closest('.flex').querySelector('.w-8') ?
-                   inp.closest('.flex').querySelector('.w-8').textContent.trim() : '';
-      compsHtml += `
-        <div class="flex items-center gap-2 ml-6 mt-1">
-          <span class="flex-1 text-xs text-gray-500">${label}</span>
-          <input type="number" name="comp_qty_${lid}_${compId}"
-            value="${qty}" min="0" step="any"
-            class="w-20 border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-gold">
-          <span class="text-xs text-gray-400 w-8">${unit}</span>
-        </div>`;
-    });
-
-    list.innerHTML += `
-      <div class="mb-3">
-        <label class="flex items-center gap-2 text-sm cursor-pointer font-medium">
-          <input type="checkbox" name="writeoff_service" value="${sid}" checked
-            class="rounded border-gray-300 text-brand-gold focus:ring-brand-gold">
-          <span>${name}</span>
-        </label>
-        ${compsHtml}
-      </div>`;
-  });
-
-  if (list.innerHTML === '') {
-    list.innerHTML = '<p class="text-sm text-gray-400">Послуг зі складовими немає</p>';
-  }
-
-  document.getElementById('pay-modal').classList.remove('hidden');
-}
-
-function closePayModal() {
-  document.getElementById('pay-modal').classList.add('hidden');
-}
-
+function openPayModal() { document.getElementById('pay-modal').classList.remove('hidden'); }
+function closePayModal() { document.getElementById('pay-modal').classList.add('hidden'); }
 function selectPayMethod(method) {
   document.getElementById('pay-method-input').value = method;
   const btnCash = document.getElementById('btn-cash');
   const btnCard = document.getElementById('btn-card');
   if (method === 'cash') {
-    btnCash.className = 'flex-1 py-2 rounded-lg text-sm font-medium border-2 border-brand-gold bg-brand-gold/10 text-brand-dark';
-    btnCard.className = 'flex-1 py-2 rounded-lg text-sm font-medium border-2 border-gray-200 text-gray-500 hover:border-gray-300';
+    btnCash.className = 'flex-1 py-2.5 rounded-lg text-sm font-medium border-2 border-brand-gold bg-brand-gold/10 text-brand-dark flex items-center justify-center gap-1.5';
+    btnCard.className = 'flex-1 py-2.5 rounded-lg text-sm font-medium border-2 border-gray-200 text-gray-500 hover:border-gray-300 flex items-center justify-center gap-1.5';
   } else {
-    btnCard.className = 'flex-1 py-2 rounded-lg text-sm font-medium border-2 border-brand-gold bg-brand-gold/10 text-brand-dark';
-    btnCash.className = 'flex-1 py-2 rounded-lg text-sm font-medium border-2 border-gray-200 text-gray-500 hover:border-gray-300';
+    btnCard.className = 'flex-1 py-2.5 rounded-lg text-sm font-medium border-2 border-brand-gold bg-brand-gold/10 text-brand-dark flex items-center justify-center gap-1.5';
+    btnCash.className = 'flex-1 py-2.5 rounded-lg text-sm font-medium border-2 border-gray-200 text-gray-500 hover:border-gray-300 flex items-center justify-center gap-1.5';
   }
 }
+
+// ── Додавання компонентів до послуги ─────────────────────────────────────────
+function toggleCompAdd(lineId) {
+  document.getElementById('comp-form-' + lineId).classList.toggle('hidden');
+  var input = document.getElementById('comp-search-' + lineId);
+  if (input) input.focus();
+}
+
+var _compTimers = {};
+function searchComp(lineId, q) {
+  clearTimeout(_compTimers[lineId]);
+  var drop = document.getElementById('comp-drop-' + lineId);
+  if (!q || q.length < 2) { drop.classList.add('hidden'); return; }
+  _compTimers[lineId] = setTimeout(function() {
+    fetch('/billing/product-search/?q=' + encodeURIComponent(q))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.results.length) {
+          drop.innerHTML = '<div class="px-2 py-1 text-gray-400">Нічого</div>';
+        } else {
+          drop.innerHTML = data.results.map(function(r) {
+            return '<div class="px-2 py-1.5 hover:bg-brand-gold/10 cursor-pointer flex justify-between" onclick="pickComp(' + lineId + ',' + r.id + ',\'' + r.name.replace(/'/g, "\\'") + '\')">'
+              + '<span>' + r.name + '</span>'
+              + '<span class="text-gray-400">' + r.qty + ' ' + (r.unit || '') + '</span></div>';
+          }).join('');
+        }
+        drop.classList.remove('hidden');
+      });
+  }, 200);
+}
+
+function pickComp(lineId, productId, name) {
+  document.getElementById('comp-pid-' + lineId).value = productId;
+  document.getElementById('comp-search-' + lineId).value = name;
+  document.getElementById('comp-drop-' + lineId).classList.add('hidden');
+}
+
+// Закрити dropdown при кліку поза
+document.addEventListener('click', function(e) {
+  document.querySelectorAll('[id^="comp-drop-"]').forEach(function(d) {
+    if (!d.parentElement.contains(e.target)) d.classList.add('hidden');
+  });
+});
 </script>
 {% endblock %}

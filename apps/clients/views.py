@@ -1,13 +1,19 @@
+from datetime import timedelta
+
 from django.contrib import messages
 from django.db.models import Q
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
+from django.views.decorators.http import require_POST
 from django.views.generic import ListView, CreateView, UpdateView, DetailView
 from django.urls import reverse_lazy, reverse
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.decorators import login_required
 
-from .forms import ClientForm, PatientForm, VisitForm, VaccineForm, AnalysisForm, WeightForm
-from .models import Client, Patient, Visit, Vaccine, PatientAnalysis, WeightRecord
+from apps.billing.models import Invoice
+from .forms import ClientForm, PatientForm, VisitForm, VaccineForm, AnalysisForm, WeightForm, HospitalizationForm
+from .models import Client, Patient, Visit, Vaccine, PatientAnalysis, WeightRecord, Hospitalization
 
 
 class PatientListView(LoginRequiredMixin, ListView):
@@ -18,6 +24,8 @@ class PatientListView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         qs = Patient.objects.select_related('client', 'assigned_doctor')
+        if self.request.organization:
+            qs = qs.filter(client__organization=self.request.organization)
         q = self.request.GET.get('q', '').strip()
         if q:
             qs = qs.filter(
@@ -26,14 +34,21 @@ class PatientListView(LoginRequiredMixin, ListView):
                 Q(client__last_name__icontains=q) |
                 Q(breed__icontains=q)
             )
-        if self.request.GET.get('sort') == 'new':
+        species = self.request.GET.get('species', '')
+        if species:
+            qs = qs.filter(species=species)
+        sort = self.request.GET.get('sort', '')
+        if sort == 'new':
             qs = qs.order_by('-created_at')
+        elif sort == 'old':
+            qs = qs.order_by('created_at')
         return qs
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['q'] = self.request.GET.get('q', '')
         ctx['sort'] = self.request.GET.get('sort', '')
+        ctx['species'] = self.request.GET.get('species', '')
         return ctx
 
 
@@ -45,6 +60,8 @@ class ClientListView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         qs = super().get_queryset().prefetch_related('patients')
+        if self.request.organization:
+            qs = qs.filter(organization=self.request.organization)
         q = self.request.GET.get('q', '').strip()
         if q:
             qs = qs.filter(
@@ -52,14 +69,33 @@ class ClientListView(LoginRequiredMixin, ListView):
                 Q(last_name__icontains=q) |
                 Q(phone__icontains=q)
             )
-        if self.request.GET.get('sort') == 'new':
+        activity = self.request.GET.get('activity', '')
+        if activity == 'inactive':
+            six_months_ago = timezone.now().date() - timedelta(days=180)
+            qs = qs.filter(
+                ~Q(patients__visits__date__date__gte=six_months_ago)
+            ).distinct()
+        elif activity == 'active':
+            six_months_ago = timezone.now().date() - timedelta(days=180)
+            qs = qs.filter(
+                patients__visits__date__date__gte=six_months_ago
+            ).distinct()
+        sort = self.request.GET.get('sort', '')
+        if sort == 'name':
+            qs = qs.order_by('last_name', 'first_name')
+        elif sort == 'name_desc':
+            qs = qs.order_by('-last_name', '-first_name')
+        elif sort == 'new':
             qs = qs.order_by('-created_at')
+        elif sort == 'old':
+            qs = qs.order_by('created_at')
         return qs
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['q'] = self.request.GET.get('q', '')
         ctx['sort'] = self.request.GET.get('sort', '')
+        ctx['activity'] = self.request.GET.get('activity', '')
         return ctx
 
 
@@ -104,7 +140,8 @@ class ClientDetailView(LoginRequiredMixin, DetailView):
 @login_required
 def patient_create(request, client_pk):
     client = get_object_or_404(Client, pk=client_pk)
-    form = PatientForm(request.POST or None, request.FILES or None)
+    org = request.organization
+    form = PatientForm(request.POST or None, request.FILES or None, org=org)
     if request.method == 'POST' and form.is_valid():
         patient = form.save(commit=False)
         patient.client = client
@@ -117,7 +154,8 @@ def patient_create(request, client_pk):
 @login_required
 def patient_update(request, pk):
     patient = get_object_or_404(Patient, pk=pk)
-    form = PatientForm(request.POST or None, request.FILES or None, instance=patient)
+    org = request.organization
+    form = PatientForm(request.POST or None, request.FILES or None, instance=patient, org=org)
     if request.method == 'POST' and form.is_valid():
         form.save()
         messages.success(request, 'Збережено')
@@ -138,19 +176,26 @@ class PatientDetailView(LoginRequiredMixin, DetailView):
         ctx['vaccines'] = self.object.vaccines.select_related('doctor').all()
         ctx['invoices'] = self.object.invoices.select_related('doctor').filter(status='paid').all()
         ctx['analyses'] = self.object.analyses.all()
-        ctx['visit_form'] = VisitForm(initial={'doctor': self.request.user})
-        ctx['vaccine_form'] = VaccineForm(initial={'doctor': self.request.user})
+        org = self.request.organization
+        default_doc = org.get_default_doctor(self.request.user) if org else self.request.user
+        ctx['visit_form'] = VisitForm(initial={'doctor': default_doc}, org=org)
+        ctx['vaccine_form'] = VaccineForm(initial={'doctor': default_doc}, org=org)
         ctx['analysis_form'] = AnalysisForm(initial={'date': date.today()})
         ctx['weight_form'] = WeightForm(initial={'date': date.today()})
         ctx['weights'] = list(self.object.weights.order_by('date').all())
-        ctx['doctors'] = get_user_model().objects.filter(role__in=['admin', 'doctor']).order_by('last_name', 'first_name')
+        ctx['doctors'] = get_user_model().objects.filter(
+            role__in=['admin', 'doctor'],
+            organization=self.request.organization,
+        ).order_by('last_name', 'first_name')
         return ctx
 
 
 @login_required
 def visit_create(request, patient_pk):
     patient = get_object_or_404(Patient, pk=patient_pk)
-    form = VisitForm(request.POST or None, initial={'doctor': request.user})
+    org = request.organization
+    default_doc = org.get_default_doctor(request.user) if org else request.user
+    form = VisitForm(request.POST or None, initial={'doctor': default_doc}, org=org)
     if request.method == 'POST' and form.is_valid():
         visit = form.save(commit=False)
         visit.patient = patient
@@ -161,12 +206,17 @@ def visit_create(request, patient_pk):
 
 
 @login_required
+@require_POST
 def visit_duplicate(request, pk):
     from django.utils import timezone
-    original = get_object_or_404(Visit, pk=pk)
+    original = get_object_or_404(
+        Visit, pk=pk, patient__client__organization=request.organization
+    )
+    org = request.organization
+    default_doc = org.get_default_doctor(request.user) if org else request.user
     copy = Visit.objects.create(
         patient=original.patient,
-        doctor=request.user,
+        doctor=default_doc,
         date=timezone.now(),
         complaint=original.complaint,
         diagnosis=original.diagnosis,
@@ -178,8 +228,11 @@ def visit_duplicate(request, pk):
 
 @login_required
 def visit_update(request, pk):
-    visit = get_object_or_404(Visit, pk=pk)
-    form = VisitForm(request.POST or None, instance=visit)
+    visit = get_object_or_404(
+        Visit, pk=pk, patient__client__organization=request.organization
+    )
+    org = request.organization
+    form = VisitForm(request.POST or None, instance=visit, org=org)
     if request.method == 'POST' and form.is_valid():
         form.save()
         messages.success(request, 'Збережено')
@@ -191,7 +244,9 @@ def visit_update(request, pk):
 def visit_pdf(request, pk):
     from django.http import HttpResponse
     from django.template.loader import render_to_string
-    visit = get_object_or_404(Visit, pk=pk)
+    visit = get_object_or_404(
+        Visit, pk=pk, patient__client__organization=request.organization
+    )
     try:
         from weasyprint import HTML
     except ImportError:
@@ -199,6 +254,7 @@ def visit_pdf(request, pk):
     html_string = render_to_string('clients/visit_pdf.html', {
         'visit': visit,
         'patient': visit.patient,
+        'clinic': request.organization,
         'request': request,
     })
     pdf = HTML(string=html_string, base_url=request.build_absolute_uri('/')).write_pdf()
@@ -210,42 +266,63 @@ def visit_pdf(request, pk):
 
 @login_required
 def vaccine_create(request, patient_pk):
+    from apps.inventory.models import Product
     patient = get_object_or_404(Patient, pk=patient_pk)
-    form = VaccineForm(request.POST or None, initial={'doctor': request.user})
+    org = request.organization
+    default_doc = org.get_default_doctor(request.user) if org else request.user
+    form = VaccineForm(request.POST or None, initial={'doctor': default_doc}, org=org)
     if request.method == 'POST' and form.is_valid():
         vaccine = form.save(commit=False)
         vaccine.patient = patient
         vaccine.save()
         messages.success(request, 'Вакцинацію додано')
         return redirect('clients:patient_detail', pk=patient.pk)
-    return render(request, 'clients/vaccine_form.html', {'form': form, 'patient': patient})
+    products = Product.objects.filter(
+        organization=request.organization
+    ).order_by('name').values_list('name', flat=True)
+    return render(request, 'clients/vaccine_form.html', {
+        'form': form, 'patient': patient, 'product_names': list(products),
+    })
 
 
 @login_required
 def vaccine_update(request, pk):
+    from apps.inventory.models import Product
     vaccine = get_object_or_404(Vaccine, pk=pk)
-    form = VaccineForm(request.POST or None, instance=vaccine)
+    org = request.organization
+    form = VaccineForm(request.POST or None, instance=vaccine, org=org)
     if request.method == 'POST' and form.is_valid():
         form.save()
         messages.success(request, 'Збережено')
         return redirect('clients:patient_detail', pk=vaccine.patient.pk)
-    return render(request, 'clients/vaccine_form.html', {'form': form, 'patient': vaccine.patient, 'vaccine': vaccine})
+    products = Product.objects.filter(
+        organization=vaccine.patient.client.organization
+    ).order_by('name').values_list('name', flat=True)
+    return render(request, 'clients/vaccine_form.html', {
+        'form': form, 'patient': vaccine.patient, 'vaccine': vaccine,
+        'product_names': list(products),
+    })
 
 
 @login_required
 def patient_set_doctor(request, pk):
     from django.contrib.auth import get_user_model
     from django.http import HttpResponse
-    patient = get_object_or_404(Patient, pk=pk)
+    patient = get_object_or_404(Patient, pk=pk, client__organization=request.organization)
     if request.method == 'POST':
         doctor_id = request.POST.get('assigned_doctor') or None
         if doctor_id:
             User = get_user_model()
-            patient.assigned_doctor = get_object_or_404(User, pk=doctor_id)
+            patient.assigned_doctor = get_object_or_404(
+                User, pk=doctor_id, organization=request.organization
+            )
         else:
             patient.assigned_doctor = None
         patient.save(update_fields=['assigned_doctor'])
-    doctors = get_user_model().objects.filter(role__in=['admin', 'doctor']).order_by('last_name', 'first_name')
+    doctors = get_user_model().objects.filter(
+        role__in=['admin', 'doctor'],
+        organization=request.organization,
+    ).order_by('last_name', 'first_name')
     return render(request, 'clients/partials/patient_doctor.html', {
         'patient': patient,
         'doctors': doctors,
@@ -254,7 +331,9 @@ def patient_set_doctor(request, pk):
 
 @login_required
 def analysis_create(request, patient_pk):
-    patient = get_object_or_404(Patient, pk=patient_pk)
+    patient = get_object_or_404(
+        Patient, pk=patient_pk, client__organization=request.organization
+    )
     if request.method == 'POST':
         form = AnalysisForm(request.POST, request.FILES)
         if form.is_valid():
@@ -270,7 +349,9 @@ def analysis_create(request, patient_pk):
 
 @login_required
 def analysis_delete(request, pk):
-    analysis = get_object_or_404(PatientAnalysis, pk=pk)
+    analysis = get_object_or_404(
+        PatientAnalysis, pk=pk, patient__client__organization=request.organization
+    )
     patient_pk = analysis.patient.pk
     if request.method == 'POST':
         analysis.image.delete(save=False)
@@ -286,6 +367,8 @@ def client_search(request):
     clients = []
     if len(q) >= 2:
         clients = Client.objects.filter(
+            organization=request.organization,
+        ).filter(
             Q(first_name__icontains=q) |
             Q(last_name__icontains=q) |
             Q(phone__icontains=q)
@@ -296,7 +379,9 @@ def client_search(request):
 
 @login_required
 def weight_add(request, patient_pk):
-    patient = get_object_or_404(Patient, pk=patient_pk)
+    patient = get_object_or_404(
+        Patient, pk=patient_pk, client__organization=request.organization
+    )
     if request.method == 'POST':
         form = WeightForm(request.POST)
         if form.is_valid():
@@ -310,7 +395,9 @@ def weight_add(request, patient_pk):
 
 @login_required
 def weight_delete(request, pk):
-    record = get_object_or_404(WeightRecord, pk=pk)
+    record = get_object_or_404(
+        WeightRecord, pk=pk, patient__client__organization=request.organization
+    )
     patient_pk = record.patient.pk
     if request.method == 'POST':
         record.delete()
@@ -320,7 +407,7 @@ def weight_delete(request, pk):
 @login_required
 def patients_by_period(request):
     from datetime import date, timedelta
-    from django.db.models import Q
+    from django.db.models import Max
 
     # Дефолт: останні 30 днів
     today = date.today()
@@ -338,14 +425,15 @@ def patients_by_period(request):
     except ValueError:
         date_to = today
 
-    # Пацієнти з будь-якою активністю за період
-    patients_qs = Patient.objects.filter(
-        Q(invoices__date__date__range=(date_from, date_to)) |
-        Q(visits__date__date__range=(date_from, date_to)) |
-        Q(analyses__date__range=(date_from, date_to)) |
-        Q(vaccines__date__range=(date_from, date_to)) |
-        Q(weights__date__range=(date_from, date_to))
-    ).select_related('client', 'assigned_doctor').distinct().order_by('name')
+    # Пацієнти у яких є протоколи (візити) за вказаний період
+    patients_qs = (
+        Patient.objects
+        .filter(visits__date__date__range=(date_from, date_to))
+        .select_related('client', 'assigned_doctor')
+        .annotate(last_visit=Max('visits__date'))
+        .distinct()
+        .order_by('-last_visit')
+    )
 
     return render(request, 'clients/patients_period.html', {
         'patients': patients_qs,
@@ -357,9 +445,567 @@ def patients_by_period(request):
 
 @login_required
 def client_delete(request, pk):
+    from django.db.models import ProtectedError
     client = get_object_or_404(Client, pk=pk)
+    invoices_count = client.invoices.count()
     if request.method == 'POST':
-        client.delete()
+        try:
+            client.delete()
+        except ProtectedError:
+            # Запобіжник: якщо хтось встиг створити рахунок між GET та POST.
+            messages.error(
+                request,
+                f'Не можна видалити клієнта «{client.first_name} {client.last_name}» — '
+                f'є {client.invoices.count()} рахун(ків). Спочатку видаліть або скасуйте їх.'
+            )
+            return redirect('clients:detail', pk=client.pk)
         messages.success(request, f'Клієнта {client.first_name} {client.last_name} видалено')
         return redirect('clients:list')
-    return render(request, 'clients/confirm_delete.html', {'client': client})
+    return render(request, 'clients/confirm_delete.html', {
+        'client': client,
+        'invoices_count': invoices_count,
+    })
+
+
+@login_required
+def patient_delete(request, pk):
+    patient = get_object_or_404(Patient, pk=pk)
+    client_pk = patient.client.pk
+    if request.method == 'POST':
+        name = patient.name
+        patient.delete()
+        messages.success(request, f'Пацієнта {name} видалено')
+        return redirect('clients:detail', pk=client_pk)
+    return render(request, 'clients/patient_confirm_delete.html', {'patient': patient})
+
+
+@login_required
+def hospitalization_list(request):
+    active = Hospitalization.objects.filter(status='active').select_related(
+        'patient__client', 'doctor'
+    )
+    recent = Hospitalization.objects.filter(status='discharged').select_related(
+        'patient__client', 'doctor'
+    )[:20]
+    return render(request, 'clients/hospitalization_list.html', {
+        'active': active,
+        'recent': recent,
+    })
+
+
+@login_required
+def hospitalization_create(request, patient_pk):
+    from django.contrib.auth import get_user_model
+    patient = get_object_or_404(
+        Patient, pk=patient_pk, client__organization=request.organization
+    )
+    doctors = get_user_model().objects.filter(
+        role__in=['admin', 'doctor'], organization=request.organization
+    ).order_by('last_name', 'first_name')
+    if request.method == 'POST':
+        form = HospitalizationForm(request.POST)
+        if form.is_valid():
+            hosp = form.save(commit=False)
+            hosp.patient = patient
+            hosp.organization = request.organization
+            doctor_id = request.POST.get('doctor') or None
+            if doctor_id:
+                hosp.doctor = get_object_or_404(
+                    get_user_model(),
+                    pk=doctor_id,
+                    organization=request.organization,
+                )
+            hosp.save()
+            messages.success(request, f'{patient.name} госпіталізовано')
+            return redirect('clients:hospitalization_list')
+    else:
+        form = HospitalizationForm()
+    return render(request, 'clients/hospitalization_form.html', {
+        'patient': patient, 'doctors': doctors, 'form': form,
+    })
+
+
+@login_required
+def hospitalization_discharge(request, pk):
+    hosp = get_object_or_404(
+        Hospitalization, pk=pk, patient__client__organization=request.organization
+    )
+    if request.method == 'POST':
+        from django.utils import timezone
+        hosp.status = 'discharged'
+        hosp.discharged_at = timezone.now()
+        hosp.discharge_notes = request.POST.get('discharge_notes', '').strip()
+        hosp.save(update_fields=['status', 'discharged_at', 'discharge_notes'])
+        messages.success(request, f'{hosp.patient.name} виписано')
+        return redirect('clients:hospitalization_list')
+    return render(request, 'clients/hospitalization_discharge.html', {'hosp': hosp})
+
+
+@login_required
+def vaccines_overdue(request):
+    from datetime import date, timedelta
+
+    today = date.today()
+    week_ahead = today + timedelta(days=7)
+    month_ahead = today + timedelta(days=30)
+
+    overdue = (
+        Vaccine.objects
+        .filter(next_date__lt=today, patient__client__organization=request.organization)
+        .select_related('patient__client', 'patient__assigned_doctor')
+        .order_by('next_date')
+    )
+
+    due_week = (
+        Vaccine.objects
+        .filter(next_date__gte=today, next_date__lte=week_ahead, patient__client__organization=request.organization)
+        .select_related('patient__client', 'patient__assigned_doctor')
+        .order_by('next_date')
+    )
+
+    due_month = (
+        Vaccine.objects
+        .filter(next_date__gt=week_ahead, next_date__lte=month_ahead, patient__client__organization=request.organization)
+        .select_related('patient__client', 'patient__assigned_doctor')
+        .order_by('next_date')
+    )
+
+    all_vaccines = (
+        Vaccine.objects
+        .filter(patient__client__organization=request.organization)
+        .select_related('patient__client', 'patient__assigned_doctor', 'doctor')
+        .order_by('-date')
+    )
+
+    return render(request, 'clients/vaccines_overdue.html', {
+        'overdue': overdue,
+        'due_week': due_week,
+        'due_month': due_month,
+        'all_vaccines': all_vaccines,
+        'today': today,
+    })
+
+
+# ── Зведена медкартка PDF ──────────────────────────────────────────────
+@login_required
+def patient_medical_card(request, pk):
+    """Повна медична картка пацієнта у PDF."""
+    patient = get_object_or_404(
+        Patient, pk=pk, client__organization=request.organization
+    )
+    visits = patient.visits.select_related('doctor').order_by('-date')
+    vaccines = patient.vaccines.order_by('-date')
+    weights = patient.weights.order_by('date')
+    invoices = Invoice.objects.filter(patient=patient).select_related('doctor').order_by('-created_at')
+
+    from django.template.loader import render_to_string
+    try:
+        from weasyprint import HTML
+    except ImportError:
+        return HttpResponse('WeasyPrint не встановлено', status=500)
+
+    html_string = render_to_string('clients/medical_card_pdf.html', {
+        'patient': patient,
+        'client': patient.client,
+        'visits': visits,
+        'vaccines': vaccines,
+        'weights': weights,
+        'invoices': invoices,
+        'clinic': request.organization,
+        'request': request,
+    })
+    pdf = HTML(string=html_string, base_url=request.build_absolute_uri('/')).write_pdf()
+    response = HttpResponse(pdf, content_type='application/pdf')
+    response['Content-Disposition'] = f'filename="medical-card-{patient.name}.pdf"'
+    return response
+
+
+# ── Швидкий візит ───────────────────────────────────────────────────────
+@login_required
+def quick_visit(request, patient_pk):
+    """Швидкий візит — мінімальна форма для простого огляду."""
+    patient = get_object_or_404(
+        Patient, pk=patient_pk, client__organization=request.organization
+    )
+    if request.method == 'POST':
+        from django.utils import timezone
+        org = request.organization
+        default_doc = org.get_default_doctor(request.user) if org else request.user
+        Visit.objects.create(
+            patient=patient,
+            doctor=default_doc,
+            date=timezone.now(),
+            complaint=request.POST.get('complaint', '').strip() or 'Плановий огляд',
+            diagnosis=request.POST.get('diagnosis', '').strip(),
+            treatment=request.POST.get('treatment', '').strip(),
+            notes=request.POST.get('notes', '').strip(),
+        )
+        messages.success(request, 'Візит записано.')
+        return redirect('clients:patient_detail', pk=patient_pk)
+    return render(request, 'clients/partials/quick_visit_modal.html', {'patient': patient})
+
+
+# ── Фото upload (HTMX) ─────────────────────────────────────────────────
+@login_required
+@require_POST
+def patient_photo_upload(request, pk):
+    """HTMX: оновлення фото пацієнта прямо з картки."""
+    patient = get_object_or_404(
+        Patient, pk=pk, client__organization=request.organization
+    )
+    photo = request.FILES.get('photo')
+    if photo:
+        # Видалити старе фото
+        if patient.photo:
+            patient.photo.delete(save=False)
+        patient.photo = photo
+        patient.save()
+        messages.success(request, 'Фото оновлено.')
+    return redirect('clients:patient_detail', pk=pk)
+
+
+# ── Breed suggestions JSON ──────────────────────────────────────────────
+@login_required
+def breed_suggestions(request):
+    """JSON з популярними породами для datalist."""
+    species = request.GET.get('species', '')
+    breeds = (
+        Patient.objects
+        .filter(client__organization=request.organization)
+        .exclude(breed='')
+        .values_list('breed', flat=True)
+        .distinct()
+        .order_by('breed')
+    )
+    if species:
+        breeds = breeds.filter(species=species)
+    return JsonResponse({'breeds': list(breeds[:50])})
+
+
+# ── Вага — alert перевірка ──────────────────────────────────────────────
+@login_required
+def weight_alert_check(request, patient_pk):
+    """Перевіряє різку зміну ваги пацієнта."""
+    patient = get_object_or_404(Patient, pk=patient_pk)
+    weights = list(patient.weights.order_by('-date')[:2])
+    alert = None
+    if len(weights) >= 2:
+        current = weights[0].weight
+        previous = weights[1].weight
+        if previous > 0:
+            change_pct = abs(float(current - previous) / float(previous) * 100)
+            if change_pct > 15:
+                direction = 'набрав' if current > previous else 'втратив'
+                alert = {
+                    'message': f'{patient.name} {direction} {change_pct:.1f}% ваги ({previous}→{current} кг)',
+                    'severity': 'warning' if change_pct < 25 else 'danger',
+                }
+    return JsonResponse({'alert': alert})
+
+
+# ── Рецепти CRUD ────────────────────────────────────────────────────────
+@login_required
+def prescription_create(request, visit_pk):
+    """Додати призначення до візиту."""
+    from .forms import PrescriptionForm
+    from .models import Prescription
+    visit = get_object_or_404(
+        Visit, pk=visit_pk, patient__client__organization=request.organization
+    )
+    if request.method == 'POST':
+        form = PrescriptionForm(request.POST)
+        if form.is_valid():
+            rx = form.save(commit=False)
+            rx.visit = visit
+            rx.patient = visit.patient
+            rx.save()
+            messages.success(request, 'Призначення додано.')
+            return redirect('clients:patient_detail', pk=visit.patient_id)
+    else:
+        form = PrescriptionForm()
+    return render(request, 'clients/prescription_form.html', {
+        'form': form, 'visit': visit, 'patient': visit.patient,
+    })
+
+
+@login_required
+def prescription_delete(request, pk):
+    """Видалити призначення."""
+    from .models import Prescription
+    rx = get_object_or_404(
+        Prescription, pk=pk, patient__client__organization=request.organization
+    )
+    patient_pk = rx.patient_id
+    if request.method == 'POST':
+        rx.delete()
+        messages.success(request, 'Призначення видалено.')
+    return redirect('clients:patient_detail', pk=patient_pk)
+
+
+# ── Документи CRUD ──────────────────────────────────────────────────────
+@login_required
+def document_upload(request, patient_pk):
+    """Завантажити документ пацієнта."""
+    from .forms import PatientDocumentForm
+    from .models import PatientDocument
+    patient = get_object_or_404(
+        Patient, pk=patient_pk, client__organization=request.organization
+    )
+    if request.method == 'POST':
+        form = PatientDocumentForm(request.POST, request.FILES)
+        if form.is_valid():
+            doc = form.save(commit=False)
+            doc.patient = patient
+            doc.uploaded_by = request.user
+            doc.save()
+            messages.success(request, 'Документ завантажено.')
+            return redirect('clients:patient_detail', pk=patient_pk)
+    else:
+        form = PatientDocumentForm()
+    return render(request, 'clients/document_form.html', {
+        'form': form, 'patient': patient,
+    })
+
+
+@login_required
+def document_delete(request, pk):
+    """Видалити документ."""
+    from .models import PatientDocument
+    doc = get_object_or_404(
+        PatientDocument, pk=pk, patient__client__organization=request.organization
+    )
+    patient_pk = doc.patient_id
+    if request.method == 'POST':
+        doc.file.delete(save=False)
+        doc.delete()
+        messages.success(request, 'Документ видалено.')
+    return redirect('clients:patient_detail', pk=patient_pk)
+
+
+# ── Шаблони візитів — API для JS ────────────────────────────────────────
+@login_required
+def visit_templates_json(request):
+    """JSON список шаблонів візитів."""
+    from .models import VisitTemplate
+    templates = VisitTemplate.objects.filter(
+        organization=request.organization, is_active=True
+    ).order_by('name')
+    return JsonResponse({'templates': [
+        {
+            'id': t.pk,
+            'name': t.name,
+            'complaint': t.complaint,
+            'diagnosis': t.diagnosis,
+            'treatment': t.treatment,
+            'notes': t.notes,
+        }
+        for t in templates
+    ]})
+
+
+@login_required
+def visit_template_manage(request):
+    """CRUD шаблонів візитів."""
+    from .models import VisitTemplate
+    from .forms import VisitTemplateForm
+    org = request.organization
+    templates = VisitTemplate.objects.filter(organization=org).order_by('name')
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'create':
+            form = VisitTemplateForm(request.POST)
+            if form.is_valid():
+                t = form.save(commit=False)
+                t.organization = org
+                t.save()
+                messages.success(request, f'Шаблон «{t.name}» створено.')
+        elif action == 'delete':
+            tpl_id = request.POST.get('template_id')
+            VisitTemplate.objects.filter(pk=tpl_id, organization=org).delete()
+            messages.success(request, 'Шаблон видалено.')
+        return redirect('clients:visit_templates')
+
+    form = VisitTemplateForm()
+    return render(request, 'clients/visit_templates.html', {
+        'templates': templates, 'form': form,
+    })
+
+
+@login_required
+def audit_log_view(request):
+    """Журнал аудиту змін медичних даних."""
+    from .audit import AuditLog
+    org = request.organization
+    qs = AuditLog.objects.filter(organization=org).select_related('user').order_by('-created_at')
+
+    # Фільтри
+    content_type = request.GET.get('type', '')
+    if content_type:
+        qs = qs.filter(content_type=content_type)
+
+    action = request.GET.get('action', '')
+    if action:
+        qs = qs.filter(action=action)
+
+    from django.core.paginator import Paginator
+    paginator = Paginator(qs, 50)
+    page = paginator.get_page(request.GET.get('page', 1))
+
+    types = AuditLog.objects.filter(organization=org).values_list('content_type', flat=True).distinct()
+
+    return render(request, 'clients/audit_log.html', {
+        'logs': page,
+        'content_type': content_type,
+        'action_filter': action,
+        'types': types,
+        'action_choices': AuditLog.Action.choices,
+    })
+
+
+@login_required
+def audit_log_object(request, content_type, object_id):
+    """Аудит конкретного об'єкта."""
+    from .audit import AuditLog
+    logs = AuditLog.objects.filter(
+        content_type=content_type,
+        object_id=object_id,
+        organization=request.organization,
+    ).select_related('user').order_by('-created_at')
+    return render(request, 'clients/partials/audit_object.html', {
+        'logs': logs,
+        'content_type': content_type,
+        'object_id': object_id,
+    })
+
+
+@login_required
+def health_diary(request):
+    """Щоденник здоров'я — список всіх опитувань."""
+    from .models_health import HealthCheck
+    from django.db.models import Q, Count
+    from django.core.paginator import Paginator
+
+    org = request.organization
+
+    qs = HealthCheck.objects.filter(
+        organization=org
+    ).select_related('patient', 'patient__client').order_by('-sent_at')
+
+    status = request.GET.get('status', '')
+    if status:
+        qs = qs.filter(status=status)
+
+    trigger = request.GET.get('trigger', '')
+    if trigger:
+        qs = qs.filter(trigger=trigger)
+
+    paginator = Paginator(qs, 30)
+    page = paginator.get_page(request.GET.get('page', 1))
+
+    # Статистика
+    stats = HealthCheck.objects.filter(organization=org).aggregate(
+        total=Count('id'),
+        pending=Count('id', filter=Q(status='pending')),
+        ok=Count('id', filter=Q(status='ok')),
+        concern=Count('id', filter=Q(status='concern')),
+    )
+
+    return render(request, 'clients/health_diary.html', {
+        'checks': page,
+        'status_filter': status,
+        'trigger_filter': trigger,
+        'stats': stats,
+        'status_choices': HealthCheck.Status.choices,
+        'trigger_choices': HealthCheck.Trigger.choices,
+    })
+
+
+@login_required
+def ultrasound_create(request, patient_pk):
+    """Створити протокол УЗД."""
+    from .forms import UltrasoundForm
+    from .models import UltrasoundReport
+    patient = get_object_or_404(Patient, pk=patient_pk)
+    org = request.organization
+    default_doc = org.get_default_doctor(request.user) if org else request.user
+
+    if request.method == 'POST':
+        form = UltrasoundForm(request.POST)
+        if form.is_valid():
+            report = form.save(commit=False)
+            report.patient = patient
+            report.doctor = default_doc
+            report.save()
+            messages.success(request, 'Протокол УЗД збережено.')
+            return redirect('clients:patient_detail', pk=patient_pk)
+    else:
+        from datetime import date
+        form = UltrasoundForm(initial={'date': date.today()})
+
+    return render(request, 'clients/ultrasound_form.html', {
+        'form': form,
+        'patient': patient,
+    })
+
+
+@login_required
+def ultrasound_edit(request, pk):
+    """Редагувати протокол УЗД."""
+    from .forms import UltrasoundForm
+    from .models import UltrasoundReport
+    report = get_object_or_404(UltrasoundReport, pk=pk)
+
+    if request.method == 'POST':
+        form = UltrasoundForm(request.POST, instance=report)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Протокол оновлено.')
+            return redirect('clients:patient_detail', pk=report.patient_id)
+    else:
+        form = UltrasoundForm(instance=report)
+
+    return render(request, 'clients/ultrasound_form.html', {
+        'form': form,
+        'patient': report.patient,
+        'report': report,
+    })
+
+
+@login_required
+def ultrasound_pdf(request, pk):
+    """PDF протокол УЗД."""
+    from .models import UltrasoundReport
+    report = get_object_or_404(
+        UltrasoundReport, pk=pk, patient__client__organization=request.organization
+    )
+
+    from django.template.loader import render_to_string
+    try:
+        from weasyprint import HTML
+    except ImportError:
+        return HttpResponse('WeasyPrint не встановлено', status=500)
+
+    html_string = render_to_string('clients/ultrasound_pdf.html', {
+        'report': report,
+        'patient': report.patient,
+        'client': report.patient.client,
+        'clinic': request.organization,
+        'request': request,
+    })
+    pdf = HTML(string=html_string, base_url=request.build_absolute_uri('/')).write_pdf()
+    response = HttpResponse(pdf, content_type='application/pdf')
+    response['Content-Disposition'] = f'filename="uzd-{report.patient.name}-{report.date}.pdf"'
+    return response
+
+
+@login_required
+def ultrasound_delete(request, pk):
+    """Видалити протокол УЗД."""
+    from .models import UltrasoundReport
+    report = get_object_or_404(UltrasoundReport, pk=pk)
+    patient_pk = report.patient_id
+    if request.method == 'POST':
+        report.delete()
+        messages.success(request, 'Протокол видалено.')
+    return redirect('clients:patient_detail', pk=patient_pk)

@@ -6,7 +6,25 @@
 
   <!-- Header + Filters -->
   <div class="flex flex-col gap-4">
-    <h1 class="text-2xl font-bold text-brand-dark">Аналітика</h1>
+    <div class="flex items-center gap-4">
+      <h1 class="text-2xl font-bold text-brand-dark">Аналітика</h1>
+      <a href="{% url 'analytics:payroll' %}"
+         class="px-4 py-1.5 rounded-lg text-sm font-medium border border-gray-200 text-gray-600 hover:border-brand-gold hover:text-brand-dark transition-colors">
+        Зарплата
+      </a>
+      <a href="{% url 'analytics:services' %}"
+         class="px-4 py-1.5 rounded-lg text-sm font-medium border border-gray-200 text-gray-600 hover:border-brand-gold hover:text-brand-dark transition-colors">
+        Доходність
+      </a>
+      <a href="{% url 'analytics:profit' %}"
+         class="px-4 py-1.5 rounded-lg text-sm font-medium border border-emerald-200 text-emerald-700 hover:border-emerald-500 hover:bg-emerald-50 transition-colors">
+        Чистий прибуток
+      </a>
+      <a href="{% url 'analytics:debtors' %}"
+         class="px-4 py-1.5 rounded-lg text-sm font-medium border border-gray-200 text-gray-600 hover:border-brand-gold hover:text-brand-dark transition-colors">
+        Боржники
+      </a>
+    </div>
 
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
       <div class="flex flex-wrap gap-3 items-end">
@@ -53,7 +71,11 @@
   <!-- KPI Cards -->
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-      <div class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Виручка</div>
+      <div class="flex items-center justify-between mb-1">
+        <div class="text-xs font-medium text-gray-400 uppercase tracking-wide">Виручка</div>
+        <a href="{% url 'analytics:services' %}"
+           class="text-xs text-brand-gold font-medium hover:underline">Детально →</a>
+      </div>
       <div id="kpi-revenue" class="text-2xl font-bold text-brand-dark">—</div>
       <div class="text-xs text-gray-400 mt-1">за вибраний період</div>
     </div>
@@ -71,6 +93,19 @@
       <div class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Нових клієнтів</div>
       <div id="kpi-clients" class="text-2xl font-bold text-brand-dark">—</div>
       <div class="text-xs text-gray-400 mt-1">зареєстровано</div>
+    </div>
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+      <div class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Середня каса</div>
+      <div id="kpi-avg-daily" class="text-2xl font-bold text-brand-dark">—</div>
+      <div class="text-xs text-gray-400 mt-1">₴ / день</div>
+    </div>
+    <div class="bg-gradient-to-br from-amber-50 to-white rounded-2xl shadow-sm border border-amber-200 p-5">
+      <div class="flex items-center gap-1.5 mb-1">
+        <span class="text-amber-500">★</span>
+        <div class="text-xs font-medium text-amber-700 uppercase tracking-wide">Рекордна каса</div>
+      </div>
+      <div id="kpi-record-day" class="text-2xl font-bold text-brand-dark">—</div>
+      <div id="kpi-record-day-date" class="text-xs text-gray-400 mt-1">за весь час</div>
     </div>
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
       <div class="flex items-center gap-1.5 mb-1">
@@ -207,14 +242,22 @@ function loadData() {
 }
 
 function updateKPI(kpi) {
-  document.getElementById('kpi-revenue').textContent  = fmt(kpi.revenue) + ' ₴';
-  document.getElementById('kpi-count').textContent    = kpi.count;
-  document.getElementById('kpi-avg').textContent      = fmt(kpi.avg_check) + ' ₴';
-  document.getElementById('kpi-clients').textContent  = kpi.new_clients;
-  document.getElementById('kpi-cash').textContent     = fmt(kpi.cash) + ' ₴';
-  document.getElementById('kpi-cash-cnt').textContent = kpi.cash_cnt + ' рахунків';
-  document.getElementById('kpi-card').textContent     = fmt(kpi.card) + ' ₴';
-  document.getElementById('kpi-card-cnt').textContent = kpi.card_cnt + ' рахунків';
+  document.getElementById('kpi-revenue').textContent    = fmt(kpi.revenue) + ' ₴';
+  document.getElementById('kpi-count').textContent      = kpi.count;
+  document.getElementById('kpi-avg').textContent        = fmt(kpi.avg_check) + ' ₴';
+  document.getElementById('kpi-clients').textContent    = kpi.new_clients;
+  document.getElementById('kpi-avg-daily').textContent  = fmt(kpi.avg_daily) + ' ₴';
+  document.getElementById('kpi-cash').textContent       = fmt(kpi.cash) + ' ₴';
+  document.getElementById('kpi-cash-cnt').textContent   = kpi.cash_cnt + ' рахунків';
+  document.getElementById('kpi-card').textContent       = fmt(kpi.card) + ' ₴';
+  document.getElementById('kpi-card-cnt').textContent   = kpi.card_cnt + ' рахунків';
+  document.getElementById('kpi-record-day').textContent = fmt(kpi.record_day_total) + ' ₴';
+  if (kpi.record_day_date) {
+    const [y, m, d] = kpi.record_day_date.split('-');
+    document.getElementById('kpi-record-day-date').textContent = `${d}.${m}.${y} · за весь час`;
+  } else {
+    document.getElementById('kpi-record-day-date').textContent = 'за весь час';
+  }
 }
 
 function updatePeriodLabel(meta) {

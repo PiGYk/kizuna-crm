@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from decouple import config
 
@@ -27,6 +28,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     # third party
     'django_htmx',
+    'django_celery_beat',
     # apps
     'apps.clinic',
     'apps.accounts',
@@ -38,6 +40,7 @@ INSTALLED_APPS = [
     'apps.appointments',
     'apps.analytics',
     'apps.finance',
+    'apps.dashboard_builder',
 ]
 
 MIDDLEWARE = [
@@ -47,6 +50,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'apps.clients.audit.AuditMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django_htmx.middleware.HtmxMiddleware',
@@ -67,6 +71,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'apps.clinic.context_processors.clinic',
+                'apps.inventory.context_processors.expiry_alerts',
             ],
         },
     },
@@ -82,8 +87,17 @@ DATABASES = {
         'PASSWORD': config('DB_PASSWORD', default='kizuna'),
         'HOST': config('DB_HOST', default='db'),
         'PORT': config('DB_PORT', default='5432'),
+        'CONN_MAX_AGE': 60,
     }
 }
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': os.getenv('REDIS_URL', 'redis://redis:6379/1'),
+    }
+}
+SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
 
 AUTH_USER_MODEL = 'accounts.User'
 
@@ -118,8 +132,72 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Celery
+CELERY_BROKER_URL = config('REDIS_URL', default='redis://redis:6379/0')
+CELERY_RESULT_BACKEND = config('REDIS_URL', default='redis://redis:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_TASK_DEFAULT_QUEUE = 'default'
+CELERY_TIMEZONE = 'Europe/Kyiv'
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+CELERY_BEAT_SCHEDULE = {
+    'send-vaccine-reminders-daily': {
+        'task': 'apps.clients.tasks.send_vaccine_reminders',
+        'schedule': 60 * 60 * 24,  # раз на добу
+        'options': {'expires': 3600},
+    },
+    'send-appointment-reminders': {
+        'task': 'apps.clients.tasks.send_appointment_reminders',
+        'schedule': 60 * 30,  # кожні 30 хв
+        'options': {'expires': 1800},
+    },
+    'send-followup-reminders': {
+        'task': 'apps.clients.tasks.send_followup_reminders',
+        'schedule': 60 * 60 * 24,  # раз на добу
+        'options': {'expires': 3600},
+    },
+    'send-health-checks': {
+        'task': 'apps.clients.tasks.send_health_checks',
+        'schedule': 60 * 60 * 24,  # раз на добу
+        'options': {'expires': 3600},
+    },
+}
+
 TELEGRAM_BOT_TOKEN = config('TELEGRAM_BOT_TOKEN', default='')
 
 CHECKBOX_API_URL = config('CHECKBOX_API_URL', default='https://api.checkbox.in.ua/api/v1')
 CHECKBOX_LICENSE_KEY = config('CHECKBOX_LICENSE_KEY', default='')
 CHECKBOX_PIN = config('CHECKBOX_PIN', default='')
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{asctime} {levelname} {name} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'apps': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}

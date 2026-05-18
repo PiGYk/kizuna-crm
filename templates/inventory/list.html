@@ -3,37 +3,119 @@
 {% block title %}Склад — Kizuna CRM{% endblock %}
 
 {% block content %}
+<style>
+  /* Кастомний chevron для нативних select-ів */
+  .select-chevron {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+    background-size: 1.1rem;
+    padding-right: 2rem;
+  }
+  /* Dropdown «Дії» */
+  details.actions-menu > summary { list-style: none; cursor: pointer; }
+  details.actions-menu > summary::-webkit-details-marker { display: none; }
+  details.actions-menu[open] > summary .chev { transform: rotate(180deg); }
+  details.actions-menu .menu-panel {
+    position: absolute;
+    right: 0;
+    margin-top: 0.5rem;
+    z-index: 30;
+    min-width: 14rem;
+  }
+  /* Bulk action bar */
+  #bulk-bar {
+    position: fixed;
+    left: 50%;
+    bottom: 1rem;
+    transform: translateX(-50%);
+    z-index: 50;
+    display: none;
+  }
+  #bulk-bar.visible { display: flex; }
+  tr.row-selected { background-color: rgb(254 243 199 / 0.5) !important; }
+</style>
+
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
   <h1 class="text-2xl font-bold text-brand-dark">Склад</h1>
-  <div class="flex flex-wrap gap-2">
-    <a href="{% url 'inventory:settings' %}"
-       class="px-3 py-2 rounded-lg text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
-      Налаштування
-    </a>
-    <a href="{% url 'inventory:import' %}"
-       class="px-3 py-2 rounded-lg text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
-      Імпорт
-    </a>
-    <a href="{% url 'inventory:export_page' %}"
-       class="px-3 py-2 rounded-lg text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
-      Експорт
-    </a>
+
+  <div class="flex items-center gap-2">
+    <!-- Меню «Дії» (згортає всі вторинні кнопки) -->
+    <details class="actions-menu relative">
+      <summary class="inline-flex items-center gap-2 px-3 h-11 md:h-10 rounded-lg text-sm font-medium border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 transition select-none">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+        </svg>
+        <span>Дії</span>
+        <svg class="chev w-3.5 h-3.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+      </summary>
+      <div class="menu-panel bg-white rounded-xl border border-gray-200 shadow-lg p-1.5">
+        <a href="{% url 'inventory:analytics' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-gray-700 hover:bg-brand-gold/10">
+          <svg class="w-4 h-4 text-brand-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          Аналітика
+        </a>
+        <a href="{% url 'inventory:supplier_list' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-gray-700 hover:bg-purple-50">
+          <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          Постачальники
+        </a>
+        <a href="{% url 'inventory:movements' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-gray-700 hover:bg-blue-50">
+          <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          Рух складу
+        </a>
+        <a href="{% url 'inventory:stocktake' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-gray-700 hover:bg-amber-50">
+          <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+          Інвентаризація
+        </a>
+        <a href="{% url 'inventory:batch_intake' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-gray-700 hover:bg-green-50">
+          <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+          Прихід за накладною
+        </a>
+        <div class="my-1 border-t border-gray-100"></div>
+        <a href="{% url 'inventory:import' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
+          <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"/></svg>
+          Імпорт
+        </a>
+        <a href="{% url 'inventory:export_page' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
+          <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M17 8l-5-5m0 0l-5 5m5-5v12"/></svg>
+          Експорт
+        </a>
+        <a href="{% url 'inventory:settings' %}" class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
+          <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          Налаштування
+        </a>
+      </div>
+    </details>
+
     <a href="{% url 'inventory:create' %}"
-       class="bg-brand-gold text-brand-dark px-3 py-2 rounded-lg text-sm font-medium hover:brightness-95 transition-all">
+       class="bg-brand-gold text-brand-dark px-4 h-11 md:h-10 inline-flex items-center rounded-lg text-sm font-semibold hover:brightness-95 transition-all">
       + Додати
     </a>
   </div>
 </div>
 
+<!-- Закриття меню по кліку поза ним -->
+<script>
+  document.addEventListener('click', function (e) {
+    document.querySelectorAll('details.actions-menu[open]').forEach(function (d) {
+      if (!d.contains(e.target)) d.removeAttribute('open');
+    });
+  });
+</script>
+
 <!-- Суми -->
 <div class="grid grid-cols-2 gap-4 mb-5">
   <div class="bg-white rounded-xl border border-gray-200 px-5 py-4">
     <div class="text-xs text-gray-400 mb-1">Склад по вхідній ціні</div>
-    <div class="text-xl font-bold text-brand-dark">{{ total_buy|floatformat:2 }} ₴</div>
+    <div class="text-2xl font-bold text-brand-dark">{{ total_buy|floatformat:2 }} ₴</div>
   </div>
   <div class="bg-white rounded-xl border border-gray-200 px-5 py-4">
     <div class="text-xs text-gray-400 mb-1">Склад по вихідній ціні</div>
-    <div class="text-xl font-bold text-brand-gold">{{ total_sell|floatformat:2 }} ₴</div>
+    <div class="text-2xl font-bold text-brand-gold">{{ total_sell|floatformat:2 }} ₴</div>
   </div>
 </div>
 
@@ -42,17 +124,19 @@
   <form method="get" class="flex-1 min-w-48">
     <input type="hidden" name="stock" value="{{ stock }}">
     <input type="hidden" name="cat" value="{{ cat }}">
+    <input type="hidden" name="per_page" value="{{ per_page }}">
     <input type="text" name="q" value="{{ q }}"
       placeholder="Пошук товару..."
-      class="w-full md:w-72 px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+      class="w-full md:w-72 px-4 py-2.5 border border-gray-300 rounded-lg text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
   </form>
 
   <!-- Категорія -->
   <form method="get">
     <input type="hidden" name="q" value="{{ q }}">
     <input type="hidden" name="stock" value="{{ stock }}">
+    <input type="hidden" name="per_page" value="{{ per_page }}">
     <select name="cat" onchange="this.form.submit()"
-      class="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-gold">
+      class="select-chevron px-3 py-2 border border-gray-300 rounded-lg text-base md:text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-brand-gold">
       <option value="">Всі категорії</option>
       {% for c in categories %}
       <option value="{{ c.pk }}" {% if cat == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
@@ -60,61 +144,119 @@
     </select>
   </form>
 
+  <!-- На сторінці -->
+  <form method="get">
+    <input type="hidden" name="q" value="{{ q }}">
+    <input type="hidden" name="cat" value="{{ cat }}">
+    <input type="hidden" name="stock" value="{{ stock }}">
+    <input type="hidden" name="expiry" value="{{ expiry }}">
+    <input type="hidden" name="sort" value="{{ sort }}">
+    <input type="hidden" name="dir" value="{{ dir }}">
+    <select name="per_page" onchange="this.form.submit()"
+      title="Товарів на сторінці"
+      class="select-chevron px-3 py-2 border border-gray-300 rounded-lg text-base md:text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-brand-gold">
+      {% for n in per_page_choices %}
+      <option value="{{ n }}" {% if per_page == n %}selected{% endif %}>{{ n }} / стор.</option>
+      {% endfor %}
+    </select>
+  </form>
+
+  <!-- Сортування (моб) -->
+  <form method="get" class="md:hidden">
+    <input type="hidden" name="q" value="{{ q }}">
+    <input type="hidden" name="cat" value="{{ cat }}">
+    <input type="hidden" name="stock" value="{{ stock }}">
+    <input type="hidden" name="expiry" value="{{ expiry }}">
+    <input type="hidden" name="per_page" value="{{ per_page }}">
+    <select name="sortcombo" onchange="(function(s){var v=s.value.split('|');var f=s.form;var sn=document.createElement('input');sn.type='hidden';sn.name='sort';sn.value=v[0];var dn=document.createElement('input');dn.type='hidden';dn.name='dir';dn.value=v[1];f.appendChild(sn);f.appendChild(dn);f.submit();})(this)"
+      class="select-chevron px-3 py-2 border border-gray-300 rounded-lg text-base bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-gold">
+      <option value="">Сортування…</option>
+      <option value="name|asc"     {% if sort == 'name' and dir == 'asc' %}selected{% endif %}>Назва: А-Я</option>
+      <option value="name|desc"    {% if sort == 'name' and dir == 'desc' %}selected{% endif %}>Назва: Я-А</option>
+      <option value="quantity|desc"{% if sort == 'quantity' and dir == 'desc' %}selected{% endif %}>Кількість: спадання</option>
+      <option value="quantity|asc" {% if sort == 'quantity' and dir == 'asc' %}selected{% endif %}>Кількість: зростання</option>
+      <option value="sell_price|desc"{% if sort == 'sell_price' and dir == 'desc' %}selected{% endif %}>Ціна: спадання</option>
+      <option value="sell_price|asc" {% if sort == 'sell_price' and dir == 'asc' %}selected{% endif %}>Ціна: зростання</option>
+    </select>
+  </form>
+
   <!-- Залишок -->
   <div class="flex gap-2">
-    <a href="?{% if q %}q={{ q }}&{% endif %}{% if cat %}cat={{ cat }}&{% endif %}" class="px-3 py-2 rounded-lg text-sm border {% if not stock %}bg-brand-dark text-white border-brand-dark{% else %}border-gray-300 text-gray-600 hover:bg-gray-50{% endif %}">Всі</a>
-    <a href="?{% if q %}q={{ q }}&{% endif %}{% if cat %}cat={{ cat }}&{% endif %}stock=low" class="px-3 py-2 rounded-lg text-sm border {% if stock == 'low' %}bg-amber-500 text-white border-amber-500{% else %}border-gray-300 text-gray-600 hover:bg-gray-50{% endif %}">Мало</a>
-    <a href="?{% if q %}q={{ q }}&{% endif %}{% if cat %}cat={{ cat }}&{% endif %}stock=out" class="px-3 py-2 rounded-lg text-sm border {% if stock == 'out' %}bg-red-500 text-white border-red-500{% else %}border-gray-300 text-gray-600 hover:bg-gray-50{% endif %}">Нуль</a>
+    <a href="?{% if q %}q={{ q }}&{% endif %}{% if cat %}cat={{ cat }}&{% endif %}{% if per_page %}per_page={{ per_page }}&{% endif %}" class="px-3 py-2 rounded-lg text-sm border {% if not stock %}bg-brand-dark text-white border-brand-dark{% else %}border-gray-300 text-gray-600 hover:bg-gray-50{% endif %}">Всі</a>
+    <a href="?{% if q %}q={{ q }}&{% endif %}{% if cat %}cat={{ cat }}&{% endif %}{% if per_page %}per_page={{ per_page }}&{% endif %}stock=low" class="px-3 py-2 rounded-lg text-sm border {% if stock == 'low' %}bg-amber-500 text-white border-amber-500{% else %}border-gray-300 text-gray-600 hover:bg-gray-50{% endif %}">Мало</a>
+    <a href="?{% if q %}q={{ q }}&{% endif %}{% if cat %}cat={{ cat }}&{% endif %}{% if per_page %}per_page={{ per_page }}&{% endif %}stock=out" class="px-3 py-2 rounded-lg text-sm border {% if stock == 'out' %}bg-red-500 text-white border-red-500{% else %}border-gray-300 text-gray-600 hover:bg-gray-50{% endif %}">Нуль</a>
+  </div>
+
+  <!-- Терміни придатності -->
+  <div class="flex gap-2">
+    <a href="?{% if q %}q={{ q }}&{% endif %}{% if cat %}cat={{ cat }}&{% endif %}{% if per_page %}per_page={{ per_page }}&{% endif %}expiry=expired" class="px-3 py-2 rounded-lg text-sm border {% if expiry == 'expired' %}bg-red-500 text-white border-red-500{% else %}border-gray-300 text-gray-600 hover:bg-gray-50{% endif %}">Прострочені</a>
+    <a href="?{% if q %}q={{ q }}&{% endif %}{% if cat %}cat={{ cat }}&{% endif %}{% if per_page %}per_page={{ per_page }}&{% endif %}expiry=expiring" class="px-3 py-2 rounded-lg text-sm border {% if expiry == 'expiring' %}bg-yellow-400 text-gray-800 border-yellow-400{% else %}border-gray-300 text-gray-600 hover:bg-gray-50{% endif %}">Скоро (30 дн.)</a>
   </div>
 </div>
 
-<!-- Table -->
-<div class="bg-white rounded-xl border border-gray-200 overflow-x-auto">
-  <table class="w-full text-sm min-w-[480px] md:min-w-0">
+<!-- Desktop: таблиця -->
+<div class="bg-white rounded-xl border border-gray-200 overflow-x-auto hidden md:block">
+  <table class="w-full text-sm">
     <thead class="bg-gray-50 border-b border-gray-200">
       <tr>
+        {% if request.user.is_admin %}
+        <th class="px-3 py-3 w-10 text-center">
+          <input type="checkbox" id="bulk-master"
+                 class="w-4 h-4 rounded border-gray-300 text-brand-gold focus:ring-brand-gold cursor-pointer"
+                 title="Виділити всі на сторінці">
+        </th>
+        {% endif %}
         {% with base_qs="?"|add:"q="|add:q|add:"&cat="|add:cat|add:"&stock="|add:stock %}
         <th class="px-3 md:px-4 py-3 text-left font-medium text-gray-600">
-          <a href="{{ base_qs }}&sort=name&dir={% if sort == 'name' and dir == 'asc' %}desc{% else %}asc{% endif %}" class="hover:text-brand-gold inline-flex items-center gap-1">
+          <a href="{{ base_qs }}&per_page={{ per_page }}&sort=name&dir={% if sort == 'name' and dir == 'asc' %}desc{% else %}asc{% endif %}" class="hover:text-brand-gold inline-flex items-center gap-1">
             Назва {% if sort == 'name' %}<span class="text-brand-gold">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
           </a>
         </th>
-        <th class="px-3 md:px-4 py-3 text-left font-medium text-gray-600 hidden md:table-cell">
-          <a href="{{ base_qs }}&sort=category&dir={% if sort == 'category' and dir == 'asc' %}desc{% else %}asc{% endif %}" class="hover:text-brand-gold inline-flex items-center gap-1">
+        <th class="px-3 md:px-4 py-3 text-left font-medium text-gray-600">
+          <a href="{{ base_qs }}&per_page={{ per_page }}&sort=category&dir={% if sort == 'category' and dir == 'asc' %}desc{% else %}asc{% endif %}" class="hover:text-brand-gold inline-flex items-center gap-1">
             Категорія {% if sort == 'category' %}<span class="text-brand-gold">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
           </a>
         </th>
         <th class="px-3 md:px-4 py-3 text-right font-medium text-gray-600">
-          <a href="{{ base_qs }}&sort=quantity&dir={% if sort == 'quantity' and dir == 'asc' %}desc{% else %}asc{% endif %}" class="hover:text-brand-gold inline-flex items-center gap-1 justify-end w-full">
+          <a href="{{ base_qs }}&per_page={{ per_page }}&sort=quantity&dir={% if sort == 'quantity' and dir == 'asc' %}desc{% else %}asc{% endif %}" class="hover:text-brand-gold inline-flex items-center gap-1 justify-end w-full">
             Кіл-ть {% if sort == 'quantity' %}<span class="text-brand-gold">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
           </a>
         </th>
-        <th class="px-3 md:px-4 py-3 text-right font-medium text-gray-600 hidden md:table-cell">
-          <a href="{{ base_qs }}&sort=buy_price&dir={% if sort == 'buy_price' and dir == 'asc' %}desc{% else %}asc{% endif %}" class="hover:text-brand-gold inline-flex items-center gap-1 justify-end w-full">
+        <th class="px-3 md:px-4 py-3 text-right font-medium text-gray-600">
+          <a href="{{ base_qs }}&per_page={{ per_page }}&sort=buy_price&dir={% if sort == 'buy_price' and dir == 'asc' %}desc{% else %}asc{% endif %}" class="hover:text-brand-gold inline-flex items-center gap-1 justify-end w-full">
             Вхідна {% if sort == 'buy_price' %}<span class="text-brand-gold">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
           </a>
         </th>
         <th class="px-3 md:px-4 py-3 text-right font-medium text-gray-600">
-          <a href="{{ base_qs }}&sort=sell_price&dir={% if sort == 'sell_price' and dir == 'asc' %}desc{% else %}asc{% endif %}" class="hover:text-brand-gold inline-flex items-center gap-1 justify-end w-full">
+          <a href="{{ base_qs }}&per_page={{ per_page }}&sort=sell_price&dir={% if sort == 'sell_price' and dir == 'asc' %}desc{% else %}asc{% endif %}" class="hover:text-brand-gold inline-flex items-center gap-1 justify-end w-full">
             Вихідна {% if sort == 'sell_price' %}<span class="text-brand-gold">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
           </a>
         </th>
-        <th class="px-3 md:px-4 py-3 text-left font-medium text-gray-600 hidden md:table-cell">
-          <a href="{{ base_qs }}&sort=unit&dir={% if sort == 'unit' and dir == 'asc' %}desc{% else %}asc{% endif %}" class="hover:text-brand-gold inline-flex items-center gap-1">
+        <th class="px-3 md:px-4 py-3 text-left font-medium text-gray-600">
+          <a href="{{ base_qs }}&per_page={{ per_page }}&sort=unit&dir={% if sort == 'unit' and dir == 'asc' %}desc{% else %}asc{% endif %}" class="hover:text-brand-gold inline-flex items-center gap-1">
             Одиниця {% if sort == 'unit' %}<span class="text-brand-gold">{% if dir == 'asc' %}&#9650;{% else %}&#9660;{% endif %}</span>{% endif %}
           </a>
         </th>
         {% endwith %}
+        <th class="px-3 md:px-4 py-3 text-left font-medium text-gray-600 hidden lg:table-cell">Термін придатності</th>
+        <th class="px-3 py-2 text-center text-xs text-gray-400 font-medium w-10"></th>
         <th class="px-3 md:px-4 py-3"></th>
+        {% if request.user.is_admin %}<th class="px-3 py-3 w-10"></th>{% endif %}
       </tr>
     </thead>
     <tbody class="divide-y divide-gray-100">
       {% for product in products %}
-      <tr class="hover:bg-gray-50 cursor-pointer" onclick="location.href='{% url 'inventory:detail' product.pk %}'">
+      <tr class="cursor-pointer {% if product.is_expired %}bg-red-50 hover:bg-red-100{% elif product.is_expiring_soon %}bg-yellow-50 hover:bg-yellow-100{% else %}hover:bg-gray-50{% endif %}" onclick="location.href='{% url 'inventory:detail' product.pk %}'">
+        {% if request.user.is_admin %}
+        <td class="px-3 py-3 text-center" onclick="event.stopPropagation()">
+          <input type="checkbox" name="ids" value="{{ product.pk }}" form="bulk-form"
+                 class="bulk-row w-4 h-4 rounded border-gray-300 text-brand-gold focus:ring-brand-gold cursor-pointer">
+        </td>
+        {% endif %}
         <td class="px-4 py-3">
           <div class="font-medium text-brand-dark">{{ product.name }}</div>
         </td>
-        <td class="px-4 py-3 hidden md:table-cell">
+        <td class="px-4 py-3">
           {% if product.category %}
             <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{{ product.category }}</span>
           {% else %}
@@ -126,18 +268,51 @@
             {{ product.quantity|floatformat:"-3" }}
           </span>
         </td>
-        <td class="px-4 py-3 text-right text-gray-500 hidden md:table-cell">{{ product.buy_price }} ₴</td>
+        <td class="px-4 py-3 text-right text-gray-500">{{ product.buy_price }} ₴</td>
         <td class="px-4 py-3 text-right font-medium text-gray-900">{{ product.sell_price }} ₴</td>
-        <td class="px-4 py-3 text-left text-gray-400 text-xs hidden md:table-cell">{{ product.unit }}</td>
+        <td class="px-4 py-3 text-left text-gray-400 text-xs">{{ product.unit }}</td>
+        <td class="px-4 py-3 text-left hidden lg:table-cell {% if product.is_expired %}text-red-600 font-medium{% elif product.is_expiring_soon %}text-yellow-600{% else %}text-gray-500{% endif %}">
+          {% if product.expiry_date %}
+            {{ product.expiry_date|date:"d.m.Y" }}
+            {% if product.is_expired %}<span class="ml-1 text-xs bg-red-100 text-red-600 rounded px-1">прострочено</span>{% endif %}
+            {% if product.is_expiring_soon and not product.is_expired %}<span class="ml-1 text-xs bg-yellow-100 text-yellow-600 rounded px-1">скоро</span>{% endif %}
+          {% else %}<span class="text-gray-300">—</span>{% endif %}
+        </td>
+        <td class="px-3 py-2 text-center">
+          <button type="button"
+            hx-get="{% url 'inventory:quick_intake' product.pk %}"
+            hx-target="body"
+            hx-swap="beforeend"
+            hx-on::after-swap="window.scrollTo({top:0, behavior:'smooth'})"
+            class="w-9 h-9 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition inline-flex items-center justify-center"
+            title="Швидкий прихід"
+            onclick="event.stopPropagation()">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+          </button>
+        </td>
         <td class="px-4 py-3 text-right">
           <a href="{% url 'inventory:detail' product.pk %}"
              class="text-brand-gold hover:text-brand-dark text-xs font-medium"
              onclick="event.stopPropagation()">Відкрити</a>
         </td>
+        {% if request.user.is_admin %}
+        <td class="px-3 py-3 text-center" onclick="event.stopPropagation()">
+          <form method="post" action="{% url 'inventory:delete' product.pk %}"
+                onsubmit="return confirm('Видалити «{{ product.name|escapejs }}»?');">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <button type="submit"
+                    class="w-9 h-9 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition inline-flex items-center justify-center"
+                    title="Видалити товар">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3"/></svg>
+            </button>
+          </form>
+        </td>
+        {% endif %}
       </tr>
       {% empty %}
       <tr>
-        <td colspan="7" class="px-4 py-12 text-center text-gray-400">
+        <td colspan="{% if request.user.is_admin %}11{% else %}9{% endif %}" class="px-4 py-12 text-center text-gray-400">
           {% if q %}Нічого не знайдено{% else %}Склад порожній{% endif %}
         </td>
       </tr>
@@ -146,15 +321,156 @@
   </table>
 </div>
 
+<!-- Mobile: картки -->
+<div class="md:hidden space-y-2">
+  {% for product in products %}
+  <div class="bg-white rounded-xl border border-gray-200 p-3 {% if product.is_expired %}border-red-200 bg-red-50{% elif product.is_expiring_soon %}border-yellow-200 bg-yellow-50{% endif %}">
+    {% if product.expiry_date and product.is_expired %}
+      <div class="mb-1.5"><span class="inline-block text-[11px] bg-red-100 text-red-700 rounded px-2 py-0.5 font-medium">Прострочено · {{ product.expiry_date|date:"d.m.Y" }}</span></div>
+    {% elif product.expiry_date and product.is_expiring_soon %}
+      <div class="mb-1.5"><span class="inline-block text-[11px] bg-yellow-100 text-yellow-700 rounded px-2 py-0.5 font-medium">Закінчується · {{ product.expiry_date|date:"d.m.Y" }}</span></div>
+    {% endif %}
+
+    <div class="flex items-start gap-2">
+      {% if request.user.is_admin %}
+      <label class="pt-1 shrink-0">
+        <input type="checkbox" name="ids" value="{{ product.pk }}" form="bulk-form"
+               class="bulk-row w-5 h-5 rounded border-gray-300 text-brand-gold focus:ring-brand-gold cursor-pointer">
+      </label>
+      {% endif %}
+      <a href="{% url 'inventory:detail' product.pk %}" class="flex-1 min-w-0 block">
+        <div class="font-semibold text-brand-dark text-base leading-snug break-words">{{ product.name }}</div>
+
+        <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+          {% if product.category %}
+            <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{{ product.category }}</span>
+          {% endif %}
+          <span class="font-semibold {% if product.is_out_of_stock %}text-red-600{% elif product.is_low_stock %}text-amber-600{% else %}text-gray-800{% endif %}">
+            {{ product.quantity|floatformat:"-3" }}{% if product.unit %} <span class="text-xs text-gray-400 font-normal">{{ product.unit }}</span>{% endif %}
+          </span>
+          <span class="text-brand-dark font-medium">{{ product.sell_price }} ₴</span>
+        </div>
+      </a>
+
+      <div class="flex flex-col gap-1.5 shrink-0">
+        <button type="button"
+          hx-get="{% url 'inventory:quick_intake' product.pk %}"
+          hx-target="body"
+          hx-swap="beforeend"
+          hx-on::after-swap="window.scrollTo({top:0, behavior:'smooth'})"
+          class="w-11 h-11 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition inline-flex items-center justify-center"
+          title="Швидкий прихід">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+        </button>
+        <a href="{% url 'inventory:detail' product.pk %}"
+           class="w-11 h-11 rounded-lg bg-brand-gold/10 text-brand-dark hover:bg-brand-gold/20 transition inline-flex items-center justify-center"
+           title="Відкрити">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </a>
+        {% if request.user.is_admin %}
+        <form method="post" action="{% url 'inventory:delete' product.pk %}"
+              onsubmit="return confirm('Видалити «{{ product.name|escapejs }}»?');">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          <button type="submit"
+                  class="w-11 h-11 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition inline-flex items-center justify-center"
+                  title="Видалити товар">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3"/></svg>
+          </button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% empty %}
+  <div class="bg-white rounded-xl border border-dashed border-gray-300 p-8 text-center text-gray-400 text-sm">
+    {% if q %}Нічого не знайдено{% else %}Склад порожній{% endif %}
+  </div>
+  {% endfor %}
+</div>
+
 {% if is_paginated %}
-<div class="flex justify-center gap-2 mt-4">
+<div class="flex justify-center items-center gap-2 mt-4">
   {% if page_obj.has_previous %}
-    <a href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if cat %}&cat={{ cat }}{% endif %}" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">←</a>
+    <a href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if cat %}&cat={{ cat }}{% endif %}{% if stock %}&stock={{ stock }}{% endif %}{% if expiry %}&expiry={{ expiry }}{% endif %}{% if sort %}&sort={{ sort }}&dir={{ dir }}{% endif %}&per_page={{ per_page }}"
+       onclick="window.scrollTo({top:0, behavior:'smooth'})"
+       class="w-11 h-11 inline-flex items-center justify-center border border-gray-300 rounded-lg text-base hover:bg-gray-50">←</a>
   {% endif %}
-  <span class="px-3 py-1.5 text-sm text-gray-600">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+  <span class="px-3 h-11 inline-flex items-center text-sm text-gray-600">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
   {% if page_obj.has_next %}
-    <a href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if cat %}&cat={{ cat }}{% endif %}" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">→</a>
+    <a href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if cat %}&cat={{ cat }}{% endif %}{% if stock %}&stock={{ stock }}{% endif %}{% if expiry %}&expiry={{ expiry }}{% endif %}{% if sort %}&sort={{ sort }}&dir={{ dir }}{% endif %}&per_page={{ per_page }}"
+       onclick="window.scrollTo({top:0, behavior:'smooth'})"
+       class="w-11 h-11 inline-flex items-center justify-center border border-gray-300 rounded-lg text-base hover:bg-gray-50">→</a>
   {% endif %}
 </div>
+{% endif %}
+
+{% if request.user.is_admin %}
+<!-- Bulk delete: невидима форма + плаваюча панель дій -->
+<form id="bulk-form" method="post" action="{% url 'inventory:bulk_delete' %}" class="hidden">
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+</form>
+
+<div id="bulk-bar" class="bg-brand-dark text-white rounded-xl shadow-2xl px-4 py-3 items-center gap-3">
+  <span class="text-sm">Вибрано: <strong id="bulk-count">0</strong></span>
+  <button type="button" id="bulk-clear"
+          class="text-xs text-gray-300 hover:text-white underline">Скинути</button>
+  <button type="submit" form="bulk-form" id="bulk-delete-btn"
+          class="bg-red-500 hover:bg-red-600 text-white text-sm font-semibold px-4 py-2 rounded-lg inline-flex items-center gap-2 transition">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3"/></svg>
+    Видалити обране
+  </button>
+</div>
+
+<script>
+(function () {
+  const master = document.getElementById('bulk-master');
+  const rowBoxes = () => Array.from(document.querySelectorAll('input.bulk-row'));
+  const bar = document.getElementById('bulk-bar');
+  const counter = document.getElementById('bulk-count');
+  const deleteBtn = document.getElementById('bulk-delete-btn');
+  const clearBtn = document.getElementById('bulk-clear');
+
+  function refresh() {
+    const boxes = rowBoxes();
+    const checked = boxes.filter(b => b.checked);
+    counter.textContent = checked.length;
+    bar.classList.toggle('visible', checked.length > 0);
+    boxes.forEach(b => {
+      const tr = b.closest('tr');
+      if (tr) tr.classList.toggle('row-selected', b.checked);
+    });
+    if (master) {
+      master.checked = boxes.length > 0 && checked.length === boxes.length;
+      master.indeterminate = checked.length > 0 && checked.length < boxes.length;
+    }
+  }
+
+  if (master) {
+    master.addEventListener('change', () => {
+      rowBoxes().forEach(b => { b.checked = master.checked; });
+      refresh();
+    });
+  }
+  document.addEventListener('change', (e) => {
+    if (e.target.classList && e.target.classList.contains('bulk-row')) refresh();
+  });
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      rowBoxes().forEach(b => { b.checked = false; });
+      refresh();
+    });
+  }
+  if (deleteBtn) {
+    deleteBtn.addEventListener('click', (e) => {
+      const n = rowBoxes().filter(b => b.checked).length;
+      if (n === 0) { e.preventDefault(); return; }
+      if (!confirm(`Видалити вибрані товари (${n} шт.)?`)) e.preventDefault();
+    });
+  }
+  refresh();
+})();
+</script>
 {% endif %}
 {% endblock %}

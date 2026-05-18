@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% block title %}Протокол УЗД — {{ patient.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl">
+  <div class="flex items-center gap-3 mb-6">
+    <a href="{% url 'clients:patient_detail' patient.pk %}" class="text-gray-400 hover:text-gray-600">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+    </a>
+    <h1 class="text-2xl font-bold text-brand-dark">{% if report %}Редагувати{% else %}Новий{% endif %} протокол УЗД</h1>
+    <span class="text-sm text-gray-400">{{ patient.name }} ({{ patient.get_species_display }})</span>
+  </div>
+
+  <form method="post">
+    {% csrf_token %}
+
+    <!-- Дата -->
+    <div class="bg-white rounded-xl border border-gray-200 p-5 mb-4">
+      <div class="w-48">
+        <label class="text-xs text-gray-500 block mb-1">Дата дослідження *</label>
+        {{ form.date }}
+      </div>
+    </div>
+
+    <!-- Печінка -->
+    <div class="bg-white rounded-xl border border-gray-200 p-5 mb-4">
+      <h2 class="text-sm font-bold text-brand-dark mb-3 flex items-center gap-2">
+        <span class="w-6 h-6 rounded bg-amber-50 text-amber-600 flex items-center justify-center text-xs">1</span>
+        Печінка
+      </h2>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-xs text-gray-500 block mb-1">Розмір</label>{{ form.liver_size }}</div>
+        <div><label class="text-xs text-gray-500 block mb-1">Ехогенність</label>{{ form.liver_echogenicity }}</div>
+        <div><label class="text-xs text-gray-500 block mb-1">Структура</label>{{ form.liver_structure }}</div>
+        <div><label class="text-xs text-gray-500 block mb-1">Судини</label>{{ form.liver_vessels }}</div>
+      </div>
+      <div class="mt-3"><label class="text-xs text-gray-500 block mb-1">Коментар</label>{{ form.liver_notes }}</div>
+    </div>
+
+    <!-- Жовчний міхур -->
+    <div class="bg-white rounded-xl border border-gray-200 p-5 mb-4">
+      <h2 class="text-sm font-bold text-brand-dark mb-3 flex items-center gap-2">
+        <span class="w-6 h-6 rounded bg-green-50 text-green-600 flex items-center justify-center text-xs">2</span>
+        Жовчний міхур
+      </h2>
+      <div class="grid grid-cols-3 gap-3">
+        <div><label class="text-xs text-gray-500 block mb-1">Розмір (мм)</label>{{ form.gallbladder_size }}</div>
+        <div><label class="text-xs text-gray-500 block mb-1">Стінка</label>{{ form.gallbladder_wall }}</div>
+        <div><label class="text-xs text-gray-500 block mb-1">Вміст</label>{{ form.gallbladder_content }}</div>
+      </div>
+      <div class="mt-3"><label class="text-xs text-gray-500 block mb-1">Коментар</label>{{ form.gallbladder_notes }}</div>
+    </div>
+
+    <!-- Селезінка -->
+    <div class="bg-white rounded-xl border border-gray-200 p-5 mb-4">
+      <h2 class="text-sm font-bold text-brand-dark mb-3 flex items-center gap-2">
+        <span class="w-6 h-6 rounded bg-purple-50 text-purple-600 flex items-center justify-center text-xs">3</span>
+        Селезінка
+      </h2>
+      <div class="grid grid-cols-3 gap-3">
+        <div><label class="text-xs text-gray-500 block mb-1">Розмір</label>{{ form.spleen_size }}</div>
+        <div><label class="text-xs text-gray-500 block mb-1">Ехогенність</label>{{ form.spleen_echogenicity }}</div>
+        <div><label class="text-xs text-gray-500 block mb-1">Структура</label>{{ form.spleen_structure }}</div>
+      </div>
+      <div class="mt-3"><label class="text-xs text-gray-500 block mb-1">Коментар</label>{{ form.spleen_notes }}</div>
+    </div>
+
+    <!-- Нирки -->
+    <div class="bg-white rounded-xl border border-gray-200 p-5 mb-4">
+      <h2 class="text-sm font-bold text-brand-dark mb-3 flex items-center gap-2">
+        <span class="w-6 h-6 rounded bg-blue-50 text-blue-600 flex items-center justify-center text-xs">4</span>
+        Нирки
+      </h2>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-xs text-gray-500 block mb-1">Ліва -- розмір (мм)</label>{{ form.kidney_left_size }}</div>
+        <div><label class="text-xs text-gray-500 block mb-1">Ліва -- кірковий шар (мм)</label>{{ form.kidney_left_cortex }}</div>
+        <div><label class="text-xs text-gray-500 block mb-1">Права -- розмір (мм)</label>{{ form.kidney_right_size }}</div>
+        <div><label class="text-xs text-gray-500 block mb-1">Права -- кірковий шар (мм)</label>{{ form.kidney_right_cortex }}</div>
+        <div><label class="text-xs text-gray-500 block mb-1">Ехогенність</label>{{ form.kidney_echogenicity }}</div>
+        <div><label class="text-xs text-gray-500 block mb-1">Ниркова миска</label>{{ form.kidney_pelvis }}</div>
+      </div>
+      <div class="mt-3"><label class="text-xs text-gray-500 block mb-1">Коментар</label>{{ form.kidney_notes }}</div>
+    </div>
+
+    <!-- Сечовий міхур -->
+    <div class="bg-white rounded-xl border border-gray-200 p-5 mb-4">
+      <h2 class="text-sm font-bold text-brand-dark mb-3 flex items-center gap-2">
+        <span class="w-6 h-6 rounded bg-cyan-50 text-cyan-600 flex items-center justify-center text-xs">5</span>
+        Сечовий міхур
+      </h2>
+      <div class="grid grid-cols-3 gap-3">
+        <div><label class="text-xs text-gray-500 block mb-1">Наповнення</label>{{ form.bladder_filling }}</div>
+        <div><label class="text-xs text-gray-500 block mb-1">Стінка</label>{{ form.bladder_wall }}</div>
+        <div><label class="text-xs text-gray-500 block mb-1">Вміст</label>{{ form.bladder_content }}</div>
+      </div>
+      <div class="mt-3"><label class="text-xs text-gray-500 block mb-1">Коментар</label>{{ form.bladder_notes }}</div>
+    </div>
+
+    <!-- ШКТ + Репродуктивна -->
+    <div class="bg-white rounded-xl border border-gray-200 p-5 mb-4">
+      <h2 class="text-sm font-bold text-brand-dark mb-3 flex items-center gap-2">
+        <span class="w-6 h-6 rounded bg-orange-50 text-orange-600 flex items-center justify-center text-xs">6</span>
+        ШКТ / Репродуктивна система / Рідина
+      </h2>
+      <div class="space-y-3">
+        <div><label class="text-xs text-gray-500 block mb-1">Шлунок / кишківник</label>{{ form.gi_notes }}</div>
+        <div><label class="text-xs text-gray-500 block mb-1">Матка / простата / яєчники</label>{{ form.reproductive_notes }}</div>
+        <div><label class="text-xs text-gray-500 block mb-1">Вільна рідина</label>{{ form.free_fluid }}</div>
+      </div>
+    </div>
+
+    <!-- Висновок -->
+    <div class="bg-white rounded-xl border border-gray-200 p-5 mb-4">
+      <h2 class="text-sm font-bold text-brand-dark mb-3 flex items-center gap-2">
+        <span class="w-6 h-6 rounded bg-red-50 text-red-600 flex items-center justify-center text-xs">!</span>
+        Висновок
+      </h2>
+      <div class="space-y-3">
+        <div><label class="text-xs text-gray-500 block mb-1">Висновок</label>{{ form.conclusion }}</div>
+        <div><label class="text-xs text-gray-500 block mb-1">Рекомендації</label>{{ form.recommendations }}</div>
+      </div>
+    </div>
+
+    <!-- Кнопки -->
+    <div class="flex gap-3">
+      <button type="submit" class="bg-brand-gold text-brand-dark px-8 py-2.5 rounded-lg text-sm font-semibold hover:brightness-95 transition">
+        {% if report %}Зберегти{% else %}Створити{% endif %}
+      </button>
+      <a href="{% url 'clients:patient_detail' patient.pk %}" class="border border-gray-200 text-gray-500 px-6 py-2.5 rounded-lg text-sm hover:bg-gray-50 transition">Скасувати</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

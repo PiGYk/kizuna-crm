@@ -3,133 +3,150 @@
 <head>
   <meta charset="UTF-8">
   <style>
+    @page {
+      size: A4;
+      margin: 15mm 20mm;
+    }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: Arial, sans-serif; font-size: 12px; color: #12100F; padding: 32px 36px; }
+    body { font-family: Arial, sans-serif; font-size: 12px; color: #12100F; }
 
-    .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 16px; border-bottom: 2px solid #DEAA01; margin-bottom: 24px; }
-    .clinic-name { font-size: 20px; font-weight: bold; color: #12100F; }
+    /* Header — table layout */
+    .header-table { width: 100%; border-bottom: 2px solid #DEAA01; padding-bottom: 14px; margin-bottom: 22px; }
+    .header-table td { vertical-align: top; }
+    .clinic-name { font-size: 19px; font-weight: bold; color: #12100F; }
     .clinic-sub  { font-size: 10px; color: #888; margin-top: 3px; }
-    .doc-title   { font-size: 17px; font-weight: bold; text-align: right; }
+    .doc-title   { font-size: 16px; font-weight: bold; text-align: right; }
     .doc-date    { font-size: 11px; color: #666; text-align: right; margin-top: 4px; }
 
-    .patient-box { background: #fafafa; border: 1px solid #eee; border-radius: 6px; padding: 12px 16px; margin-bottom: 20px; display: flex; gap: 40px; }
-    .patient-box dt { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 2px; }
-    .patient-box dd { font-size: 12px; font-weight: bold; }
+    /* Patient info box — table layout */
+    .patient-box { background: #fafafa; border: 1px solid #eee; border-radius: 5px; padding: 10px 14px; margin-bottom: 18px; }
+    .patient-box table { width: 100%; border-collapse: collapse; }
+    .patient-box td { padding: 2px 10px 2px 0; vertical-align: top; width: 16.6%; }
+    .patient-box td:last-child { padding-right: 0; }
+    .p-label { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 2px; }
+    .p-value { font-size: 12px; font-weight: bold; word-break: break-word; }
 
-    .section { margin-bottom: 18px; }
-    .section-label { font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.06em; color: #DEAA01; margin-bottom: 6px; }
-    .section-body  { font-size: 12px; line-height: 1.6; color: #222; white-space: pre-wrap; }
+    .doctor-line { font-size: 11px; color: #666; margin-bottom: 14px; }
+
+    .divider { border: none; border-top: 1px solid #eee; margin: 12px 0; }
+
+    .section { margin-bottom: 16px; }
+    .section-label { font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.06em; color: #DEAA01; margin-bottom: 5px; }
+    .section-body  { font-size: 12px; line-height: 1.6; color: #222; word-break: break-word; }
+    .section-body p { margin-bottom: 4px; }
+    .section-body ul, .section-body ol { padding-left: 18px; margin-bottom: 4px; }
+    .section-body li { margin-bottom: 2px; }
+    .section-body strong { font-weight: bold; }
+    .section-body em { font-style: italic; }
     .section-empty { font-size: 11px; color: #bbb; font-style: italic; }
 
-    .divider { border: none; border-top: 1px solid #eee; margin: 14px 0; }
+    /* Signature block — table layout */
+    .signature-table { width: 100%; margin-top: 30px; border-collapse: collapse; }
+    .signature-table td { width: 50%; padding-top: 28px; border-top: 1px solid #333; font-size: 10px; color: #888; vertical-align: top; }
+    .signature-table td:last-child { text-align: right; padding-left: 40px; }
 
-    .signature-block { margin-top: 32px; display: flex; justify-content: space-between; }
-    .signature-line  { border-top: 1px solid #333; width: 200px; margin-top: 28px; font-size: 10px; color: #888; padding-top: 4px; }
-
-    .footer { margin-top: 30px; padding-top: 10px; border-top: 1px solid #e5e5e5; font-size: 10px; color: #aaa; text-align: center; }
+    .footer { margin-top: 28px; padding-top: 10px; border-top: 1px solid #e5e5e5; font-size: 10px; color: #aaa; text-align: center; }
   </style>
 </head>
 <body>
 
-<div class="header">
-  <div>
-    <div class="clinic-name">{{ clinic.name }}</div>
-    {% if clinic.website %}<div class="clinic-sub">{{ clinic.website }}</div>{% endif %}
-  </div>
-  <div>
-    <div class="doc-title">Протокол прийому</div>
-    <div class="doc-date">{{ visit.date|date:"d.m.Y, H:i" }}</div>
-  </div>
-</div>
+<table class="header-table" cellpadding="0" cellspacing="0">
+  <tr>
+    <td>
+      <div class="clinic-name">{{ clinic.name }}</div>
+      {% if clinic.website %}<div class="clinic-sub">{{ clinic.website }}</div>{% endif %}
+    </td>
+    <td>
+      <div class="doc-title">Протокол прийому</div>
+      <div class="doc-date">{{ visit.date|date:"d.m.Y, H:i" }}</div>
+    </td>
+  </tr>
+</table>
 
 <!-- Дані пацієнта -->
 <div class="patient-box">
-  <div>
-    <dt>Пацієнт</dt>
-    <dd>{{ patient.name }}</dd>
-  </div>
-  <div>
-    <dt>Вид / Порода</dt>
-    <dd>{{ patient.get_species_display }}{% if patient.breed %}, {{ patient.breed }}{% endif %}</dd>
-  </div>
-  <div>
-    <dt>Вік</dt>
-    <dd>{{ patient.age_display }}</dd>
-  </div>
-  <div>
-    <dt>Стать</dt>
-    <dd>{{ patient.get_sex_display }}{% if patient.is_neutered %} (кастр.){% endif %}</dd>
-  </div>
-  <div>
-    <dt>Власник</dt>
-    <dd>{{ patient.client.full_name }}</dd>
-  </div>
-  {% if patient.client.phone %}
-  <div>
-    <dt>Телефон</dt>
-    <dd>{{ patient.client.phone }}</dd>
-  </div>
-  {% endif %}
+  <table cellpadding="0" cellspacing="0">
+    <tr>
+      <td>
+        <div class="p-label">Пацієнт</div>
+        <div class="p-value">{{ patient.name }}</div>
+      </td>
+      <td>
+        <div class="p-label">Вид / Порода</div>
+        <div class="p-value">{{ patient.get_species_display }}{% if patient.breed %}, {{ patient.breed }}{% endif %}</div>
+      </td>
+      <td>
+        <div class="p-label">Вік</div>
+        <div class="p-value">{{ patient.age_display }}</div>
+      </td>
+      <td>
+        <div class="p-label">Стать</div>
+        <div class="p-value">{{ patient.get_sex_display }}{% if patient.is_neutered %} (кастр.){% endif %}</div>
+      </td>
+      <td>
+        <div class="p-label">Власник</div>
+        <div class="p-value">{{ patient.client.full_name }}</div>
+      </td>
+      {% if patient.client.phone %}
+      <td>
+        <div class="p-label">Телефон</div>
+        <div class="p-value">{{ patient.client.phone }}</div>
+      </td>
+      {% endif %}
+    </tr>
+  </table>
 </div>
 
-<!-- Лікар -->
 {% if visit.doctor %}
-<div style="font-size:11px; color:#666; margin-bottom:16px;">
-  Лікар: <strong>{{ visit.doctor.get_full_name|default:visit.doctor.username }}</strong>
-</div>
+<div class="doctor-line">Лікар: <strong>{{ visit.doctor.get_full_name|default:visit.doctor.username }}</strong></div>
 {% endif %}
 
 <hr class="divider">
 
-<!-- Скарги / Анамнез -->
 <div class="section">
   <div class="section-label">Скарги / Анамнез</div>
   {% if visit.complaint %}
-    <div class="section-body">{{ visit.complaint }}</div>
+    <div class="section-body">{{ visit.complaint|safe }}</div>
   {% else %}
     <div class="section-empty">не вказано</div>
   {% endif %}
 </div>
 
-<!-- Діагноз -->
 <div class="section">
   <div class="section-label">Діагноз</div>
   {% if visit.diagnosis %}
-    <div class="section-body">{{ visit.diagnosis }}</div>
+    <div class="section-body">{{ visit.diagnosis|safe }}</div>
   {% else %}
     <div class="section-empty">не вказано</div>
   {% endif %}
 </div>
 
-<!-- Лікування -->
 <div class="section">
   <div class="section-label">Лікування / Призначення</div>
   {% if visit.treatment %}
-    <div class="section-body">{{ visit.treatment }}</div>
+    <div class="section-body">{{ visit.treatment|safe }}</div>
   {% else %}
     <div class="section-empty">не вказано</div>
   {% endif %}
 </div>
 
-<!-- Нотатки -->
 {% if visit.notes %}
 <div class="section">
   <div class="section-label">Нотатки</div>
-  <div class="section-body">{{ visit.notes }}</div>
+  <div class="section-body">{{ visit.notes|safe }}</div>
 </div>
 {% endif %}
 
-<!-- Підпис -->
-<div class="signature-block">
-  <div>
-    <div class="signature-line">Підпис лікаря</div>
-  </div>
-  <div>
-    <div class="signature-line">Підпис власника тварини</div>
-  </div>
-</div>
+<table class="signature-table" cellpadding="0" cellspacing="0">
+  <tr>
+    <td>Підпис лікаря</td>
+    <td>Підпис власника тварини</td>
+  </tr>
+</table>
 
-<div class="footer">Kizuna Vet Clinic · crm.kizuna.com.ua</div>
+<div class="footer">
+  {{ clinic.name }}{% with footer_url=clinic.website|default:clinic.bot_base_url %}{% if footer_url %} · {{ footer_url }}{% endif %}{% endwith %}
+</div>
 
 </body>
 </html>

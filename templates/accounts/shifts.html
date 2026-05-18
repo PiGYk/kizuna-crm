@@ -1,0 +1,121 @@
+{% extends 'base.html' %}
+{% load payroll_tags %}
+{% block title %}Зміни — Kizuna CRM{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold text-brand-dark">Розклад змін</h1>
+    <div class="flex items-center gap-2">
+      <a href="?year={{ prev_year }}&month={{ prev_month_num }}" class="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-500">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+      </a>
+      <span class="text-sm font-semibold text-brand-dark px-3">
+        {{ current_month|date:"F Y" }}
+      </span>
+      <a href="?year={{ next_year }}&month={{ next_month_num }}" class="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-500">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      </a>
+    </div>
+  </div>
+
+  <!-- Легенда працівників -->
+  <div class="flex flex-wrap gap-2 mb-4">
+    {% for u in staff %}
+    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-brand-gold/10 text-brand-dark border border-brand-gold/20">
+      {{ u.get_full_name|default:u.username }}
+      <span class="text-gray-400">({{ u.get_role_display }})</span>
+    </span>
+    {% endfor %}
+  </div>
+
+  <!-- Календарна сітка -->
+  <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div class="grid grid-cols-7 border-b border-gray-200">
+      <div class="px-2 py-2 text-center text-xs font-medium text-gray-400">Пн</div>
+      <div class="px-2 py-2 text-center text-xs font-medium text-gray-400">Вт</div>
+      <div class="px-2 py-2 text-center text-xs font-medium text-gray-400">Ср</div>
+      <div class="px-2 py-2 text-center text-xs font-medium text-gray-400">Чт</div>
+      <div class="px-2 py-2 text-center text-xs font-medium text-gray-400">Пт</div>
+      <div class="px-2 py-2 text-center text-xs font-medium text-gray-400">Сб</div>
+      <div class="px-2 py-2 text-center text-xs font-medium text-gray-400">Нд</div>
+    </div>
+
+    {% for week in weeks %}
+    <div class="grid grid-cols-7 border-b border-gray-50 last:border-b-0">
+      {% for day in week %}
+      <div class="min-h-[80px] px-2 py-1.5 border-r border-gray-50 last:border-r-0
+        {% if day.month != month %}bg-gray-50/50{% endif %}
+        {% if day == today %}bg-brand-gold/5{% endif %}">
+        <div class="text-xs {% if day.month != month %}text-gray-300{% elif day == today %}text-brand-gold font-bold{% else %}text-gray-500{% endif %} mb-1">
+          {{ day.day }}
+        </div>
+        <!-- Зміни на цей день -->
+        <div class="space-y-0.5">
+          {% with day_key=day|date:"Y-m-d" %}
+          {% with day_shifts=shifts_by_date|get_item:day_key %}
+            {% for shift in day_shifts %}
+            <div class="text-xs px-1.5 py-0.5 rounded bg-brand-gold/10 text-brand-dark truncate"
+                 title="{{ shift.user.get_full_name }}{% if shift.start_time %} {{ shift.start_time|time:'H:i' }}–{{ shift.end_time|time:'H:i' }}{% endif %}">
+              {{ shift.user.first_name|default:shift.user.username }}
+              {% if shift.start_time %}<span class="text-gray-400">{{ shift.start_time|time:"H:i" }}</span>{% endif %}
+            </div>
+            {% endfor %}
+          {% endwith %}
+          {% endwith %}
+        </div>
+        <!-- Кнопка додати зміну -->
+        {% if day.month == month %}
+        <button type="button" onclick="openShiftModal('{{ day|date:"Y-m-d" }}')"
+          class="w-full mt-1 text-center text-gray-300 hover:text-brand-gold text-xs py-0.5 rounded hover:bg-brand-gold/5 transition">+</button>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Модалка додавання зміни -->
+<div id="shift-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl p-6 max-w-sm w-full shadow-xl">
+    <h2 class="text-lg font-bold text-brand-dark mb-4">Додати зміну</h2>
+    <form method="post" action="{% url 'accounts:shift_toggle' %}">
+      {% csrf_token %}
+      <input type="hidden" name="date" id="shift-date-input">
+      <div class="mb-4">
+        <label class="text-xs text-gray-500 block mb-1">Працівник</label>
+        <select name="user_id" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+          {% for u in staff %}
+          <option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }} ({{ u.get_role_display }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="grid grid-cols-2 gap-3 mb-4">
+        <div>
+          <label class="text-xs text-gray-500 block mb-1">Початок</label>
+          <input type="time" name="start_time" value="10:00" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+        </div>
+        <div>
+          <label class="text-xs text-gray-500 block mb-1">Кінець</label>
+          <input type="time" name="end_time" value="18:00" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+        </div>
+      </div>
+      <div class="flex gap-3">
+        <button type="submit" class="flex-1 bg-brand-gold text-brand-dark py-2.5 rounded-lg text-sm font-semibold hover:brightness-95 transition">Додати</button>
+        <button type="button" onclick="closeShiftModal()" class="flex-1 border border-gray-200 text-gray-500 py-2.5 rounded-lg text-sm hover:bg-gray-50 transition">Скасувати</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openShiftModal(dateStr) {
+  document.getElementById('shift-date-input').value = dateStr;
+  document.getElementById('shift-modal').classList.remove('hidden');
+}
+function closeShiftModal() {
+  document.getElementById('shift-modal').classList.add('hidden');
+}
+</script>
+{% endblock %}

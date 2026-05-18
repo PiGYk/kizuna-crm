@@ -1,0 +1,19 @@
+<div class="space-y-2">
+  {% for log in logs %}
+  <div class="flex items-start gap-2 text-xs py-1.5 {% if not forloop.last %}border-b border-gray-50{% endif %}">
+    <span class="text-gray-400 whitespace-nowrap">{{ log.created_at|date:"d.m H:i" }}</span>
+    {% if log.action == 'update' %}
+    <div class="flex-1">
+      {% for ch in log.changes_display %}
+      <div><span class="text-gray-500">{{ ch.field }}:</span> <span class="text-red-400 line-through">{{ ch.old|truncatechars:20 }}</span> &rarr; <span class="text-green-600">{{ ch.new|truncatechars:20 }}</span></div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <span class="{% if log.action == 'create' %}text-green-600{% else %}text-red-500{% endif %}">{{ log.get_action_display }}</span>
+    {% endif %}
+    <span class="text-gray-300">{% if log.user %}{{ log.user.get_full_name|default:log.user.username }}{% endif %}</span>
+  </div>
+  {% empty %}
+  <div class="text-gray-300 text-xs py-2">Немає змін</div>
+  {% endfor %}
+</div>

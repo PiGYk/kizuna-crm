@@ -2,9 +2,28 @@
 <a href="{% url 'tg:detail' chat.pk %}"
    class="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition border-b border-gray-50 last:border-0
           {% if active_chat_pk == chat.pk %}bg-brand-gold/5 border-l-2 border-l-brand-gold{% endif %}">
-  <div class="w-10 h-10 rounded-full bg-sky-100 flex items-center justify-center text-sky-600 font-semibold text-sm shrink-0">
-    {{ chat.display_name|slice:":1"|upper }}
+  {% if chat.avatar_file_id %}
+  <img src="{% url 'tg:avatar' chat.pk %}"
+       class="w-10 h-10 rounded-full object-cover shrink-0"
+       loading="lazy"
+       onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"
+       alt="">
+  {% endif %}
+  {% with letter=chat.display_name|slice:":1"|upper %}
+  <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0
+    {% if letter == 'A' or letter == 'Б' or letter == 'B' or letter == 'В' or letter == 'C' or letter == 'Г' %}bg-blue-500
+    {% elif letter == 'D' or letter == 'Д' or letter == 'E' or letter == 'Е' or letter == 'Є' or letter == 'F' or letter == 'Ж' %}bg-purple-500
+    {% elif letter == 'G' or letter == 'З' or letter == 'H' or letter == 'И' or letter == 'І' or letter == 'Ї' or letter == 'I' %}bg-green-600
+    {% elif letter == 'J' or letter == 'Й' or letter == 'K' or letter == 'К' or letter == 'L' or letter == 'Л' or letter == 'M' or letter == 'М' %}bg-orange-500
+    {% elif letter == 'N' or letter == 'Н' or letter == 'O' or letter == 'О' or letter == 'П' or letter == 'P' or letter == 'Р' %}bg-pink-500
+    {% elif letter == 'Q' or letter == 'С' or letter == 'R' or letter == 'T' or letter == 'Т' or letter == 'S' or letter == 'У' %}bg-teal-500
+    {% elif letter == 'U' or letter == 'Ф' or letter == 'V' or letter == 'Х' or letter == 'W' or letter == 'Ц' or letter == 'X' or letter == 'Ч' %}bg-blue-500
+    {% elif letter == 'Y' or letter == 'Ш' or letter == 'Z' or letter == 'Щ' or letter == 'Ь' or letter == 'Ю' or letter == 'Я' %}bg-purple-500
+    {% else %}bg-teal-500{% endif %}
+    {% if chat.avatar_file_id %}hidden{% endif %}">
+    {{ letter }}
   </div>
+  {% endwith %}
   <div class="flex-1 min-w-0">
     <div class="flex items-center justify-between">
       <span class="font-medium text-brand-dark text-sm truncate">{{ chat.display_name }}</span>

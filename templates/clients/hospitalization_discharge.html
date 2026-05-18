@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block title %}Виписка — {{ hosp.patient.name }}{% endblock %}
+{% block content %}
+<div class="max-w-xl mx-auto">
+  <h1 class="text-xl font-bold text-brand-dark mb-6">Виписка: {{ hosp.patient.name }}</h1>
+  <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-6 text-sm text-gray-600">
+    <div><strong>Надійшов:</strong> {{ hosp.admitted_at|date:"d.m.Y H:i" }}</div>
+    <div><strong>Причина:</strong> {{ hosp.reason }}</div>
+    {% if hosp.diagnosis %}<div><strong>Діагноз:</strong> {{ hosp.diagnosis }}</div>{% endif %}
+  </div>
+  <form method="post" class="bg-white rounded-xl border border-gray-200 p-6 flex flex-col gap-4">
+    {% csrf_token %}
+    <div>
+      <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Нотатки при виписці</label>
+      <textarea name="discharge_notes" rows="4" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"></textarea>
+    </div>
+    <div class="flex gap-3">
+      <button type="submit" class="bg-green-500 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:brightness-95">Виписати</button>
+      <a href="{% url 'clients:hospitalization_list' %}" class="px-5 py-2 rounded-lg text-sm border border-gray-200 text-gray-500 hover:bg-gray-50">Скасувати</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

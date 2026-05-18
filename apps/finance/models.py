@@ -2,10 +2,18 @@ from django.db import models
 from django.conf import settings
 from decimal import Decimal
 from apps.clinic.managers import OrgManager
+from apps.clinic.uploads import expense_receipt_path
 
 
 class FinanceSettings(models.Model):
-    """Singleton — початкові залишки готівки та карти."""
+    """Початкові залишки готівки та карти — per-organization."""
+    organization = models.OneToOneField(
+        'clinic.Organization',
+        on_delete=models.CASCADE,
+        null=True, blank=True,
+        related_name='finance_settings',
+        verbose_name='Організація',
+    )
     initial_cash = models.DecimalField(
         'Початковий залишок готівки', max_digits=12, decimal_places=2, default=0
     )
@@ -16,36 +24,65 @@ class FinanceSettings(models.Model):
     class Meta:
         verbose_name = 'Налаштування балансу'
 
-    def save(self, *args, **kwargs):
-        self.pk = 1
-        super().save(*args, **kwargs)
+    def __str__(self):
+        return f'Фінанси — {self.organization}'
+
+    @classmethod
+    def get_for_org(cls, org):
+        if org is None:
+            return cls(initial_cash=Decimal('0'), initial_card=Decimal('0'))
+        obj, _ = cls.objects.get_or_create(
+            organization=org,
+            defaults={'initial_cash': 0, 'initial_card': 0}
+        )
+        return obj
 
     @classmethod
     def get(cls):
-        obj, _ = cls.objects.get_or_create(pk=1, defaults={'initial_cash': 0, 'initial_card': 0})
-        return obj
+        """Backward-compat: використовує thread-local org."""
+        from apps.clinic.tenant import get_current_org
+        return cls.get_for_org(get_current_org())
 
 
-def calculate_balances():
-    """Розраховує поточні залишки готівки та карти по всіх операціях."""
+def calculate_balances(org=None):
+    """Розраховує поточні залишки готівки та карти по всіх операціях.
+
+    Один SUM-aggregate з Q-filter на queryset замість 8 окремих aggregate.
+    """
+    from django.db.models import Sum, Q
     from apps.billing.models import Invoice
+    from apps.clinic.tenant import get_current_org
 
-    fs = FinanceSettings.get()
+    if org is None:
+        org = get_current_org()
 
-    def _sum(qs, field='amount'):
-        return qs.aggregate(t=models.Sum(field))['t'] or Decimal('0')
+    fs = FinanceSettings.get_for_org(org)
+    zero = Decimal('0')
 
-    invoices_paid = Invoice.objects.filter(status='paid')
-    income_cash = _sum(invoices_paid.filter(payment_method='cash'), 'total')
-    income_card = _sum(invoices_paid.filter(payment_method='card'), 'total')
+    inv_agg = Invoice.objects.filter(status='paid').aggregate(
+        cash=Sum('total', filter=Q(payment_method='cash')),
+        card=Sum('total', filter=Q(payment_method='card')),
+    )
+    income_cash = inv_agg['cash'] or zero
+    income_card = inv_agg['card'] or zero
 
-    expense_cash = _sum(Expense.objects.filter(payment_method='cash'))
-    expense_card = _sum(Expense.objects.filter(payment_method='card'))
+    exp_agg = Expense.objects.aggregate(
+        cash=Sum('amount', filter=Q(payment_method='cash')),
+        card=Sum('amount', filter=Q(payment_method='card')),
+    )
+    expense_cash = exp_agg['cash'] or zero
+    expense_card = exp_agg['card'] or zero
 
-    card_to_cash = _sum(CashOperation.objects.filter(type='card_to_cash'))
-    cash_to_card = _sum(CashOperation.objects.filter(type='cash_to_card'))
-    deposits     = _sum(CashOperation.objects.filter(type='deposit'))
-    withdrawals  = _sum(CashOperation.objects.filter(type='withdrawal'))
+    cash_agg = CashOperation.objects.aggregate(
+        card_to_cash=Sum('amount', filter=Q(type='card_to_cash')),
+        cash_to_card=Sum('amount', filter=Q(type='cash_to_card')),
+        deposits=Sum('amount', filter=Q(type='deposit')),
+        withdrawals=Sum('amount', filter=Q(type='withdrawal')),
+    )
+    card_to_cash = cash_agg['card_to_cash'] or zero
+    cash_to_card = cash_agg['cash_to_card'] or zero
+    deposits = cash_agg['deposits'] or zero
+    withdrawals = cash_agg['withdrawals'] or zero
 
     cash = fs.initial_cash + income_cash - expense_cash + card_to_cash - cash_to_card + deposits - withdrawals
     card = fs.initial_card + income_card - expense_card - card_to_cash + cash_to_card
@@ -125,7 +162,7 @@ class Expense(models.Model):
     )
     description = models.CharField('Опис', max_length=500)
     receipt_photo = models.ImageField(
-        'Фото чеку / накладної', upload_to='expenses/', blank=True
+        'Фото чеку / накладної', upload_to=expense_receipt_path, blank=True
     )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,

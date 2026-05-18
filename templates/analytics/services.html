@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% block title %}Доходність маніпуляцій — Kizuna CRM{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <h1 class="text-2xl font-bold text-brand-dark">Доходність маніпуляцій</h1>
+    <p class="text-sm text-gray-500 mt-0.5">Послуги та товари по оплачених рахунках</p>
+  </div>
+</div>
+
+<!-- Фільтр дат -->
+<form method="get" class="flex flex-wrap items-end gap-3 mb-5 bg-white border border-gray-200 rounded-xl p-4">
+  <div class="flex gap-1 flex-wrap">
+    {% for value, label in presets %}
+    <a href="?preset={{ value }}"
+       class="px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors
+              {% if preset == value %}bg-brand-gold text-brand-dark border-brand-gold{% else %}border-gray-200 text-gray-500 hover:border-gray-300{% endif %}">
+      {{ label }}
+    </a>
+    {% endfor %}
+  </div>
+  {% if preset == 'custom' %}
+  <input type="date" name="start" value="{{ start|date:'Y-m-d' }}"
+    class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+  <input type="date" name="end" value="{{ end|date:'Y-m-d' }}"
+    class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+  <input type="hidden" name="preset" value="custom">
+  <button type="submit" class="bg-brand-gold text-brand-dark px-4 py-1.5 rounded-lg text-sm font-medium hover:brightness-95">Показати</button>
+  {% endif %}
+</form>
+
+<!-- KPI -->
+<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-5">
+  <div class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Виручка за період</div>
+  <div class="text-2xl font-bold text-brand-dark">{{ total_revenue|floatformat:0 }} ₴</div>
+</div>
+
+<!-- Дві таблиці -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+  <!-- Послуги -->
+  <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div class="px-4 py-3 border-b border-gray-100 bg-gray-50">
+      <h2 class="font-semibold text-brand-dark">Послуги</h2>
+    </div>
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 border-b border-gray-200">
+        <tr>
+          <th class="px-4 py-2.5 text-left font-medium text-gray-500">Назва</th>
+          <th class="px-4 py-2.5 text-right font-medium text-gray-500">К-сть</th>
+          <th class="px-4 py-2.5 text-right font-medium text-gray-500">Виручка, ₴</th>
+          <th class="px-4 py-2.5 text-right font-medium text-gray-500 hidden md:table-cell">Частка</th>
+          <th class="px-4 py-2.5 text-right font-medium text-gray-500 hidden lg:table-cell">Сер. ціна</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for s in services %}
+        <tr class="hover:bg-gray-50">
+          <td class="px-4 py-2.5 font-medium text-brand-dark">{{ s.name }}</td>
+          <td class="px-4 py-2.5 text-right text-gray-500">{{ s.cnt }}</td>
+          <td class="px-4 py-2.5 text-right font-semibold text-brand-dark">{{ s.total|floatformat:0 }}</td>
+          <td class="px-4 py-2.5 hidden md:table-cell">
+            {% if total_revenue %}
+            {% widthratio s.total total_revenue 100 as pct %}
+            <div class="flex items-center justify-end gap-2">
+              <div class="w-16 bg-gray-100 rounded-full h-1.5">
+                <div class="bg-brand-gold h-1.5 rounded-full" style="width: {{ pct }}%"></div>
+              </div>
+              <span class="text-xs text-gray-500 w-8 text-right">{{ pct }}%</span>
+            </div>
+            {% else %}—{% endif %}
+          </td>
+          <td class="px-4 py-2.5 text-right text-gray-400 text-xs hidden lg:table-cell">
+            {{ s.avg_price|floatformat:0 }} ₴
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">Немає даних за цей період</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Товари -->
+  <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div class="px-4 py-3 border-b border-gray-100 bg-gray-50">
+      <h2 class="font-semibold text-brand-dark">Товари</h2>
+    </div>
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 border-b border-gray-200">
+        <tr>
+          <th class="px-4 py-2.5 text-left font-medium text-gray-500">Назва</th>
+          <th class="px-4 py-2.5 text-right font-medium text-gray-500">К-сть</th>
+          <th class="px-4 py-2.5 text-right font-medium text-gray-500">Виручка, ₴</th>
+          <th class="px-4 py-2.5 text-right font-medium text-gray-500 hidden md:table-cell">Частка</th>
+          <th class="px-4 py-2.5 text-right font-medium text-gray-500 hidden lg:table-cell">Сер. ціна</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for p in products %}
+        <tr class="hover:bg-gray-50">
+          <td class="px-4 py-2.5 font-medium text-brand-dark">{{ p.name }}</td>
+          <td class="px-4 py-2.5 text-right text-gray-500">{{ p.cnt }}</td>
+          <td class="px-4 py-2.5 text-right font-semibold text-brand-dark">{{ p.total|floatformat:0 }}</td>
+          <td class="px-4 py-2.5 hidden md:table-cell">
+            {% if total_revenue %}
+            {% widthratio p.total total_revenue 100 as pct %}
+            <div class="flex items-center justify-end gap-2">
+              <div class="w-16 bg-gray-100 rounded-full h-1.5">
+                <div class="bg-brand-gold h-1.5 rounded-full" style="width: {{ pct }}%"></div>
+              </div>
+              <span class="text-xs text-gray-500 w-8 text-right">{{ pct }}%</span>
+            </div>
+            {% else %}—{% endif %}
+          </td>
+          <td class="px-4 py-2.5 text-right text-gray-400 text-xs hidden lg:table-cell">
+            {{ p.avg_price|floatformat:0 }} ₴
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">Немає даних за цей період</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</div>
+{% endblock %}

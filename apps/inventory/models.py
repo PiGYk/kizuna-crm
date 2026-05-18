@@ -1,5 +1,7 @@
 from django.db import models
+from django.db.models import F
 from django.conf import settings
+from django.core.validators import MinValueValidator
 from decimal import Decimal
 from apps.clinic.managers import OrgManager
 
@@ -26,13 +28,22 @@ class Category(models.Model):
 
 
 class Unit(models.Model):
-    name = models.CharField('Назва', max_length=20, unique=True)
+    name = models.CharField('Назва', max_length=20)
     short = models.CharField('Скорочення', max_length=10)
+    organization = models.ForeignKey(
+        'clinic.Organization', on_delete=models.CASCADE,
+        null=True, blank=True, related_name='units',
+        verbose_name='Організація',
+        help_text='Порожнє = глобальна (доступна всім)',
+    )
 
     class Meta:
         verbose_name = 'Одиниця виміру'
         verbose_name_plural = 'Одиниці виміру'
         ordering = ('name',)
+        constraints = [
+            models.UniqueConstraint(fields=['name', 'organization'], name='unique_unit_per_org'),
+        ]
 
     def __str__(self):
         return self.short
@@ -55,13 +66,14 @@ class Product(models.Model):
     )
 
     objects = OrgManager()
-    buy_price = models.DecimalField('Вхідна ціна', max_digits=10, decimal_places=2, default=0)
-    sell_price = models.DecimalField('Вихідна ціна', max_digits=10, decimal_places=2, default=0)
+    buy_price = models.DecimalField('Вхідна ціна', max_digits=10, decimal_places=2, default=0, validators=[MinValueValidator(0)])
+    sell_price = models.DecimalField('Вихідна ціна', max_digits=10, decimal_places=2, default=0, validators=[MinValueValidator(0)])
     quantity = models.DecimalField('Залишок', max_digits=10, decimal_places=3, default=0)
     min_quantity = models.DecimalField('Мін. залишок', max_digits=10, decimal_places=3, default=0,
                                        help_text='При меншому залишку — попередження')
     notes = models.TextField('Нотатки', blank=True)
     is_active = models.BooleanField('Активний', default=True)
+    expiry_date = models.DateField('Термін придатності', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -78,6 +90,16 @@ class Product(models.Model):
     def is_out_of_stock(self):
         return self.quantity <= 0
 
+    def is_expired(self):
+        from datetime import date
+        return bool(self.expiry_date and self.expiry_date < date.today())
+
+    def is_expiring_soon(self, days=30):
+        from datetime import date, timedelta
+        if not self.expiry_date:
+            return False
+        return date.today() <= self.expiry_date <= date.today() + timedelta(days=days)
+
 
 class StockMovement(models.Model):
     class Type(models.TextChoices):
@@ -91,6 +113,13 @@ class StockMovement(models.Model):
     quantity = models.DecimalField('Кількість', max_digits=10, decimal_places=3)
     price = models.DecimalField('Ціна за од.', max_digits=10, decimal_places=2,
                                 null=True, blank=True)
+    supplier = models.ForeignKey(
+        'finance.Supplier',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='stock_movements',
+        verbose_name='Постачальник',
+    )
     reason = models.CharField('Причина', max_length=300, blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
@@ -109,10 +138,9 @@ class StockMovement(models.Model):
     def save(self, *args, **kwargs):
         if not self.pk:  # тільки при створенні
             if self.type == self.Type.IN:
-                self.product.quantity += self.quantity
+                Product.objects.filter(pk=self.product_id).update(quantity=F('quantity') + self.quantity)
             elif self.type == self.Type.OUT:
-                self.product.quantity -= self.quantity
+                Product.objects.filter(pk=self.product_id).update(quantity=F('quantity') - self.quantity)
             elif self.type == self.Type.ADJUST:
-                self.product.quantity = self.quantity
-            self.product.save(update_fields=['quantity'])
+                Product.objects.filter(pk=self.product_id).update(quantity=self.quantity)
         super().save(*args, **kwargs)

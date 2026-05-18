@@ -3,26 +3,7 @@
 {% block title %}{{ patient.name }} — Kizuna CRM{% endblock %}
 
 {% block content %}
-<div class="flex items-center gap-3 mb-6">
-  <a href="{% url 'clients:detail' patient.client.pk %}" class="text-gray-400 hover:text-gray-600" onclick="if(history.length>1){history.back();return false;}">
-    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-  </a>
-  <div class="flex-1">
-    <h1 class="text-2xl font-bold text-brand-dark">{{ patient.name }}</h1>
-    <p class="text-sm text-gray-500">
-      {{ patient.get_species_display }}{% if patient.breed %} · {{ patient.breed }}{% endif %}
-      · <a href="{% url 'clients:detail' patient.client.pk %}" class="hover:text-brand-gold">{{ patient.client.full_name }}</a>
-    </p>
-  </div>
-  <div class="flex gap-2">
-    <a href="{% url 'billing:create' %}?patient={{ patient.pk }}"
-       class="bg-brand-gold text-brand-dark px-3 py-1.5 rounded-lg text-xs font-semibold hover:brightness-95">
-      + Чек
-    </a>
-    <a href="{% url 'clients:patient_edit' patient.pk %}"
-       class="text-sm text-brand-gold hover:text-brand-dark font-medium">Редагувати</a>
-  </div>
-</div>
+{% include 'clients/_patient_detail/header.html' %}
 
 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
 
@@ -31,14 +12,26 @@
 
     <!-- Фото + дані -->
     <div class="bg-white rounded-xl border border-gray-200 p-5">
-      {% if patient.photo %}
-        <img src="{{ patient.photo.url }}" alt="{{ patient.name }}"
-             class="w-full max-h-52 rounded-xl object-cover mb-4">
-      {% else %}
-        <div class="w-20 h-20 rounded-xl bg-brand-gold/10 flex items-center justify-center mx-auto mb-4 text-4xl">
-          {% if patient.species == 'cat' %}🐱{% elif patient.species == 'dog' %}🐶{% elif patient.species == 'rabbit' %}🐰{% elif patient.species == 'bird' %}🐦{% else %}🐾{% endif %}
+      <form method="post" action="{% url 'clients:patient_photo_upload' patient.pk %}" enctype="multipart/form-data" id="photo-form">
+        {% csrf_token %}
+        <div class="cursor-pointer group relative block mb-4" onclick="document.getElementById('photo-file-picker').click()">
+          {% if patient.photo %}
+          <img src="{{ patient.photo.url }}" alt="{{ patient.name }}" class="w-full aspect-square object-cover rounded-xl" id="photo-current">
+          {% else %}
+          <div class="w-full aspect-square bg-gray-100 rounded-xl flex items-center justify-center text-4xl" id="photo-current">
+            {% if patient.species == 'cat' %}🐱{% elif patient.species == 'dog' %}🐶{% elif patient.species == 'rabbit' %}🐰{% elif patient.species == 'bird' %}🐦{% elif patient.species == 'hamster' %}🐹{% elif patient.species == 'guinea_pig' %}🐹{% elif patient.species == 'turtle' %}🐢{% elif patient.species == 'fish' %}🐟{% elif patient.species == 'hedgehog' %}🦔{% elif patient.species == 'rat' %}🐭{% elif patient.species == 'ferret' %}🦡{% elif patient.species == 'chinchilla' %}🐿{% elif patient.species == 'reptile' %}🦎{% else %}🐾{% endif %}
+          </div>
+          {% endif %}
+          <div class="absolute inset-0 bg-black/40 rounded-xl opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+            <span class="text-white text-sm font-medium">📷 Змінити фото</span>
+          </div>
         </div>
-      {% endif %}
+        <input type="file" name="photo" accept="image/*" id="photo-file-picker" class="hidden" onchange="onPhotoPicked(this)">
+        <label class="flex items-center gap-2 text-xs text-gray-500 mb-2 select-none cursor-pointer">
+          <input type="checkbox" id="skip-crop" class="rounded border-gray-300 text-brand-gold focus:ring-brand-gold" checked>
+          <span>Завантажити без обрізки (рекомендовано на моб.)</span>
+        </label>
+      </form>
       <dl class="space-y-2 text-sm">
         <div class="flex justify-between"><dt class="text-gray-500">Стать</dt><dd>{{ patient.get_sex_display }}</dd></div>
         <div class="flex justify-between"><dt class="text-gray-500">Вік</dt><dd>{{ patient.age_display }}</dd></div>
@@ -56,8 +49,16 @@
 
     <!-- Вакцини -->
     <div class="bg-white rounded-xl border border-gray-200 p-5">
+      <div class="mb-4">
+        <button type="button" onclick="toggleSection(this)" class="w-full flex items-center justify-between text-left py-3 min-h-[44px]">
+          <h3 class="text-sm font-semibold text-gray-700">💉 Вакцини <span class="text-xs text-gray-400 font-normal ml-1">({{ vaccines|length }})</span></h3>
+          <span class="w-11 h-11 -mr-2 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-gray-400 transition-transform section-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </span>
+        </button>
+        <div class="section-content">
       <div class="flex items-center justify-between mb-3">
-        <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide">Вакцини</h2>
+        <span></span>
         <button onclick="document.getElementById('vaccine-form').classList.toggle('hidden')"
                 class="text-xs text-brand-gold hover:text-brand-dark font-medium">+ Додати</button>
       </div>
@@ -70,7 +71,7 @@
               <label class="block text-xs text-gray-500 mb-1">Назва *</label>
               {{ vaccine_form.name }}
             </div>
-            <div class="grid grid-cols-3 gap-2">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <div>
                 <label class="block text-xs text-gray-500 mb-1">Дата *</label>
                 {{ vaccine_form.date }}
@@ -122,14 +123,25 @@
       {% else %}
         <p class="text-sm text-gray-400">Вакцинацій ще немає</p>
       {% endif %}
+        </div>{# /section-content #}
+      </div>{# /collapsible вакцини #}
     </div>
     <!-- Вага -->
     <div class="bg-white rounded-xl border border-gray-200 p-5">
+      <div class="mb-4">
+        <button type="button" onclick="toggleSection(this)" class="w-full flex items-center justify-between text-left py-3 min-h-[44px]">
+          <h3 class="text-sm font-semibold text-gray-700">⚖️ Вага <span class="text-xs text-gray-400 font-normal ml-1">({{ weights|length }})</span></h3>
+          <span class="w-11 h-11 -mr-2 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-gray-400 transition-transform section-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </span>
+        </button>
+        <div class="section-content">
       <div class="flex items-center justify-between mb-3">
-        <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide">Вага</h2>
+        <span></span>
         <button onclick="document.getElementById('weight-form').classList.toggle('hidden')"
                 class="text-xs text-brand-gold hover:text-brand-dark font-medium">+ Записати</button>
       </div>
+      <div id="weight-alert" class="hidden mb-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700"></div>
 
       {% if weights %}
         {% with last=weights|last %}
@@ -182,12 +194,22 @@
           </button>
         </form>
       </div>
+        </div>{# /section-content #}
+      </div>{# /collapsible вага #}
     </div>
 
     <!-- Аналізи -->
     <div class="bg-white rounded-xl border border-gray-200 p-5">
+      <div class="mb-4">
+        <button type="button" onclick="toggleSection(this)" class="w-full flex items-center justify-between text-left py-3 min-h-[44px]">
+          <h3 class="text-sm font-semibold text-gray-700">🔬 Аналізи <span class="text-xs text-gray-400 font-normal ml-1">({{ analyses|length }})</span></h3>
+          <span class="w-11 h-11 -mr-2 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-gray-400 transition-transform section-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </span>
+        </button>
+        <div class="section-content">
       <div class="flex items-center justify-between mb-3">
-        <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide">Аналізи</h2>
+        <span></span>
         <button onclick="document.getElementById('analysis-form').classList.toggle('hidden')"
                 class="text-xs text-brand-gold hover:text-brand-dark font-medium">+ Додати</button>
       </div>
@@ -241,7 +263,8 @@
             </div>
             <div class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
               {% if patient.client.tg_chats.exists %}
-              <form method="post" action="{% url 'tg:send_analysis_photo' a.pk %}" class="inline">
+              <form method="post" action="{% url 'tg:send_analysis_photo' a.pk %}" class="inline"
+                    onsubmit="var b=this.querySelector('button');b.disabled=true;b.textContent='⏳';">
                 {% csrf_token %}
                 <button type="submit"
                         class="bg-white/90 text-blue-400 hover:text-blue-600 rounded px-1.5 py-0.5 text-xs font-medium shadow-sm"
@@ -265,7 +288,132 @@
       {% else %}
         <p class="text-sm text-gray-400">Аналізів ще немає</p>
       {% endif %}
+
+      {% if analyses|length >= 2 %}
+      <button type="button" onclick="toggleCompare()" class="text-xs text-brand-gold hover:text-brand-dark font-medium mt-2">🔍 Порівняти</button>
+      <div id="compare-panel" class="hidden mt-2 grid grid-cols-2 gap-2 bg-gray-50 rounded-xl p-3">
+        <div>
+          <select id="compare-left" class="w-full text-xs border border-gray-200 rounded-lg px-2 py-1 mb-2" onchange="loadCompareImg('left')">
+            <option value="">Оберіть...</option>
+            {% for a in analyses %}
+            <option value="{{ a.image.url }}">{{ a.title }} ({{ a.date|date:"d.m.Y" }})</option>
+            {% endfor %}
+          </select>
+          <img id="compare-img-left" class="w-full rounded-lg" style="display:none">
+        </div>
+        <div>
+          <select id="compare-right" class="w-full text-xs border border-gray-200 rounded-lg px-2 py-1 mb-2" onchange="loadCompareImg('right')">
+            <option value="">Оберіть...</option>
+            {% for a in analyses %}
+            <option value="{{ a.image.url }}">{{ a.title }} ({{ a.date|date:"d.m.Y" }})</option>
+            {% endfor %}
+          </select>
+          <img id="compare-img-right" class="w-full rounded-lg" style="display:none">
+        </div>
+      </div>
+      {% endif %}
+
+        </div>{# /section-content #}
+      </div>{# /collapsible аналізи #}
     </div>
+
+    <!-- Документи -->
+    <div class="bg-white rounded-xl border border-gray-200 p-5">
+      <div class="mb-4">
+        <button type="button" onclick="toggleSection(this)" class="w-full flex items-center justify-between text-left py-3 min-h-[44px]">
+          <h3 class="text-sm font-semibold text-gray-700">📎 Документи <span class="text-xs text-gray-400 font-normal ml-1">({{ patient.documents.count }})</span></h3>
+          <span class="w-11 h-11 -mr-2 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-gray-400 transition-transform section-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </span>
+        </button>
+        <div class="section-content">
+          {% for doc in patient.documents.all %}
+          <div class="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0 group">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0
+              {% if doc.is_pdf %}bg-red-50 text-red-400{% elif doc.is_image %}bg-blue-50 text-blue-400{% else %}bg-gray-50 text-gray-400{% endif %}">
+              {% if doc.is_pdf %}📄{% elif doc.is_image %}🖼{% else %}📁{% endif %}
+            </div>
+            <div class="flex-1 min-w-0">
+              <a href="{{ doc.file.url }}" target="_blank" class="text-sm text-brand-dark hover:text-brand-gold font-medium truncate block">{{ doc.title }}</a>
+              <div class="text-xs text-gray-400">{{ doc.date|date:"d.m.Y" }}</div>
+            </div>
+            <form method="post" action="{% url 'clients:document_delete' doc.pk %}" class="opacity-0 group-hover:opacity-100"
+                  onsubmit="return confirm('Видалити документ?')">
+              {% csrf_token %}
+              <button class="text-gray-300 hover:text-red-400 p-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+            </form>
+          </div>
+          {% empty %}
+          <div class="text-xs text-gray-300 py-2">Немає документів</div>
+          {% endfor %}
+          <a href="{% url 'clients:document_upload' patient.pk %}" class="text-xs text-brand-gold hover:text-brand-dark font-medium mt-2 inline-block">+ Завантажити документ</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Протоколи УЗД -->
+    {% with ultrasounds=patient.ultrasounds.all|slice:":5" %}
+    {% if ultrasounds %}
+    <div class="bg-white rounded-xl border border-gray-200 p-5">
+      <div class="mb-4">
+        <button type="button" onclick="toggleSection(this)" class="w-full flex items-center justify-between text-left py-3 min-h-[44px]">
+          <h3 class="text-sm font-semibold text-gray-700">📋 Протоколи УЗД <span class="text-xs text-gray-400 font-normal ml-1">({{ patient.ultrasounds.count }})</span></h3>
+          <span class="w-11 h-11 -mr-2 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-gray-400 transition-transform section-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </span>
+        </button>
+        <div class="section-content">
+          {% for u in ultrasounds %}
+          <div class="flex items-center gap-2 py-1.5 text-sm {% if not forloop.last %}border-b border-gray-50{% endif %}">
+            <span class="text-gray-500 flex-1">{{ u.date|date:"d.m.Y" }}{% if u.conclusion %} — {{ u.conclusion|truncatechars:60 }}{% endif %}</span>
+            <a href="{% url 'clients:ultrasound_pdf' u.pk %}" target="_blank" class="text-xs text-brand-gold hover:text-brand-dark">PDF</a>
+            {% if patient.client.tg_chats.exists %}
+            <form method="post" action="{% url 'tg:send_ultrasound_pdf' u.pk %}" class="inline">
+              {% csrf_token %}
+              <button type="submit" class="text-xs text-blue-500 hover:text-blue-700">TG</button>
+            </form>
+            {% endif %}
+            <a href="{% url 'clients:ultrasound_edit' u.pk %}" class="text-xs text-gray-400 hover:text-brand-gold">Ред.</a>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <!-- Опитування здоров'я -->
+    {% with health_checks=patient.health_checks.all|slice:":5" %}
+    {% if health_checks %}
+    <div class="bg-white rounded-xl border border-gray-200 p-5">
+      <div class="mb-4">
+        <button type="button" onclick="toggleSection(this)" class="w-full flex items-center justify-between text-left py-3 min-h-[44px]">
+          <h3 class="text-sm font-semibold text-gray-700">🩺 Опитування здоров'я <span class="text-xs text-gray-400 font-normal ml-1">({{ patient.health_checks.count }})</span></h3>
+          <span class="w-11 h-11 -mr-2 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-gray-400 transition-transform section-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </span>
+        </button>
+        <div class="section-content">
+          {% for hc in health_checks %}
+          <div class="flex items-center gap-2 py-1.5 text-sm {% if not forloop.last %}border-b border-gray-50{% endif %}">
+            {% if hc.status == 'ok' %}
+              <span class="w-2 h-2 rounded-full bg-green-400 shrink-0"></span>
+            {% elif hc.status == 'concern' %}
+              <span class="w-2 h-2 rounded-full bg-red-400 shrink-0"></span>
+            {% else %}
+              <span class="w-2 h-2 rounded-full bg-yellow-400 shrink-0"></span>
+            {% endif %}
+            <span class="text-gray-500 flex-1">{{ hc.get_trigger_display }}</span>
+            <span class="text-xs text-gray-400">{{ hc.sent_at|date:"d.m.Y" }}</span>
+            <span class="text-xs font-medium {% if hc.status == 'ok' %}text-green-600{% elif hc.status == 'concern' %}text-red-500{% else %}text-yellow-600{% endif %}">{{ hc.get_status_display }}</span>
+          </div>
+          {% endfor %}
+          <a href="{% url 'clients:health_diary' %}?patient={{ patient.pk }}" class="text-xs text-brand-gold hover:text-brand-dark mt-2 inline-block">Всі опитування →</a>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+    {% endwith %}
 
   </div>
 
@@ -273,8 +421,14 @@
   <div class="md:col-span-2">
     <div class="flex items-center justify-between mb-3">
       <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide">Історія маніпуляцій</h2>
-      <a href="{% url 'clients:visit_create' patient.pk %}"
-         class="text-sm text-brand-gold hover:text-brand-dark font-medium">+ Візит</a>
+      <div class="flex items-center gap-3">
+        <button type="button" onclick="document.getElementById('quick-visit-modal').classList.remove('hidden')"
+          class="text-xs text-gray-400 hover:text-brand-gold font-medium">
+          ⚡ Швидкий візит
+        </button>
+        <a href="{% url 'clients:visit_create' patient.pk %}"
+           class="text-sm text-brand-gold hover:text-brand-dark font-medium">+ Візит</a>
+      </div>
     </div>
 
     {% if visits or invoices %}
@@ -296,21 +450,22 @@
               <div class="text-xs text-gray-400 ml-4">{{ visit.doctor.get_full_name|default:visit.doctor.username }}</div>
             {% endif %}
           </div>
-          <div class="flex items-center gap-2 shrink-0">
+          <div class="flex items-center gap-3 shrink-0">
             <form method="post" action="{% url 'clients:visit_duplicate' visit.pk %}">
               {% csrf_token %}
-              <button type="submit" class="text-xs text-gray-400 hover:text-brand-gold font-medium" title="Скопіювати маніпуляцію">
+              <button type="submit" class="text-sm md:text-xs text-gray-400 hover:text-brand-gold font-medium py-1" title="Скопіювати маніпуляцію">
                 Копія
               </button>
             </form>
             <a href="{% url 'clients:visit_edit' visit.pk %}"
-               class="text-xs text-gray-400 hover:text-brand-gold font-medium">Ред.</a>
+               class="text-sm md:text-xs text-gray-400 hover:text-brand-gold font-medium py-1">Ред.</a>
             <a href="{% url 'clients:visit_pdf' visit.pk %}" target="_blank"
-               class="text-xs text-gray-400 hover:text-brand-gold font-medium">PDF</a>
+               class="text-sm md:text-xs text-gray-400 hover:text-brand-gold font-medium py-1">PDF</a>
             {% if patient.client.tg_chats.exists %}
-            <form method="post" action="{% url 'tg:send_visit_pdf' visit.pk %}" class="inline">
+            <form method="post" action="{% url 'tg:send_visit_pdf' visit.pk %}" class="inline"
+                  onsubmit="var b=this.querySelector('button');b.disabled=true;b.textContent='⏳ TG';">
               {% csrf_token %}
-              <button type="submit" class="text-xs text-blue-400 hover:text-blue-600 font-medium" title="Відправити в Telegram">TG</button>
+              <button type="submit" class="text-sm md:text-xs text-blue-400 hover:text-blue-600 font-medium py-1" title="Відправити в Telegram">TG</button>
             </form>
             {% endif %}
           </div>
@@ -319,24 +474,36 @@
           {% if visit.complaint %}
           <div>
             <span class="text-xs font-semibold text-gray-400 uppercase">Скарги:</span>
-            <p class="text-gray-700 mt-0.5">{{ visit.complaint }}</p>
+            <div class="text-gray-700 mt-0.5 visit-html">{{ visit.complaint|linebreaksbr }}</div>
           </div>
           {% endif %}
           {% if visit.diagnosis %}
           <div>
             <span class="text-xs font-semibold text-gray-400 uppercase">Діагноз:</span>
-            <p class="text-gray-700 mt-0.5">{{ visit.diagnosis }}</p>
+            <div class="text-gray-700 mt-0.5 visit-html">{{ visit.diagnosis|linebreaksbr }}</div>
           </div>
           {% endif %}
           {% if visit.treatment %}
           <div>
             <span class="text-xs font-semibold text-gray-400 uppercase">Лікування:</span>
-            <p class="text-gray-700 mt-0.5">{{ visit.treatment }}</p>
+            <div class="text-gray-700 mt-0.5 visit-html">{{ visit.treatment|linebreaksbr }}</div>
           </div>
           {% endif %}
           {% if visit.notes %}
-          <div class="pt-1 border-t border-gray-50 text-xs text-gray-500">{{ visit.notes }}</div>
+          <div class="pt-1 border-t border-gray-50 text-xs text-gray-500 visit-html">{{ visit.notes|linebreaksbr }}</div>
           {% endif %}
+          {% if visit.prescriptions.exists %}
+          <div class="mt-3 border-t border-gray-100 pt-3">
+            <div class="text-xs font-medium text-gray-500 mb-2">💊 Призначення:</div>
+            {% for rx in visit.prescriptions.all %}
+            <div class="flex items-center gap-2 py-1 text-sm">
+              <span class="text-gray-700 font-medium">{{ rx.medication }}</span>
+              <span class="text-gray-400">{{ rx.dosage }}, {{ rx.frequency }}, {{ rx.duration }}</span>
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
+          <a href="{% url 'clients:prescription_create' visit.pk %}" class="text-xs text-gray-400 hover:text-brand-gold mt-1 inline-block">+ Призначення</a>
         </div>
       </div>
       {% endfor %}
@@ -354,9 +521,9 @@
               <div class="text-xs text-gray-400 ml-4">{{ inv.doctor.get_full_name|default:inv.doctor.username }}</div>
             {% endif %}
           </div>
-          <div class="flex items-center gap-2 shrink-0">
-            <span class="font-bold text-brand-gold">{{ inv.total }} ₴</span>
-            <a href="{% url 'billing:detail' inv.pk %}" class="text-xs text-gray-400 hover:text-brand-gold font-medium">Відкрити</a>
+          <div class="flex items-center gap-3 shrink-0">
+            <span class="font-bold text-brand-gold text-base md:text-sm">{{ inv.total }} ₴</span>
+            <a href="{% url 'billing:detail' inv.pk %}" class="text-sm md:text-xs text-gray-400 hover:text-brand-gold font-medium py-1">Відкрити</a>
           </div>
         </div>
         {% with lines=inv.lines.all %}
@@ -384,6 +551,8 @@
   </div>
 
 </div>
+
+{% include 'clients/partials/quick_visit_modal.html' %}
 {% endblock %}
 
 {% block extra_scripts %}
@@ -437,80 +606,24 @@
 </script>
 {% endif %}
 
-<!-- Crop Modal for Analysis -->
-<div id="analysis-crop-modal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4">
-  <div class="bg-white rounded-xl shadow-xl max-w-lg w-full p-4">
-    <div class="flex items-center justify-between mb-3">
-      <h3 class="font-semibold text-brand-dark">Обрізка фото</h3>
-      <button type="button" onclick="closeAnalysisCrop()" class="text-gray-400 hover:text-gray-600 text-lg">&times;</button>
-    </div>
-    <div class="relative w-full" style="max-height:60vh; overflow:hidden;">
-      <img id="analysis-crop-image" class="w-full" style="max-height:55vh;">
-    </div>
-    <div class="flex items-center gap-2 mt-3">
-      <button type="button" onclick="_aCropper&&_aCropper.setAspectRatio(NaN)" class="px-3 py-1 text-xs rounded border border-gray-300 hover:border-brand-gold">Вільно</button>
-      <button type="button" onclick="_aCropper&&_aCropper.setAspectRatio(1)" class="px-3 py-1 text-xs rounded border border-gray-300 hover:border-brand-gold">1:1</button>
-      <button type="button" onclick="_aCropper&&_aCropper.setAspectRatio(4/3)" class="px-3 py-1 text-xs rounded border border-gray-300 hover:border-brand-gold">4:3</button>
-      <button type="button" onclick="_aCropper&&_aCropper.setAspectRatio(3/4)" class="px-3 py-1 text-xs rounded border border-gray-300 hover:border-brand-gold">3:4</button>
-    </div>
-    <div class="flex gap-2 mt-3">
-      <button type="button" onclick="applyAnalysisCrop()"
-        class="flex-1 bg-brand-gold text-brand-dark py-2 rounded-lg text-sm font-semibold hover:brightness-95">
-        Застосувати
-      </button>
-      <button type="button" onclick="closeAnalysisCrop()"
-        class="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg text-sm hover:bg-gray-50">
-        Скасувати
-      </button>
-    </div>
-  </div>
-</div>
+{% include 'clients/_patient_detail/crop_modals.html' %}
 
 <script>
-let _aCropper = null;
-let _aCropFile = null;
+fetch('{% url "clients:weight_alert" patient.pk %}')
+  .then(r => r.json())
+  .then(data => {
+    if (data.alert) {
+      const el = document.getElementById('weight-alert');
+      el.textContent = '\u26a0 ' + data.alert.message;
+      el.classList.remove('hidden');
+      if (data.alert.severity === 'danger') {
+        el.classList.replace('bg-amber-50', 'bg-red-50');
+        el.classList.replace('border-amber-200', 'border-red-200');
+        el.classList.replace('text-amber-700', 'text-red-700');
+      }
+    }
+  })
+  .catch(() => {});
 
-function openAnalysisCrop(input) {
-  const file = input.files && input.files[0];
-  if (!file) return;
-  _aCropFile = file;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const img = document.getElementById('analysis-crop-image');
-    img.src = e.target.result;
-    document.getElementById('analysis-crop-modal').classList.remove('hidden');
-    if (_aCropper) _aCropper.destroy();
-    img.onload = () => {
-      _aCropper = new Cropper(img, {
-        viewMode: 1,
-        autoCropArea: 0.95,
-        responsive: true,
-        background: false,
-      });
-    };
-  };
-  reader.readAsDataURL(file);
-}
-
-function closeAnalysisCrop() {
-  document.getElementById('analysis-crop-modal').classList.add('hidden');
-  if (_aCropper) { _aCropper.destroy(); _aCropper = null; }
-}
-
-function applyAnalysisCrop() {
-  if (!_aCropper) return;
-  const canvas = _aCropper.getCroppedCanvas({ maxWidth: 2400, maxHeight: 2400 });
-  canvas.toBlob(blob => {
-    const dt = new DataTransfer();
-    const name = _aCropFile ? _aCropFile.name : 'analysis.jpg';
-    dt.items.add(new File([blob], name, { type: 'image/jpeg' }));
-    document.getElementById('analysis-photo-hidden').files = dt.files;
-    const preview = document.getElementById('analysis-crop-preview');
-    const previewImg = document.getElementById('analysis-crop-preview-img');
-    previewImg.src = canvas.toDataURL('image/jpeg', 0.9);
-    preview.classList.remove('hidden');
-    closeAnalysisCrop();
-  }, 'image/jpeg', 0.92);
-}
 </script>
 {% endblock %}

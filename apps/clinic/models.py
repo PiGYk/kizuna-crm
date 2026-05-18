@@ -1,6 +1,13 @@
+from datetime import time as dt_time
+
 from django.db import models
 from django.utils import timezone
 from django.utils.text import slugify
+
+
+def _default_work_days():
+    """Пн, Вт, Пт, Сб, Нд — Ср і Чт вихідні для Kizuna."""
+    return [0, 1, 4, 5, 6]
 
 
 class Organization(models.Model):
@@ -67,6 +74,30 @@ class Organization(models.Model):
         delta = self.trial_expires_at - timezone.now()
         return max(0, delta.days)
 
+    # --- Персонал ---
+    default_doctor = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='+',
+        verbose_name='Лікар за замовчуванням',
+        help_text='Підставляється у нові візити, вакцини, записи та рахунки',
+    )
+
+    # --- Дизайн ---
+    logo = models.ImageField(
+        'Логотип', upload_to='org_logos/', null=True, blank=True,
+        help_text='PNG або SVG, рекомендований розмір 200×60 px',
+    )
+    primary_color = models.CharField(
+        'Акцентний колір', max_length=7, default='#DEAA01',
+        help_text='Кнопки, активні елементи. HEX, наприклад #DEAA01',
+    )
+    sidebar_color = models.CharField(
+        'Колір бічної панелі', max_length=7, default='#12100F',
+        help_text='Фон меню. HEX, наприклад #12100F',
+    )
+
     # --- Контакти ---
     address = models.CharField('Адреса', max_length=300, blank=True, default='')
     phone = models.CharField('Телефон', max_length=50, blank=True, default='')
@@ -98,12 +129,70 @@ class Organization(models.Model):
         help_text='Автоматично генерується при реєстрації webhook. Не змінювати вручну.',
     )
 
+    # ── Графік роботи ──
+    work_days = models.JSONField(
+        'Робочі дні', default=_default_work_days,
+        help_text='Список робочих днів: 0=Пн, 1=Вт, 2=Ср, 3=Чт, 4=Пт, 5=Сб, 6=Нд'
+    )
+    work_start = models.TimeField('Початок роботи', default=dt_time(10, 0))
+    work_end = models.TimeField('Кінець роботи', default=dt_time(18, 0))
+    slot_duration = models.PositiveIntegerField('Тривалість слоту (хв)', default=30)
+
+    # ── Нотифікації ──
+    notify_appointment_24h = models.BooleanField('Нагадування за 24 год', default=True)
+    notify_appointment_2h = models.BooleanField('Нагадування за 2 год', default=True)
+    notify_vaccines = models.BooleanField('Нагадування про вакцини', default=True)
+
+    # Конфігурація видимості меню по ролях
+    # Структура: {"doctor": {"telegram": false, ...}, "assistant": {...}}
+    MENU_ITEMS = [
+        ('telegram',   'Telegram чати'),
+        ('broadcast',  'Розсилки'),
+        ('analytics',  'Аналітика'),
+        ('debtors',    'Боржники'),
+        ('revenue',    'Доходність'),
+        ('finance',    'Фінанси'),
+        ('billing',    'Рахунки (всі)'),
+    ]
+    ROLES_WITH_MENU = [
+        ('doctor',    'Лікар'),
+        ('assistant', 'Асистент'),
+    ]
+    DEFAULT_MENU_CONFIG = {
+        'doctor':    {'telegram': False, 'broadcast': False, 'analytics': False, 'debtors': False, 'revenue': False, 'finance': False, 'billing': True},
+        'assistant': {'telegram': True,  'broadcast': False, 'analytics': False, 'debtors': False, 'revenue': False, 'finance': True,  'billing': True},
+    }
+    role_menu_config = models.JSONField(
+        'Доступ до меню по ролях',
+        default=dict,
+        blank=True,
+    )
+
+    def get_menu_config(self):
+        """Повертає конфіг з fallback на дефолти."""
+        cfg = self.DEFAULT_MENU_CONFIG.copy()
+        saved = self.role_menu_config or {}
+        for role in cfg:
+            if role in saved:
+                cfg[role].update(saved[role])
+        return cfg
+
+    def can_see_menu(self, role, item):
+        """Чи може роль бачити пункт меню."""
+        if role not in ('doctor', 'assistant'):
+            return True  # admin бачить все
+        return self.get_menu_config().get(role, {}).get(item, True)
+
     class Meta:
         verbose_name = 'Організація'
         verbose_name_plural = 'Організації'
 
     def __str__(self):
         return self.name
+
+    def get_default_doctor(self, fallback=None):
+        """Повертає дефолтного лікаря або fallback (зазвичай request.user)."""
+        return self.default_doctor or fallback
 
     def save(self, *args, **kwargs):
         if not self.slug:

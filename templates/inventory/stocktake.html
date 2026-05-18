@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% block title %}Інвентаризація — Kizuna CRM{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl">
+  <div class="flex items-center gap-3 mb-6">
+    <a href="{% url 'inventory:list' %}" class="text-gray-400 hover:text-gray-600">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+    </a>
+    <h1 class="text-2xl font-bold text-brand-dark">Інвентаризація</h1>
+  </div>
+
+  <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800 mb-4">
+    Введіть фактичний залишок для кожного товару. Пусті поля будуть пропущені. Товари з розбіжностями будуть автоматично скориговані.
+  </div>
+
+  <form method="post" onsubmit="return confirm('Зберегти результати інвентаризації? Залишки будуть скориговані.')">
+    {% csrf_token %}
+    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-4">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-gray-100">
+              <th class="text-left px-4 py-3 text-xs text-gray-400 font-medium">Товар</th>
+              <th class="text-left px-4 py-3 text-xs text-gray-400 font-medium">Категорія</th>
+              <th class="text-right px-4 py-3 text-xs text-gray-400 font-medium">Од.</th>
+              <th class="text-right px-4 py-3 text-xs text-gray-400 font-medium">В системі</th>
+              <th class="text-center px-4 py-3 text-xs text-gray-400 font-medium">Фактично</th>
+              <th class="text-center px-4 py-3 text-xs text-gray-400 font-medium">Різниця</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-50">
+            {% for p in products %}
+            <tr class="hover:bg-gray-50/50" id="row-{{ p.pk }}">
+              <td class="px-4 py-2.5">
+                <div class="font-medium text-brand-dark">{{ p.name }}</div>
+                {% if p.sku %}<div class="text-xs text-gray-400">{{ p.sku }}</div>{% endif %}
+              </td>
+              <td class="px-4 py-2.5 text-gray-500">{{ p.category.name|default:"—" }}</td>
+              <td class="px-4 py-2.5 text-right text-gray-400">{{ p.unit.short|default:"" }}</td>
+              <td class="px-4 py-2.5 text-right font-medium tabular-nums text-gray-700">{{ p.quantity|floatformat:"-3" }}</td>
+              <td class="px-4 py-2.5 text-center">
+                <input type="number" name="actual_{{ p.pk }}" step="any" min="0"
+                  placeholder="{{ p.quantity|floatformat:'-3' }}"
+                  data-system="{{ p.quantity }}" data-row="{{ p.pk }}"
+                  class="w-24 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-brand-gold"
+                  oninput="showDiff(this)">
+              </td>
+              <td class="px-4 py-2.5 text-center text-sm tabular-nums" id="diff-{{ p.pk }}">—</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="flex gap-3">
+      <button type="submit" class="bg-brand-gold text-brand-dark px-8 py-2.5 rounded-lg text-sm font-semibold hover:brightness-95 transition">
+        Зберегти інвентаризацію
+      </button>
+      <a href="{% url 'inventory:list' %}" class="border border-gray-200 text-gray-500 px-6 py-2.5 rounded-lg text-sm hover:bg-gray-50 transition">Скасувати</a>
+    </div>
+  </form>
+</div>
+
+<script>
+function showDiff(input) {
+  const sys = parseFloat(input.dataset.system) || 0;
+  const actual = parseFloat(input.value);
+  const diffEl = document.getElementById('diff-' + input.dataset.row);
+  const row = document.getElementById('row-' + input.dataset.row);
+
+  if (isNaN(actual) || input.value === '') {
+    diffEl.textContent = '—';
+    diffEl.className = 'px-4 py-2.5 text-center text-sm tabular-nums text-gray-300';
+    row.classList.remove('bg-red-50/50', 'bg-green-50/50');
+    return;
+  }
+
+  const diff = actual - sys;
+  if (Math.abs(diff) < 0.001) {
+    diffEl.textContent = '\u2713';
+    diffEl.className = 'px-4 py-2.5 text-center text-sm tabular-nums text-green-500';
+    row.classList.remove('bg-red-50/50');
+    row.classList.add('bg-green-50/50');
+  } else {
+    diffEl.textContent = (diff > 0 ? '+' : '') + diff.toFixed(3);
+    diffEl.className = 'px-4 py-2.5 text-center text-sm tabular-nums font-medium ' + (diff < 0 ? 'text-red-500' : 'text-green-600');
+    row.classList.remove('bg-green-50/50');
+    row.classList.add(diff < 0 ? 'bg-red-50/50' : 'bg-green-50/50');
+  }
+}
+</script>
+{% endblock %}

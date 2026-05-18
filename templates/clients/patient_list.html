@@ -13,16 +13,17 @@
 
 <!-- Модальне вікно: вибір клієнта перед створенням пацієнта -->
 <div id="add-patient-modal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4">
-  <div class="bg-white rounded-xl p-6 max-w-md w-full shadow-xl">
+  <div class="bg-white rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-xl">
     <div class="flex items-center justify-between mb-4">
       <h2 class="text-lg font-bold text-brand-dark">Оберіть хазяїна</h2>
       <button onclick="document.getElementById('add-patient-modal').classList.add('hidden')"
-              class="text-gray-400 hover:text-gray-600">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+              aria-label="Закрити"
+              class="w-11 h-11 -m-2 flex items-center justify-center text-gray-400 hover:text-gray-600">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
       </button>
     </div>
     <input type="text" placeholder="Пошук клієнта за прізвищем або телефоном…"
-      class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-brand-gold"
+      class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-base md:text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-brand-gold"
       hx-get="{% url 'clients:search' %}?mode=add_patient"
       hx-trigger="input changed delay:300ms"
       hx-target="#modal-client-results"
@@ -45,20 +46,21 @@
   </a>
 </div>
 
-<div class="flex flex-wrap items-center gap-3 mb-4">
+<div class="flex flex-wrap items-center gap-3 mb-3">
   <form method="get" class="flex gap-2 flex-1">
     <input type="text" name="q" value="{{ q }}"
       placeholder="Пошук за кличкою, хазяїном, породою…"
-      class="w-full md:w-96 px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+      class="w-full md:w-96 px-4 py-2.5 border border-gray-300 rounded-lg text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
     {% if sort %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
+    {% if species %}<input type="hidden" name="species" value="{{ species }}">{% endif %}
   </form>
   <div class="flex gap-1.5 shrink-0">
-    <a href="?q={{ q }}"
+    <a href="?q={{ q }}{% if species %}&species={{ species }}{% endif %}"
        class="px-3 py-2 rounded-lg text-sm font-medium border transition-colors
-         {% if sort != 'new' %}bg-brand-gold text-brand-dark border-brand-gold{% else %}border-gray-200 text-gray-500 hover:border-gray-300{% endif %}">
+         {% if not sort %}bg-brand-gold text-brand-dark border-brand-gold{% else %}border-gray-200 text-gray-500 hover:border-gray-300{% endif %}">
       А–Я
     </a>
-    <a href="?q={{ q }}&sort=new"
+    <a href="?q={{ q }}&sort=new{% if species %}&species={{ species }}{% endif %}"
        class="px-3 py-2 rounded-lg text-sm font-medium border transition-colors
          {% if sort == 'new' %}bg-brand-gold text-brand-dark border-brand-gold{% else %}border-gray-200 text-gray-500 hover:border-gray-300{% endif %}">
       Нові
@@ -66,15 +68,82 @@
   </div>
 </div>
 
-<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+<div class="flex flex-wrap items-center gap-2 mb-4">
+  <span class="text-xs text-gray-400 font-medium uppercase tracking-wide mr-1">Вид:</span>
+  <a href="?q={{ q }}{% if sort %}&sort={{ sort }}{% endif %}"
+     class="px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors
+       {% if not species %}bg-brand-gold text-brand-dark border-brand-gold{% else %}border-gray-200 text-gray-500 hover:border-gray-300{% endif %}">
+    Всі
+  </a>
+  <a href="?q={{ q }}&species=cat{% if sort %}&sort={{ sort }}{% endif %}"
+     class="px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors
+       {% if species == 'cat' %}bg-brand-gold text-brand-dark border-brand-gold{% else %}border-gray-200 text-gray-500 hover:border-gray-300{% endif %}">
+    🐱 Коти
+  </a>
+  <a href="?q={{ q }}&species=dog{% if sort %}&sort={{ sort }}{% endif %}"
+     class="px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors
+       {% if species == 'dog' %}bg-brand-gold text-brand-dark border-brand-gold{% else %}border-gray-200 text-gray-500 hover:border-gray-300{% endif %}">
+    🐶 Собаки
+  </a>
+  <a href="?q={{ q }}&species=rabbit{% if sort %}&sort={{ sort }}{% endif %}"
+     class="px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors
+       {% if species == 'rabbit' %}bg-brand-gold text-brand-dark border-brand-gold{% else %}border-gray-200 text-gray-500 hover:border-gray-300{% endif %}">
+    🐰 Кролі
+  </a>
+  <a href="?q={{ q }}&species=bird{% if sort %}&sort={{ sort }}{% endif %}"
+     class="px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors
+       {% if species == 'bird' %}bg-brand-gold text-brand-dark border-brand-gold{% else %}border-gray-200 text-gray-500 hover:border-gray-300{% endif %}">
+    🐦 Птиці
+  </a>
+</div>
+
+<!-- Моб: картки -->
+<div class="md:hidden space-y-2">
+  {% for patient in patients %}
+  <a href="{% url 'clients:patient_detail' patient.pk %}"
+     class="flex items-center gap-3 bg-white rounded-xl border border-gray-200 p-3 hover:border-brand-gold transition-colors active:bg-gray-50">
+    {% if patient.photo %}
+      <img src="{{ patient.photo.url }}" alt="{{ patient.name }}"
+           class="w-11 h-11 rounded-full object-cover block shrink-0">
+    {% else %}
+      <div class="w-11 h-11 rounded-full bg-brand-gold/10 flex items-center justify-center text-xl shrink-0">
+        {% if patient.species == 'cat' %}🐱
+        {% elif patient.species == 'dog' %}🐶
+        {% elif patient.species == 'rabbit' %}🐰
+        {% elif patient.species == 'bird' %}🐦
+        {% else %}🐾{% endif %}
+      </div>
+    {% endif %}
+    <div class="flex-1 min-w-0">
+      <div class="flex items-baseline gap-2">
+        <span class="font-semibold text-brand-dark text-sm truncate">{{ patient.name }}</span>
+        <span class="text-xs text-gray-400 shrink-0">{{ patient.age_display }}</span>
+      </div>
+      <div class="text-xs text-gray-600 truncate">{{ patient.client.full_name }}</div>
+      <div class="text-xs text-gray-400 truncate">
+        {{ patient.get_species_display }}{% if patient.breed %} · {{ patient.breed }}{% endif %}
+        {% if patient.assigned_doctor %} · 👨‍⚕️ {{ patient.assigned_doctor.get_full_name|default:patient.assigned_doctor.username }}{% endif %}
+      </div>
+    </div>
+    <svg class="w-4 h-4 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+  </a>
+  {% empty %}
+  <div class="bg-white rounded-xl border border-gray-200 px-4 py-12 text-center text-gray-400 text-sm">
+    {% if q %}Нічого не знайдено{% else %}Пацієнтів ще немає{% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Десктоп: таблиця -->
+<div class="hidden md:block bg-white rounded-xl border border-gray-200 overflow-hidden">
   <table class="w-full text-sm">
     <thead class="bg-gray-50 border-b border-gray-200">
       <tr>
         <th class="px-4 py-3 text-left font-medium text-gray-600 w-12"></th>
         <th class="px-4 py-3 text-left font-medium text-gray-600">Кличка</th>
         <th class="px-4 py-3 text-left font-medium text-gray-600">Хазяїн</th>
-        <th class="px-4 py-3 text-left font-medium text-gray-600 hidden md:table-cell">Вид / Порода</th>
-        <th class="px-4 py-3 text-left font-medium text-gray-600 hidden md:table-cell">Лікар</th>
+        <th class="px-4 py-3 text-left font-medium text-gray-600">Вид / Порода</th>
+        <th class="px-4 py-3 text-left font-medium text-gray-600">Лікар</th>
         <th class="px-4 py-3"></th>
       </tr>
     </thead>
@@ -104,10 +173,10 @@
              class="hover:text-brand-gold"
              onclick="event.stopPropagation()">{{ patient.client.full_name }}</a>
         </td>
-        <td class="px-4 py-3 text-gray-500 hidden md:table-cell">
+        <td class="px-4 py-3 text-gray-500">
           {{ patient.get_species_display }}{% if patient.breed %} · {{ patient.breed }}{% endif %}
         </td>
-        <td class="px-4 py-3 text-gray-400 text-xs hidden md:table-cell">
+        <td class="px-4 py-3 text-gray-400 text-xs">
           {% if patient.assigned_doctor %}{{ patient.assigned_doctor.get_full_name|default:patient.assigned_doctor.username }}{% else %}—{% endif %}
         </td>
         <td class="px-4 py-3 text-right">
@@ -130,11 +199,11 @@
 {% if is_paginated %}
 <div class="flex justify-center gap-2 mt-4">
   {% if page_obj.has_previous %}
-    <a href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if sort %}&sort={{ sort }}{% endif %}" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">←</a>
+    <a href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if sort %}&sort={{ sort }}{% endif %}{% if species %}&species={{ species }}{% endif %}" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">←</a>
   {% endif %}
   <span class="px-3 py-1.5 text-sm text-gray-600">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
   {% if page_obj.has_next %}
-    <a href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if sort %}&sort={{ sort }}{% endif %}" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">→</a>
+    <a href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if sort %}&sort={{ sort }}{% endif %}{% if species %}&species={{ species }}{% endif %}" class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">→</a>
   {% endif %}
 </div>
 {% endif %}

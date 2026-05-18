@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+{% block title %}Чистий прибуток — Kizuna CRM{% endblock %}
+
+{% block content %}
+<div class="p-4 md:p-6 space-y-6 max-w-screen-2xl mx-auto">
+
+  <!-- Subnav -->
+  <div class="flex items-center gap-3 flex-wrap">
+    <h1 class="text-2xl font-bold text-brand-dark">Чистий прибуток</h1>
+    <a href="{% url 'analytics:index' %}" class="px-4 py-1.5 rounded-lg text-sm font-medium border border-gray-200 text-gray-600 hover:border-brand-gold hover:text-brand-dark transition-colors">← Аналітика</a>
+    <a href="{% url 'analytics:payroll' %}" class="px-4 py-1.5 rounded-lg text-sm font-medium border border-gray-200 text-gray-600 hover:border-brand-gold hover:text-brand-dark transition-colors">Зарплата</a>
+    <a href="{% url 'analytics:services' %}" class="px-4 py-1.5 rounded-lg text-sm font-medium border border-gray-200 text-gray-600 hover:border-brand-gold hover:text-brand-dark transition-colors">Доходність</a>
+    <a href="{% url 'analytics:debtors' %}" class="px-4 py-1.5 rounded-lg text-sm font-medium border border-gray-200 text-gray-600 hover:border-brand-gold hover:text-brand-dark transition-colors">Боржники</a>
+  </div>
+
+  <!-- Формула -->
+  <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-sm text-emerald-900">
+    <strong>Формула:</strong> Виручка (paid) − собівартість списаних товарів − <span id="cons-rate">5</span>% витратники (шприци, рукавички, пелюшки) − витрати з фінансів.
+    Зміни у фільтрах нижче перераховують усі картки і графік.
+  </div>
+
+  <!-- 4 KPI карти -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+    {% for key, label in periods %}
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+      <div class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">{{ label }}</div>
+      <div id="net-{{ key }}" class="text-2xl font-bold">—</div>
+      <div class="mt-3 space-y-0.5 text-xs text-gray-500">
+        <div class="flex justify-between"><span>Виручка</span><span id="rev-{{ key }}" class="tabular-nums">—</span></div>
+        <div class="flex justify-between"><span>Собівартість</span><span id="cogs-{{ key }}" class="tabular-nums text-red-500">—</span></div>
+        <div class="flex justify-between"><span>Витратники</span><span id="cons-{{ key }}" class="tabular-nums text-red-500">—</span></div>
+        <div class="flex justify-between"><span>Витрати</span><span id="exp-{{ key }}" class="tabular-nums text-red-500">—</span></div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Графік -->
+  <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="font-semibold text-brand-dark">Динаміка чистого прибутку</h2>
+      <div class="flex gap-1.5">
+        <button onclick="setChartPeriod('month')" id="cp-month" class="cp-btn px-3 py-1 rounded-lg text-xs font-medium border">Місяць</button>
+        <button onclick="setChartPeriod('year')" id="cp-year" class="cp-btn px-3 py-1 rounded-lg text-xs font-medium border">Рік</button>
+      </div>
+    </div>
+    <div class="h-72">
+      <canvas id="profit-chart"></canvas>
+    </div>
+  </div>
+
+  <!-- Фільтри: категорії + окремі витрати -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <!-- Категорії -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-semibold text-brand-dark">Категорії витрат</h2>
+        <div class="flex gap-2">
+          <button onclick="catsAll(true)" class="text-xs text-brand-gold hover:underline">Усі</button>
+          <button onclick="catsAll(false)" class="text-xs text-gray-400 hover:underline">Жодної</button>
+        </div>
+      </div>
+      <p class="text-xs text-gray-500 mb-3">Зніміть галочку щоб не враховувати цю категорію в розрахунку.</p>
+      <div class="space-y-1">
+        {% for c in categories %}
+        <label class="flex items-center gap-2 cursor-pointer py-1.5 px-2 rounded-lg hover:bg-gray-50">
+          <input type="checkbox" data-cat-id="{{ c.id }}" checked onchange="onFilterChange()"
+            class="cat-cb rounded border-gray-300 text-emerald-500 focus:ring-emerald-400">
+          <span class="text-sm text-gray-700">{% if c.icon %}{{ c.icon }} {% endif %}{{ c.name }}</span>
+        </label>
+        {% empty %}
+        <div class="text-sm text-gray-400">Категорій ще немає — додайте їх у розділі Фінанси.</div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Окремі витрати поточного місяця -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-semibold text-brand-dark">Витрати цього місяця</h2>
+        <div class="flex gap-2">
+          <button onclick="expsAll(true)" class="text-xs text-brand-gold hover:underline">Усі</button>
+          <button onclick="expsAll(false)" class="text-xs text-gray-400 hover:underline">Жодної</button>
+        </div>
+      </div>
+      <p class="text-xs text-gray-500 mb-3">Зніміть галочку щоб виключити конкретну витрату.</p>
+      <div class="max-h-80 overflow-y-auto space-y-0.5">
+        {% for e in month_expenses %}
+        <label class="flex items-center gap-2 cursor-pointer py-1.5 px-2 rounded-lg hover:bg-gray-50">
+          <input type="checkbox" data-exp-id="{{ e.id }}" checked onchange="onFilterChange()"
+            class="exp-cb rounded border-gray-300 text-emerald-500 focus:ring-emerald-400">
+          <div class="flex-1 min-w-0">
+            <div class="text-sm text-gray-700 truncate">{{ e.description|default:e.category.name }}</div>
+            <div class="text-xs text-gray-400">{{ e.date|date:"d.m" }} · {{ e.category.name }}</div>
+          </div>
+          <div class="text-sm font-semibold tabular-nums text-red-500">{{ e.amount }} ₴</div>
+        </label>
+        {% empty %}
+        <div class="text-sm text-gray-400">Витрат за цей місяць немає.</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+let chartPeriod = localStorage.getItem('profit-chart-period') || 'month';
+let chartInstance = null;
+const fmt = n => new Intl.NumberFormat('uk-UA', {maximumFractionDigits: 0}).format(Math.round(n));
+
+function getExcluded(selector, attr) {
+  return [...document.querySelectorAll(selector)]
+    .filter(el => !el.checked)
+    .map(el => el.dataset[attr]);
+}
+
+function onFilterChange() {
+  const cats = getExcluded('.cat-cb', 'catId');
+  const exps = getExcluded('.exp-cb', 'expId');
+  localStorage.setItem('profit-excl-cats', cats.join(','));
+  localStorage.setItem('profit-excl-exps', exps.join(','));
+  loadData();
+}
+
+function catsAll(checked) {
+  document.querySelectorAll('.cat-cb').forEach(cb => cb.checked = checked);
+  onFilterChange();
+}
+function expsAll(checked) {
+  document.querySelectorAll('.exp-cb').forEach(cb => cb.checked = checked);
+  onFilterChange();
+}
+
+function setChartPeriod(p) {
+  chartPeriod = p;
+  localStorage.setItem('profit-chart-period', p);
+  document.querySelectorAll('.cp-btn').forEach(b => {
+    b.classList.remove('bg-brand-dark','text-white','border-brand-dark');
+    b.classList.add('border-gray-200','text-gray-600');
+  });
+  const active = document.getElementById('cp-' + p);
+  active.classList.add('bg-brand-dark','text-white','border-brand-dark');
+  active.classList.remove('border-gray-200','text-gray-600');
+  loadData();
+}
+
+function loadData() {
+  const params = new URLSearchParams({
+    chart: chartPeriod,
+    exclude_categories: getExcluded('.cat-cb', 'catId').join(','),
+    exclude_expenses: getExcluded('.exp-cb', 'expId').join(','),
+  });
+  fetch('{% url "analytics:profit_data" %}?' + params.toString())
+    .then(r => r.json())
+    .then(d => {
+      document.getElementById('cons-rate').textContent = d.consumables_rate_pct;
+      ['day','week','month','year'].forEach(k => {
+        const c = d.cards[k];
+        const netEl = document.getElementById('net-' + k);
+        netEl.textContent = fmt(c.net) + ' ₴';
+        netEl.className = 'text-2xl font-bold ' + (c.net >= 0 ? 'text-emerald-600' : 'text-red-500');
+        document.getElementById('rev-' + k).textContent = fmt(c.revenue) + ' ₴';
+        document.getElementById('cogs-' + k).textContent = '−' + fmt(c.cogs) + ' ₴';
+        document.getElementById('cons-' + k).textContent = '−' + fmt(c.consumables) + ' ₴';
+        document.getElementById('exp-' + k).textContent = '−' + fmt(c.expenses) + ' ₴';
+      });
+      drawChart(d.chart);
+    });
+}
+
+function drawChart(data) {
+  if (chartInstance) chartInstance.destroy();
+  const ctx = document.getElementById('profit-chart').getContext('2d');
+  chartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: data.labels,
+      datasets: [
+        {
+          label: 'Чистий прибуток',
+          data: data.net,
+          backgroundColor: data.net.map(v => v >= 0 ? 'rgba(16,185,129,0.7)' : 'rgba(239,68,68,0.7)'),
+          borderRadius: 4,
+        },
+        {
+          label: 'Виручка',
+          data: data.revenue,
+          type: 'line',
+          borderColor: 'rgba(222,170,1,0.9)',
+          backgroundColor: 'rgba(222,170,1,0.1)',
+          tension: 0.3,
+          pointRadius: 2,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom' } },
+      scales: {
+        y: { ticks: { callback: v => fmt(v) + ' ₴' } },
+      },
+    },
+  });
+}
+
+// Restore filters from localStorage
+window.addEventListener('DOMContentLoaded', () => {
+  const exclCats = (localStorage.getItem('profit-excl-cats') || '').split(',').filter(Boolean);
+  const exclExps = (localStorage.getItem('profit-excl-exps') || '').split(',').filter(Boolean);
+  exclCats.forEach(id => {
+    const cb = document.querySelector(`.cat-cb[data-cat-id="${id}"]`);
+    if (cb) cb.checked = false;
+  });
+  exclExps.forEach(id => {
+    const cb = document.querySelector(`.exp-cb[data-exp-id="${id}"]`);
+    if (cb) cb.checked = false;
+  });
+  setChartPeriod(chartPeriod);
+});
+</script>
+{% endblock %}

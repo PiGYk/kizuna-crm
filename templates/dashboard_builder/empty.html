@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Дашборд — {{ clinic.name }}{% endblock %}
+{% block page_title %}Дашборд{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto py-16 px-6 text-center">
+  <div class="text-6xl mb-4">📊</div>
+  <h1 class="text-2xl font-semibold text-brand-dark mb-2">Поки що немає жодного дашборду</h1>
+  <p class="text-brand-dark/60 mb-6">
+    Створи свій перший дашборд — додавай KPI, графіки, списки записів і пацієнтів,
+    розташовуй їх drag-and-drop'ом як зручно тобі.
+  </p>
+
+  <form method="post" action="{% url 'dashboard_builder:dashboard_create' %}" class="inline-flex items-center gap-2">
+    {% csrf_token %}
+    <input type="text" name="name" placeholder="Назва дашборду (напр. Мій робочий стіл)"
+           value="Мій дашборд" required maxlength="120"
+           class="px-4 py-2.5 text-sm border border-black/10 rounded-lg w-64 focus:outline-none focus:border-brand-gold">
+    <button type="submit"
+            class="px-5 py-2.5 text-sm rounded-lg bg-brand-gold text-brand-dark font-semibold hover:opacity-90">
+      + Створити
+    </button>
+  </form>
+</div>
+{% endblock %}

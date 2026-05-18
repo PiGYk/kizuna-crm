@@ -1,0 +1,680 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% comment %}
+Головний шаблон редагованого дашборду.
+Контекст з backend: dashboards, current_dashboard, layout, is_owner, can_edit, role.
+URL-namespace: dashboard_builder (dashboard, dashboard_detail, dashboard_create,
+dashboard_save_layout, dashboard_delete, dashboard_set_default, dashboard_rename,
+widget_data, widget_catalog, widget_settings).
+{% endcomment %}
+
+{% block title %}{{ current_dashboard.name }} — {{ clinic.name }}{% endblock %}
+{% block page_title %}Дашборд{% endblock %}
+
+{% block extra_head %}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridstack@10.3.1/dist/gridstack.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridstack@10.3.1/dist/gridstack-extra.min.css">
+  <style>
+    /* === GridStack === */
+    .grid-stack { background: transparent; min-height: 200px; }
+    .grid-stack-item-content {
+      inset: 0 !important;
+      overflow: hidden;
+    }
+    /* Прибрати дефолтний бекграунд GridStack item — наш .grid-stack-item-content тримає bg сам */
+    .grid-stack > .grid-stack-item > .grid-stack-item-content { background: transparent; }
+
+    /* === Edit-mode overlay === */
+    body.dashboard-edit .grid-stack-item > .grid-stack-item-content {
+      outline: 2px dashed rgba(222, 170, 1, 0.45);
+      outline-offset: -2px;
+    }
+    body.dashboard-edit .widget-actions { display: flex; }
+    .widget-actions {
+      display: none;
+      position: absolute;
+      top: 6px;
+      right: 22px;  /* Зсунули вліво щоб не перекривався NE ресайз-хендлом */
+      gap: 4px;
+      z-index: 20;  /* Поверх усіх ресайз-хендлів */
+    }
+    .widget-actions button {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      background: rgba(18, 16, 15, 0.7);
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+    }
+    .widget-actions button:hover { background: rgba(222, 170, 1, 0.9); color: #12100F; }
+    .widget-btn-remove:hover { background: rgba(220, 38, 38, 0.9) !important; color: #fff !important; }
+
+    /* Drag handle hint в edit mode */
+    body.dashboard-edit .grid-stack-item { cursor: move; }
+    body.dashboard-edit .grid-stack-item .grid-stack-item-content > div:first-child { cursor: default; }
+
+    /* === Resize handles на ВСІ 8 сторін (як у Windows) === */
+    body.dashboard-edit .ui-resizable-handle {
+      display: block !important;
+      background: transparent;
+      z-index: 4;
+    }
+    /* Сторони — товста смуга 8px */
+    body.dashboard-edit .ui-resizable-n,
+    body.dashboard-edit .ui-resizable-s {
+      left: 8px; right: 8px; height: 8px;
+      cursor: ns-resize;
+    }
+    body.dashboard-edit .ui-resizable-n { top: -4px; }
+    body.dashboard-edit .ui-resizable-s { bottom: -4px; }
+    body.dashboard-edit .ui-resizable-e,
+    body.dashboard-edit .ui-resizable-w {
+      top: 8px; bottom: 8px; width: 8px;
+      cursor: ew-resize;
+    }
+    body.dashboard-edit .ui-resizable-e { right: -4px; }
+    body.dashboard-edit .ui-resizable-w { left: -4px; }
+    /* Кутки — квадратики 16x16 з візуальним маркером */
+    body.dashboard-edit .ui-resizable-ne,
+    body.dashboard-edit .ui-resizable-nw,
+    body.dashboard-edit .ui-resizable-se,
+    body.dashboard-edit .ui-resizable-sw {
+      width: 16px; height: 16px;
+      z-index: 6;
+    }
+    body.dashboard-edit .ui-resizable-nw { top: -4px; left: -4px; cursor: nwse-resize; }
+    body.dashboard-edit .ui-resizable-ne {
+      top: -4px; right: -4px; cursor: nesw-resize;
+      width: 14px; height: 14px;  /* трохи менше щоб не воювати з кнопками */
+    }
+    body.dashboard-edit .ui-resizable-sw { bottom: -4px; left: -4px; cursor: nesw-resize; }
+    body.dashboard-edit .ui-resizable-se {
+      bottom: -4px; right: -4px; cursor: nwse-resize;
+      background: linear-gradient(135deg, transparent 50%, rgba(222,170,1,0.7) 50%);
+    }
+    /* Hover — підсвітка хендла */
+    body.dashboard-edit .ui-resizable-handle:hover {
+      background-color: rgba(222, 170, 1, 0.3);
+    }
+
+    /* === Save status indicator === */
+    #save-status {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      background: rgba(18, 16, 15, 0.85);
+      color: #fff;
+      z-index: 60;
+      opacity: 0;
+      transition: opacity 0.2s;
+      pointer-events: none;
+    }
+    #save-status.visible { opacity: 1; }
+    #save-status.error { background: rgba(220, 38, 38, 0.9); }
+    #save-status.saved { background: rgba(34, 134, 58, 0.9); }
+
+    /* === Modal overlay === */
+    .db-modal-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(18, 16, 15, 0.75);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 99999;
+      display: flex; align-items: center; justify-content: center;
+      padding: 16px;
+    }
+    .db-modal-backdrop.hidden { display: none; }
+    .db-modal {
+      background: #fff;
+      border-radius: 12px;
+      max-width: 640px;
+      width: 100%;
+      max-height: 85vh;
+      overflow-y: auto;
+      padding: 20px;
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+      z-index: 100000;
+      position: relative;
+    }
+    /* Коли модалка відкрита — заборонити pointer-events на віджетах позаду */
+    body.modal-open .grid-stack { pointer-events: none; }
+    body.modal-open .widget-actions { display: none !important; }
+
+    /* === Tab bar === */
+    .dash-tab {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(18, 16, 15, 0.7);
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .dash-tab:hover { background: rgba(18, 16, 15, 0.05); }
+    .dash-tab.active {
+      background: #DEAA01;
+      color: #12100F;
+    }
+    .dash-tab .default-star { font-size: 10px; opacity: 0.7; }
+
+    /* === Адаптив === */
+    @media (max-width: 768px) {
+      .dashboard-edit-controls { flex-wrap: wrap; gap: 8px; }
+      .dash-tabs-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .dash-tabs-wrap::-webkit-scrollbar { display: none; }
+    }
+
+    /* Hidden util */
+    .db-hidden { display: none !important; }
+  </style>
+{% endblock %}
+
+{% block content %}
+{# Якщо немає жодного дашборду — backend має повернути empty.html, але на всяк випадок: #}
+{% if not current_dashboard %}
+  <div class="text-center py-16 text-brand-dark/60">
+    <p>Немає дашбордів. <a href="{% url 'dashboard_builder:dashboard_create' %}" class="text-brand-gold underline">Створити перший</a></p>
+  </div>
+{% else %}
+
+<div class="px-3 sm:px-6 py-4">
+
+  {# === HEADER === #}
+  <div class="flex items-start sm:items-center justify-between mb-3 gap-3 dashboard-edit-controls flex-col sm:flex-row">
+    <div class="min-w-0 flex-1">
+      <div class="flex items-center gap-2 mb-2">
+        <h1 id="dashboard-title" class="text-xl sm:text-2xl font-semibold text-brand-dark truncate">
+          {{ current_dashboard.name }}
+        </h1>
+        {% if is_owner %}
+        <button type="button" onclick="renameDashboard()"
+                class="text-brand-dark/40 hover:text-brand-gold shrink-0"
+                title="Перейменувати" aria-label="Перейменувати">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+        </button>
+        {% endif %}
+        {% if current_dashboard.is_default %}
+          <span class="text-xs text-brand-gold/80 shrink-0" title="Дашборд за замовчуванням">★ за замовчуванням</span>
+        {% endif %}
+      </div>
+
+      {# Tabs усіх дашбордів юзера #}
+      {% if dashboards %}
+      <div class="dash-tabs-wrap flex items-center gap-1">
+        {% for d in dashboards %}
+          <a href="{% url 'dashboard_builder:dashboard_detail' d.id %}"
+             class="dash-tab {% if d.id == current_dashboard.id %}active{% endif %}">
+            {{ d.name }}{% if d.is_default %}<span class="default-star">★</span>{% endif %}
+          </a>
+        {% endfor %}
+        <a href="{% url 'dashboard_builder:dashboard_create' %}"
+           class="dash-tab" title="Створити новий дашборд" aria-label="Новий дашборд">
+          +
+        </a>
+      </div>
+      {% endif %}
+    </div>
+
+    {# Кнопки керування #}
+    <div class="flex items-center gap-2 shrink-0">
+      <button type="button" id="btn-add-widget"
+              onclick="openCatalog()"
+              class="db-hidden px-3 py-2 text-sm rounded-lg bg-brand-gold text-brand-dark font-medium hover:opacity-90 inline-flex items-center gap-1">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        Віджет
+      </button>
+
+      {% if is_owner %}
+      <button type="button" id="btn-edit"
+              onclick="toggleEditMode()"
+              class="px-3 py-2 text-sm rounded-lg border border-black/10 hover:bg-black/5 inline-flex items-center gap-1">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+        <span id="btn-edit-label">Редагувати</span>
+      </button>
+
+      {% if not current_dashboard.is_default %}
+      <button type="button" onclick="setDefaultDashboard()"
+              class="px-3 py-2 text-sm rounded-lg border border-black/10 hover:bg-black/5"
+              title="Зробити дашбордом за замовчуванням">★</button>
+      {% endif %}
+
+      <button type="button" onclick="deleteDashboard()"
+              class="px-3 py-2 text-sm rounded-lg border border-red-200 text-red-600 hover:bg-red-50"
+              title="Видалити дашборд" aria-label="Видалити дашборд">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3"/></svg>
+      </button>
+      {% endif %}
+    </div>
+  </div>
+
+  {# === GRIDSTACK CONTAINER === #}
+  <div class="grid-stack" id="dashboard-grid">
+    {% for w in layout %}
+      {% include "dashboard_builder/_widget.html" with widget_key=w.widget_key widget_id=w.widget_id x=w.x y=w.y w=w.w h=w.h config_json=w.config_json config_qs=w.config_qs has_settings=w.has_settings widget_label=w.label %}
+    {% endfor %}
+  </div>
+
+  {% if not layout %}
+    <div id="empty-grid-hint" class="text-center py-16 text-brand-dark/50">
+      <div class="text-5xl mb-3">🧩</div>
+      <p class="mb-3">Дашборд порожній.</p>
+      {% if is_owner %}
+      <button type="button" onclick="toggleEditMode(); openCatalog();"
+              class="px-4 py-2 text-sm rounded-lg bg-brand-gold text-brand-dark font-medium hover:opacity-90">
+        + Додати перший віджет
+      </button>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+
+{# === MODAL: Каталог віджетів === #}
+<div id="catalog-modal" class="db-modal-backdrop hidden" onclick="if(event.target===this) closeCatalog()">
+  <div class="db-modal" id="catalog-content"
+       hx-get="{% url 'dashboard_builder:widget_catalog' %}"
+       hx-trigger="open-catalog from:body"
+       hx-swap="innerHTML">
+    {% include "dashboard_builder/_widget_loading.html" %}
+  </div>
+</div>
+
+{# === MODAL: Налаштування віджета === #}
+<div id="settings-modal" class="db-modal-backdrop hidden" onclick="if(event.target===this) closeWidgetSettings()">
+  <div class="db-modal" id="settings-content">
+    {% include "dashboard_builder/_widget_loading.html" %}
+  </div>
+</div>
+
+{# === Save status === #}
+<div id="save-status" role="status" aria-live="polite"></div>
+
+{% endif %} {# end if current_dashboard #}
+{% endblock %}
+
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/gridstack@10.3.1/dist/gridstack-all.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+(function(){
+  'use strict';
+
+  {% if not current_dashboard %}
+    return; // нема чого ініціалізувати
+  {% endif %}
+
+  // === Constants from Django context ===
+  const DASHBOARD_ID = {{ current_dashboard.id|default:"null" }};
+  const IS_OWNER = {% if is_owner %}true{% else %}false{% endif %};
+  const URLS = {
+    saveLayout:  "{% if current_dashboard %}{% url 'dashboard_builder:dashboard_save_layout' current_dashboard.id %}{% endif %}",
+    deleteDash:  "{% if current_dashboard %}{% url 'dashboard_builder:dashboard_delete' current_dashboard.id %}{% endif %}",
+    setDefault:  "{% if current_dashboard %}{% url 'dashboard_builder:dashboard_set_default' current_dashboard.id %}{% endif %}",
+    rename:      "{% if current_dashboard %}{% url 'dashboard_builder:dashboard_rename' current_dashboard.id %}{% endif %}",
+    widgetData:  "/dashboard/widget/", // + widget_key + "/?config_qs"
+    widgetSettings: "/dashboard/widget/", // + widget_key + "/settings/"
+  };
+
+  // === GridStack init ===
+  let editMode = false;
+  let saveTimer = null;
+
+  const grid = GridStack.init({
+    column: 12,
+    cellHeight: 80,
+    margin: 8,
+    float: false,
+    disableDrag: true,    // початково — view mode
+    disableResize: true,
+    animate: true,
+    resizable: { handles: 'n, e, s, w, ne, se, sw, nw' },
+    columnOpts: {
+      breakpointForWindow: true,
+      breakpoints: [
+        { w: 768,  c: 1  },
+        { w: 1200, c: 12 },
+      ],
+    },
+  }, '#dashboard-grid');
+
+  // === Edit mode toggle ===
+  window.toggleEditMode = function() {
+    if (!IS_OWNER) return;
+    editMode = !editMode;
+
+    if (editMode) {
+      grid.enable();
+      document.body.classList.add('dashboard-edit');
+    } else {
+      grid.disable();
+      document.body.classList.remove('dashboard-edit');
+      // зберегти зразу при виході (якщо є несохранені зміни)
+      if (saveTimer) {
+        clearTimeout(saveTimer);
+        saveLayoutNow();
+      }
+    }
+    document.getElementById('btn-edit-label').textContent = editMode ? 'Перегляд' : 'Редагувати';
+    document.getElementById('btn-add-widget').classList.toggle('db-hidden', !editMode);
+  };
+
+  // === Layout change tracker — debounced save ===
+  grid.on('change added removed', function() {
+    if (!editMode || !IS_OWNER) return;
+    clearTimeout(saveTimer);
+    showStatus('saving');
+    saveTimer = setTimeout(saveLayoutNow, 1000);
+  });
+
+  function saveLayoutNow() {
+    if (!IS_OWNER || !DASHBOARD_ID) return;
+    const items = grid.engine.nodes.map(function(n){
+      let cfg = {};
+      try { cfg = JSON.parse(n.el.dataset.config || '{}'); } catch(e) {}
+      return {
+        type: n.el.dataset.widgetKey,
+        widget_id: n.el.dataset.widgetId,
+        x: n.x, y: n.y, w: n.w, h: n.h,
+        config: cfg,
+      };
+    });
+
+    fetch(URLS.saveLayout, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken(),
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      body: JSON.stringify({ layout: items }),
+      credentials: 'same-origin',
+    })
+    .then(function(r){ return r.json().catch(function(){ return {ok: r.ok}; }); })
+    .then(function(d){ showStatus(d && d.ok !== false ? 'saved' : 'error'); })
+    .catch(function(){ showStatus('error'); });
+  }
+
+  // === Status indicator ===
+  let statusTimer = null;
+  function showStatus(state) {
+    const el = document.getElementById('save-status');
+    if (!el) return;
+    el.classList.remove('error','saved');
+    el.classList.add('visible');
+    if (state === 'saving') {
+      el.textContent = '↻ Збереження…';
+    } else if (state === 'saved') {
+      el.textContent = '✓ Збережено';
+      el.classList.add('saved');
+      clearTimeout(statusTimer);
+      statusTimer = setTimeout(function(){ el.classList.remove('visible'); }, 1800);
+    } else {
+      el.textContent = '⚠ Помилка зв\'язку';
+      el.classList.add('error');
+    }
+  }
+
+  // === CSRF ===
+  function csrfToken() {
+    const m = document.cookie.match(/csrftoken=([^;]+)/);
+    if (m) return m[1];
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.getAttribute('content') : '';
+  }
+
+  // === Catalog ===
+  window.openCatalog = function() {
+    const modal = document.getElementById('catalog-modal');
+    modal.classList.remove('hidden');
+    document.body.classList.add('modal-open');
+    // тригернути HTMX підвантаження каталогу
+    document.body.dispatchEvent(new Event('open-catalog'));
+  };
+
+  window.closeCatalog = function() {
+    document.getElementById('catalog-modal').classList.add('hidden');
+    document.body.classList.remove('modal-open');
+  };
+
+  window.addWidgetFromCatalog = function(widgetKey, defaultW, defaultH) {
+    const id = 'w_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+    const url = URLS.widgetData + encodeURIComponent(widgetKey) + '/';
+    const innerHtml =
+      '<div class="widget-actions">' +
+        '<button type="button" class="widget-btn-settings" title="Налаштування" onclick="openWidgetSettings(\'' + id + '\')">' +
+          '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>' +
+        '</button>' +
+        '<button type="button" class="widget-btn-remove" title="Видалити" onclick="removeWidget(\'' + id + '\')">' +
+          '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3"/></svg>' +
+        '</button>' +
+      '</div>' +
+      '<div class="w-full h-full" hx-get="' + url + '" hx-trigger="load" hx-swap="innerHTML">' +
+        '<div class="w-full h-full flex items-center justify-center text-brand-gold/70">' +
+          '<svg class="animate-spin h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>' +
+        '</div>' +
+      '</div>';
+
+    const widgetEl = grid.addWidget({
+      w: defaultW || 3,
+      h: defaultH || 2,
+      autoPosition: true,
+      id: id,
+      content: innerHtml,
+    });
+
+    // Set data attrs (GridStack creates the element)
+    widgetEl.dataset.widgetKey = widgetKey;
+    widgetEl.dataset.widgetId = id;
+    widgetEl.dataset.config = '{}';
+    widgetEl.id = id;
+
+    // Стилі контейнера
+    const innerContent = widgetEl.querySelector('.grid-stack-item-content');
+    if (innerContent) {
+      innerContent.classList.add('bg-white','rounded-xl','shadow-sm','border','border-black/5','relative','overflow-hidden');
+    }
+
+    // прибрати empty-hint якщо був
+    const hint = document.getElementById('empty-grid-hint');
+    if (hint) hint.remove();
+
+    // HTMX має побачити нові елементи
+    if (window.htmx) window.htmx.process(widgetEl);
+
+    closeCatalog();
+    // grid.on('added') вже тригерне save через debounce
+  };
+
+  // === Remove widget ===
+  window.removeWidget = function(widgetId, ev) {
+    if (ev) { ev.stopPropagation(); ev.preventDefault(); }
+    console.log('[removeWidget]', widgetId, 'editMode=', editMode);
+
+    if (!editMode) {
+      alert('Спочатку натисни «✏️ Редагувати» зверху, потім видаляй.');
+      return;
+    }
+
+    // Знайти елемент: спершу по data-widget-id (надійно), далі по id, далі gs-id
+    let item = document.querySelector('.grid-stack-item[data-widget-id="' + widgetId + '"]');
+    if (!item) item = document.getElementById(widgetId);
+    if (!item) item = document.querySelector('.grid-stack-item[gs-id="' + widgetId + '"]');
+    if (!item) {
+      alert('Не знайдено віджет з id=' + widgetId + '. Перезавантаж сторінку.');
+      return;
+    }
+    const gridItem = item.classList.contains('grid-stack-item') ? item : item.closest('.grid-stack-item');
+    if (!gridItem) {
+      alert('Знайшов елемент, але це не grid-stack-item. Дивись консоль.');
+      console.warn(item);
+      return;
+    }
+
+    // Видалення з GridStack + DOM
+    try {
+      grid.removeWidget(gridItem, true, true);
+    } catch (e) {
+      console.error('grid.removeWidget впав:', e);
+    }
+    if (gridItem.parentNode) gridItem.remove();
+
+    // Зберегти зразу
+    if (typeof saveLayoutNow === 'function') saveLayoutNow();
+  };
+
+  // === Widget settings modal ===
+  let _settingsTargetId = null;
+  let _settingsTargetKey = null;
+
+  window.openWidgetSettings = function(widgetId) {
+    if (!editMode) return;
+    const el = document.getElementById(widgetId);
+    if (!el) return;
+    const widgetKey = el.dataset.widgetKey;
+    let currentConfig = {};
+    try { currentConfig = JSON.parse(el.dataset.config || '{}'); } catch(e){}
+
+    _settingsTargetId = widgetId;
+    _settingsTargetKey = widgetKey;
+
+    // Підвантажити форму налаштувань через HTMX
+    const modal = document.getElementById('settings-modal');
+    const content = document.getElementById('settings-content');
+    modal.classList.remove('hidden');
+    document.body.classList.add('modal-open');
+    content.innerHTML = '<div class="w-full h-full flex items-center justify-center text-brand-gold/70 py-10"><svg class="animate-spin h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg></div>';
+
+    // GET form: /dashboard/widget/<key>/settings/?widget_id=...&<current_config>
+    const qs = new URLSearchParams(currentConfig);
+    qs.set('widget_id', widgetId);
+    const url = URLS.widgetSettings + encodeURIComponent(widgetKey) + '/settings/?' + qs.toString();
+
+    fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' }})
+      .then(function(r){ return r.text(); })
+      .then(function(html){
+        content.innerHTML = html;
+        if (window.htmx) window.htmx.process(content);
+      })
+      .catch(function(){
+        content.innerHTML = '<p class="text-red-600 text-center py-4">Не вдалось завантажити налаштування.</p>';
+      });
+  };
+
+  window.closeWidgetSettings = function() {
+    document.getElementById('settings-modal').classList.add('hidden');
+    document.body.classList.remove('modal-open');
+    _settingsTargetId = null;
+    _settingsTargetKey = null;
+  };
+
+  window.applyWidgetSettings = function(widgetId, widgetKey) {
+    const form = document.getElementById('widget-settings-form');
+    if (!form) return;
+    const formData = new FormData(form);
+    const cfg = {};
+    formData.forEach(function(v, k){ cfg[k] = v; });
+
+    const el = document.getElementById(widgetId);
+    if (!el) { closeWidgetSettings(); return; }
+
+    el.dataset.config = JSON.stringify(cfg);
+
+    // Re-fetch widget content with new config
+    const inner = el.querySelector('.grid-stack-item-content > div:last-child');
+    if (inner) {
+      const qs = new URLSearchParams(cfg).toString();
+      const url = URLS.widgetData + encodeURIComponent(widgetKey) + '/' + (qs ? '?' + qs : '');
+      inner.setAttribute('hx-get', url);
+      inner.innerHTML = '<div class="w-full h-full flex items-center justify-center text-brand-gold/70"><svg class="animate-spin h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg></div>';
+      if (window.htmx) {
+        window.htmx.process(inner);
+        window.htmx.trigger(inner, 'load');
+      }
+    }
+
+    closeWidgetSettings();
+    // тригернемо save
+    clearTimeout(saveTimer);
+    showStatus('saving');
+    saveTimer = setTimeout(saveLayoutNow, 500);
+  };
+
+  // === Dashboard-level actions ===
+  window.deleteDashboard = function() {
+    if (!IS_OWNER) return;
+    if (!confirm('Видалити цей дашборд? Дію не можна скасувати.')) return;
+    fetch(URLS.deleteDash, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
+      credentials: 'same-origin',
+    })
+    .then(function(r){
+      if (r.redirected) { window.location.href = r.url; return; }
+      return r.json().catch(function(){ return null; });
+    })
+    .then(function(d){
+      if (d && d.redirect) window.location.href = d.redirect;
+      else window.location.href = '/dashboard/';
+    })
+    .catch(function(){ alert('Не вдалось видалити дашборд'); });
+  };
+
+  window.setDefaultDashboard = function() {
+    if (!IS_OWNER) return;
+    fetch(URLS.setDefault, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
+      credentials: 'same-origin',
+    })
+    .then(function(){ window.location.reload(); })
+    .catch(function(){ alert('Не вдалось встановити за замовчуванням'); });
+  };
+
+  window.renameDashboard = function() {
+    if (!IS_OWNER) return;
+    const oldName = document.getElementById('dashboard-title').textContent.trim();
+    const name = prompt('Нова назва дашборду:', oldName);
+    if (!name || name.trim() === oldName) return;
+    const fd = new FormData();
+    fd.append('name', name.trim());
+    fetch(URLS.rename, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
+      body: fd,
+      credentials: 'same-origin',
+    })
+    .then(function(r){ return r.json().catch(function(){ return {ok: r.ok}; }); })
+    .then(function(d){
+      if (d && d.ok !== false) {
+        document.getElementById('dashboard-title').textContent = name.trim();
+        showStatus('saved');
+      } else {
+        showStatus('error');
+      }
+    })
+    .catch(function(){ showStatus('error'); });
+  };
+
+  // === Esc closes modals ===
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape') {
+      const cat = document.getElementById('catalog-modal');
+      const set = document.getElementById('settings-modal');
+      if (cat && !cat.classList.contains('hidden')) closeCatalog();
+      if (set && !set.classList.contains('hidden')) closeWidgetSettings();
+    }
+  });
+
+})();
+</script>
+{% endblock %}

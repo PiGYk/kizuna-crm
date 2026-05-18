@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}Госпіталізація — {{ patient.name }}{% endblock %}
+{% block content %}
+<div class="max-w-xl mx-auto">
+  <div class="flex items-center gap-3 mb-6">
+    <a href="{% url 'clients:patient_detail' patient.pk %}" class="text-gray-400 hover:text-brand-dark">← {{ patient.name }}</a>
+    <h1 class="text-xl font-bold text-brand-dark">Госпіталізація</h1>
+  </div>
+  <form method="post" class="bg-white rounded-xl border border-gray-200 p-6 flex flex-col gap-4">
+    {% csrf_token %}
+    <div>
+      <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Лікар</label>
+      <select name="doctor" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+        <option value="">— не вказано —</option>
+        {% for d in doctors %}<option value="{{ d.pk }}">{{ d.get_full_name|default:d.username }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Причина госпіталізації *</label>
+      <textarea name="reason" rows="3" required class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"></textarea>
+    </div>
+    <div>
+      <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Діагноз</label>
+      <textarea name="diagnosis" rows="2" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"></textarea>
+    </div>
+    <div>
+      <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Призначення</label>
+      <textarea name="treatment" rows="2" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"></textarea>
+    </div>
+    <div>
+      <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Нотатки</label>
+      <textarea name="notes" rows="2" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"></textarea>
+    </div>
+    <div class="flex gap-3 pt-2">
+      <button type="submit" class="bg-brand-gold text-brand-dark px-5 py-2 rounded-lg text-sm font-semibold hover:brightness-95">Госпіталізувати</button>
+      <a href="{% url 'clients:patient_detail' patient.pk %}" class="px-5 py-2 rounded-lg text-sm border border-gray-200 text-gray-500 hover:bg-gray-50">Скасувати</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

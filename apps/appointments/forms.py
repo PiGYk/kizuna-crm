@@ -24,7 +24,8 @@ while _t <= _end:
 class AppointmentForm(forms.ModelForm):
     appt_date = forms.DateField(
         label='Дата',
-        widget=forms.DateInput(attrs={'type': 'date', 'class': FIELD}),
+        input_formats=['%Y-%m-%d'],
+        widget=forms.DateInput(attrs={'type': 'date', 'class': FIELD}, format='%Y-%m-%d'),
     )
     appt_time = forms.ChoiceField(
         label='Час',
@@ -40,7 +41,7 @@ class AppointmentForm(forms.ModelForm):
             'notes': forms.Textarea(attrs={'rows': 2, 'class': FIELD}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, org=None, **kwargs):
         super().__init__(*args, **kwargs)
 
         # Заповнити дату/час з існуючого запису або з initial['starts_at']
@@ -66,20 +67,33 @@ class AppointmentForm(forms.ModelForm):
         self.fields['notes'].required = False
         self.fields['services'].required = False
 
-        # Тільки лікарі/адміни у виборі лікаря
+        # Тільки лікарі/адміни поточної організації у виборі лікаря
         from django.contrib.auth import get_user_model
+        from apps.clients.models import Client
+        from apps.services.models import Service
         User = get_user_model()
-        self.fields['doctor'].queryset = User.objects.filter(
-            role__in=['admin', 'doctor'], is_active=True
-        )
+        if org is not None:
+            self.fields['doctor'].queryset = User.objects.filter(
+                organization=org, role__in=['admin', 'doctor'], is_active=True,
+            ).order_by('last_name', 'first_name')
+            self.fields['client'].queryset = Client.objects.filter(
+                organization=org,
+            ).order_by('last_name', 'first_name')
+            self.fields['services'].queryset = Service.objects.filter(
+                organization=org, is_active=True,
+            ).order_by('name')
+        else:
+            self.fields['doctor'].queryset = User.objects.none()
+            self.fields['client'].queryset = Client.objects.none()
+            self.fields['services'].queryset = Service.objects.none()
 
-        # HTMX: клієнт → фільтр пацієнтів (заміна innerHTML у <select>)
+        # HTMX: клієнт → фільтр пацієнтів
+        # hx-trigger='change' — Tom Select сам тригерить change на нативному select
         self.fields['client'].widget.attrs.update({
             'hx-get': '/appointments/patient-options/',
             'hx-trigger': 'change',
             'hx-target': '#id_patient',
             'hx-swap': 'innerHTML',
-            'hx-include': '[name=client]',
         })
 
         # Послуги: висота щоб бачити кілька варіантів

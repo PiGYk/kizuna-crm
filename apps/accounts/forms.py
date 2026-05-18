@@ -8,6 +8,13 @@ _input_cls = (
     'focus:outline-none focus:ring-2 focus:ring-brand-gold focus:border-transparent bg-white'
 )
 
+# Зарезервовані slug — нікому не віддавати під реєстрацію.
+RESERVED_SLUGS = frozenset([
+    'www', 'admin', 'api', 'superadmin', 'static', 'media', 'mail',
+    'crm', 'app', 'support', 'help', 'docs', 'blog', 'about',
+    'login', 'register', 'dashboard', 'settings',
+])
+
 
 class ClinicRegistrationForm(forms.Form):
     clinic_name = forms.CharField(
@@ -70,8 +77,11 @@ class ClinicRegistrationForm(forms.Form):
         import re
         slug = slugify(base, allow_unicode=False) or 'clinic'
         slug = re.sub(r'[^a-z0-9-]', '', slug)[:40] or 'clinic'
+        # Якщо випав зарезервований slug — додаємо суфікс щоб не конфліктувати з системними роутами.
+        if slug in RESERVED_SLUGS:
+            slug = f'{slug}-clinic'
         candidate, n = slug, 1
-        while Organization.objects.filter(slug=candidate).exists():
+        while Organization.objects.filter(slug=candidate).exists() or candidate in RESERVED_SLUGS:
             candidate = f'{slug}-{n}'
             n += 1
         return candidate
@@ -103,28 +113,30 @@ class ClinicRegistrationForm(forms.Form):
 class UserCreateForm(UserCreationForm):
     class Meta:
         model = User
-        fields = ('username', 'first_name', 'last_name', 'email', 'role', 'is_active')
+        fields = ('username', 'first_name', 'last_name', 'email', 'role', 'is_active',
+                  'salary_type', 'salary_fixed', 'salary_percent', 'salary_per_shift', 'salary_hourly')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
             field.widget.attrs['class'] = (
                 'w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm '
-                'focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent'
+                'focus:outline-none focus:ring-2 focus:ring-brand-gold focus:border-transparent'
             )
 
 
 class UserUpdateForm(forms.ModelForm):
     class Meta:
         model = User
-        fields = ('username', 'first_name', 'last_name', 'email', 'role', 'is_active')
+        fields = ('username', 'first_name', 'last_name', 'email', 'role', 'is_active',
+                  'salary_type', 'salary_fixed', 'salary_percent', 'salary_per_shift', 'salary_hourly')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
             field.widget.attrs['class'] = (
                 'w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm '
-                'focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent'
+                'focus:outline-none focus:ring-2 focus:ring-brand-gold focus:border-transparent'
             )
 
 
@@ -132,18 +144,27 @@ class PasswordChangeForm(forms.Form):
     password1 = forms.CharField(
         label='Новий пароль',
         widget=forms.PasswordInput(attrs={
-            'class': 'w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500'
+            'class': 'w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold'
         })
     )
     password2 = forms.CharField(
         label='Повторити пароль',
         widget=forms.PasswordInput(attrs={
-            'class': 'w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500'
+            'class': 'w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold'
         })
     )
 
     def clean(self):
+        from django.contrib.auth.password_validation import validate_password
+        from django.core.exceptions import ValidationError as DjangoValidationError
         cd = super().clean()
-        if cd.get('password1') != cd.get('password2'):
+        p1 = cd.get('password1')
+        p2 = cd.get('password2')
+        if p1 and p2 and p1 != p2:
             raise forms.ValidationError('Паролі не збігаються')
+        if p1:
+            try:
+                validate_password(p1)
+            except DjangoValidationError as e:
+                self.add_error('password1', e)
         return cd

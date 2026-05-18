@@ -1,0 +1,185 @@
+{% extends 'base.html' %}
+{% load tz %}
+{% block title %}Розклад на день — Kizuna CRM{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+
+  <!-- Заголовок + перехід на тижневий -->
+  <div class="flex items-center justify-between mb-4">
+    <h1 class="text-xl md:text-2xl font-bold text-brand-dark">Розклад дня</h1>
+    <a href="{% url 'appointments:calendar' %}?date={{ ref|date:'Y-m-d' }}"
+       class="hidden md:inline-block text-xs text-brand-gold hover:underline">
+      Тижневий вигляд →
+    </a>
+  </div>
+
+  <!-- Навігація: вчора / сьогодні / завтра -->
+  <div class="flex items-stretch gap-2 mb-4">
+    <a href="?date={{ prev_day }}"
+       class="flex-1 flex items-center justify-center bg-white border border-gray-200 rounded-lg w-12 h-12 px-3 py-2 text-brand-dark hover:bg-gray-50 active:bg-gray-100"
+       aria-label="Вчора">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+    </a>
+    <a href="?date={{ today|date:'Y-m-d' }}"
+       class="flex-[2] flex items-center justify-center bg-brand-dark text-white rounded-lg h-12 px-3 py-2 text-sm font-medium hover:brightness-110 active:brightness-95">
+      {% if ref == today %}
+        Сьогодні · {{ ref|date:"d.m" }}
+      {% else %}
+        {{ ref|date:"l" }} · {{ ref|date:"d.m.Y" }}
+      {% endif %}
+    </a>
+    <a href="?date={{ next_day }}"
+       class="flex-1 flex items-center justify-center bg-white border border-gray-200 rounded-lg w-12 h-12 px-3 py-2 text-brand-dark hover:bg-gray-50 active:bg-gray-100"
+       aria-label="Завтра">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+    </a>
+  </div>
+
+  <!-- Велика кнопка "+ Записати на цей день" -->
+  <a href="{% url 'appointments:create' %}?date={{ ref|date:'Y-m-d' }}&back={{ request.path }}%3Fdate%3D{{ ref|date:'Y-m-d' }}"
+     class="block w-full bg-brand-gold text-brand-dark text-center py-3 rounded-lg font-semibold mb-4 hover:brightness-95 active:brightness-90 min-h-[44px]">
+    + Записати на цей день
+  </a>
+
+  <!-- Список записів -->
+  {% if appts %}
+  <div class="space-y-3">
+    {% for appt in appts %}
+    <div class="bg-white rounded-xl border
+      {% if appt.status == 'completed' %}border-green-200
+      {% elif appt.status == 'cancelled' or appt.status == 'no_show' %}border-gray-200 opacity-60
+      {% elif appt.status == 'confirmed' %}border-blue-200
+      {% else %}border-brand-gold/40{% endif %}
+      p-4 shadow-sm">
+
+      <!-- Верх картки: час + статус-бейдж + дії редагування -->
+      <div class="flex items-start justify-between gap-2 mb-2">
+        <div class="flex items-center gap-3">
+          <div class="text-2xl font-bold text-brand-dark leading-none">
+            {{ appt.starts_at|localtime|date:"H:i" }}
+          </div>
+          <div class="flex flex-col">
+            <span class="text-xs text-gray-400">{{ appt.duration }} хв</span>
+            <span class="text-xs px-2 py-0.5 rounded-full mt-0.5 inline-block w-fit
+              {% if appt.status == 'completed' %}bg-green-100 text-green-800
+              {% elif appt.status == 'cancelled' %}bg-gray-100 text-gray-500
+              {% elif appt.status == 'no_show' %}bg-red-100 text-red-700
+              {% elif appt.status == 'confirmed' %}bg-blue-100 text-blue-800
+              {% else %}bg-brand-gold/20 text-brand-dark{% endif %}">
+              {{ appt.get_status_display }}
+            </span>
+          </div>
+        </div>
+        <div class="flex items-center gap-1 shrink-0">
+          <a href="{% url 'appointments:edit' appt.pk %}"
+             class="w-11 h-11 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 active:bg-gray-100"
+             aria-label="Редагувати">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-1.414.586H9v-2.414a2 2 0 01.586-1.414z"/></svg>
+          </a>
+          <form method="post"
+                action="{% url 'appointments:delete' appt.pk %}"
+                onsubmit="return confirm('Видалити запис?');">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.path }}?date={{ ref|date:'Y-m-d' }}">
+            <button type="submit"
+                    class="w-11 h-11 flex items-center justify-center rounded-lg border border-gray-200 text-red-500 hover:bg-red-50 active:bg-red-100"
+                    aria-label="Видалити">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3"/></svg>
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Клієнт + тварина -->
+      <a href="{% url 'appointments:edit' appt.pk %}" class="block mb-2">
+        <div class="text-base font-semibold text-brand-dark">
+          {{ appt.client.last_name }} {{ appt.client.first_name }}
+        </div>
+        {% if appt.patient %}
+        <div class="text-sm text-gray-600">{{ appt.patient.name }}{% if appt.patient.species %} · {{ appt.patient.species }}{% endif %}</div>
+        {% endif %}
+        {% if appt.doctor %}
+        <div class="text-xs text-gray-400 mt-0.5">Лікар: {{ appt.doctor.get_full_name|default:appt.doctor.username }}</div>
+        {% endif %}
+      </a>
+
+      <!-- Послуги (бейджі) -->
+      {% if appt.services.exists %}
+      <div class="flex flex-wrap gap-1 mb-3">
+        {% for s in appt.services.all %}
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-brand-gold/10 text-brand-dark border border-brand-gold/30">
+          {{ s.name }}
+        </span>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <!-- Великі кнопки статусу: тільки для активних -->
+      {% if appt.status == 'scheduled' or appt.status == 'confirmed' %}
+      <div class="flex gap-2 pt-2 border-t border-gray-100">
+        <form method="post" action="{% url 'appointments:status' appt.pk %}" class="flex-1">
+          {% csrf_token %}
+          <input type="hidden" name="status" value="completed">
+          <input type="hidden" name="next" value="{{ request.path }}?date={{ ref|date:'Y-m-d' }}">
+          <button type="submit"
+                  class="w-full min-h-[44px] h-11 flex items-center justify-center gap-2 bg-green-500 text-white font-medium rounded-lg hover:bg-green-600 active:bg-green-700">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+            Виконано
+          </button>
+        </form>
+        <form method="post" action="{% url 'appointments:status' appt.pk %}" class="flex-1">
+          {% csrf_token %}
+          <input type="hidden" name="status" value="cancelled">
+          <input type="hidden" name="next" value="{{ request.path }}?date={{ ref|date:'Y-m-d' }}">
+          <button type="submit"
+                  class="w-full min-h-[44px] h-11 flex items-center justify-center gap-2 bg-red-500 text-white font-medium rounded-lg hover:bg-red-600 active:bg-red-700">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>
+            Скасувати
+          </button>
+        </form>
+      </div>
+      {% endif %}
+
+      {% if appt.notes %}
+      <div class="mt-3 pt-2 border-t border-gray-100 text-xs text-gray-500 whitespace-pre-line">
+        {{ appt.notes }}
+      </div>
+      {% endif %}
+
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <!-- Empty state -->
+  <div class="flex flex-col items-center justify-center py-12 text-gray-400 bg-white rounded-xl border border-gray-200">
+    <svg class="w-14 h-14 mb-3 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+    </svg>
+    <p class="text-sm mb-4">На {{ ref|date:"d.m.Y" }} записів нема</p>
+
+    {% if nearest_with_appts %}
+    <div class="w-full max-w-sm mb-4 px-4">
+      <div class="text-xs text-gray-500 text-center mb-2">Найближчі дні з записами:</div>
+      <div class="space-y-2">
+        {% for item in nearest_with_appts %}
+        <a href="?date={{ item.date|date:'Y-m-d' }}"
+           class="flex items-center justify-between gap-3 px-4 py-3 bg-brand-gold/10 hover:bg-brand-gold/20 border border-brand-gold/30 rounded-lg transition min-h-[44px]">
+          <span class="text-brand-dark font-medium">{{ item.date|date:"l, d.m" }}</span>
+          <span class="text-xs bg-brand-gold text-brand-dark px-2 py-0.5 rounded-full font-semibold">{{ item.count }}</span>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <a href="{% url 'appointments:create' %}?date={{ ref|date:'Y-m-d' }}&back={{ request.path }}%3Fdate%3D{{ ref|date:'Y-m-d' }}"
+       class="bg-brand-gold text-brand-dark px-5 py-3 rounded-lg font-semibold min-h-[44px] inline-flex items-center">
+      + Створити запис на {{ ref|date:"d.m" }}
+    </a>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

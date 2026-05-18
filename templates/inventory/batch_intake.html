@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+{% block title %}Прихід за накладною — Kizuna CRM{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl">
+  <div class="flex items-center gap-3 mb-6">
+    <a href="{% url 'inventory:list' %}" class="text-gray-400 hover:text-gray-600">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+    </a>
+    <h1 class="text-2xl font-bold text-brand-dark">Прихід за накладною</h1>
+  </div>
+
+  <form method="post" id="batch-form">
+    {% csrf_token %}
+
+    <!-- Постачальник + нотатки -->
+    <div class="bg-white rounded-xl border border-gray-200 p-5 mb-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="text-xs text-gray-500 block mb-1">Постачальник</label>
+          <select name="supplier_id" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+            <option value="">— без постачальника —</option>
+            {% for s in suppliers %}
+            <option value="{{ s.pk }}">{{ s.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="text-xs text-gray-500 block mb-1">Примітка</label>
+          <input type="text" name="note" placeholder="Накладна №..." class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+        </div>
+      </div>
+    </div>
+
+    <!-- Рядки товарів -->
+    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden mb-4">
+      <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+        <h2 class="text-sm font-semibold text-gray-700">Товари</h2>
+        <button type="button" onclick="addRow()" class="text-xs text-brand-gold hover:text-brand-dark font-medium">+ Додати рядок</button>
+      </div>
+
+      <div id="rows" class="divide-y divide-gray-50">
+        <!-- JS додає рядки сюди -->
+      </div>
+    </div>
+
+    <!-- Кнопки -->
+    <div class="flex gap-3">
+      <button type="submit" id="submit-btn"
+        class="bg-brand-gold text-brand-dark px-8 py-2.5 rounded-lg text-sm font-semibold hover:brightness-95 transition disabled:opacity-40"
+        disabled>
+        Записати прихід
+      </button>
+      <a href="{% url 'inventory:list' %}" class="border border-gray-200 text-gray-500 px-6 py-2.5 rounded-lg text-sm hover:bg-gray-50 transition">Скасувати</a>
+    </div>
+  </form>
+</div>
+
+<script>
+let rowIndex = 0;
+const SEARCH_URL = '{% url "inventory:product_search" %}';
+
+function addRow() {
+  const idx = rowIndex++;
+  const html = `
+  <div class="px-5 py-3 flex flex-wrap items-end gap-3" id="row-${idx}">
+    <div class="flex-1 min-w-[200px] relative" id="wrap-${idx}">
+      <label class="text-xs text-gray-400 block mb-1">Товар</label>
+      <input type="text" placeholder="Пошук…" autocomplete="off"
+        id="search-${idx}"
+        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
+        oninput="searchProduct(${idx}, this.value)">
+      <input type="hidden" name="product_id" id="pid-${idx}">
+      <div id="drop-${idx}" class="absolute z-20 w-full bg-white border border-gray-200 rounded-lg shadow-lg hidden max-h-48 overflow-y-auto text-sm mt-1"></div>
+    </div>
+    <div class="w-24">
+      <label class="text-xs text-gray-400 block mb-1">К-сть</label>
+      <input type="number" name="qty" min="0" step="any" required
+        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
+        oninput="checkSubmit()">
+    </div>
+    <div class="w-28">
+      <label class="text-xs text-gray-400 block mb-1">Закуп.</label>
+      <input type="number" name="price" min="0" step="0.01" id="price-${idx}"
+        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+    </div>
+    <div class="w-28">
+      <label class="text-xs text-gray-400 block mb-1">Продаж.</label>
+      <input type="number" name="sell_price" min="0" step="0.01" id="sell-${idx}"
+        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+    </div>
+    <div class="w-16 text-xs text-gray-400 pb-2" id="unit-${idx}"></div>
+    <button type="button" onclick="removeRow(${idx})" class="text-gray-300 hover:text-red-400 pb-2">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+    </button>
+  </div>`;
+  document.getElementById('rows').insertAdjacentHTML('beforeend', html);
+  document.getElementById('search-' + idx).focus();
+  checkSubmit();
+}
+
+function removeRow(idx) {
+  const row = document.getElementById('row-' + idx);
+  if (row) row.remove();
+  checkSubmit();
+}
+
+const _timers = {};
+function searchProduct(idx, q) {
+  clearTimeout(_timers[idx]);
+  const drop = document.getElementById('drop-' + idx);
+  if (!q) { drop.classList.add('hidden'); return; }
+  _timers[idx] = setTimeout(async () => {
+    const res = await fetch(SEARCH_URL + '?q=' + encodeURIComponent(q));
+    const data = await res.json();
+    if (!data.results.length) {
+      drop.innerHTML = '<div class="px-3 py-2 text-gray-400">Нічого</div>';
+    } else {
+      drop.innerHTML = data.results.map(r =>
+        `<div class="px-3 py-2 hover:bg-brand-gold/10 cursor-pointer flex justify-between gap-2"
+              onclick="pickProduct(${idx}, ${r.id}, '${r.name.replace(/'/g,"\\'")}', '${r.unit}', '${r.buy_price}', '${r.sell_price}')">
+          <span>${r.name}${r.sku ? ' <span class=&quot;text-gray-300&quot;>(' + r.sku + ')</span>' : ''}</span>
+          <span class="text-gray-400 shrink-0">${r.qty} ${r.unit}</span>
+        </div>`
+      ).join('');
+    }
+    drop.classList.remove('hidden');
+  }, 200);
+}
+
+function pickProduct(idx, id, name, unit, buyPrice, sellPrice) {
+  document.getElementById('pid-' + idx).value = id;
+  document.getElementById('search-' + idx).value = name;
+  document.getElementById('drop-' + idx).classList.add('hidden');
+  document.getElementById('unit-' + idx).textContent = unit;
+  const priceInput = document.getElementById('price-' + idx);
+  if (priceInput && !priceInput.value) priceInput.value = buyPrice;
+  const sellInput = document.getElementById('sell-' + idx);
+  if (sellInput && !sellInput.value) sellInput.value = sellPrice;
+  checkSubmit();
+}
+
+function checkSubmit() {
+  const pids = document.querySelectorAll('input[name="product_id"]');
+  const qtys = document.querySelectorAll('input[name="qty"]');
+  let valid = false;
+  pids.forEach((p, i) => {
+    if (p.value && qtys[i] && parseFloat(qtys[i].value) > 0) valid = true;
+  });
+  document.getElementById('submit-btn').disabled = !valid;
+}
+
+// Закрити дропдауни при кліку поза
+document.addEventListener('click', e => {
+  document.querySelectorAll('[id^="drop-"]').forEach(d => {
+    if (!d.parentElement.contains(e.target)) d.classList.add('hidden');
+  });
+});
+
+// Старт з 3 порожніми рядками
+addRow(); addRow(); addRow();
+</script>
+{% endblock %}

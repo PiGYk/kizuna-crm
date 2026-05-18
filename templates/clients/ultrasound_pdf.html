@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page { size: A4; margin: 12mm 15mm; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: Arial, sans-serif; font-size: 11px; color: #222; line-height: 1.5; }
+
+  .header { border-bottom: 2px solid #DEAA01; padding-bottom: 10px; margin-bottom: 14px; }
+  .header-title { font-size: 18px; font-weight: bold; }
+  .header-sub { font-size: 11px; color: #666; margin-top: 2px; }
+  .header-meta { font-size: 10px; color: #888; margin-top: 6px; }
+
+  h2 { font-size: 12px; color: #DEAA01; text-transform: uppercase; letter-spacing: 0.05em; margin: 14px 0 6px; border-bottom: 1px solid #f0f0f0; padding-bottom: 4px; }
+
+  table.params { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
+  table.params td { padding: 3px 6px; border: 1px solid #e8e8e8; font-size: 10px; vertical-align: top; }
+  table.params td.label { width: 35%; color: #666; background: #fafafa; font-weight: 500; }
+  table.params td.value { width: 65%; }
+
+  .comment { font-size: 10px; color: #444; margin: 2px 0 8px; padding: 4px 6px; background: #f8f8f8; border-radius: 3px; }
+  .comment:empty { display: none; }
+
+  .conclusion { margin-top: 16px; padding: 10px; border: 2px solid #DEAA01; border-radius: 4px; }
+  .conclusion h2 { color: #222; border: none; margin: 0 0 6px; }
+  .conclusion p { font-size: 11px; }
+
+  .footer { margin-top: 20px; padding-top: 8px; border-top: 1px solid #e0e0e0; font-size: 9px; color: #aaa; display: flex; justify-content: space-between; }
+  .signature { margin-top: 24px; font-size: 10px; }
+  .signature-line { border-bottom: 1px solid #333; width: 200px; display: inline-block; margin: 0 8px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-title">Протокол ультразвукового дослідження</div>
+  <div class="header-sub">Черевна порожнина</div>
+  <div class="header-meta">
+    <strong>Пацієнт:</strong> {{ patient.name }} ({{ patient.get_species_display }}{% if patient.breed %}, {{ patient.breed }}{% endif %}, {{ patient.get_sex_display }}, {{ patient.age_display }})
+    &nbsp;&nbsp;|&nbsp;&nbsp;
+    <strong>Власник:</strong> {{ client }}
+    &nbsp;&nbsp;|&nbsp;&nbsp;
+    <strong>Дата:</strong> {{ report.date|date:"d.m.Y" }}
+    {% if report.doctor %}&nbsp;&nbsp;|&nbsp;&nbsp;<strong>Лікар:</strong> {{ report.doctor.get_full_name }}{% endif %}
+  </div>
+</div>
+
+{% if report.liver_size or report.liver_echogenicity or report.liver_structure or report.liver_vessels or report.liver_notes %}
+<h2>Печінка</h2>
+<table class="params">
+  {% if report.liver_size %}<tr><td class="label">Розмір</td><td class="value">{{ report.liver_size }}</td></tr>{% endif %}
+  {% if report.liver_echogenicity %}<tr><td class="label">Ехогенність</td><td class="value">{{ report.liver_echogenicity }}</td></tr>{% endif %}
+  {% if report.liver_structure %}<tr><td class="label">Структура</td><td class="value">{{ report.liver_structure }}</td></tr>{% endif %}
+  {% if report.liver_vessels %}<tr><td class="label">Судини</td><td class="value">{{ report.liver_vessels }}</td></tr>{% endif %}
+</table>
+{% if report.liver_notes %}<div class="comment">{{ report.liver_notes }}</div>{% endif %}
+{% endif %}
+
+{% if report.gallbladder_size or report.gallbladder_wall or report.gallbladder_content or report.gallbladder_notes %}
+<h2>Жовчний міхур</h2>
+<table class="params">
+  {% if report.gallbladder_size %}<tr><td class="label">Розмір</td><td class="value">{{ report.gallbladder_size }}</td></tr>{% endif %}
+  {% if report.gallbladder_wall %}<tr><td class="label">Стінка</td><td class="value">{{ report.gallbladder_wall }}</td></tr>{% endif %}
+  {% if report.gallbladder_content %}<tr><td class="label">Вміст</td><td class="value">{{ report.gallbladder_content }}</td></tr>{% endif %}
+</table>
+{% if report.gallbladder_notes %}<div class="comment">{{ report.gallbladder_notes }}</div>{% endif %}
+{% endif %}
+
+{% if report.spleen_size or report.spleen_echogenicity or report.spleen_structure or report.spleen_notes %}
+<h2>Селезінка</h2>
+<table class="params">
+  {% if report.spleen_size %}<tr><td class="label">Розмір</td><td class="value">{{ report.spleen_size }}</td></tr>{% endif %}
+  {% if report.spleen_echogenicity %}<tr><td class="label">Ехогенність</td><td class="value">{{ report.spleen_echogenicity }}</td></tr>{% endif %}
+  {% if report.spleen_structure %}<tr><td class="label">Структура</td><td class="value">{{ report.spleen_structure }}</td></tr>{% endif %}
+</table>
+{% if report.spleen_notes %}<div class="comment">{{ report.spleen_notes }}</div>{% endif %}
+{% endif %}
+
+{% if report.kidney_left_size or report.kidney_right_size or report.kidney_echogenicity or report.kidney_pelvis or report.kidney_notes %}
+<h2>Нирки</h2>
+<table class="params">
+  {% if report.kidney_left_size %}<tr><td class="label">Ліва нирка — розмір</td><td class="value">{{ report.kidney_left_size }}</td></tr>{% endif %}
+  {% if report.kidney_left_cortex %}<tr><td class="label">Ліва — кірковий шар</td><td class="value">{{ report.kidney_left_cortex }} мм</td></tr>{% endif %}
+  {% if report.kidney_right_size %}<tr><td class="label">Права нирка — розмір</td><td class="value">{{ report.kidney_right_size }}</td></tr>{% endif %}
+  {% if report.kidney_right_cortex %}<tr><td class="label">Права — кірковий шар</td><td class="value">{{ report.kidney_right_cortex }} мм</td></tr>{% endif %}
+  {% if report.kidney_echogenicity %}<tr><td class="label">Ехогенність</td><td class="value">{{ report.kidney_echogenicity }}</td></tr>{% endif %}
+  {% if report.kidney_pelvis %}<tr><td class="label">Ниркова миска</td><td class="value">{{ report.kidney_pelvis }}</td></tr>{% endif %}
+</table>
+{% if report.kidney_notes %}<div class="comment">{{ report.kidney_notes }}</div>{% endif %}
+{% endif %}
+
+{% if report.bladder_filling or report.bladder_wall or report.bladder_content or report.bladder_notes %}
+<h2>Сечовий міхур</h2>
+<table class="params">
+  {% if report.bladder_filling %}<tr><td class="label">Наповнення</td><td class="value">{{ report.bladder_filling }}</td></tr>{% endif %}
+  {% if report.bladder_wall %}<tr><td class="label">Стінка</td><td class="value">{{ report.bladder_wall }}</td></tr>{% endif %}
+  {% if report.bladder_content %}<tr><td class="label">Вміст</td><td class="value">{{ report.bladder_content }}</td></tr>{% endif %}
+</table>
+{% if report.bladder_notes %}<div class="comment">{{ report.bladder_notes }}</div>{% endif %}
+{% endif %}
+
+<!-- ШКТ -->
+{% if report.gi_notes %}
+<h2>Шлунково-кишковий тракт</h2>
+<div class="comment">{{ report.gi_notes }}</div>
+{% endif %}
+
+<!-- Репродуктивна -->
+{% if report.reproductive_notes %}
+<h2>Репродуктивна система</h2>
+<div class="comment">{{ report.reproductive_notes }}</div>
+{% endif %}
+
+<!-- Вільна рідина -->
+{% if report.free_fluid %}
+<h2>Вільна рідина</h2>
+<div class="comment">{{ report.free_fluid }}</div>
+{% endif %}
+
+<!-- Висновок -->
+{% if report.conclusion or report.recommendations %}
+<div class="conclusion">
+  <h2>Висновок</h2>
+  {% if report.conclusion %}<p>{{ report.conclusion }}</p>{% endif %}
+  {% if report.recommendations %}
+  <p style="margin-top: 6px; color: #666;"><strong>Рекомендації:</strong> {{ report.recommendations }}</p>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- Підпис -->
+<div class="signature">
+  Лікар: <span class="signature-line"></span>
+  {% if report.doctor %}({{ report.doctor.get_full_name }}){% endif %}
+</div>
+
+<div class="footer">
+  <span>{{ report.date|date:"d.m.Y" }}</span>
+  <span>{% with footer_url=clinic.website|default:clinic.bot_base_url %}{% if footer_url %}{{ footer_url }}{% elif clinic.name %}{{ clinic.name }}{% endif %}{% endwith %}</span>
+</div>
+
+</body>
+</html>

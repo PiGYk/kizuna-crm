@@ -183,10 +183,70 @@ class CheckboxService:
         )
         resp.raise_for_status()
 
+    # ── Фіскалізація картки після оплати через Monobank QR ──────────────────
+
+    def fiscalize_card_invoice(self, invoice, cb_invoice_data) -> dict:
+        """
+        Після того як Checkbox invoice отримав статус SUCCESS, треба окремо
+        пробити фіскальний чек через /receipts/sell з типом CASHLESS.
+        Інакше касир бачить тільки оплату на терміналі, а ДПС-чека немає.
+        """
+        goods = self._build_goods(invoice)
+        if not goods:
+            raise ValueError('Рахунок не містить позицій з ненульовою ціною.')
+
+        amount = cb_invoice_data.get('final_amount') or cb_invoice_data.get('amount')
+        if not amount:
+            amount = round(float(invoice.total) * 100)
+
+        payment = {
+            'type': 'CASHLESS',
+            'value': amount,
+            'label': 'Безготівковий',
+        }
+        for src, dst in [
+            ('transaction_id', 'transaction_id'),
+            ('commission', 'commission'),
+            ('card_mask', 'card_mask'),
+            ('auth_code', 'auth_code'),
+            ('rrn', 'rrn'),
+            ('terminal_name', 'payment_system'),
+        ]:
+            v = cb_invoice_data.get(src)
+            if v:
+                payment[dst] = v
+
+        payload = {
+            'goods': goods,
+            'payments': [payment],
+            'related_invoice_id': cb_invoice_data.get('id'),
+        }
+
+        phone = getattr(invoice.client, 'phone', '')
+        normalized = _normalize_phone(phone) if phone else None
+        if normalized:
+            payload['delivery'] = {'phone': normalized}
+
+        self.ensure_shift_open()
+
+        resp = requests.post(
+            f'{CHECKBOX_API_URL}/receipts/sell',
+            json=payload,
+            headers=self._headers(),
+            timeout=30,
+        )
+        if not resp.ok:
+            logger.error('Checkbox card fiscalize %s: %s', resp.status_code, resp.text)
+        resp.raise_for_status()
+        return resp.json()
+
     # ── Helpers ───────────────────────────────────────────────────────────────
 
     def _build_goods(self, invoice) -> list:
+        from decimal import Decimal
+
         goods = []
+        line_meta = []  # (item_ref, line_total_after_line_discount_kopecks)
         for line in invoice.lines.all():
             if line.unit_price == 0:
                 continue
@@ -204,12 +264,49 @@ class CheckboxService:
                 'price': line_total_kopecks,
             }
 
+            line_discount_value = 0
             if line.discount and line.discount > 0:
-                if line.discount_type == 'percent':
-                    discount_value = round(float(line.total) * float(line.discount) / 100 * 100)
-                else:
-                    discount_value = round(float(line.discount) * 100)
-                item['discounts'] = [{'type': 'DISCOUNT', 'mode': 'VALUE', 'value': discount_value}]
+                # discount_value — сума рядкової знижки в копійках (різниця оригіналу і факту)
+                original_kopecks = round(float(line.unit_price) * float(line.quantity) * 100)
+                discounted_kopecks = round(float(line.total) * 100)
+                line_discount_value = max(0, original_kopecks - discounted_kopecks)
+                if line_discount_value > 0:
+                    item['discounts'] = [{'type': 'DISCOUNT', 'mode': 'VALUE', 'value': line_discount_value}]
 
             goods.append(item)
+            after_line_disc = round(float(line.total) * 100)  # = (qty*price - line_discount), копійки
+            line_meta.append((item, after_line_disc))
+
+        # Знижка на весь чек (Invoice.discount) — розкидаємо пропорційно по позиціях.
+        # Інакше Checkbox не знає про неї, і фіскальна сума не збігається з тим, що бачить клієнт.
+        if not invoice.discount or invoice.discount <= 0 or not line_meta:
+            return goods
+
+        subtotal_kop = sum(t for _, t in line_meta)
+        if subtotal_kop <= 0:
+            return goods
+
+        if invoice.discount_type == invoice.DiscountType.PERCENT:
+            invoice_discount_kop = round(subtotal_kop * float(invoice.discount) / 100)
+        else:
+            invoice_discount_kop = round(float(invoice.discount) * 100)
+
+        invoice_discount_kop = min(invoice_discount_kop, subtotal_kop)
+        if invoice_discount_kop <= 0:
+            return goods
+
+        # Пропорційний розподіл, дрібниця округлення йде в останній рядок
+        distributed = 0
+        for idx, (item, line_total_kop) in enumerate(line_meta):
+            if idx == len(line_meta) - 1:
+                add = invoice_discount_kop - distributed
+            else:
+                add = round(invoice_discount_kop * line_total_kop / subtotal_kop)
+                distributed += add
+            if add <= 0:
+                continue
+            existing = item.get('discounts', [])
+            existing.append({'type': 'DISCOUNT', 'mode': 'VALUE', 'value': add})
+            item['discounts'] = existing
+
         return goods

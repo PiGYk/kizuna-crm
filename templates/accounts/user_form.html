@@ -16,7 +16,10 @@
   <div class="bg-white rounded-xl border border-gray-200 p-6">
     <form method="post" class="space-y-4">
       {% csrf_token %}
+
+      <!-- Основні поля (без salary_*) -->
       {% for field in form %}
+        {% if 'salary' not in field.name %}
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">{{ field.label }}</label>
           {{ field }}
@@ -24,14 +27,43 @@
             <p class="text-red-500 text-xs mt-1">{{ field.errors|join:", " }}</p>
           {% endif %}
         </div>
+        {% endif %}
       {% endfor %}
+
+      <!-- Зарплата -->
+      <div class="border-t border-gray-100 pt-4 mt-4">
+        <h3 class="text-sm font-semibold text-gray-700 mb-3">Зарплата</h3>
+        <div class="grid grid-cols-2 gap-4">
+          <div class="col-span-2">
+            <label class="text-xs text-gray-500 block mb-1">Тип нарахування</label>
+            {{ form.salary_type }}
+          </div>
+          <div>
+            <label class="text-xs text-gray-500 block mb-1">Фікс. ставка (грн/міс)</label>
+            {{ form.salary_fixed }}
+          </div>
+          <div>
+            <label class="text-xs text-gray-500 block mb-1">Відсоток від виручки (%)</label>
+            {{ form.salary_percent }}
+          </div>
+          <div>
+            <label class="text-xs text-gray-500 block mb-1">Ставка за зміну (грн)</label>
+            {{ form.salary_per_shift }}
+          </div>
+          <div>
+            <label class="text-xs text-gray-500 block mb-1">Ставка за годину (грн)</label>
+            {{ form.salary_hourly }}
+          </div>
+        </div>
+      </div>
+
       <div class="flex gap-3 pt-2">
         <button type="submit"
-          class="bg-indigo-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors">
+          class="bg-brand-gold text-brand-dark px-6 py-2.5 rounded-lg text-sm font-semibold hover:brightness-95 transition">
           Зберегти
         </button>
         <a href="{% url 'accounts:users' %}"
-          class="px-6 py-2.5 rounded-lg text-sm font-medium text-gray-700 border border-gray-300 hover:bg-gray-50 transition-colors">
+          class="px-6 py-2.5 rounded-lg text-sm font-medium text-gray-700 border border-gray-300 hover:bg-gray-50 transition">
           Скасувати
         </a>
       </div>

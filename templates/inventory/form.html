@@ -52,6 +52,11 @@
         {{ form.is_active }}
         <label class="text-sm text-gray-700">Активний</label>
       </div>
+      <div class="flex flex-col gap-1">
+        <label class="text-xs text-gray-500 font-medium">Термін придатності</label>
+        {{ form.expiry_date }}
+        {% if form.expiry_date.errors %}<p class="text-red-500 text-xs mt-1">{{ form.expiry_date.errors|join:", " }}</p>{% endif %}
+      </div>
       <div class="flex gap-3 pt-2">
         <button type="submit"
           class="bg-brand-gold text-brand-dark px-6 py-2.5 rounded-lg text-sm font-semibold hover:brightness-95 transition-all">

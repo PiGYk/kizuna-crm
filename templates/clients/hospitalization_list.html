@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% block title %}Стаціонар — Kizuna CRM{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-bold text-brand-dark">Стаціонар</h1>
+</div>
+
+<!-- Активні -->
+<div class="mb-6">
+  <h2 class="text-sm font-semibold uppercase text-gray-400 tracking-wide mb-3">
+    На стаціонарі
+    {% if active %}<span class="ml-2 bg-red-100 text-red-700 text-xs rounded-full px-2 py-0.5">{{ active|length }}</span>{% endif %}
+  </h2>
+  {% if active %}
+  <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 border-b border-gray-200">
+        <tr>
+          <th class="px-4 py-3 text-left font-medium text-gray-600">Пацієнт</th>
+          <th class="px-4 py-3 text-left font-medium text-gray-600">Хазяїн</th>
+          <th class="px-4 py-3 text-left font-medium text-gray-600 hidden md:table-cell">Лікар</th>
+          <th class="px-4 py-3 text-left font-medium text-gray-600 hidden md:table-cell">Причина</th>
+          <th class="px-4 py-3 text-left font-medium text-gray-600">Надійшов</th>
+          <th class="px-4 py-3"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for h in active %}
+        <tr class="hover:bg-gray-50">
+          <td class="px-4 py-3">
+            <a href="{% url 'clients:patient_detail' h.patient.pk %}" class="font-semibold text-brand-dark hover:text-brand-gold">{{ h.patient.name }}</a>
+          </td>
+          <td class="px-4 py-3 text-gray-700">
+            <a href="{% url 'clients:detail' h.patient.client.pk %}" class="hover:text-brand-gold">{{ h.patient.client.full_name }}</a>
+          </td>
+          <td class="px-4 py-3 text-gray-500 hidden md:table-cell">
+            {% if h.doctor %}{{ h.doctor.get_full_name|default:h.doctor.username }}{% else %}—{% endif %}
+          </td>
+          <td class="px-4 py-3 text-gray-500 hidden md:table-cell truncate max-w-xs">{{ h.reason|truncatechars:60 }}</td>
+          <td class="px-4 py-3 text-gray-500">{{ h.admitted_at|date:"d.m.Y H:i" }}</td>
+          <td class="px-4 py-3 text-right">
+            <a href="{% url 'clients:hospitalization_discharge' h.pk %}"
+               class="text-xs bg-green-50 text-green-700 border border-green-200 rounded-lg px-3 py-1 hover:bg-green-100 transition">
+              Виписати
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="bg-white rounded-xl border border-gray-200 px-4 py-10 text-center text-gray-400 text-sm">Зараз немає тварин на стаціонарі</div>
+  {% endif %}
+</div>
+
+<!-- Нещодавно виписані -->
+{% if recent %}
+<div>
+  <h2 class="text-sm font-semibold uppercase text-gray-400 tracking-wide mb-3">Нещодавно виписані</h2>
+  <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 border-b border-gray-200">
+        <tr>
+          <th class="px-4 py-3 text-left font-medium text-gray-600">Пацієнт</th>
+          <th class="px-4 py-3 text-left font-medium text-gray-600 hidden md:table-cell">Лікар</th>
+          <th class="px-4 py-3 text-left font-medium text-gray-600">Надійшов</th>
+          <th class="px-4 py-3 text-left font-medium text-gray-600">Виписаний</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for h in recent %}
+        <tr class="hover:bg-gray-50">
+          <td class="px-4 py-3">
+            <a href="{% url 'clients:patient_detail' h.patient.pk %}" class="font-semibold text-brand-dark hover:text-brand-gold">{{ h.patient.name }}</a>
+            <div class="text-xs text-gray-400">{{ h.patient.client.full_name }}</div>
+          </td>
+          <td class="px-4 py-3 text-gray-500 hidden md:table-cell">
+            {% if h.doctor %}{{ h.doctor.get_full_name|default:h.doctor.username }}{% else %}—{% endif %}
+          </td>
+          <td class="px-4 py-3 text-gray-500">{{ h.admitted_at|date:"d.m.Y" }}</td>
+          <td class="px-4 py-3 text-gray-500">{{ h.discharged_at|date:"d.m.Y"|default:"—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

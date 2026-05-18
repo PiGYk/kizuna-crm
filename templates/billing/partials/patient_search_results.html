@@ -3,7 +3,7 @@
   {% for patient in patients %}
   <button type="button"
     onclick="selectPatientDirect({{ patient.pk }}, {{ patient.client.pk }}, '{{ patient.name|escapejs }}', '{{ patient.client|escapejs }}')"
-    class="w-full text-left px-3 py-2.5 rounded-lg border border-gray-200 hover:border-brand-gold hover:bg-brand-gold/5 transition">
+    class="w-full min-h-[44px] text-left px-3 py-2.5 rounded-lg border border-gray-200 hover:border-brand-gold hover:bg-brand-gold/5 transition">
     <div class="flex items-center gap-3">
       {% if patient.photo %}
       <img src="{{ patient.photo.url }}" alt="{{ patient.name }}"

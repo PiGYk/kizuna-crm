@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+{% block title %}Боржники — Kizuna CRM{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <h1 class="text-2xl font-bold text-brand-dark">Боржники</h1>
+    <p class="text-sm text-gray-500 mt-0.5">Неоплачені рахунки (статус: чернетка)</p>
+  </div>
+</div>
+
+{% if debtors %}
+<!-- KPI -->
+<div class="grid grid-cols-2 gap-4 mb-5">
+  <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+    <div class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Клієнтів-боржників</div>
+    <div class="text-2xl font-bold text-brand-dark">{{ count }}</div>
+  </div>
+  <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+    <div class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Загальна заборгованість</div>
+    <div class="text-2xl font-bold text-red-500">{{ grand_total|floatformat:0 }} ₴</div>
+  </div>
+</div>
+
+<!-- Таблиця -->
+<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 border-b border-gray-200">
+      <tr>
+        <th class="px-4 py-3 text-left font-medium text-gray-600">Клієнт</th>
+        <th class="px-4 py-3 text-left font-medium text-gray-600 hidden md:table-cell">Телефон</th>
+        <th class="px-4 py-3 text-right font-medium text-gray-600">Рахунків</th>
+        <th class="px-4 py-3 text-right font-medium text-gray-600">Заборгованість, ₴</th>
+        <th class="px-4 py-3 text-center font-medium text-gray-600">Дії</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">
+      {% for debtor in debtors %}
+      {% with oldest=debtor.invoices|last %}
+      <tr class="hover:bg-gray-50">
+        <td class="px-4 py-3">
+          <div class="font-medium text-brand-dark">
+            {{ debtor.client.full_name|default:debtor.client }}
+          </div>
+          <!-- Рахунки (accordion-like sub-rows) -->
+          <div class="mt-1 space-y-0.5">
+            {% for inv in debtor.invoices %}
+            <div class="text-xs text-gray-400 flex items-center gap-2">
+              <span class="text-gray-300">#</span>
+              <a href="{% url 'billing:detail' inv.pk %}" class="text-brand-gold hover:underline">
+                {{ inv.pk }}
+              </a>
+              <span>{{ inv.created_at|date:"d.m.Y" }}</span>
+              <span class="font-medium text-gray-600">{{ inv.total|floatformat:0 }} ₴</span>
+              {% if inv.patient %}<span class="text-gray-400">· {{ inv.patient.name }}</span>{% endif %}
+            </div>
+            {% endfor %}
+          </div>
+        </td>
+        <td class="px-4 py-3 text-gray-500 hidden md:table-cell">
+          {{ debtor.client.phone|default:"—" }}
+        </td>
+        <td class="px-4 py-3 text-right text-gray-500">{{ debtor.invoices|length }}</td>
+        <td class="px-4 py-3 text-right font-semibold text-red-500">{{ debtor.total|floatformat:0 }} ₴</td>
+        <td class="px-4 py-3 text-center">
+          {% if oldest %}
+          <a href="{% url 'billing:detail' oldest.pk %}"
+             class="inline-flex items-center gap-1 text-xs bg-brand-gold text-brand-dark font-medium px-3 py-1.5 rounded-lg hover:brightness-95 transition-all whitespace-nowrap">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+            Рахунок
+          </a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endwith %}
+      {% endfor %}
+    </tbody>
+    <tfoot class="border-t-2 border-red-200 bg-red-50">
+      <tr>
+        <td colspan="3" class="px-4 py-3 text-right font-bold text-gray-700">Разом:</td>
+        <td class="px-4 py-3 text-right font-bold text-red-500 text-base">{{ grand_total|floatformat:0 }} ₴</td>
+        <td></td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+
+{% else %}
+<div class="bg-white rounded-2xl border border-gray-100 p-16 text-center">
+  <svg class="w-12 h-12 text-green-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+  </svg>
+  <p class="text-gray-400 font-medium">Боржників немає</p>
+  <p class="text-sm text-gray-300 mt-1">Всі клієнти розрахувались. Приємна новина.</p>
+</div>
+{% endif %}
+{% endblock %}

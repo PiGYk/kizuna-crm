@@ -1,6 +1,8 @@
 from django.contrib import messages
 from django.contrib.auth import login as auth_login
+from django.core.cache import cache
 from django.core.mail import send_mail
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse_lazy
@@ -111,6 +113,25 @@ def register(request):
     """Публічна реєстрація нової клініки + адміна."""
     if request.user.is_authenticated:
         return redirect('dashboard')
+
+    # Rate-limit: не більше 3 спроб реєстрації з однієї IP на годину.
+    # GET (показ форми) пропускаємо, обмежуємо тільки POST.
+    # TODO: nginx стоїть фронтом — додати USE_X_FORWARDED_HOST/SECURE_PROXY або
+    # читати X-Forwarded-For (з whitelist trusted proxies) щоб rate-limit бачив
+    # реальний IP, а не 127.0.0.1.
+    if request.method == 'POST':
+        ip = (
+            request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip()
+            or request.META.get('REMOTE_ADDR', '0.0.0.0')
+        )
+        rl_key = f'register-rl:{ip}'
+        count = cache.get(rl_key, 0)
+        if count >= 3:
+            return HttpResponse(
+                'Забагато спроб реєстрації. Спробуйте через годину.',
+                status=429,
+            )
+        cache.set(rl_key, count + 1, timeout=3600)
 
     form = ClinicRegistrationForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():

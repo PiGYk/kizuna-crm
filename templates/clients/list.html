@@ -4,41 +4,111 @@
 
 {% block content %}
 <div class="flex items-center justify-between mb-6">
-  <h1 class="text-2xl font-bold text-brand-dark">Клієнти</h1>
+  <h1 class="text-2xl font-bold text-brand-dark">
+    Клієнти
+    <span class="ml-2 text-sm font-normal text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{{ page_obj.paginator.count }}</span>
+  </h1>
   <a href="{% url 'clients:create' %}"
      class="bg-brand-gold text-brand-dark px-4 py-2 rounded-lg text-sm font-medium hover:brightness-95 transition-all">
     + Додати
   </a>
 </div>
 
-<div class="flex flex-wrap items-center gap-3 mb-4">
+<div class="flex flex-wrap items-center gap-3 mb-3">
   <form method="get" class="flex gap-2 flex-1">
     <input type="text" name="q" value="{{ q }}"
       placeholder="Пошук за ім'ям або телефоном..."
-      class="w-full md:w-96 px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+      class="w-full md:w-96 px-4 py-2.5 border border-gray-300 rounded-lg text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
     {% if sort %}<input type="hidden" name="sort" value="{{ sort }}">{% endif %}
+    {% if activity %}<input type="hidden" name="activity" value="{{ activity }}">{% endif %}
   </form>
-  <div class="flex gap-1.5 shrink-0">
-    <a href="?q={{ q }}"
-       class="px-3 py-2 rounded-lg text-sm font-medium border transition-colors
-         {% if sort != 'new' %}bg-brand-gold text-brand-dark border-brand-gold{% else %}border-gray-200 text-gray-500 hover:border-gray-300{% endif %}">
-      А–Я
-    </a>
-    <a href="?q={{ q }}&sort=new"
-       class="px-3 py-2 rounded-lg text-sm font-medium border transition-colors
-         {% if sort == 'new' %}bg-brand-gold text-brand-dark border-brand-gold{% else %}border-gray-200 text-gray-500 hover:border-gray-300{% endif %}">
-      Нові
-    </a>
-  </div>
 </div>
 
-<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+<div class="flex flex-wrap items-center gap-2 mb-4">
+  <span class="text-xs text-gray-400 font-medium uppercase tracking-wide mr-1">Активність:</span>
+  <a href="?q={{ q }}{% if sort %}&sort={{ sort }}{% endif %}"
+     class="px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors
+       {% if not activity %}bg-brand-gold text-brand-dark border-brand-gold{% else %}border-gray-200 text-gray-500 hover:border-gray-300{% endif %}">
+    Всі
+  </a>
+  <a href="?q={{ q }}&activity=active{% if sort %}&sort={{ sort }}{% endif %}"
+     class="px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors
+       {% if activity == 'active' %}bg-brand-gold text-brand-dark border-brand-gold{% else %}border-gray-200 text-gray-500 hover:border-gray-300{% endif %}">
+    Активні (6 міс)
+  </a>
+  <a href="?q={{ q }}&activity=inactive{% if sort %}&sort={{ sort }}{% endif %}"
+     class="px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors
+       {% if activity == 'inactive' %}bg-brand-gold text-brand-dark border-brand-gold{% else %}border-gray-200 text-gray-500 hover:border-gray-300{% endif %}">
+    Неактивні
+  </a>
+</div>
+
+<!-- Моб: картки клієнтів -->
+<div class="md:hidden space-y-2">
+  {% for client in clients %}
+  <a href="{% url 'clients:detail' client.pk %}"
+     class="block bg-white rounded-xl border border-gray-200 p-3 hover:border-brand-gold transition-colors active:bg-gray-50">
+    <div class="flex items-start justify-between gap-2">
+      <div class="min-w-0">
+        <div class="font-semibold text-brand-dark text-sm truncate">{{ client.last_name }} {{ client.first_name }}</div>
+        <div class="text-xs text-gray-600 mt-0.5">{{ client.phone }}</div>
+        {% if client.email %}<div class="text-xs text-gray-400 truncate">{{ client.email }}</div>{% endif %}
+      </div>
+      {% if client.created_at %}
+      <span class="text-xs text-gray-400 shrink-0">{{ client.created_at|date:"d.m.y" }}</span>
+      {% endif %}
+    </div>
+    {% with pets=client.patients.all %}
+    {% if pets %}
+    <div class="mt-2 flex flex-wrap items-center gap-1.5">
+      {% for p in pets %}
+        <span class="inline-flex items-center gap-1 bg-gray-50 rounded-full pr-2 pl-0.5 py-0.5">
+          {% if p.photo %}
+            <img src="{{ p.photo.url }}" class="w-5 h-5 rounded-full object-cover">
+          {% else %}
+            <span class="w-5 h-5 rounded-full bg-brand-gold/10 flex items-center justify-center text-xs">
+              {% if p.species == 'cat' %}🐱{% elif p.species == 'dog' %}🐶{% elif p.species == 'rabbit' %}🐰{% elif p.species == 'bird' %}🐦{% else %}🐾{% endif %}
+            </span>
+          {% endif %}
+          <span class="text-xs text-gray-600">{{ p.name }}</span>
+        </span>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+  </a>
+  {% empty %}
+  <div class="bg-white rounded-xl border border-gray-200 px-4 py-12 text-center text-gray-400 text-sm">
+    {% if q %}Нічого не знайдено за "{{ q }}"{% else %}Клієнтів ще немає{% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Десктоп: таблиця -->
+<div class="hidden md:block bg-white rounded-xl border border-gray-200 overflow-hidden">
   <table class="w-full text-sm">
     <thead class="bg-gray-50 border-b border-gray-200">
       <tr>
-        <th class="px-4 py-3 text-left font-medium text-gray-600">Клієнт</th>
+        <th class="px-4 py-3 text-left font-medium text-gray-600">
+          <a href="?q={{ q }}&sort={% if sort == 'name' %}name_desc{% else %}name{% endif %}{% if activity %}&activity={{ activity }}{% endif %}"
+             class="inline-flex items-center gap-1 hover:text-brand-dark transition-colors">
+            Клієнт
+            {% if sort == 'name' %}<span class="text-brand-gold">↑</span>
+            {% elif sort == 'name_desc' %}<span class="text-brand-gold">↓</span>
+            {% else %}<span class="text-gray-300">↕</span>{% endif %}
+          </a>
+        </th>
         <th class="px-4 py-3 text-left font-medium text-gray-600">Телефон</th>
-        <th class="px-4 py-3 text-left font-medium text-gray-600 hidden md:table-cell">Пацієнти</th>
+        <th class="px-4 py-3 text-left font-medium text-gray-600 ">Пацієнти</th>
+        <th class="px-4 py-3 text-left font-medium text-gray-600 ">
+          <a href="?q={{ q }}&sort={% if sort == 'new' %}old{% else %}new{% endif %}{% if activity %}&activity={{ activity }}{% endif %}"
+             class="inline-flex items-center gap-1 hover:text-brand-dark transition-colors">
+            Реєстрація
+            {% if sort == 'new' %}<span class="text-brand-gold">↓</span>
+            {% elif sort == 'old' %}<span class="text-brand-gold">↑</span>
+            {% else %}<span class="text-gray-300">↕</span>{% endif %}
+          </a>
+        </th>
         <th class="px-4 py-3"></th>
       </tr>
     </thead>
@@ -50,7 +120,7 @@
           {% if client.email %}<div class="text-xs text-gray-400">{{ client.email }}</div>{% endif %}
         </td>
         <td class="px-4 py-3 text-gray-600">{{ client.phone }}</td>
-        <td class="px-4 py-3 hidden md:table-cell">
+        <td class="px-4 py-3 ">
           <div class="flex items-center gap-1.5 flex-wrap">
             {% for p in client.patients.all %}
               <a href="{% url 'clients:patient_detail' p.pk %}"
@@ -71,6 +141,9 @@
             {% endfor %}
           </div>
         </td>
+        <td class="px-4 py-3 text-gray-400 text-xs ">
+          {% if client.created_at %}{{ client.created_at|date:"d.m.Y" }}{% else %}—{% endif %}
+        </td>
         <td class="px-4 py-3 text-right">
           <a href="{% url 'clients:detail' client.pk %}"
              class="text-brand-gold hover:text-brand-dark text-xs font-medium"
@@ -79,7 +152,7 @@
       </tr>
       {% empty %}
       <tr>
-        <td colspan="4" class="px-4 py-12 text-center text-gray-400">
+        <td colspan="5" class="px-4 py-12 text-center text-gray-400">
           {% if q %}Нічого не знайдено за "{{ q }}"{% else %}Клієнтів ще немає{% endif %}
         </td>
       </tr>
@@ -91,12 +164,12 @@
 {% if is_paginated %}
 <div class="flex justify-center gap-2 mt-4">
   {% if page_obj.has_previous %}
-    <a href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if sort %}&sort={{ sort }}{% endif %}"
+    <a href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if sort %}&sort={{ sort }}{% endif %}{% if activity %}&activity={{ activity }}{% endif %}"
        class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">←</a>
   {% endif %}
   <span class="px-3 py-1.5 text-sm text-gray-600">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
   {% if page_obj.has_next %}
-    <a href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if sort %}&sort={{ sort }}{% endif %}"
+    <a href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if sort %}&sort={{ sort }}{% endif %}{% if activity %}&activity={{ activity }}{% endif %}"
        class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">→</a>
   {% endif %}
 </div>

@@ -13,7 +13,7 @@
   </div>
 
   <div class="bg-white rounded-xl border border-gray-200 p-6">
-    <form method="post" class="space-y-4">
+    <form method="post" class="space-y-4" id="appt-edit-form">
       {% csrf_token %}
 
       <!-- Дата + Час -->
@@ -60,15 +60,20 @@
         {{ form.doctor }}
       </div>
 
-      <!-- Послуги з рядком пошуку -->
+      <!-- Послуги — картки -->
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Заплановані послуги</label>
+        {# Прихований select — лише для сабміту форми #}
+        <div class="hidden">{{ form.services }}</div>
         <input type="text" id="services-search" placeholder="Пошук послуги..."
           autocomplete="off"
-          class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-1
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-2
                  focus:outline-none focus:ring-2 focus:ring-brand-gold">
-        {{ form.services }}
-        <p class="text-xs text-gray-400 mt-1">Ctrl+Click для вибору кількох</p>
+        {# Вибрані послуги — чіпи з × #}
+        <div id="services-chips" class="flex flex-wrap gap-2 mb-2"></div>
+        {# Результати пошуку #}
+        <div id="services-results" class="flex flex-wrap gap-2"></div>
+        <p id="services-empty" class="text-xs text-gray-400 mt-1 hidden">Нічого не знайдено</p>
       </div>
 
       <!-- Статус -->
@@ -83,26 +88,31 @@
         {{ form.notes }}
       </div>
 
-      <div class="flex gap-3 pt-2">
-        <button type="submit"
-          class="bg-brand-gold text-brand-dark px-6 py-2.5 rounded-lg text-sm font-semibold hover:brightness-95">
-          Зберегти
-        </button>
-        {% if appt %}
-        <form method="post" action="{% url 'appointments:delete' appt.pk %}" class="inline">
-          {% csrf_token %}
-          <button type="submit" onclick="return confirm('Видалити запис?')"
-            class="px-4 py-2.5 border border-red-200 text-red-500 rounded-lg text-sm hover:bg-red-50">
-            Видалити
-          </button>
-        </form>
-        {% endif %}
-        <a href="{% url 'appointments:calendar' %}"
-          class="px-6 py-2.5 rounded-lg text-sm font-medium text-gray-700 border border-gray-300 hover:bg-gray-50">
-          Скасувати
-        </a>
-      </div>
     </form>
+
+    {% if appt %}
+    <form method="post" action="{% url 'appointments:delete' appt.pk %}" id="appt-delete-form">
+      {% csrf_token %}
+    </form>
+    {% endif %}
+
+    <div class="flex gap-3 pt-2">
+      <button type="submit" form="appt-edit-form"
+        class="bg-brand-gold text-brand-dark px-6 py-2.5 rounded-lg text-sm font-semibold hover:brightness-95">
+        Зберегти
+      </button>
+      {% if appt %}
+      <button type="submit" form="appt-delete-form"
+        onclick="return confirm('Видалити запис?')"
+        class="px-4 py-2.5 border border-red-200 text-red-500 rounded-lg text-sm hover:bg-red-50">
+        Видалити
+      </button>
+      {% endif %}
+      <a href="{% url 'appointments:calendar' %}"
+        class="px-6 py-2.5 rounded-lg text-sm font-medium text-gray-700 border border-gray-300 hover:bg-gray-50">
+        Скасувати
+      </a>
+    </div>
   </div>
 
   {% if appt %}
@@ -131,27 +141,108 @@
   {% endif %}
 </div>
 
-<script>
-// ── Пошук у списку послуг ───────────────────────────────────────────────────
-document.getElementById('services-search').addEventListener('input', function () {
-  const q = this.value.toLowerCase();
-  const select = document.getElementById('id_services');
-  Array.from(select.options).forEach(function (opt) {
-    opt.style.display = opt.text.toLowerCase().includes(q) ? '' : 'none';
-  });
-});
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.min.css">
+<style>
+  .ts-wrapper.single .ts-control { padding: 6px 12px; border-radius: 8px; border-color: #d1d5db; font-size: 0.875rem; }
+  .ts-wrapper.single.focus .ts-control { border-color: #C8A84C; box-shadow: 0 0 0 2px rgba(200,168,76,.25); }
+  .ts-dropdown { border-radius: 8px; border-color: #d1d5db; box-shadow: 0 4px 12px rgba(0,0,0,.08); font-size: 0.875rem; }
+  .ts-dropdown .option.active { background: #C8A84C; }
+  .ts-dropdown .option:hover { background: #f5ead6; color: #1a1a1a; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
 
-// ── Пацієнти: HTMX + відновлення вибору ────────────────────────────────────
+<script>
+// ── Послуги: пошук + картки вибраних ────────────────────────────────────────
+(function () {
+  const select  = document.getElementById('id_services');
+  const chips   = document.getElementById('services-chips');   // вибрані зверху
+  const results = document.getElementById('services-results'); // результати пошуку
+  const search  = document.getElementById('services-search');
+  const empty   = document.getElementById('services-empty');
+  if (!select || !chips) return;
+
+  const CHIP_CLS = 'inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border text-sm font-medium bg-brand-gold text-brand-dark border-brand-gold select-none';
+  const CARD_CLS = 'px-3 py-1.5 rounded-lg border text-sm font-medium bg-white text-gray-700 border-gray-300 hover:border-brand-gold transition-all select-none cursor-pointer';
+
+  // Повертає клас для кнопки-чіпа (вибраного)
+  function makeChip(opt) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.dataset.value = opt.value;
+    btn.className = CHIP_CLS;
+    btn.innerHTML = opt.text + ' <span class="opacity-60 text-base leading-none">×</span>';
+    btn.addEventListener('click', function () {
+      opt.selected = false;
+      btn.remove();
+      renderResults(search.value);
+    });
+    return btn;
+  }
+
+  // Відрендерити вибрані чіпи при завантаженні
+  Array.from(select.options).forEach(function (opt) {
+    if (opt.selected) chips.appendChild(makeChip(opt));
+  });
+
+  // Рендер результатів пошуку (не вибраних)
+  function renderResults(q) {
+    results.innerHTML = '';
+    q = (q || '').toLowerCase().trim();
+    if (!q) { empty.classList.add('hidden'); return; }
+
+    let count = 0;
+    Array.from(select.options).forEach(function (opt) {
+      if (opt.selected) return; // вже у чіпах
+      if (!opt.text.toLowerCase().includes(q)) return;
+      count++;
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.className = CARD_CLS;
+      card.textContent = opt.text;
+      card.addEventListener('click', function () {
+        opt.selected = true;
+        chips.appendChild(makeChip(opt));
+        search.value = '';
+        results.innerHTML = '';
+        empty.classList.add('hidden');
+        search.focus();
+      });
+      results.appendChild(card);
+    });
+    empty.classList.toggle('hidden', count > 0);
+  }
+
+  search.addEventListener('input', function () { renderResults(this.value); });
+})();
+
+// ── Tom Select на полі клієнта ──────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function () {
-  const clientSel = document.getElementById('id_client');
-  // При редагуванні (або після помилки збереження) клієнт вже вибраний —
-  // тригеруємо HTMX щоб завантажити його пацієнтів
-  if (clientSel && clientSel.value) {
-    htmx.trigger(clientSel, 'change');
+  const clientEl = document.getElementById('id_client');
+  if (!clientEl) return;
+
+  const ts = new TomSelect(clientEl, {
+    placeholder: '— оберіть клієнта —',
+    allowEmptyOption: true,
+    maxOptions: 300,
+    searchField: ['text'],
+    render: {
+      no_results: function () {
+        return '<div class="no-results">Нічого не знайдено</div>';
+      },
+    },
+    onChange: function (value) {
+      // Тригеруємо HTMX вручну щоб завантажити пацієнтів
+      htmx.trigger(clientEl, 'change');
+    },
+  });
+
+  // При редагуванні — відразу завантажити пацієнтів вибраного клієнта
+  if (clientEl.value) {
+    htmx.trigger(clientEl, 'change');
   }
 });
 
-// Після завантаження пацієнтів відновлюємо вибраного
+// ── Після HTMX-свопу: відновити вибраного пацієнта ─────────────────────────
 document.body.addEventListener('htmx:afterSwap', function (e) {
   if (e.detail.target.id === 'id_patient') {
     const presetId = document.getElementById('preset-patient-id').value;

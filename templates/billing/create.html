@@ -18,12 +18,12 @@
     <div class="flex gap-1 mb-4 bg-gray-100 rounded-lg p-1">
       <button type="button" id="tab-client"
         onclick="switchTab('client')"
-        class="tab-btn flex-1 py-1.5 rounded-md text-sm font-medium transition bg-white text-brand-dark shadow-sm">
+        class="tab-btn flex-1 min-h-[44px] py-2 rounded-md text-sm font-medium transition bg-white text-brand-dark shadow-sm">
         За клієнтом
       </button>
       <button type="button" id="tab-patient"
         onclick="switchTab('patient')"
-        class="tab-btn flex-1 py-1.5 rounded-md text-sm font-medium transition text-gray-500 hover:text-gray-700">
+        class="tab-btn flex-1 min-h-[44px] py-2 rounded-md text-sm font-medium transition text-gray-500 hover:text-gray-700">
         За твариною
       </button>
     </div>
@@ -33,7 +33,7 @@
       <input
         type="text"
         placeholder="Пошук за прізвищем або телефоном…"
-        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
+        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
         hx-get="{% url 'billing:client_search' %}"
         hx-trigger="input changed delay:300ms"
         hx-target="#client-results"
@@ -47,7 +47,7 @@
       <input
         type="text"
         placeholder="Кличка або порода…"
-        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
+        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
         hx-get="{% url 'billing:patient_search' %}"
         hx-trigger="input changed delay:300ms"
         hx-target="#patient-search-results"
@@ -78,7 +78,7 @@
     <input type="hidden" name="client_id" id="selected-client-id">
     <input type="hidden" name="patient_id" id="selected-patient-id">
     <button type="submit" id="start-btn"
-      class="hidden w-full bg-brand-gold text-brand-dark py-2.5 rounded-lg text-sm font-semibold hover:brightness-95">
+      class="hidden w-full min-h-[44px] bg-brand-gold text-brand-dark py-2.5 rounded-lg text-sm font-semibold hover:brightness-95">
       Перейти до чеку →
     </button>
   </form>

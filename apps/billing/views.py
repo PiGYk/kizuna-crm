@@ -1,16 +1,29 @@
-import json
 import logging
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
+
+
+def _parse_decimal(raw, default):
+    """Толерантний парсинг для мобільних клавіатур: кома → крапка, пробіли, NBSP."""
+    if raw is None:
+        return default
+    s = str(raw).strip().replace(' ', '').replace(' ', '').replace(',', '.')
+    if not s:
+        return default
+    try:
+        return Decimal(s)
+    except (InvalidOperation, ValueError):
+        return default
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
+from django.db.models import Prefetch, Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 logger = logging.getLogger(__name__)
 
-from django.db.models import Q
 from apps.clients.models import Client, Patient
 from apps.inventory.models import Product, StockMovement
 from apps.services.models import Service
@@ -19,8 +32,18 @@ from .models import Invoice, InvoiceLine
 
 
 def _lines_context(invoice):
-    """Спільний контекст для partial lines_table — з вакцинами."""
-    lines = list(invoice.lines.select_related('service', 'product').all())
+    """Контекст для partial lines_table — top-level рядки з prefetch дітей."""
+    lines = list(
+        invoice.lines
+        .filter(parent_line__isnull=True)
+        .select_related('service', 'product', 'product__unit')
+        .prefetch_related(
+            Prefetch(
+                'children',
+                queryset=InvoiceLine.objects.select_related('product', 'product__unit'),
+            )
+        )
+    )
     has_vaccination = any(
         l.line_type == 'service' and l.service and 'вакцинац' in l.service.name.lower()
         for l in lines
@@ -29,11 +52,11 @@ def _lines_context(invoice):
     vaccine_in_invoice = set()
     if has_vaccination:
         vaccine_products = list(
-            Product.objects.filter(category__name='Вакцини', is_active=True).order_by('name')
+            Product.objects.filter(category__name='Вакцини', is_active=True, organization=invoice.organization).order_by('name')
         )
         vaccine_in_invoice = set(
             invoice.lines.filter(
-                product__category__name='Вакцини', unit_price=0
+                product__category__name='Вакцини', unit_price=0, parent_line__isnull=True
             ).values_list('product_id', flat=True)
         )
     return {
@@ -49,12 +72,20 @@ def _lines_context(invoice):
 
 @login_required
 def invoice_list(request):
-    invoices = Invoice.objects.select_related('client', 'patient', 'doctor').all()
+    invoices = Invoice.objects.select_related('client', 'patient', 'doctor').filter(
+        organization=request.organization
+    ).order_by('-created_at')
+    # Лікар бачить тільки свої рахунки
+    if request.user.role == 'doctor':
+        invoices = invoices.filter(doctor=request.user)
     payment = request.GET.get('payment', '')
     if payment in Invoice.PaymentMethod.values:
         invoices = invoices.filter(payment_method=payment)
+    from django.core.paginator import Paginator
+    paginator = Paginator(invoices, 50)
+    page = paginator.get_page(request.GET.get('page', 1))
     return render(request, 'billing/list.html', {
-        'invoices': invoices,
+        'invoices': page,
         'payment_filter': payment,
     })
 
@@ -68,12 +99,18 @@ def invoice_create(request):
         patient_id = request.POST.get('patient_id') or None
         client = get_object_or_404(Client, pk=client_id)
         patient = get_object_or_404(Patient, pk=patient_id) if patient_id else None
+        org = request.organization
+        default_doc = org.get_default_doctor(request.user) if org else request.user
+        # Персональна знижка клієнта
+        client_discount = client.discount_percent or 0
         invoice = Invoice.objects.create(
             client=client,
             patient=patient,
-            doctor=request.user,
+            doctor=default_doc,
             created_by=request.user,
-            organization=request.organization,
+            organization=org,
+            discount=client_discount,
+            discount_type=Invoice.DiscountType.PERCENT,
         )
         return redirect('billing:edit', pk=invoice.pk)
 
@@ -86,11 +123,12 @@ def invoice_create(request):
 def client_search(request):
     q = request.GET.get('q', '').strip()
     clients = []
-    if q:
+    if len(q) >= 2:
         clients = Client.objects.filter(
             Q(last_name__icontains=q) |
             Q(first_name__icontains=q) |
-            Q(phone__icontains=q)
+            Q(phone__icontains=q),
+            organization=request.organization,
         )[:10]
     return render(request, 'billing/partials/client_results.html', {'clients': clients, 'q': q})
 
@@ -104,7 +142,8 @@ def patient_search(request):
     if q:
         patients = Patient.objects.select_related('client').filter(
             Q(name__icontains=q) |
-            Q(breed__icontains=q)
+            Q(breed__icontains=q),
+            client__organization=request.organization,
         )[:10]
     return render(request, 'billing/partials/patient_search_results.html', {'patients': patients, 'q': q})
 
@@ -126,8 +165,9 @@ def invoice_edit(request, pk):
     if invoice.status != Invoice.Status.DRAFT:
         return redirect('billing:detail', pk=pk)
 
-    services = Service.objects.filter(is_active=True).order_by('name')
-    products = Product.objects.filter(is_active=True).order_by('name')
+    org = request.organization
+    services = Service.objects.filter(organization=org, is_active=True).order_by('name')
+    products = Product.objects.filter(organization=org, is_active=True).order_by('name')
     ctx = _lines_context(invoice)
     ctx['services'] = services
     ctx['products'] = products
@@ -147,8 +187,8 @@ def add_line(request, pk):
         if not service_id:
             return HttpResponse(status=400)
         service = get_object_or_404(Service, pk=service_id)
-        qty = Decimal(request.POST.get('quantity', '1'))
-        discount = Decimal(request.POST.get('discount', '0'))
+        qty = _parse_decimal(request.POST.get('quantity'), Decimal('1'))
+        discount = _parse_decimal(request.POST.get('discount'), Decimal('0'))
         discount_type = request.POST.get('discount_type', Invoice.DiscountType.PERCENT)
         line = InvoiceLine(
             invoice=invoice,
@@ -162,13 +202,25 @@ def add_line(request, pk):
         )
         line.save()
 
+        # Автоматично додаємо компоненти послуги як дочірні рядки (ціна 0)
+        for comp in service.components.select_related('product').all():
+            InvoiceLine.objects.create(
+                invoice=invoice,
+                parent_line=line,
+                line_type='product',
+                product=comp.product,
+                name=comp.product.name,
+                quantity=comp.quantity * qty,
+                unit_price=Decimal('0'),
+            )
+
     elif line_type == 'product':
         product_id = request.POST.get('product_id')
         if not product_id:
             return HttpResponse(status=400)
         product = get_object_or_404(Product, pk=product_id)
-        qty = Decimal(request.POST.get('quantity', '1'))
-        discount = Decimal(request.POST.get('discount', '0'))
+        qty = _parse_decimal(request.POST.get('quantity'), Decimal('1'))
+        discount = _parse_decimal(request.POST.get('discount'), Decimal('0'))
         discount_type = request.POST.get('discount_type', Invoice.DiscountType.PERCENT)
         line = InvoiceLine(
             invoice=invoice,
@@ -186,6 +238,36 @@ def add_line(request, pk):
     return render(request, 'billing/partials/lines_table.html', _lines_context(invoice))
 
 
+# ── HTMX: додати компонент (препарат) до послуги в чеку ─────────────────────
+
+@login_required
+@require_POST
+def add_component(request, pk, line_id):
+    """Додає препарат зі складу як дочірній рядок до послуги (ціна 0)."""
+    invoice = get_object_or_404(Invoice, pk=pk, status=Invoice.Status.DRAFT)
+    parent = get_object_or_404(InvoiceLine, pk=line_id, invoice=invoice, line_type='service')
+
+    product_id = request.POST.get('product_id')
+    if not product_id:
+        return render(request, 'billing/partials/lines_table.html', _lines_context(invoice))
+
+    product = get_object_or_404(Product, pk=product_id, organization=request.organization)
+    qty = _parse_decimal(request.POST.get('quantity'), Decimal('1'))
+
+    InvoiceLine.objects.create(
+        invoice=invoice,
+        parent_line=parent,
+        line_type='product',
+        product=product,
+        name=product.name,
+        quantity=qty,
+        unit_price=Decimal('0'),
+    )
+
+    invoice.save_total()
+    return render(request, 'billing/partials/lines_table.html', _lines_context(invoice))
+
+
 # ── HTMX: оновити ціну / кількість рядка ────────────────────────────────────
 
 @login_required
@@ -193,11 +275,8 @@ def add_line(request, pk):
 def update_line(request, pk, line_id):
     invoice = get_object_or_404(Invoice, pk=pk, status=Invoice.Status.DRAFT)
     line = get_object_or_404(InvoiceLine, pk=line_id, invoice=invoice)
-    try:
-        line.unit_price = Decimal(request.POST.get('unit_price', line.unit_price))
-        line.quantity = Decimal(request.POST.get('quantity', line.quantity))
-    except Exception:
-        pass
+    line.unit_price = _parse_decimal(request.POST.get('unit_price'), line.unit_price)
+    line.quantity = _parse_decimal(request.POST.get('quantity'), line.quantity)
     line.save()
     invoice.save_total()
     return render(request, 'billing/partials/lines_table.html', _lines_context(invoice))
@@ -221,7 +300,7 @@ def remove_line(request, pk, line_id):
 @require_POST
 def update_discount(request, pk):
     invoice = get_object_or_404(Invoice, pk=pk, status=Invoice.Status.DRAFT)
-    invoice.discount = Decimal(request.POST.get('discount', '0'))
+    invoice.discount = _parse_decimal(request.POST.get('discount'), Decimal('0'))
     invoice.discount_type = request.POST.get('discount_type', Invoice.DiscountType.PERCENT)
     invoice.notes = request.POST.get('notes', '')
     invoice.save(update_fields=['discount', 'discount_type', 'notes'])
@@ -261,19 +340,32 @@ def toggle_vaccine(request, pk):
 @login_required
 def service_search_json(request):
     q = request.GET.get('q', '').strip()
-    qs = Service.objects.filter(is_active=True).order_by('name')
+    qs = Service.objects.filter(organization=request.organization, is_active=True).order_by('name')
     if q:
         qs = qs.filter(name__icontains=q)
-    qs = qs[:25]
+    qs = qs.prefetch_related('components__product__unit')[:25]
     return JsonResponse({'results': [
-        {'id': s.pk, 'name': s.name, 'price': str(s.price)} for s in qs
+        {
+            'id': s.pk,
+            'name': s.name,
+            'price': str(s.price),
+            'components': [
+                {
+                    'name': c.product.name,
+                    'qty': str(c.quantity),
+                    'unit': c.product.unit.short if c.product.unit else '',
+                }
+                for c in s.components.all()
+            ],
+        }
+        for s in qs
     ]})
 
 
 @login_required
 def product_search_json(request):
     q = request.GET.get('q', '').strip()
-    qs = Product.objects.filter(is_active=True).order_by('name')
+    qs = Product.objects.filter(organization=request.organization, is_active=True).order_by('name')
     if q:
         qs = qs.filter(name__icontains=q)
     qs = qs[:25]
@@ -283,75 +375,15 @@ def product_search_json(request):
     ]})
 
 
-# ── HTMX: компоненти послуги (для попапу підтвердження) ─────────────────────
-
-@login_required
-def service_components(request, service_id):
-    service = get_object_or_404(Service, pk=service_id)
-    components = service.components.select_related('product', 'product__unit').all()
-    return render(request, 'billing/partials/service_components.html', {
-        'service': service,
-        'components': components,
-    })
-
-
 # ── Оплатити (фіналізувати) ──────────────────────────────────────────────────
 
 @login_required
 @require_POST
+@transaction.atomic
 def pay_invoice(request, pk):
     invoice = get_object_or_404(Invoice, pk=pk, status=Invoice.Status.DRAFT)
 
-    # які сервіси списувати
-    writeoff_ids = set(request.POST.getlist('writeoff_service'))
-
-    insufficient = []
-    for line in invoice.lines.select_related('service', 'product').all():
-        if line.line_type == 'product' and line.product and not line.stock_written_off:
-            if line.product.quantity < line.quantity:
-                insufficient.append(
-                    f'{line.product.name}: є {line.product.quantity}, потрібно {line.quantity}'
-                )
-
-    if insufficient:
-        messages.warning(
-            request,
-            'Недостатній залишок — списання все одно проведено: ' + '; '.join(insufficient),
-        )
-
-    for line in invoice.lines.select_related('service', 'product').all():
-        if line.line_type == 'product' and line.product and not line.stock_written_off:
-            # автоматично списуємо товари
-            StockMovement.objects.create(
-                product=line.product,
-                type=StockMovement.Type.OUT,
-                quantity=line.quantity,
-                price=line.unit_price,
-                reason=f'Рахунок #{invoice.pk}',
-                created_by=request.user,
-            )
-            line.stock_written_off = True
-            line.save(update_fields=['stock_written_off'])
-
-        elif line.line_type == 'service' and str(line.service_id) in writeoff_ids and not line.stock_written_off:
-            # списуємо компоненти послуги
-            for comp in line.service.components.select_related('product').all():
-                custom_key = f'comp_qty_{line.pk}_{comp.pk}'
-                custom_val = request.POST.get(custom_key)
-                try:
-                    qty_to_write = Decimal(custom_val) if custom_val else comp.quantity * line.quantity
-                except Exception:
-                    qty_to_write = comp.quantity * line.quantity
-                StockMovement.objects.create(
-                    product=comp.product,
-                    type=StockMovement.Type.OUT,
-                    quantity=qty_to_write,
-                    price=comp.product.sell_price,
-                    reason=f'Послуга «{line.service.name}», рахунок #{invoice.pk}',
-                    created_by=request.user,
-                )
-            line.stock_written_off = True
-            line.save(update_fields=['stock_written_off'])
+    _writeoff_stock(invoice, request.user)
 
     payment_method = request.POST.get('payment_method', Invoice.PaymentMethod.CASH)
     if payment_method not in Invoice.PaymentMethod.values:
@@ -383,15 +415,52 @@ def cancel_invoice(request, pk):
     return redirect('billing:list')
 
 
-# ── видалити рахунок (тільки чернетки і скасовані) ───────────────────────────
+# ── видалити рахунок ─────────────────────────────────────────────────────────
+# DRAFT / CANCELLED — будь-який користувач
+# PAID — тільки admin, з автоматичним поверненням товарів на склад
 
 @login_required
 @require_POST
 def delete_invoice(request, pk):
+    from django.db import transaction
+    from django.contrib import messages
+    from apps.inventory.models import StockMovement
+
     invoice = get_object_or_404(Invoice, pk=pk)
+
+    # DRAFT / CANCELLED — як було
     if invoice.status in (Invoice.Status.DRAFT, Invoice.Status.CANCELLED):
         invoice.delete()
-    return redirect('billing:list')
+        return redirect('billing:list')
+
+    # PAID — тільки admin з поверненням товарів на склад
+    if invoice.status == Invoice.Status.PAID:
+        if not request.user.is_admin():
+            messages.error(request, 'Тільки адміністратор може видаляти оплачені рахунки')
+            return redirect('billing:detail', pk=pk)
+
+        with transaction.atomic():
+            returned = 0
+            # Компенсаційний StockMovement IN на кожен товар який списали при оплаті
+            for line in invoice.lines.filter(line_type='product', stock_written_off=True):
+                if line.product:
+                    StockMovement.objects.create(
+                        product=line.product,
+                        type=StockMovement.Type.IN,
+                        quantity=line.quantity,
+                        price=line.product.buy_price,
+                        reason=f'Повернення товару з видаленого рахунку #{invoice.pk}',
+                        created_by=request.user,
+                    )
+                    returned += 1
+            invoice.delete()
+            messages.success(
+                request,
+                f'Рахунок #{pk} видалено. На склад повернуто {returned} позицій.'
+            )
+        return redirect('billing:list')
+
+    return redirect('billing:detail', pk=pk)
 
 
 # ── змінити спосіб оплати на оплаченому рахунку ─────────────────────────────
@@ -405,6 +474,51 @@ def update_payment_method(request, pk):
         invoice.payment_method = method
         invoice.save(update_fields=['payment_method'])
     return redirect('billing:detail', pk=pk)
+
+
+# ── Відправка посилання на оплату в Telegram ─────────────────────────────────
+
+def _send_payment_link_tg(invoice, org) -> bool:
+    """Відправляє посилання на оплату в TG клієнту. Повертає True якщо відправлено."""
+    if not invoice.fiscal_page_url:
+        return False
+    try:
+        from apps.tg.models import TelegramChat
+        from apps.tg.views import _send_tg
+        tg_chat = TelegramChat.objects.filter(
+            client=invoice.client, organization=org
+        ).first()
+        if not tg_chat:
+            return False
+        patient_str = f' ({invoice.patient.name})' if invoice.patient else ''
+        text = (
+            f'💳 Рахунок #{invoice.pk}{patient_str} на суму {invoice.total} грн\n\n'
+            f'Оплатіть за посиланням:\n{invoice.fiscal_page_url}'
+        )
+        _send_tg(tg_chat.tg_user_id, text, org=org)
+        return True
+    except Exception:
+        logger.exception('TG payment link send failed for invoice=%s', invoice.pk)
+        return False
+
+
+# ── Відправка посилання в TG вручну (якщо вже є page_url) ────────────────────
+
+@login_required
+@require_POST
+def send_payment_link_tg(request, pk):
+    invoice = get_object_or_404(Invoice, pk=pk)
+    if not invoice.fiscal_page_url:
+        messages.error(request, 'Немає активного посилання на оплату.')
+        return redirect('billing:edit', pk=pk)
+
+    org = request.organization
+    sent = _send_payment_link_tg(invoice, org)
+    if sent:
+        messages.success(request, 'Посилання на оплату надіслано клієнту в Telegram.')
+    else:
+        messages.warning(request, 'Клієнт не прив\'язаний до Telegram або посилання відсутнє.')
+    return redirect('billing:edit', pk=pk)
 
 
 # ── Фіскалізація через Checkbox ─────────────────────────────────────────────
@@ -441,10 +555,17 @@ def fiscalize_invoice(request, pk):
             svc.ensure_shift_open()
             cb_invoice = svc.create_invoice(invoice)
             invoice.fiscal_receipt_id = cb_invoice.get('id', '')
+            invoice.fiscal_page_url = cb_invoice.get('page_url', '') or ''
             invoice.fiscal_status = Invoice.FiscalStatus.PENDING
             invoice.payment_method = Invoice.PaymentMethod.CARD
-            invoice.save(update_fields=['fiscal_receipt_id', 'fiscal_status', 'payment_method'])
-            messages.success(request, 'Сума відправлена на QR термінал. Очікуємо оплату від клієнта.')
+            invoice.save(update_fields=['fiscal_receipt_id', 'fiscal_page_url', 'fiscal_status', 'payment_method'])
+
+            # Відправляємо посилання на оплату в Telegram якщо клієнт верифікований
+            tg_sent = _send_payment_link_tg(invoice, org)
+            if tg_sent:
+                messages.success(request, 'Сума відправлена на QR термінал. Посилання на оплату надіслано клієнту в Telegram.')
+            else:
+                messages.success(request, 'Сума відправлена на QR термінал. Очікуємо оплату від клієнта.')
 
     except Exception as exc:
         logger.error('Checkbox error invoice=%s: %s', pk, exc)
@@ -486,14 +607,27 @@ def confirm_checkbox_payment(request, pk):
             # Оплата підтверджена — списуємо товари
             _writeoff_stock(invoice, request.user)
 
-            # receipt_id може ще не з'явитись (Checkbox async) — зберігаємо що є
-            receipt_id = cb_data.get('receipt_id') or invoice.fiscal_receipt_id
-            invoice.fiscal_receipt_id = receipt_id
-            invoice.fiscal_status = Invoice.FiscalStatus.SENT
+            # Друга дія: пробиваємо фіскальний чек через /receipts/sell.
+            # Без цього кроку Checkbox знає про оплату через термінал, але
+            # ДПС-чека не існує — і весь місяць CARD-оплат залишається не фіскалізованим.
+            fiscal_warn = None
+            try:
+                receipt = svc.fiscalize_card_invoice(invoice, cb_data)
+                invoice.fiscal_receipt_id = receipt.get('id') or invoice.fiscal_receipt_id
+                invoice.fiscal_status = Invoice.FiscalStatus.SENT
+            except Exception as exc:
+                logger.error('Checkbox card fiscalize failed invoice=%s: %s', pk, exc)
+                fiscal_warn = str(exc)
+                invoice.fiscal_status = Invoice.FiscalStatus.ERROR
+
             invoice.status = Invoice.Status.PAID
             invoice.payment_method = Invoice.PaymentMethod.CARD
             invoice.save(update_fields=['fiscal_receipt_id', 'fiscal_status', 'status', 'payment_method'])
-            messages.success(request, 'Оплату підтверджено! Рахунок закрито.')
+
+            if fiscal_warn:
+                messages.warning(request, f'Оплату прийнято, але фіскальний чек не пробився: {fiscal_warn}')
+            else:
+                messages.success(request, 'Оплату підтверджено, фіскальний чек пробито. Рахунок закрито.')
             return redirect('billing:detail', pk=pk)
 
         elif status in FAILED_STATUSES:
@@ -548,15 +682,59 @@ def cancel_fiscal(request, pk):
 
 # ── Допоміжна функція списання залишків ──────────────────────────────────────
 
+@transaction.atomic
 def _writeoff_stock(invoice, user):
-    for line in invoice.lines.select_related('service', 'product').all():
+    from apps.inventory.models import Product
+
+    insufficient = []
+    lines = list(
+        invoice.lines
+        .select_related('product', 'parent_line', 'parent_line__service')
+        .all()
+    )
+
+    # Збираємо PKs продуктів які треба списати (унікальні).
+    product_pks = {
+        line.product_id
+        for line in lines
+        if line.line_type == 'product' and line.product_id and not line.stock_written_off
+    }
+
+    # Беремо row-level lock одним запитом, щоб уникнути race з паралельними
+    # оплатами/списаннями. `select_for_update` тримає блокування до кінця
+    # `@transaction.atomic` блоку.
+    locked_products = {
+        p.pk: p
+        for p in Product.objects.select_for_update().filter(pk__in=product_pks)
+    }
+
+    for line in lines:
         if line.line_type == 'product' and line.product and not line.stock_written_off:
+            product = locked_products.get(line.product_id)
+            if product is None:
+                continue
+            if product.quantity < line.quantity:
+                insufficient.append(
+                    f'{product.name}: є {product.quantity}, потрібно {line.quantity}'
+                )
+    if insufficient:
+        logger.warning('Недостатній залишок: %s', '; '.join(insufficient))
+
+    for line in lines:
+        if line.line_type == 'product' and line.product and not line.stock_written_off:
+            product = locked_products.get(line.product_id)
+            if product is None:
+                continue
+            if line.parent_line and line.parent_line.service:
+                reason = f'Послуга «{line.parent_line.service.name}», рахунок #{invoice.pk}'
+            else:
+                reason = f'Рахунок #{invoice.pk}'
             StockMovement.objects.create(
-                product=line.product,
+                product=product,
                 type=StockMovement.Type.OUT,
                 quantity=line.quantity,
-                price=line.unit_price,
-                reason=f'Рахунок #{invoice.pk}',
+                price=product.sell_price,
+                reason=reason,
                 created_by=user,
             )
             line.stock_written_off = True
@@ -573,11 +751,12 @@ def invoice_pdf(request, pk):
     except ImportError:
         return HttpResponse('WeasyPrint не встановлено', status=500)
 
-    invoice = get_object_or_404(Invoice, pk=pk)
+    invoice = get_object_or_404(Invoice, pk=pk, organization=request.organization)
     lines = invoice.lines.select_related('service', 'product').all()
     html_string = render_to_string('billing/pdf.html', {
         'invoice': invoice,
         'lines': lines,
+        'clinic': request.organization,
         'request': request,
     })
     pdf = HTML(string=html_string, base_url=request.build_absolute_uri('/')).write_pdf()

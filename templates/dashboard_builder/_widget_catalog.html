@@ -1,0 +1,65 @@
+{% comment %}
+Partial: каталог віджетів. Контекст: catalog (list) або widgets_by_category (dict).
+{% endcomment %}
+<div class="space-y-5">
+  <div class="flex items-center justify-between">
+    <h3 class="text-lg font-semibold text-brand-dark">Додати віджет</h3>
+    <button type="button" onclick="closeCatalog()" class="text-brand-dark/50 hover:text-brand-dark" aria-label="Закрити">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+    </button>
+  </div>
+
+  {% if catalog %}
+    {% for category in catalog %}
+      <div>
+        <h4 class="text-xs font-semibold uppercase tracking-wide text-brand-dark/50 mb-2">
+          {{ category.name }}
+        </h4>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {% for w in category.widgets %}
+            <button type="button"
+                    onclick="addWidgetFromCatalog('{{ w.key }}', {{ w.default_w|default:3 }}, {{ w.default_h|default:2 }})"
+                    class="flex items-start gap-3 p-3 rounded-lg border border-black/10 hover:border-brand-gold hover:bg-brand-gold/5 text-left transition-colors">
+              <div class="text-2xl shrink-0">{{ w.icon|default:"📊" }}</div>
+              <div class="flex-1 min-w-0">
+                <div class="text-sm font-medium text-brand-dark truncate">{{ w.label }}</div>
+                {% if w.description %}
+                  <div class="text-xs text-brand-dark/60 mt-0.5">{{ w.description }}</div>
+                {% endif %}
+              </div>
+              <div class="text-brand-gold opacity-0 group-hover:opacity-100 shrink-0">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              </div>
+            </button>
+          {% endfor %}
+        </div>
+      </div>
+    {% endfor %}
+
+  {% elif widgets_by_category %}
+    {% for cat_name, ws in widgets_by_category.items %}
+      <div>
+        <h4 class="text-xs font-semibold uppercase tracking-wide text-brand-dark/50 mb-2">{{ cat_name }}</h4>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {% for w in ws %}
+            <button type="button"
+                    onclick="addWidgetFromCatalog('{{ w.key }}', {{ w.default_w|default:3 }}, {{ w.default_h|default:2 }})"
+                    class="flex items-start gap-3 p-3 rounded-lg border border-black/10 hover:border-brand-gold hover:bg-brand-gold/5 text-left transition-colors">
+              <div class="text-2xl shrink-0">{{ w.icon|default:"📊" }}</div>
+              <div class="flex-1 min-w-0">
+                <div class="text-sm font-medium text-brand-dark truncate">{{ w.label }}</div>
+                {% if w.description %}<div class="text-xs text-brand-dark/60 mt-0.5">{{ w.description }}</div>{% endif %}
+              </div>
+            </button>
+          {% endfor %}
+        </div>
+      </div>
+    {% endfor %}
+
+  {% else %}
+    <div class="text-center py-10 text-brand-dark/50">
+      <p class="text-sm">Немає доступних віджетів.</p>
+      <p class="text-xs mt-1">Зверніться до адміністратора.</p>
+    </div>
+  {% endif %}
+</div>

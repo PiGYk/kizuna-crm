@@ -1,0 +1,53 @@
+{# Bottom nav for mobile only. Highlight active по app_name (як у sidebar). #}
+{% with an=request.resolver_match.app_name un=request.resolver_match.url_name %}
+<nav class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-brand-dark border-t border-white/10 pb-[env(safe-area-inset-bottom)]"
+     aria-label="Нижня навігація">
+  <div class="grid grid-cols-5">
+    {# Дашборд #}
+    <a href="{% url 'dashboard' %}"
+       class="flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium transition-colors
+              {% if un == 'dashboard' %}text-brand-gold{% else %}text-white/60 hover:text-white{% endif %}">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+      </svg>
+      <span>Дашборд</span>
+    </a>
+    {# Розклад #}
+    <a href="{% url 'appointments:calendar' %}"
+       class="flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium transition-colors
+              {% if an == 'appointments' %}text-brand-gold{% else %}text-white/60 hover:text-white{% endif %}">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+      </svg>
+      <span>Розклад</span>
+    </a>
+    {# Пацієнти #}
+    <a href="{% url 'clients:patient_list' %}"
+       class="flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium transition-colors
+              {% if an == 'clients' and 'patient' in un or an == 'clients' and 'visit' in un or an == 'clients' and 'analysis' in un or an == 'clients' and 'weight' in un %}text-brand-gold{% else %}text-white/60 hover:text-white{% endif %}">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+      </svg>
+      <span>Пацієнти</span>
+    </a>
+    {# Чеки #}
+    <a href="{% url 'billing:list' %}"
+       class="flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium transition-colors
+              {% if an == 'billing' %}text-brand-gold{% else %}text-white/60 hover:text-white{% endif %}">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/>
+      </svg>
+      <span>Чеки</span>
+    </a>
+    {# Меню #}
+    <button type="button" onclick="toggleMobileMenu()"
+            class="flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium text-white/60 hover:text-white transition-colors"
+            aria-label="Відкрити меню">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+      </svg>
+      <span>Меню</span>
+    </button>
+  </div>
+</nav>
+{% endwith %}

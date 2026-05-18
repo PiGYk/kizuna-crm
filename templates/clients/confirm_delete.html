@@ -27,10 +27,20 @@
       </div>
     </div>
 
+    {% if invoices_count %}
+    <div class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+      ⚠️ У клієнта є <strong>{{ invoices_count }}</strong> рахун(ків). Видалення заблоковано —
+      рахунки це фінансові документи, їх потрібно зняти вручну.
+      <a href="{% url 'billing:list' %}?client={{ client.pk }}" class="underline font-medium">
+        Перейти до рахунків →
+      </a>
+    </div>
+    {% endif %}
+
     <form method="post" class="mt-6 flex gap-3">
       {% csrf_token %}
-      <button type="submit"
-              class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors">
+      <button type="submit" {% if invoices_count %}disabled{% endif %}
+              class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed">
         Так, видалити
       </button>
       <a href="{% url 'clients:detail' client.pk %}"

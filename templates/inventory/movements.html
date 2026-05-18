@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+{% block title %}Історія руху складу — Kizuna CRM{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl">
+  <div class="flex items-center justify-between mb-6">
+    <div class="flex items-center gap-3">
+      <a href="{% url 'inventory:list' %}" class="text-gray-400 hover:text-gray-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+      </a>
+      <h1 class="text-2xl font-bold text-brand-dark">Історія руху складу</h1>
+    </div>
+    <span class="text-sm text-gray-400">{{ movements.paginator.count }} записів</span>
+  </div>
+
+  <!-- Фільтри -->
+  <style>
+    .mv-select {
+      appearance: none; -webkit-appearance: none; -moz-appearance: none;
+      background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 0.5rem center; background-size: 1.1rem; padding-right: 2rem;
+    }
+  </style>
+  <form method="get" class="bg-white rounded-xl border border-gray-200 p-4 mb-4">
+    <div class="grid grid-cols-2 md:flex md:flex-wrap md:items-end gap-3">
+      <div class="col-span-2 md:flex-1 md:min-w-[180px]">
+        <label class="text-xs text-gray-400 block mb-1">Пошук</label>
+        <input type="text" name="q" value="{{ q }}" placeholder="Товар або причина…"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+      </div>
+      <div class="md:w-32">
+        <label class="text-xs text-gray-400 block mb-1">Тип</label>
+        <select name="type" class="mv-select w-full border border-gray-200 rounded-lg px-3 py-2 text-base md:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-gold">
+          <option value="">Всі</option>
+          {% for val, label in type_choices %}
+          <option value="{{ val }}" {% if move_type == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="md:w-36">
+        <label class="text-xs text-gray-400 block mb-1">Від</label>
+        <input type="date" name="from" value="{{ date_from }}"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+      </div>
+      <div class="md:w-36">
+        <label class="text-xs text-gray-400 block mb-1">До</label>
+        <input type="date" name="to" value="{{ date_to }}"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+      </div>
+      <div class="col-span-2 md:w-40">
+        <label class="text-xs text-gray-400 block mb-1">Постачальник</label>
+        <select name="supplier" class="mv-select w-full border border-gray-200 rounded-lg px-3 py-2 text-base md:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-gold">
+          <option value="">Всі</option>
+          {% for s in suppliers %}
+          <option value="{{ s.pk }}" {% if supplier_filter == s.pk|stringformat:"d" %}selected{% endif %}>{{ s.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-span-2 md:w-auto flex items-center gap-3">
+        <button type="submit" class="flex-1 md:flex-none bg-brand-gold text-brand-dark px-4 h-11 md:h-10 rounded-lg text-sm font-semibold hover:brightness-95 transition">
+          Фільтр
+        </button>
+        {% if q or move_type or date_from or date_to or supplier_filter %}
+        <a href="{% url 'inventory:movements' %}" class="text-xs text-gray-400 hover:text-red-400">Скинути</a>
+        {% endif %}
+      </div>
+    </div>
+  </form>
+
+  <!-- Таблиця -->
+  <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    {% if movements %}
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-gray-100">
+            <th class="text-left px-4 py-3 text-xs text-gray-400 font-medium">Дата</th>
+            <th class="text-left px-4 py-3 text-xs text-gray-400 font-medium">Тип</th>
+            <th class="text-left px-4 py-3 text-xs text-gray-400 font-medium">Товар</th>
+            <th class="text-right px-4 py-3 text-xs text-gray-400 font-medium">К-сть</th>
+            <th class="text-right px-4 py-3 text-xs text-gray-400 font-medium">Ціна</th>
+            <th class="text-left px-4 py-3 text-xs text-gray-400 font-medium">Постачальник</th>
+            <th class="text-left px-4 py-3 text-xs text-gray-400 font-medium">Причина</th>
+            <th class="text-left px-4 py-3 text-xs text-gray-400 font-medium">Хто</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+          {% for m in movements %}
+          <tr class="hover:bg-gray-50/50">
+            <td class="px-4 py-3 text-gray-500 whitespace-nowrap">{{ m.created_at|date:"d.m.Y H:i" }}</td>
+            <td class="px-4 py-3">
+              {% if m.type == 'in' %}
+                <span class="inline-block px-2 py-0.5 rounded-full text-xs bg-green-50 text-green-700 font-medium">Прихід</span>
+              {% elif m.type == 'out' %}
+                <span class="inline-block px-2 py-0.5 rounded-full text-xs bg-red-50 text-red-600 font-medium">Списання</span>
+              {% else %}
+                <span class="inline-block px-2 py-0.5 rounded-full text-xs bg-blue-50 text-blue-600 font-medium">Коригування</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3">
+              <a href="{% url 'inventory:detail' m.product_id %}" class="text-brand-dark hover:text-brand-gold font-medium">{{ m.product.name }}</a>
+              {% if m.product.unit %}<span class="text-xs text-gray-400 ml-1">{{ m.product.unit.short }}</span>{% endif %}
+            </td>
+            <td class="px-4 py-3 text-right font-medium tabular-nums
+              {% if m.type == 'in' %}text-green-600{% elif m.type == 'out' %}text-red-500{% else %}text-blue-600{% endif %}">
+              {% if m.type == 'in' %}+{% elif m.type == 'out' %}-{% endif %}{{ m.quantity|floatformat:"-3" }}
+            </td>
+            <td class="px-4 py-3 text-right text-gray-500 tabular-nums">{% if m.price %}{{ m.price|floatformat:2 }} ₴{% else %}—{% endif %}</td>
+            <td class="px-4 py-3 text-gray-500">{% if m.supplier %}{{ m.supplier.name }}{% else %}—{% endif %}</td>
+            <td class="px-4 py-3 text-gray-400 text-xs max-w-[200px] truncate" title="{{ m.reason }}">{{ m.reason|default:"—" }}</td>
+            <td class="px-4 py-3 text-gray-400 text-xs">{% if m.created_by %}{{ m.created_by.get_full_name|default:m.created_by.username }}{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Пагінація -->
+    {% if movements.has_other_pages %}
+    <div class="border-t border-gray-100 px-4 py-3 flex items-center justify-between text-sm gap-2">
+      <div class="text-gray-400 text-xs sm:text-sm">
+        Сторінка {{ movements.number }} з {{ movements.paginator.num_pages }}
+      </div>
+      <div class="flex gap-2">
+        {% if movements.has_previous %}
+        <a href="?page={{ movements.previous_page_number }}&type={{ move_type }}&q={{ q }}&from={{ date_from }}&to={{ date_to }}&supplier={{ supplier_filter }}"
+          onclick="window.scrollTo({top:0, behavior:'smooth'})"
+          class="inline-flex items-center justify-center min-w-11 h-11 px-3 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 text-sm">&laquo; Назад</a>
+        {% endif %}
+        {% if movements.has_next %}
+        <a href="?page={{ movements.next_page_number }}&type={{ move_type }}&q={{ q }}&from={{ date_from }}&to={{ date_to }}&supplier={{ supplier_filter }}"
+          onclick="window.scrollTo({top:0, behavior:'smooth'})"
+          class="inline-flex items-center justify-center min-w-11 h-11 px-3 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 text-sm">Далі &raquo;</a>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="p-12 text-center text-gray-300 text-sm">
+      Немає записів за вибраний період
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

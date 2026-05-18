@@ -4,11 +4,20 @@
 
 {% block content %}
 <div class="flex items-center justify-between mb-6">
-  <h1 class="text-2xl font-bold text-brand-dark">Рахунки</h1>
-  <a href="{% url 'billing:create' %}"
-     class="bg-brand-gold text-brand-dark px-4 py-2 rounded-lg text-sm font-medium hover:brightness-95 transition-all">
-    + Новий чек
-  </a>
+  <h1 class="text-2xl font-bold text-brand-dark">
+    Рахунки
+    <span class="ml-2 text-sm font-normal text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{{ invoices|length }}</span>
+  </h1>
+  <div class="flex items-center gap-2">
+    <a href="{% url 'analytics:debtors' %}"
+       class="border border-gray-200 text-gray-600 px-4 py-2 rounded-lg text-sm font-medium hover:border-brand-gold hover:text-brand-dark transition-all">
+      Боржники
+    </a>
+    <a href="{% url 'billing:create' %}"
+       class="bg-brand-gold text-brand-dark px-4 py-2 rounded-lg text-sm font-medium hover:brightness-95 transition-all">
+      + Новий чек
+    </a>
+  </div>
 </div>
 
 <div class="flex gap-2 mb-4 flex-wrap">
@@ -99,11 +108,11 @@
           {% endif %}
         </td>
         <td class="px-4 py-3 text-center" onclick="event.stopPropagation()">
-          {% if inv.status != 'paid' %}
+          {% if inv.status != 'paid' or user.is_admin %}
           <form method="post" action="{% url 'billing:delete' inv.pk %}"
-                onsubmit="return confirm('Видалити рахунок #{{ inv.pk }}?')">
+                onsubmit="return confirm('{% if inv.status == 'paid' %}УВАГА! Видалити ОПЛАЧЕНИЙ рахунок #{{ inv.pk }}?\n\nТовари повернуться на склад. Запис зникне з аналітики.\n\nПродовжити?{% else %}Видалити рахунок #{{ inv.pk }}?{% endif %}')">
             {% csrf_token %}
-            <button type="submit" class="text-gray-300 hover:text-red-400 transition-colors" title="Видалити">
+            <button type="submit" class="text-gray-300 hover:text-red-400 transition-colors" title="{% if inv.status == 'paid' %}Видалити (admin only){% else %}Видалити{% endif %}">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>

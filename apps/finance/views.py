@@ -8,6 +8,7 @@ from django.http import JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from apps.billing.models import Invoice
 from .models import ExpenseCategory, Supplier, Expense, CashOperation, FinanceSettings, calculate_balances
@@ -42,8 +43,8 @@ def expense_list(request):
     ctx = {
         'expenses': qs[:100],
         'total': total,
-        'categories': ExpenseCategory.objects.all(),
-        'suppliers': Supplier.objects.all(),
+        'categories': ExpenseCategory.objects.filter(organization=request.organization),
+        'suppliers': Supplier.objects.filter(organization=request.organization),
         'filter': {
             'category': cat_id or '',
             'supplier': supplier_id or '',
@@ -57,103 +58,70 @@ def expense_list(request):
 
 @login_required
 def expense_create(request):
+    org = request.organization
     if request.method == 'POST':
-        form = ExpenseForm(request.POST, request.FILES)
+        form = ExpenseForm(request.POST, request.FILES, org=org)
         if form.is_valid():
             exp = form.save(commit=False)
             exp.created_by = request.user
-            exp.organization = request.organization
+            exp.organization = org
             exp.save()
             messages.success(request, f'Витрату {exp.amount} ₴ додано.')
             return redirect('finance:expenses')
     else:
-        form = ExpenseForm(initial={'date': timezone.localdate()})
+        form = ExpenseForm(initial={'date': timezone.localdate()}, org=org)
     return render(request, 'finance/expense_form.html', {'form': form, 'title': 'Нова витрата'})
 
 
 @login_required
 def expense_edit(request, pk):
     exp = get_object_or_404(Expense, pk=pk)
+    org = request.organization
     if request.method == 'POST':
-        form = ExpenseForm(request.POST, request.FILES, instance=exp)
+        form = ExpenseForm(request.POST, request.FILES, instance=exp, org=org)
         if form.is_valid():
             form.save()
             messages.success(request, 'Витрату оновлено.')
             return redirect('finance:expenses')
     else:
-        form = ExpenseForm(instance=exp)
+        form = ExpenseForm(instance=exp, org=org)
     return render(request, 'finance/expense_form.html', {'form': form, 'title': 'Редагувати витрату', 'expense': exp})
 
 
 @login_required
+@require_POST
 def expense_delete(request, pk):
     exp = get_object_or_404(Expense, pk=pk)
-    if request.method == 'POST':
-        exp.delete()
-        messages.success(request, 'Витрату видалено.')
+    exp.delete()
+    messages.success(request, 'Витрату видалено.')
     return redirect('finance:expenses')
 
 
-# ── Постачальники ────────────────────────────────────────
+# ── Постачальники (redirect на inventory) ────────────────
 
 @login_required
 def supplier_list(request):
-    suppliers = Supplier.objects.annotate(
-        total_expenses=Sum('expenses__amount'),
-        expense_count=Count('expenses'),
-    )
-    return render(request, 'finance/supplier_list.html', {'suppliers': suppliers})
+    return redirect('inventory:supplier_list')
 
 
 @login_required
 def supplier_create(request):
-    if request.method == 'POST':
-        form = SupplierForm(request.POST)
-        if form.is_valid():
-            obj = form.save(commit=False)
-            obj.organization = request.organization
-            obj.save()
-            messages.success(request, 'Постачальника додано.')
-            return redirect('finance:suppliers')
-    else:
-        form = SupplierForm()
-    return render(request, 'finance/supplier_form.html', {'form': form, 'title': 'Новий постачальник'})
+    return redirect('inventory:supplier_create')
 
 
 @login_required
 def supplier_edit(request, pk):
-    sup = get_object_or_404(Supplier, pk=pk)
-    if request.method == 'POST':
-        form = SupplierForm(request.POST, instance=sup)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Постачальника оновлено.')
-            return redirect('finance:suppliers')
-    else:
-        form = SupplierForm(instance=sup)
-    return render(request, 'finance/supplier_form.html', {'form': form, 'title': 'Редагувати постачальника', 'supplier': sup})
+    return redirect('inventory:supplier_edit', pk=pk)
 
 
 @login_required
 def supplier_detail(request, pk):
-    sup = get_object_or_404(Supplier, pk=pk)
-    expenses = sup.expenses.select_related('category').order_by('-date')[:50]
-    total = sup.expenses.aggregate(t=Sum('amount'))['t'] or 0
-    return render(request, 'finance/supplier_detail.html', {
-        'supplier': sup, 'expenses': expenses, 'total': total,
-    })
+    return redirect('inventory:supplier_detail', pk=pk)
 
 
 @login_required
 def supplier_delete(request, pk):
-    sup = get_object_or_404(Supplier, pk=pk)
-    if request.method == 'POST':
-        if sup.expenses.exists():
-            messages.error(request, 'Неможливо видалити — є привʼязані витрати.')
-        else:
-            sup.delete()
-            messages.success(request, 'Постачальника видалено.')
-    return redirect('finance:suppliers')
+    return redirect('inventory:supplier_detail', pk=pk)
 
 
 # ── Касові операції ──────────────────────────────────────
@@ -169,7 +137,7 @@ def cash_operations(request):
     if date_to:
         ops = ops.filter(date__lte=date_to)
 
-    balances = calculate_balances()
+    balances = calculate_balances(request.organization)
 
     return render(request, 'finance/cash_operations.html', {
         'operations': ops[:100],
@@ -196,11 +164,11 @@ def cash_operation_create(request):
 
 
 @login_required
+@require_POST
 def cash_operation_delete(request, pk):
     op = get_object_or_404(CashOperation, pk=pk)
-    if request.method == 'POST':
-        op.delete()
-        messages.success(request, 'Операцію видалено.')
+    op.delete()
+    messages.success(request, 'Операцію видалено.')
     return redirect('finance:cash_operations')
 
 
@@ -215,14 +183,14 @@ def settings_view(request):
     return render(request, 'finance/settings.html', {
         'categories': categories,
         'form': ExpenseCategoryForm(),
-        'balance_form': FinanceSettingsForm(instance=FinanceSettings.get()),
+        'balance_form': FinanceSettingsForm(instance=FinanceSettings.get_for_org(request.organization)),
     })
 
 
 @login_required
 def settings_balance_update(request):
     if request.method == 'POST':
-        form = FinanceSettingsForm(request.POST, instance=FinanceSettings.get())
+        form = FinanceSettingsForm(request.POST, instance=FinanceSettings.get_for_org(request.organization))
         if form.is_valid():
             form.save()
             messages.success(request, 'Початкові залишки збережено.')

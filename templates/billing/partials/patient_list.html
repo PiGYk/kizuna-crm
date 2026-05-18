@@ -3,7 +3,7 @@
   {% for patient in patients %}
   <button type="button" id="patient-{{ patient.pk }}"
     onclick="selectPatient({{ patient.pk }})"
-    class="patient-btn px-3 py-2 rounded-lg border border-gray-200 text-sm hover:border-brand-gold transition text-left">
+    class="patient-btn min-h-[44px] px-3 py-2 rounded-lg border border-gray-200 text-sm hover:border-brand-gold transition text-left">
     <div class="font-medium text-brand-dark">{{ patient.name }}</div>
     <div class="text-xs text-gray-400">{{ patient.get_species_display }}</div>
   </button>

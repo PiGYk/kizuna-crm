@@ -55,6 +55,8 @@ class Appointment(models.Model):
         verbose_name='Організація',
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    reminder_24h_sent = models.BooleanField(default=False)
+    reminder_2h_sent = models.BooleanField(default=False)
 
     objects = OrgManager()
 
@@ -62,6 +64,10 @@ class Appointment(models.Model):
         ordering = ['starts_at']
         verbose_name = 'Запис'
         verbose_name_plural = 'Записи'
+        indexes = [
+            models.Index(fields=['organization', 'starts_at'], name='appt_org_starts_idx'),
+            models.Index(fields=['organization', 'status'], name='appt_org_status_idx'),
+        ]
 
     def __str__(self):
         return f"{self.client} / {self.patient} — {self.starts_at:%d.%m %H:%M}"
@@ -70,3 +76,38 @@ class Appointment(models.Model):
     def ends_at(self):
         from datetime import timedelta
         return self.starts_at + timedelta(minutes=self.duration)
+
+
+class LeadRequest(models.Model):
+    """Заявка з публічної форми на сайті."""
+
+    class Status(models.TextChoices):
+        NEW = 'new', 'Нова'
+        PROCESSED = 'processed', 'Оброблена'
+        CANCELLED = 'cancelled', 'Скасована'
+
+    name = models.CharField('Ім\'я', max_length=120)
+    phone = models.CharField('Телефон', max_length=30)
+    pet_name = models.CharField('Кличка', max_length=100, blank=True)
+    pet_type = models.CharField('Вид тварини', max_length=50, blank=True)
+    service_note = models.CharField('Причина звернення', max_length=255, blank=True)
+    preferred_date = models.DateField('Бажана дата', null=True, blank=True)
+    preferred_time = models.TimeField('Бажаний час', null=True, blank=True)
+    notes = models.TextField('Примітки', blank=True)
+    status = models.CharField(
+        'Статус', max_length=20, choices=Status.choices, default=Status.NEW
+    )
+    organization = models.ForeignKey(
+        'clinic.Organization', on_delete=models.CASCADE,
+        null=True, blank=True, related_name='leads', verbose_name='Організація',
+    )
+    source = models.CharField('Джерело', max_length=100, default='website')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Заявка з сайту'
+        verbose_name_plural = 'Заявки з сайту'
+
+    def __str__(self):
+        return f"{self.name} / {self.phone} — {self.created_at:%d.%m %H:%M}"

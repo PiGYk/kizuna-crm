@@ -1,4 +1,3 @@
-import json
 from django.db import models
 from django.conf import settings
 from decimal import Decimal
@@ -56,6 +55,7 @@ class Invoice(models.Model):
     )
     notes = models.TextField(blank=True, verbose_name='Нотатки')
     fiscal_receipt_id = models.CharField(max_length=100, null=True, blank=True, verbose_name='ID чеку Checkbox')
+    fiscal_page_url = models.URLField(max_length=500, null=True, blank=True, verbose_name='Посилання на оплату')
     fiscal_status = models.CharField(
         max_length=10, choices=FiscalStatus.choices, default=FiscalStatus.NONE,
         verbose_name='Статус фіскалізації'
@@ -79,12 +79,17 @@ class Invoice(models.Model):
         ordering = ['-created_at']
         verbose_name = 'Рахунок'
         verbose_name_plural = 'Рахунки'
+        indexes = [
+            models.Index(fields=['organization', 'status', 'created_at'], name='invoice_org_status_date_idx'),
+            models.Index(fields=['organization', 'payment_method'], name='invoice_org_payment_idx'),
+        ]
 
     def __str__(self):
         return f'Рахунок #{self.pk} — {self.client}'
 
     def calc_total(self):
-        subtotal = sum(line.total for line in self.lines.all())
+        from django.db.models import Sum
+        subtotal = self.lines.aggregate(t=Sum('total'))['t'] or Decimal('0')
         if self.discount_type == self.DiscountType.PERCENT:
             discount_amt = subtotal * self.discount / Decimal('100')
         else:
@@ -103,6 +108,11 @@ class InvoiceLine(models.Model):
 
     invoice = models.ForeignKey(
         Invoice, on_delete=models.CASCADE, related_name='lines'
+    )
+    parent_line = models.ForeignKey(
+        'self', on_delete=models.CASCADE,
+        null=True, blank=True,
+        related_name='children',
     )
     line_type = models.CharField(max_length=10, choices=LineType.choices)
     service = models.ForeignKey(
@@ -123,6 +133,9 @@ class InvoiceLine(models.Model):
     total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     stock_written_off = models.BooleanField(default=False)
 
+    def __str__(self):
+        return f'{self.name} ({self.quantity})'
+
     def calc_total(self):
         base = self.quantity * self.unit_price
         if self.discount_type == Invoice.DiscountType.PERCENT:
@@ -132,21 +145,6 @@ class InvoiceLine(models.Model):
     def save(self, *args, **kwargs):
         self.total = self.calc_total()
         super().save(*args, **kwargs)
-
-    @property
-    def components_json(self):
-        if self.line_type != 'service' or not self.service_id:
-            return '[]'
-        comps = self.service.components.select_related('product__unit').all()
-        return json.dumps([
-            {
-                'id': c.pk,
-                'name': c.product.name,
-                'qty': str(c.quantity),
-                'unit': c.product.unit.short if c.product.unit else '',
-            }
-            for c in comps
-        ])
 
     class Meta:
         verbose_name = 'Рядок рахунку'

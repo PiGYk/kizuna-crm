@@ -2,15 +2,23 @@ from django.db import models
 
 
 class OrgManager(models.Manager):
-    """Filters by current organization via direct `organization` FK."""
+    """Filters by current organization via direct `organization` FK.
+
+    Fail-closed: коли org is None — повертаємо qs.none() щоб уникнути
+    cross-tenant витоків даних у фонових тасках, management commands
+    або в anonymous endpoints які забули виставити org контекст.
+    Для адмінських/системних запитів, що мусять читати дані всіх тенантів,
+    використовуй `Model._base_manager` або явний `.objects.all()` після
+    тимчасового виставлення org.
+    """
 
     def get_queryset(self):
         from apps.clinic.tenant import get_current_org
         qs = super().get_queryset()
         org = get_current_org()
-        if org is not None:
-            return qs.filter(organization=org)
-        return qs
+        if org is None:
+            return qs.none()
+        return qs.filter(organization=org)
 
 
 class RelatedOrgManager(models.Manager):
@@ -35,11 +43,12 @@ class RelatedOrgManager(models.Manager):
         from apps.clinic.tenant import get_current_org
         qs = super().get_queryset()
         org = get_current_org()
-        if org is not None:
-            # When Django creates a related manager it calls __init__() without
-            # arguments, losing the configured org_path. Fall back to the model's
-            # own default manager which was instantiated with the correct path.
-            default_mgr = self.model._default_manager
-            org_path = getattr(default_mgr, '_org_path', self._org_path)
-            return qs.filter(**{org_path: org})
-        return qs
+        if org is None:
+            # Fail-closed: без org-контексту нічого не показуємо.
+            return qs.none()
+        # When Django creates a related manager it calls __init__() without
+        # arguments, losing the configured org_path. Fall back to the model's
+        # own default manager which was instantiated with the correct path.
+        default_mgr = self.model._default_manager
+        org_path = getattr(default_mgr, '_org_path', self._org_path)
+        return qs.filter(**{org_path: org})
