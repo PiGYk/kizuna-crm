@@ -1432,7 +1432,7 @@ def chat_list(request):
         ),
         last_msg_text=Subquery(last_msg.values('text')[:1]),
         last_msg_direction=Subquery(last_msg.values('direction')[:1]),
-    )
+    ).order_by('-last_message_at')
     template = 'tg/chat_list_mobile.html' if is_mobile(request) else 'tg/chat_list.html'
     return render(request, template, {'chats': chats})
 
@@ -1524,7 +1524,7 @@ def chat_list_partial(request):
         ),
         last_msg_text=Subquery(last_msg.values('text')[:1]),
         last_msg_direction=Subquery(last_msg.values('direction')[:1]),
-    )
+    ).order_by('-last_message_at')
     template = 'tg/partials/chat_list_mobile.html' if is_mobile(request) else 'tg/partials/chat_list.html'
     return render(request, template, {'chats': chats})
 
