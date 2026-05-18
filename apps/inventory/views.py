@@ -331,6 +331,18 @@ def import_execute(request):
     # нові товари + існуючі зі зміненою вхідною ціною
     review_ids = []
 
+    # Pre-cache units/categories/existing products — економить ~5-6 queries per row.
+    units_cache = {}  # short.lower() -> Unit
+    for u in Unit.objects.filter(Q(organization__isnull=True) | Q(organization=org)):
+        units_cache.setdefault(u.short.lower(), u)
+    categories_cache = {c.name.lower(): c for c in Category.objects.filter(organization=org)}
+    products_by_sku = {
+        p.sku.lower(): p for p in Product.objects.filter(organization=org).exclude(sku='')
+    }
+    products_by_name = {
+        p.name.lower(): p for p in Product.objects.filter(organization=org)
+    }
+
     for i, row in enumerate(rows, start=2):
         try:
             name_val = _get(row, 'name')
@@ -339,35 +351,28 @@ def import_execute(request):
 
             sku_val = _get(row, 'sku')
 
-            # Пошук існуючого товару: спочатку по SKU, потім по назві (тільки в межах org)
+            # Пошук існуючого товару у pre-cache
             product = None
             if sku_val:
-                product = Product.objects.filter(
-                    sku__iexact=sku_val, organization=org
-                ).first()
+                product = products_by_sku.get(sku_val.lower())
             if not product:
-                product = Product.objects.filter(
-                    name__iexact=name_val, organization=org
-                ).first()
+                product = products_by_name.get(name_val.lower())
 
-            # Одиниця виміру — спочатку шукаємо глобальну, потім org-специфічну
+            # Одиниця виміру з кешу або створюємо
             unit_short = _get(row, 'unit') or 'шт'
-            unit = (
-                Unit.objects.filter(short__iexact=unit_short).filter(
-                    Q(organization__isnull=True) | Q(organization=org)
-                ).first()
-            )
+            unit = units_cache.get(unit_short.lower())
             if not unit:
                 unit = Unit.objects.create(name=unit_short, short=unit_short, organization=org)
+                units_cache[unit_short.lower()] = unit
 
-            # Категорія
+            # Категорія з кешу або створюємо
             cat_name = _get(row, 'category')
             category = None
             if cat_name:
-                category, _ = Category.objects.get_or_create(
-                    name=cat_name,
-                    organization=org,
-                )
+                category = categories_cache.get(cat_name.lower())
+                if not category:
+                    category = Category.objects.create(name=cat_name, organization=org)
+                    categories_cache[cat_name.lower()] = category
 
             # Числа (Decimal — не float, щоб не втрачати копійки)
             def _dec(v):

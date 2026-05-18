@@ -419,6 +419,61 @@ def _profit_for_range(org, start, end, exclude_categories, exclude_expenses):
     }
 
 
+def _profit_per_day(org, start, end, exclude_categories, exclude_expenses):
+    """Повертає dict {date: profit_dict} для всього range — 3 query замість 3×N.
+
+    Замість _profit_for_range_cached × 31 день (cold cache = ~93 queries),
+    три anotate з TruncDate і агрегацією в Python.
+    """
+    rev_per_day = dict(
+        Invoice.objects
+        .filter(status='paid', organization=org,
+                created_at__date__gte=start, created_at__date__lte=end)
+        .annotate(d=TruncDate('created_at'))
+        .values('d')
+        .annotate(t=Sum('total'))
+        .values_list('d', 't')
+    )
+
+    cogs_per_day = dict(
+        StockMovement.objects
+        .filter(type='out', product__organization=org,
+                created_at__date__gte=start, created_at__date__lte=end)
+        .annotate(d=TruncDate('created_at'))
+        .values('d')
+        .annotate(t=Sum(F('quantity') * F('product__buy_price'),
+                        output_field=DecimalField(max_digits=14, decimal_places=2)))
+        .values_list('d', 't')
+    )
+
+    exp_qs = Expense.objects.filter(organization=org, date__gte=start, date__lte=end)
+    if exclude_categories:
+        exp_qs = exp_qs.exclude(category_id__in=exclude_categories)
+    if exclude_expenses:
+        exp_qs = exp_qs.exclude(pk__in=exclude_expenses)
+    exp_per_day = dict(
+        exp_qs.values('date').annotate(t=Sum('amount')).values_list('date', 't')
+    )
+
+    result = {}
+    d = start
+    while d <= end:
+        revenue = rev_per_day.get(d) or Decimal('0')
+        cogs = cogs_per_day.get(d) or Decimal('0')
+        consumables = (cogs * CONSUMABLES_RATE).quantize(Decimal('0.01'))
+        expenses = exp_per_day.get(d) or Decimal('0')
+        net = revenue - cogs - consumables - expenses
+        result[d] = {
+            'revenue': float(revenue),
+            'cogs': float(cogs),
+            'consumables': float(consumables),
+            'expenses': float(expenses),
+            'net': float(net),
+        }
+        d += timedelta(days=1)
+    return result
+
+
 def _parse_id_list(raw):
     if not raw:
         return []
@@ -476,7 +531,7 @@ def profit_data(request):
     # Графік: чистий прибуток по днях за поточний місяць
     chart_period = request.GET.get('chart', 'month')
     if chart_period == 'year':
-        # помісячно за рік
+        # помісячно за рік — _profit_for_range_cached × 12 (max), кеш покриває.
         labels, net_series, rev_series = [], [], []
         for m in range(1, today.month + 1):
             mstart = date(today.year, m, 1)
@@ -491,16 +546,17 @@ def profit_data(request):
             net_series.append(r['net'])
             rev_series.append(r['revenue'])
     else:
-        # по днях за місяць
+        # по днях за місяць — один TruncDate annotate замість 31× _profit_for_range
         mstart = today.replace(day=1)
-        days = (today - mstart).days + 1
+        per_day = _profit_per_day(org, mstart, today, exclude_categories, exclude_expenses)
         labels, net_series, rev_series = [], [], []
-        for i in range(days):
-            d = mstart + timedelta(days=i)
-            r = _profit_for_range_cached(org, d, d, exclude_categories, exclude_expenses)
+        d = mstart
+        while d <= today:
+            r = per_day.get(d, {'net': 0, 'revenue': 0})
             labels.append(d.strftime('%d.%m'))
             net_series.append(r['net'])
             rev_series.append(r['revenue'])
+            d += timedelta(days=1)
 
     return JsonResponse({
         'cards': cards,
