@@ -1,3 +1,4 @@
+from django.contrib.auth import logout
 from django.shortcuts import redirect
 from apps.clinic.tenant import set_current_org, clear_current_org
 
@@ -70,11 +71,26 @@ class TenantMiddleware:
 
     def __call__(self, request):
         # 1. Спробуємо субдомен
-        org = _org_from_subdomain(request)
+        subdomain_org = _org_from_subdomain(request)
 
-        # 2. Fallback — org автентифікованого юзера
-        if org is None and hasattr(request, 'user') and request.user.is_authenticated:
-            org = getattr(request.user, 'organization', None)
+        # 2. Cross-subdomain session guard: якщо юзер залогінений ТА субдомен
+        # розпізнано ТА це не його org — це cross-tenant session leak (атакувальник
+        # заманив юзера на чужий субдомен з shared SESSION_COOKIE_DOMAIN). Розривати.
+        user = getattr(request, 'user', None)
+        if (
+            subdomain_org is not None
+            and user is not None
+            and user.is_authenticated
+            and not user.is_superuser
+            and getattr(user, 'organization_id', None) not in (None, subdomain_org.pk)
+        ):
+            logout(request)
+            return redirect('login')
+
+        # 3. Fallback — org автентифікованого юзера
+        org = subdomain_org
+        if org is None and user is not None and user.is_authenticated:
+            org = getattr(user, 'organization', None)
 
         request.organization = org
         set_current_org(org)

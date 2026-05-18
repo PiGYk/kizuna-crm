@@ -172,10 +172,30 @@ class PatientDetailView(LoginRequiredMixin, DetailView):
         from django.contrib.auth import get_user_model
         from datetime import date
         ctx = super().get_context_data(**kwargs)
-        ctx['visits'] = self.object.visits.select_related('doctor').all()
+        # N+1 fix: prefetch усі relation що використовує template
+        ctx['visits'] = (
+            self.object.visits
+            .select_related('doctor')
+            .prefetch_related('prescriptions')
+            .all()
+        )
         ctx['vaccines'] = self.object.vaccines.select_related('doctor').all()
-        ctx['invoices'] = self.object.invoices.select_related('doctor').filter(status='paid').all()
+        ctx['invoices'] = (
+            self.object.invoices
+            .select_related('doctor')
+            .prefetch_related('lines__service', 'lines__product')
+            .filter(status='paid')
+            .all()
+        )
         ctx['analyses'] = self.object.analyses.all()
+        # Optional related: можуть не існувати на старих моделях
+        for attr in ('ultrasounds', 'health_checks', 'documents', 'hospitalizations'):
+            if hasattr(self.object, attr):
+                qs = getattr(self.object, attr).all()
+                # Спробувати select_related для doctor якщо є
+                if hasattr(qs.model, 'doctor'):
+                    qs = qs.select_related('doctor')
+                ctx[attr] = qs
         org = self.request.organization
         default_doc = org.get_default_doctor(self.request.user) if org else self.request.user
         ctx['visit_form'] = VisitForm(initial={'doctor': default_doc}, org=org)
