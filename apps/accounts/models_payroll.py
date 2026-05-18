@@ -34,8 +34,8 @@ class Shift(models.Model):
         return f'{self.user} — {self.date}'
 
     def save(self, *args, **kwargs):
-        # Авторозрахунок годин
-        if self.start_time and self.end_time and not self.hours:
+        # Авторозрахунок годин (при кожному save якщо є start+end — щоб edit оновлював)
+        if self.start_time and self.end_time:
             from datetime import datetime, timedelta
             start = datetime.combine(self.date, self.start_time)
             end = datetime.combine(self.date, self.end_time)

@@ -383,7 +383,16 @@ def product_search_json(request):
 def pay_invoice(request, pk):
     invoice = get_object_or_404(Invoice, pk=pk, status=Invoice.Status.DRAFT)
 
-    _writeoff_stock(invoice, request.user)
+    try:
+        _writeoff_stock(invoice, request.user)
+    except InsufficientStockError as exc:
+        transaction.set_rollback(True)
+        messages.error(
+            request,
+            'Недостатньо залишку: ' + '; '.join(exc.items)
+            + '. Поповніть склад або приберіть позиції перед оплатою.'
+        )
+        return redirect('billing:edit', pk=pk)
 
     payment_method = request.POST.get('payment_method', Invoice.PaymentMethod.CASH)
     if payment_method not in Invoice.PaymentMethod.values:
@@ -605,7 +614,16 @@ def confirm_checkbox_payment(request, pk):
 
         if status in PAID_STATUSES:
             # Оплата підтверджена — списуємо товари
-            _writeoff_stock(invoice, request.user)
+            try:
+                _writeoff_stock(invoice, request.user)
+            except InsufficientStockError as exc:
+                logger.error('Insufficient stock on checkbox confirm invoice=%s: %s', pk, exc.items)
+                messages.error(
+                    request,
+                    'Оплата прийнята, але не вистачає на складі: ' + '; '.join(exc.items)
+                    + '. Поповніть склад і повторіть або скоригуйте рахунок.'
+                )
+                return redirect('billing:edit', pk=pk)
 
             # Друга дія: пробиваємо фіскальний чек через /receipts/sell.
             # Без цього кроку Checkbox знає про оплату через термінал, але
@@ -682,6 +700,13 @@ def cancel_fiscal(request, pk):
 
 # ── Допоміжна функція списання залишків ──────────────────────────────────────
 
+class InsufficientStockError(Exception):
+    """Залишку на складі не вистачає для списання."""
+    def __init__(self, items: list[str]):
+        self.items = items
+        super().__init__('; '.join(items))
+
+
 @transaction.atomic
 def _writeoff_stock(invoice, user):
     from apps.inventory.models import Product
@@ -701,24 +726,30 @@ def _writeoff_stock(invoice, user):
     }
 
     # Беремо row-level lock одним запитом, щоб уникнути race з паралельними
-    # оплатами/списаннями. `select_for_update` тримає блокування до кінця
-    # `@transaction.atomic` блоку.
+    # оплатами/списаннями. select_for_update тримає блокування до кінця
+    # @transaction.atomic блоку. organization filter — multi-tenant guard.
     locked_products = {
         p.pk: p
-        for p in Product.objects.select_for_update().filter(pk__in=product_pks)
+        for p in Product.objects.select_for_update().filter(
+            pk__in=product_pks,
+            organization=invoice.organization,
+        )
     }
 
     for line in lines:
         if line.line_type == 'product' and line.product and not line.stock_written_off:
             product = locked_products.get(line.product_id)
             if product is None:
+                # Продукту немає у списку залоченого — найімовірніше cross-tenant
+                # або видалений. Не списуємо, повідомляємо.
+                insufficient.append(f'{line.product.name}: товар недоступний')
                 continue
             if product.quantity < line.quantity:
                 insufficient.append(
                     f'{product.name}: є {product.quantity}, потрібно {line.quantity}'
                 )
     if insufficient:
-        logger.warning('Недостатній залишок: %s', '; '.join(insufficient))
+        raise InsufficientStockError(insufficient)
 
     for line in lines:
         if line.line_type == 'product' and line.product and not line.stock_written_off:

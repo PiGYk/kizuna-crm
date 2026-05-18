@@ -1022,6 +1022,7 @@ def _cmd_book_confirm(chat, doctor_id, date_str, time_str):
 def _cmd_book_create(chat, doctor_id, date_str, time_str):
     """Step 5: Create the appointment."""
     from django.contrib.auth import get_user_model
+    from django.utils import timezone
     from datetime import datetime
     from zoneinfo import ZoneInfo
 
@@ -1029,19 +1030,20 @@ def _cmd_book_create(chat, doctor_id, date_str, time_str):
         return 'Для запису потрібно бути зареєстрованим клієнтом. Зверніться до адміністратора.', _main_menu_keyboard()
 
     try:
-        doctor = get_user_model().objects.get(pk=doctor_id)
+        doctor = get_user_model().objects.get(pk=doctor_id, organization=chat.organization)
     except Exception:
         return 'Лікаря не знайдено.', _main_menu_keyboard()
 
     try:
         kyiv_tz = ZoneInfo('Europe/Kyiv')
         naive_dt = datetime.fromisoformat(f'{date_str}T{time_str}:00')
-        starts_at = naive_dt.replace(tzinfo=kyiv_tz)
+        starts_at = timezone.make_aware(naive_dt, kyiv_tz)
     except Exception:
         return 'Помилка дати/часу.', _main_menu_keyboard()
 
     from apps.appointments.models import Appointment
     conflict = Appointment.objects.filter(
+        organization=chat.organization,
         doctor=doctor,
         starts_at=starts_at,
         status__in=['scheduled', 'confirmed'],
@@ -1245,7 +1247,7 @@ def _handle_callback(callback, org=None):
             timeout=5,
         )
 
-    parts = cb_data.split(':')
+    parts = cb_data.split(':', 3)
     action = parts[0]
 
     # ── Швидка відповідь staff клієнту ─

@@ -364,16 +364,22 @@ def import_execute(request):
                     organization=org,
                 )
 
-            # Числа
-            buy = float(_get(row, 'buy_price') or 0)
-            sell = float(_get(row, 'sell_price') or 0)
-            qty = float(_get(row, 'quantity') or 0)
-            min_qty = float(_get(row, 'min_quantity') or 0)
+            # Числа (Decimal — не float, щоб не втрачати копійки)
+            def _dec(v):
+                try:
+                    return Decimal(str(v).replace(',', '.')) if v not in (None, '') else Decimal('0')
+                except Exception:
+                    return Decimal('0')
+
+            buy = _dec(_get(row, 'buy_price'))
+            sell = _dec(_get(row, 'sell_price'))
+            qty = _dec(_get(row, 'quantity'))
+            min_qty = _dec(_get(row, 'min_quantity'))
             notes_val = _get(row, 'notes')
 
             if product:
                 # Визначаємо чи змінилась вхідна ціна
-                buy_changed = buy and abs(float(product.buy_price) - buy) > 0.001
+                buy_changed = bool(buy) and abs(product.buy_price - buy) > Decimal('0.001')
 
                 product.name = name_val
                 if sku_val:
