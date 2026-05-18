@@ -4,9 +4,9 @@
 
 <div class="max-w-2xl">
   <div class="flex items-center gap-3 mb-6">
-    <a href="{% url 'tg:broadcast_list' %}" class="text-gray-400 hover:text-gray-600 transition-colors">
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+    <a href="{% url 'tg:broadcast_list' %}" class="tg-touch inline-flex items-center justify-center text-brand-dark active:opacity-70 transition-colors -ml-2 p-2" aria-label="Назад">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
       </svg>
     </a>
     <h1 class="text-2xl font-bold text-brand-dark">Розсилка #{{ broadcast.pk }}</h1>
@@ -63,18 +63,18 @@
 
   <!-- Дії -->
   {% if broadcast.status == 'draft' %}
-  <div class="flex gap-3">
+  <div class="flex flex-col-reverse md:flex-row gap-3">
+    <a href="{% url 'tg:broadcast_create' %}"
+       class="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50 active:opacity-80 transition-all text-center">
+      Нова розсилка
+    </a>
     <form method="post" action="{% url 'tg:broadcast_send' broadcast.pk %}" class="flex-1">
       {% csrf_token %}
       <button type="submit"
-        class="w-full bg-brand-gold text-brand-dark py-2.5 rounded-xl text-sm font-semibold hover:brightness-95 transition-all">
+        class="w-full bg-brand-gold text-brand-dark py-3 md:py-2.5 rounded-xl text-sm font-semibold hover:brightness-95 active:opacity-80 transition-all">
         Відправити зараз
       </button>
     </form>
-    <a href="{% url 'tg:broadcast_create' %}"
-       class="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50 transition-all">
-      Нова розсилка
-    </a>
   </div>
   {% elif broadcast.status == 'sending' %}
   <div class="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm text-blue-700 flex items-center gap-3">

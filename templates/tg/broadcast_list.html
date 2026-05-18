@@ -2,13 +2,13 @@
 {% block title %}Розсилки — Kizuna CRM{% endblock %}
 {% block content %}
 
-<div class="flex items-center justify-between mb-6">
-  <div>
+<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4 mb-6">
+  <div class="min-w-0">
     <h1 class="text-2xl font-bold text-brand-dark">Розсилки</h1>
     <p class="text-sm text-gray-500 mt-0.5">{{ chat_count }} підписників у боті</p>
   </div>
   <a href="{% url 'tg:broadcast_create' %}"
-     class="flex items-center gap-2 bg-brand-gold text-brand-dark font-medium px-4 py-2 rounded-xl hover:brightness-95 transition-all text-sm shrink-0">
+     class="inline-flex items-center justify-center gap-2 bg-brand-gold text-brand-dark font-medium px-4 py-2.5 rounded-xl hover:brightness-95 active:opacity-80 transition-all text-sm shrink-0 w-full md:w-auto">
     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
     </svg>
@@ -17,7 +17,35 @@
 </div>
 
 {% if broadcasts %}
-<div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+{# Mobile: cards #}
+<div class="md:hidden space-y-3">
+  {% for b in broadcasts %}
+  <a href="{% url 'tg:broadcast_detail' b.pk %}"
+     class="block bg-white rounded-2xl border border-gray-200 shadow-sm p-4 active:opacity-80 transition">
+    <div class="flex items-start justify-between gap-3 mb-2">
+      <div class="font-medium text-brand-dark text-sm leading-snug min-w-0 break-words">{{ b.text|truncatechars:80 }}</div>
+      {% if b.status == 'draft' %}
+        <span class="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">Чернетка</span>
+      {% elif b.status == 'sending' %}
+        <span class="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">Йде</span>
+      {% else %}
+        <span class="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Готово</span>
+      {% endif %}
+    </div>
+    <div class="flex items-center justify-between text-xs text-gray-500">
+      <span>{{ b.created_at|date:"d.m.Y H:i" }}{% if b.created_by %} · {{ b.created_by.get_full_name|default:b.created_by.username }}{% endif %}</span>
+      {% if b.total %}
+        <span class="shrink-0">
+          <span class="text-green-600 font-medium">{{ b.sent }}</span><span class="text-gray-400">/{{ b.total }}</span>
+          {% if b.failed %}<span class="text-red-500 ml-1">({{ b.failed }})</span>{% endif %}
+        </span>
+      {% endif %}
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{# Desktop: table #}
+<div class="hidden md:block bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
   <div class="overflow-x-auto">
     <table class="w-full text-sm">
       <thead>

@@ -1,0 +1,131 @@
+/* === Mobile UX overrides for VetCRM === */
+
+/* 1. Hover-only stuck-state на тачі */
+@media (hover: none) {
+  .hover\:bg-gray-50:hover,
+  .hover\:bg-gray-100:hover,
+  .hover\:brightness-95:hover,
+  .hover\:bg-white\/10:hover { background-color: revert; filter: revert; }
+}
+
+/* 2. iOS no-zoom на input */
+@media (max-width: 768px) {
+  input[type="text"], input[type="email"], input[type="tel"],
+  input[type="number"], input[type="password"], input[type="date"],
+  input[type="search"], input[type="time"], input[type="datetime-local"],
+  textarea, select {
+    font-size: 16px !important;
+  }
+}
+
+/* 3. Тач-таргети мінімум 44×44 для маленьких кнопок (Apple HIG) */
+@media (max-width: 768px) {
+  button.w-7, button.h-7,
+  button.w-6, button.h-6,
+  a.w-7, a.h-7,
+  .tap-target { min-width: 44px; min-height: 44px; }
+}
+
+/* 4. Smooth scroll для iOS */
+.overflow-x-auto, .overflow-y-auto, main {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 5. Safe area для sticky bottom */
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+.safe-top { padding-top: env(safe-area-inset-top); }
+
+/* 6. Custom select chevron */
+select.styled {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3e%3cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  background-size: 1.25rem;
+  padding-right: 2.25rem;
+}
+
+/* 7. HTMX request indicator */
+.htmx-indicator { opacity: 0; transition: opacity 200ms; }
+.htmx-request .htmx-indicator { opacity: 1; }
+.htmx-request.htmx-indicator { opacity: 1; }
+
+/* 8. Mobile body lock коли sidebar відкритий */
+body.menu-open { overflow: hidden; touch-action: none; }
+
+/* 9. Bottom-nav reserved space */
+@media (max-width: 768px) {
+  body.has-bottom-nav main { padding-bottom: 5rem; }
+}
+
+/* 10. Quill toolbar mobile fix */
+@media (max-width: 768px) {
+  .ql-toolbar { display: flex; flex-wrap: wrap; gap: 2px; }
+  .ql-editor { font-size: 16px !important; min-height: 200px; }
+}
+
+/* 11. Animation на appearance bottom-nav (плавно при scroll) */
+.bottom-nav { transition: transform 200ms; will-change: transform; }
+.bottom-nav.hidden-on-scroll { transform: translateY(100%); }
+
+/* 12. Tap highlight прибрати — використовуємо :active замість */
+* { -webkit-tap-highlight-color: transparent; }
+button:active, a:active { opacity: 0.7; }
+
+/* 13. Modal scroll fix */
+.modal-content { max-height: 90vh; overflow-y: auto; }
+
+/* 14. Prevent horizontal scroll на body */
+html, body { overflow-x: hidden; max-width: 100vw; }
+
+/* 15. Tap-to-action для повних карток на моб (cursor-pointer вже є, але для тач feedback) */
+@media (max-width: 768px) {
+  .card-tap:active { background-color: rgb(254 243 199 / 0.3); }
+}
+
+/* === TG chat mobile fixes 2026-05-18 === */
+
+/* TG-1. Коли активний TG-чат — прибираємо bottom padding у <main>, інакше bottom_nav + input bar накладаються */
+body.has-tg-chat main { padding-bottom: 0 !important; }
+body.has-tg-chat #mobile-fab { display: none !important; }
+
+/* TG-2. Safe area для input bar (home indicator на iPhone X+) */
+.tg-input-bar {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom)) !important;
+}
+
+/* TG-3. Контейнер чату на повну висоту з врахуванням клавіатури (svh = small viewport — без URL bar) */
+.tg-chat-shell {
+  min-height: calc(100svh - 3.25rem); /* mobile header ~52px */
+  height: calc(100dvh - 3.25rem);
+}
+@media (min-width: 768px) {
+  .tg-chat-shell {
+    min-height: calc(100vh - 8rem);
+    height: calc(100vh - 8rem);
+  }
+}
+
+/* TG-4. Quick-send menu — не виходити за viewport на маленьких екранах */
+@media (max-width: 768px) {
+  #quick-send-menu {
+    max-width: calc(100vw - 2rem);
+    max-height: 50vh;
+  }
+}
+
+/* TG-5. Touch target для дрібних admin/edit-кнопок (38×38 мін., щоб не ламати layout рядка) */
+@media (max-width: 768px) {
+  .tg-touch { min-width: 38px; min-height: 38px; }
+}
+
+/* TG-6. Mobile back arrow — більший і помітніший */
+@media (max-width: 768px) {
+  .tg-back-arrow {
+    padding: 0.5rem;
+    margin-left: -0.5rem;
+    color: var(--tg-back-color, #12100F);
+  }
+  .tg-back-arrow svg { width: 1.5rem; height: 1.5rem; }
+}

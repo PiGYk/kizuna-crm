@@ -70,7 +70,7 @@ class TelegramMessage(models.Model):
     chat = models.ForeignKey(TelegramChat, on_delete=models.CASCADE, related_name='messages')
     direction = models.CharField(max_length=3, choices=Direction.choices)
     text = models.TextField(blank=True)
-    media_type = models.CharField(max_length=20, blank=True)  # 'photo','image','pdf','document','voice'
+    media_type = models.CharField(max_length=20, blank=True)  # 'photo','image','pdf','document','voice','video','animation','audio','video_note','sticker','contact','location'
     media_file = models.FileField(upload_to=tg_media_path, blank=True)
     media_filename = models.CharField(max_length=255, blank=True)  # оригінальне ім'я файлу
     tg_message_id = models.BigIntegerField(null=True, blank=True)

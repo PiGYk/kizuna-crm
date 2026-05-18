@@ -6,6 +6,54 @@ from celery import shared_task
 logger = logging.getLogger(__name__)
 
 
+@shared_task(bind=True, max_retries=2, default_retry_delay=10)
+def notify_staff_new_message_task(self, chat_id, preview_text):
+    """Async-варіант _notify_staff_new_message — звільняє webhook handler
+    від 500ms+ синхронних TG API calls. Telegram не буде retry-ати webhook.
+    """
+    from .models import TelegramChat
+    from .views import _send_tg
+
+    try:
+        chat = TelegramChat.objects.select_related('client', 'organization').get(pk=chat_id)
+    except TelegramChat.DoesNotExist:
+        logger.warning('notify_staff_new_message_task: chat %s not found', chat_id)
+        return
+
+    try:
+        staff_chats = TelegramChat.objects.filter(
+            organization=chat.organization,
+            is_staff=True,
+            receive_messages=True,
+        ).exclude(tg_user_id=chat.tg_user_id)
+
+        if not staff_chats.exists():
+            return
+
+        if chat.client:
+            client_name = str(chat.client)
+        else:
+            client_name = f'{chat.display_name} (неверифікований)'
+        preview = (preview_text or '')[:150]
+        text = (
+            f'💬 <b>Нове повідомлення</b>\n\n'
+            f'Від: <b>{client_name}</b>\n'
+            f'{preview}'
+        )
+        reply_markup = {
+            'inline_keyboard': [[
+                {'text': '✍️ Швидка відповідь', 'callback_data': f'quickreply:{chat.pk}'}
+            ]]
+        }
+        for sc in staff_chats:
+            try:
+                _send_tg(sc.tg_user_id, text, reply_markup=reply_markup, org=chat.organization)
+            except Exception as exc:
+                logger.warning('notify staff %s failed: %s', sc.tg_user_id, exc)
+    except Exception as exc:
+        logger.exception('notify_staff_new_message_task crashed: %s', exc)
+
+
 @shared_task(bind=True, max_retries=0)
 def send_broadcast(self, broadcast_id):
     from django.utils import timezone
@@ -50,13 +98,21 @@ def send_broadcast(self, broadcast_id):
         c for c in chats
         if c.pk not in already_sent_ids and c.pk not in cooldown_excluded_ids
     ]
-    skipped = len(chats) - len(already_sent_ids) - len(to_send)
+    # Explicit cooldown count — клемпимо в 0+ щоб уникнути від'ємних чисел при retry.
+    total_chats = len(chats)
+    cooled_out = total_chats - len(to_send) - len(already_sent_ids)
+    skipped = max(0, cooled_out)
 
-    broadcast.status = Broadcast.Status.SENDING
-    broadcast.total = len(to_send)
-    broadcast.sent = 0
-    broadcast.failed = 0
-    broadcast.save(update_fields=['status', 'total', 'sent', 'failed'])
+    # broadcast.total встановлюємо ЛИШЕ першого разу (retry не повинен скидати лічильник).
+    update_fields = ['status']
+    if broadcast.status != Broadcast.Status.SENDING:
+        broadcast.status = Broadcast.Status.SENDING
+    if broadcast.total == 0:
+        broadcast.total = len(to_send)
+        broadcast.sent = 0
+        broadcast.failed = 0
+        update_fields += ['total', 'sent', 'failed']
+    broadcast.save(update_fields=update_fields)
 
     # Записуємо пропущених (cooldown)
     if cooldown_excluded_ids:
@@ -70,10 +126,21 @@ def send_broadcast(self, broadcast_id):
             if chat_id not in already_sent_ids
         ], ignore_conflicts=True)
 
-    sent = 0
-    failed = 0
+    sent = broadcast.sent or 0
+    failed = broadcast.failed or 0
 
     for chat in to_send:
+        # Atomic dedup: створюємо pending запис ДО send, щоб паралельний retry побачив
+        # status='sent' і skip-нув. Гарантує рівно 1 send per (broadcast, chat).
+        recipient, recipient_created = BroadcastRecipient.objects.get_or_create(
+            broadcast=broadcast,
+            chat=chat,
+            defaults={'status': BroadcastRecipient.Status.SENT},  # буде переписано після TG
+        )
+        if not recipient_created and recipient.status == BroadcastRecipient.Status.SENT:
+            # Інший воркер уже відправив — skip.
+            continue
+
         status = BroadcastRecipient.Status.SENT
         tg_msg_id = None
         try:
@@ -90,11 +157,8 @@ def send_broadcast(self, broadcast_id):
             status = BroadcastRecipient.Status.FAILED
             failed += 1
 
-        BroadcastRecipient.objects.get_or_create(
-            broadcast=broadcast,
-            chat=chat,
-            defaults={'status': status},
-        )
+        recipient.status = status
+        recipient.save(update_fields=['status'])
 
         # Зберігаємо в історії чату (щоб було видно в розділі Telegram)
         if status == BroadcastRecipient.Status.SENT:

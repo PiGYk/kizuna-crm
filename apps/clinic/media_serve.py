@@ -45,5 +45,7 @@ def serve_media(request, path):
 
     response = HttpResponse(status=200)
     response['X-Accel-Redirect'] = f'/x-media/{safe_path}'
-    response['Content-Type'] = ''  # nginx визначить сам
+    # Видаляємо CT — порожній рядок змушує nginx відправляти text/html для mp4.
+    # Без хедера nginx сам визначить Content-Type через mime.types.
+    del response['Content-Type']
     return response

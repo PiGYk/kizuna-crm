@@ -16,6 +16,8 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
+from django.db import transaction
+
 from .models import TelegramChat, TelegramMessage, QuickReplyPrompt
 
 
@@ -252,35 +254,60 @@ def webhook(request, org_slug):
     document = message.get('document')  # файл (зображення, PDF, інше)
     voice = message.get('voice')        # голосове повідомлення (.ogg)
     video = message.get('video')        # відео
+    animation = message.get('animation')  # GIF / mp4 без звуку
+    video_note = message.get('video_note')  # круглі відео
+    audio = message.get('audio')        # музика з метаданими
+    sticker = message.get('sticker')    # стікер
+    contact = message.get('contact')    # контакт
     location = message.get('location')  # геолокація {latitude, longitude}
     caption = message.get('caption', '').strip()
 
-    has_media = bool(photo or document or voice or video or location)
+    has_media = bool(
+        photo or document or voice or video or animation
+        or video_note or audio or sticker or contact or location
+    )
     if not tg_user_id or (not text and not has_media):
         return HttpResponse('ok')
 
-    chat, _ = TelegramChat.objects.get_or_create(
-        tg_user_id=tg_user_id,
-        organization=org,
-        defaults={
-            'tg_username': from_user.get('username', ''),
-            'tg_first_name': from_user.get('first_name', ''),
-            'tg_last_name': from_user.get('last_name', ''),
-        }
-    )
-    # оновити ім'я якщо змінилось
-    chat.tg_username = from_user.get('username', '')
-    chat.tg_first_name = from_user.get('first_name', '')
-    chat.tg_last_name = from_user.get('last_name', '')
-    chat.last_message_at = timezone.now()
-    if not chat.avatar_file_id:
-        chat.avatar_file_id = _fetch_avatar_file_id(tg_user_id, org=org)
-    chat.save()
+    # Атомарний get_or_create + update щоб уникнути LOST UPDATE при паралельних webhook'ах.
+    with transaction.atomic():
+        chat, created = TelegramChat.objects.get_or_create(
+            tg_user_id=tg_user_id,
+            organization=org,
+            defaults={
+                'tg_username': from_user.get('username', ''),
+                'tg_first_name': from_user.get('first_name', ''),
+                'tg_last_name': from_user.get('last_name', ''),
+            }
+        )
+        # оновити ім'я якщо змінилось — лише ці поля, без перезапису client/is_staff/etc.
+        chat.tg_username = from_user.get('username', '')
+        chat.tg_first_name = from_user.get('first_name', '')
+        chat.tg_last_name = from_user.get('last_name', '')
+        chat.last_message_at = timezone.now()
+        update_fields = ['tg_username', 'tg_first_name', 'tg_last_name', 'last_message_at']
+        if not chat.avatar_file_id:
+            chat.avatar_file_id = _fetch_avatar_file_id(tg_user_id, org=org)
+            update_fields.append('avatar_file_id')
+        chat.save(update_fields=update_fields)
 
     # Staff reply на ForceReply-промпт → пересилаємо текст клієнту і виходимо.
     reply_to = message.get('reply_to_message') or {}
     if chat.is_staff and reply_to.get('message_id'):
         if _handle_staff_quickreply_message(chat, text, reply_to.get('message_id')):
+            return HttpResponse('ok')
+
+    incoming_msg_id = message.get('message_id')
+    is_edited = bool(data.get('edited_message'))
+
+    # Dedup для edited_message — оновити text замість дубля.
+    if is_edited and incoming_msg_id:
+        existing = TelegramMessage.objects.filter(
+            chat=chat, tg_message_id=incoming_msg_id,
+        ).first()
+        if existing:
+            existing.text = text or caption or existing.text
+            existing.save(update_fields=['text'])
             return HttpResponse('ok')
 
     if photo:
@@ -291,7 +318,7 @@ def webhook(request, org_slug):
             direction=TelegramMessage.Direction.IN,
             text=caption,
             media_type='photo',
-            tg_message_id=message.get('message_id'),
+            tg_message_id=incoming_msg_id,
         )
         if content_file:
             msg.media_file.save(filename, content_file, save=False)
@@ -314,7 +341,7 @@ def webhook(request, org_slug):
             text=caption,
             media_type=mtype,
             media_filename=orig_name,
-            tg_message_id=message.get('message_id'),
+            tg_message_id=incoming_msg_id,
         )
         if content_file:
             # Зберігаємо під UUID-іменем — orig_name user-controlled і не довіряємо йому.
@@ -335,13 +362,97 @@ def webhook(request, org_slug):
             text=caption,
             media_type='video',
             media_filename=orig_name or filename,
-            tg_message_id=message.get('message_id'),
+            tg_message_id=incoming_msg_id,
         )
         if content_file:
             ext = (orig_name or filename).rsplit('.', 1)[-1].lower() if '.' in (orig_name or filename) else 'mp4'
             save_as = f'{uuid.uuid4().hex}.{ext}'
             msg.media_file.save(save_as, content_file, save=False)
         msg.save()
+
+    elif animation:
+        # GIF / mp4 без звуку — handle як video.
+        file_id = animation['file_id']
+        orig_name = animation.get('file_name', '')
+        content_file, filename = _download_tg_file(file_id, org=chat.organization)
+        msg = TelegramMessage(
+            chat=chat,
+            direction=TelegramMessage.Direction.IN,
+            text=caption,
+            media_type='video',
+            media_filename=orig_name or filename or 'animation.mp4',
+            tg_message_id=incoming_msg_id,
+        )
+        if content_file:
+            ext = (orig_name or filename).rsplit('.', 1)[-1].lower() if '.' in (orig_name or filename) else 'mp4'
+            save_as = f'{uuid.uuid4().hex}.{ext}'
+            msg.media_file.save(save_as, content_file, save=False)
+        msg.save()
+
+    elif video_note:
+        # Круглі відео — handle як video.
+        file_id = video_note['file_id']
+        content_file, filename = _download_tg_file(file_id, org=chat.organization)
+        msg = TelegramMessage(
+            chat=chat,
+            direction=TelegramMessage.Direction.IN,
+            text='',
+            media_type='video',
+            media_filename=filename or 'video_note.mp4',
+            tg_message_id=incoming_msg_id,
+        )
+        if content_file:
+            ext = filename.rsplit('.', 1)[-1].lower() if filename and '.' in filename else 'mp4'
+            save_as = f'{uuid.uuid4().hex}.{ext}'
+            msg.media_file.save(save_as, content_file, save=False)
+        msg.save()
+
+    elif audio:
+        # Музика — handle як document з audio.mp3 fallback.
+        file_id = audio['file_id']
+        orig_name = audio.get('file_name') or audio.get('title') or 'audio.mp3'
+        content_file, filename = _download_tg_file(file_id, org=chat.organization)
+        msg = TelegramMessage(
+            chat=chat,
+            direction=TelegramMessage.Direction.IN,
+            text=caption,
+            media_type='document',
+            media_filename=orig_name,
+            tg_message_id=incoming_msg_id,
+        )
+        if content_file:
+            ext = (orig_name or filename).rsplit('.', 1)[-1].lower() if '.' in (orig_name or filename) else 'mp3'
+            save_as = f'{uuid.uuid4().hex}.{ext}'
+            msg.media_file.save(save_as, content_file, save=False)
+        msg.save()
+
+    elif sticker:
+        # Стікер — emoji preview або '[анім стікер]'. Файл не зберігаємо (.webp/.tgs/.webm).
+        if sticker.get('is_animated') or sticker.get('is_video'):
+            sticker_text = '[анім стікер]'
+        else:
+            sticker_text = sticker.get('emoji') or '🎯'
+        TelegramMessage.objects.create(
+            chat=chat,
+            direction=TelegramMessage.Direction.IN,
+            text=sticker_text,
+            media_type='sticker',
+            tg_message_id=incoming_msg_id,
+        )
+
+    elif contact:
+        # Контакт — phone first_name last_name.
+        phone = contact.get('phone_number', '')
+        first = contact.get('first_name', '')
+        last = contact.get('last_name', '')
+        contact_text = f'{phone} {first} {last}'.strip()
+        TelegramMessage.objects.create(
+            chat=chat,
+            direction=TelegramMessage.Direction.IN,
+            text=contact_text,
+            media_type='contact',
+            tg_message_id=incoming_msg_id,
+        )
 
     elif voice:
         file_id = voice['file_id']
@@ -350,9 +461,10 @@ def webhook(request, org_slug):
         msg = TelegramMessage(
             chat=chat,
             direction=TelegramMessage.Direction.IN,
-            text=str(duration),  # зберігаємо тривалість у секундах
+            text='',  # тривалість тримаємо у filename, щоб не показувати у preview як текст
             media_type='voice',
-            tg_message_id=message.get('message_id'),
+            media_filename=f'voice-{duration}s.ogg',
+            tg_message_id=incoming_msg_id,
         )
         if content_file:
             msg.media_file.save(filename, content_file, save=False)
@@ -361,20 +473,25 @@ def webhook(request, org_slug):
     elif location:
         lat = location.get('latitude')
         lon = location.get('longitude')
+        # XSS guard: text йде у Google Maps URL. Зберігаємо тільки якщо це pure float pair.
+        try:
+            safe_text = f'{float(lat)},{float(lon)}'
+        except (TypeError, ValueError):
+            safe_text = ''
         TelegramMessage.objects.create(
             chat=chat,
             direction=TelegramMessage.Direction.IN,
-            text=f"{lat},{lon}",
+            text=safe_text,
             media_type='location',
-            tg_message_id=message.get('message_id'),
+            tg_message_id=incoming_msg_id,
         )
 
-    else:
+    elif text:
         TelegramMessage.objects.create(
             chat=chat,
             direction=TelegramMessage.Direction.IN,
             text=text,
-            tg_message_id=message.get('message_id'),
+            tg_message_id=incoming_msg_id,
         )
         reply = _handle_command(chat, text, from_user)
         if reply:
@@ -387,12 +504,24 @@ def webhook(request, org_slug):
                 is_read=True,
             )
 
+    else:
+        # poll / dice / venue / game / etc — silent log і відповідаємо ok щоб TG не retry-ав.
+        logger.warning(
+            'webhook: unhandled message types in org=%s chat=%s message_keys=%s',
+            org.slug, chat.pk, sorted(message.keys()),
+        )
+
     # Нотифікація staff про нове повідомлення — від верифікованих і неверифікованих.
     # Ігноруємо натискання меню-кнопок і команди (/start тощо) — це UI-шум, не повідомлення.
     if not chat.is_staff:
         is_menu_press = text in MENU_BUTTONS or text.startswith('/')
         if has_media or not is_menu_press:
-            _notify_staff_new_message(chat, text or caption or '[медіа]')
+            try:
+                from .broadcast_tasks import notify_staff_new_message_task
+                notify_staff_new_message_task.delay(chat.pk, text or caption or '[медіа]')
+            except Exception as exc:
+                # Якщо Celery недоступний — пишемо у лог і не блокуємо webhook.
+                logger.warning('notify_staff_new_message dispatch failed: %s', exc)
 
     return HttpResponse('ok')
 
@@ -473,11 +602,14 @@ def _handle_quickreply_start(staff_tg_user_id, target_chat_pk, org):
 def _handle_staff_quickreply_message(staff_chat, text, reply_to_message_id):
     """Staff відповів на ForceReply-промпт. Знаходимо mapping, пересилаємо текст
     клієнту, зберігаємо як OUT, консумимо prompt. Повертає True якщо обробили."""
+    from datetime import timedelta
+    ttl_cutoff = timezone.now() - timedelta(hours=1)
     try:
         prompt = QuickReplyPrompt.objects.select_related('target_chat').get(
             staff_chat=staff_chat,
             prompt_message_id=reply_to_message_id,
             used_at__isnull=True,
+            created_at__gte=ttl_cutoff,
         )
     except QuickReplyPrompt.DoesNotExist:
         return False
@@ -1258,9 +1390,16 @@ def search_clients(request):
 @login_required
 @_require_telegram_plan
 def chat_list(request):
-    from django.db.models import Prefetch
+    from django.db.models import Prefetch, Count, Q
     chats = TelegramChat.objects.filter(
         organization=request.organization,
+    ).annotate(
+        # Annotation замість @property — одним SQL для всього списку, не N+1.
+        # Темплейту видно як `chat.unread_count_ann`.
+        unread_count_ann=Count(
+            'messages',
+            filter=Q(messages__direction='in', messages__is_read=False),
+        ),
     ).prefetch_related(
         Prefetch('messages', queryset=TelegramMessage.objects.order_by('-id')[:50])
     )
@@ -1272,9 +1411,19 @@ def chat_list(request):
 @login_required
 @_require_telegram_plan
 def chat_detail(request, pk):
-    chat = get_object_or_404(
-        TelegramChat, pk=pk, organization=request.organization
+    # Prefetch для quick-send dropdown (раніше 17 queries → ~6).
+    qs = (
+        TelegramChat.objects
+        .select_related('client', 'organization')
+        .prefetch_related(
+            'client__patients',
+            'client__patients__visits',
+            'client__patients__ultrasounds',
+            'client__patients__analyses',
+            'client__invoices',
+        )
     )
+    chat = get_object_or_404(qs, pk=pk, organization=request.organization)
     # позначаємо прочитаними
     chat.messages.filter(direction='in', is_read=False).update(is_read=True)
 
@@ -1308,7 +1457,9 @@ def chat_messages(request, pk):
         TelegramChat, pk=pk, organization=request.organization
     )
     chat.messages.filter(direction='in', is_read=False).update(is_read=True)
-    chat_messages = chat.messages.all()
+    # HTMX-poll endpoint — повертаємо лише останні 50 повідомлень (chronological).
+    recent_qs = chat.messages.order_by('-created_at')[:50]
+    chat_messages = list(recent_qs)[::-1]
     return render(request, 'tg/partials/messages.html', {'chat': chat, 'messages': chat_messages})
 
 
@@ -1317,10 +1468,15 @@ def chat_messages(request, pk):
 @login_required
 @_require_telegram_plan
 def chat_list_partial(request):
-    from django.db.models import Q, Prefetch
+    from django.db.models import Q, Prefetch, Count
     q = request.GET.get('q', '').strip()
     chats = TelegramChat.objects.filter(
         organization=request.organization,
+    ).annotate(
+        unread_count_ann=Count(
+            'messages',
+            filter=Q(messages__direction='in', messages__is_read=False),
+        ),
     ).prefetch_related(
         Prefetch('messages', queryset=TelegramMessage.objects.order_by('-id')[:50])
     )
@@ -1350,7 +1506,7 @@ def send_message(request, pk):
     media = request.FILES.get('media')
 
     if not text and not media:
-        chat_messages = chat.messages.all()
+        chat_messages = list(chat.messages.order_by('-created_at')[:50])[::-1]
         return render(request, 'tg/partials/messages.html', {'chat': chat, 'messages': chat_messages})
 
     msg = TelegramMessage(
@@ -1397,11 +1553,21 @@ def send_message(request, pk):
         result = _send_tg(chat.tg_user_id, text, org=chat.organization)
         msg.tg_message_id = result.get('result', {}).get('message_id')
 
+    # TG помилка (юзер заблокував бота, чат недоступний тощо) — не зберігаємо як OUT,
+    # повертаємо HX-Trigger щоб frontend показав banner.
+    if not result.get('ok'):
+        err = (result.get('description') or 'невідома помилка Telegram')[:200]
+        logger.warning('send_message: TG error for chat %s: %s', chat.pk, result)
+        chat_messages = list(chat.messages.order_by('-created_at')[:50])[::-1]
+        response = render(request, 'tg/partials/messages.html', {'chat': chat, 'messages': chat_messages})
+        response['HX-Trigger'] = json.dumps({'tg-send-failed': {'message': f'Telegram: {err}'}})
+        return response
+
     msg.save()
     chat.last_message_at = timezone.now()
     chat.save(update_fields=['last_message_at'])
 
-    chat_messages = chat.messages.all()
+    chat_messages = list(chat.messages.order_by('-created_at')[:50])[::-1]
     return render(request, 'tg/partials/messages.html', {'chat': chat, 'messages': chat_messages})
 
 
@@ -1416,7 +1582,7 @@ def link_client(request, pk):
     POST: client_id=<id> — привʼязати або перепривʼязати на іншого клієнта.
     POST: action=unlink — відвʼязати (client=None), бот переходить у неверифікований режим.
     """
-    chat = get_object_or_404(TelegramChat, pk=pk)
+    chat = get_object_or_404(TelegramChat, pk=pk, organization=request.organization)
     action = request.POST.get('action')
     client_id = request.POST.get('client_id')
     previous_client = chat.client
@@ -1434,7 +1600,7 @@ def link_client(request, pk):
             messages.success(request, f'Чат відвʼязано від клієнта «{previous_client}».')
     elif client_id:
         from apps.clients.models import Client
-        client = get_object_or_404(Client, pk=client_id)
+        client = get_object_or_404(Client, pk=client_id, organization=request.organization)
         chat.client = client
         chat.save(update_fields=['client'])
         if previous_client and previous_client.pk != client.pk:
@@ -1715,6 +1881,9 @@ def set_webhook(request):
 
 @login_required
 def broadcast_list(request):
+    from django.http import HttpResponseForbidden
+    if not request.user.is_admin():
+        return HttpResponseForbidden('Тільки адмін')
     from .models import Broadcast, TelegramChat
     org = request.organization
     broadcasts = Broadcast.objects.filter(organization=org).select_related('created_by')
@@ -1727,6 +1896,9 @@ def broadcast_list(request):
 
 @login_required
 def broadcast_create(request):
+    from django.http import HttpResponseForbidden
+    if not request.user.is_admin():
+        return HttpResponseForbidden('Тільки адмін')
     from .models import Broadcast, TelegramChat
     org = request.organization
     chat_count = TelegramChat.objects.filter(organization=org).count()
@@ -1766,6 +1938,9 @@ def broadcast_create(request):
 
 @login_required
 def broadcast_detail(request, pk):
+    from django.http import HttpResponseForbidden
+    if not request.user.is_admin():
+        return HttpResponseForbidden('Тільки адмін')
     from .models import Broadcast, BroadcastRecipient
     broadcast = get_object_or_404(Broadcast, pk=pk, organization=request.organization)
     skipped = broadcast.recipients.filter(status=BroadcastRecipient.Status.SKIPPED).count()
@@ -1778,14 +1953,24 @@ def broadcast_detail(request, pk):
 @login_required
 def broadcast_send(request, pk):
     """Відправити вже збережену чернетку."""
+    from django.http import HttpResponseForbidden
+    if not request.user.is_admin():
+        return HttpResponseForbidden('Тільки адмін')
     from .models import Broadcast, TelegramChat
     if request.method != 'POST':
         return redirect('tg:broadcast_detail', pk=pk)
-    broadcast = get_object_or_404(Broadcast, pk=pk, organization=request.organization)
-    if broadcast.status != Broadcast.Status.DRAFT:
-        messages.error(request, 'Можна відправити лише чернетку')
-        return redirect('tg:broadcast_detail', pk=pk)
     chat_count = TelegramChat.objects.filter(organization=request.organization).count()
+    # Атомарний перехід draft→sending щоб уникнути паралельних .delay() через double-click.
+    with transaction.atomic():
+        broadcast = get_object_or_404(
+            Broadcast.objects.select_for_update(),
+            pk=pk, organization=request.organization,
+        )
+        if broadcast.status != Broadcast.Status.DRAFT:
+            messages.warning(request, 'Розсилка вже відправляється або завершена')
+            return redirect('tg:broadcast_detail', pk=pk)
+        broadcast.status = Broadcast.Status.SENDING
+        broadcast.save(update_fields=['status'])
     from .broadcast_tasks import send_broadcast
     send_broadcast.delay(broadcast.pk)
     messages.success(request, f'Розсилку запущено — {chat_count} отримувачів')

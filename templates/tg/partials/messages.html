@@ -1,7 +1,8 @@
+{% load tg_filters %}
 <div id="messages-list" class="flex flex-col gap-2 p-4 overflow-y-auto flex-1">
   {% for msg in messages %}
   <div class="flex {% if msg.direction == 'out' %}justify-end{% else %}justify-start{% endif %}">
-    <div class="max-w-xs lg:max-w-md px-4 py-2.5 rounded-2xl text-sm
+    <div class="max-w-[80%] lg:max-w-md px-4 py-2.5 rounded-2xl text-sm
       {% if msg.direction == 'out' %}
         bg-brand-gold text-brand-dark rounded-br-sm
       {% else %}
@@ -12,43 +13,44 @@
         {% if msg.media_file %}
           <a href="{{ msg.media_file.url }}" target="_blank" rel="noopener">
             <img src="{{ msg.media_file.url }}"
-                 class="max-w-full rounded-xl mb-1 cursor-pointer hover:opacity-90 transition"
+                 loading="lazy"
+                 class="max-w-full max-h-[60vh] object-contain rounded-xl mb-1 cursor-pointer active:opacity-80 transition"
                  alt="фото">
           </a>
         {% endif %}
 
       {% elif msg.media_type == 'pdf' %}
         <a href="{{ msg.media_file.url }}" target="_blank" rel="noopener"
-           class="flex items-center gap-2 py-1 hover:opacity-80 transition">
+           class="flex items-center gap-2 py-1 active:opacity-80 transition">
           <svg class="w-8 h-8 shrink-0 text-red-500" fill="currentColor" viewBox="0 0 24 24">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM8.5 15.5h1.3c.7 0 1.2-.5 1.2-1.2s-.5-1.2-1.2-1.2H8v4.4h.5v-2zm1.2-1.9c.4 0 .7.3.7.7s-.3.7-.7.7h-.7v-1.4h.7zm2.8 4.4h1.1c1 0 1.7-.7 1.7-1.7v-1c0-1-.7-1.7-1.7-1.7H12v4.4zm.5-3.9h.6c.7 0 1.2.5 1.2 1.2v1c0 .7-.5 1.2-1.2 1.2h-.6v-3.4zm3.5 0v.9h1.4v.5H16.5v2h-.5v-4.4H18v.5h-1.5v.5z"/>
           </svg>
-          <span class="text-xs truncate max-w-[160px]">{{ msg.media_filename|default:"document.pdf" }}</span>
+          <span class="text-xs truncate max-w-[60%]">{{ msg.media_filename|default:"document.pdf" }}</span>
         </a>
 
       {% elif msg.media_type == 'video' %}
         {% if msg.media_file %}
-        <video controls class="rounded-lg max-w-[240px] max-h-[180px] mt-1" preload="metadata">
-          <source src="{{ msg.media_file.url }}">
+        <video controls class="rounded-lg max-w-full max-h-[60vh] mt-1" preload="metadata">
+          <source src="{{ msg.media_file.url }}" type="{{ msg.media_file.name|video_mime|default:'video/mp4' }}">
         </video>
         {% endif %}
         {% if msg.media_filename %}
-        <span class="text-xs opacity-60 mt-0.5 block truncate max-w-[200px]">{{ msg.media_filename }}</span>
+        <span class="text-xs opacity-60 mt-0.5 block truncate max-w-[60%]">{{ msg.media_filename }}</span>
         {% endif %}
 
       {% elif msg.media_type == 'document' %}
         <a href="{{ msg.media_file.url }}" download="{{ msg.media_filename|default:'file' }}"
-           class="flex items-center gap-2 py-1 hover:opacity-80 transition">
+           class="flex items-center gap-2 py-1 active:opacity-80 transition">
           <svg class="w-7 h-7 shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
           </svg>
-          <span class="text-xs truncate max-w-[160px]">{{ msg.media_filename|default:"файл" }}</span>
+          <span class="text-xs truncate max-w-[60%]">{{ msg.media_filename|default:"файл" }}</span>
         </a>
 
       {% elif msg.media_type == 'location' %}
         <a href="https://www.google.com/maps?q={{ msg.text }}" target="_blank" rel="noopener"
-           class="flex items-center gap-2 py-1 hover:opacity-80 transition">
+           class="flex items-center gap-2 py-1 active:opacity-80 transition">
           <svg class="w-6 h-6 shrink-0 text-green-500" fill="currentColor" viewBox="0 0 24 24">
             <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"/>
           </svg>
@@ -67,8 +69,8 @@
             {% endif %}
           </div>
           {% if msg.media_file %}
-            <audio controls class="w-full max-w-[220px]" style="height:36px">
-              <source src="{{ msg.media_file.url }}" type="audio/ogg">
+            <audio controls class="w-full max-w-full" style="height:36px">
+              <source src="{{ msg.media_file.url }}" type="{{ msg.media_file.name|audio_mime|default:'audio/ogg' }}">
               <source src="{{ msg.media_file.url }}">
             </audio>
           {% endif %}
