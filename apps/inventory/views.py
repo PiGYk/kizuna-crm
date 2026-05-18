@@ -43,7 +43,10 @@ class ProductListView(LoginRequiredMixin, ListView):
     }
 
     def get_queryset(self):
-        qs = Product.objects.select_related('unit', 'category').filter(is_active=True)
+        qs = Product.objects.select_related('unit', 'category').filter(
+            is_active=True,
+            organization=self.request.organization,
+        )
         q = self.request.GET.get('q', '').strip()
         stock = self.request.GET.get('stock', '')
         cat = self.request.GET.get('cat', '')

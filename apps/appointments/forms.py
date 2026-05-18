@@ -106,10 +106,28 @@ class AppointmentForm(forms.ModelForm):
         cleaned = super().clean()
         appt_date = cleaned.get('appt_date')
         appt_time = cleaned.get('appt_time')
+        doctor = cleaned.get('doctor')
         if appt_date and appt_time:
             h, m = map(int, appt_time.split(':'))
             naive_dt = datetime.combine(appt_date, time(h, m))
-            self.instance.starts_at = timezone.make_aware(naive_dt)
+            starts_at = timezone.make_aware(naive_dt)
+            self.instance.starts_at = starts_at
+
+            # Перевірка конфлікту слотів з тим самим лікарем у тій же org.
+            if doctor and self.instance.organization_id:
+                conflict_qs = Appointment.objects.filter(
+                    organization_id=self.instance.organization_id,
+                    doctor=doctor,
+                    starts_at=starts_at,
+                    status__in=['scheduled', 'confirmed'],
+                )
+                if self.instance.pk:
+                    conflict_qs = conflict_qs.exclude(pk=self.instance.pk)
+                if conflict_qs.exists():
+                    self.add_error(
+                        'appt_time',
+                        f'На {appt_time} у цього лікаря вже є запис',
+                    )
         else:
             self.add_error('appt_date', 'Вкажіть дату та час')
         return cleaned

@@ -62,33 +62,42 @@ def analytics_data(request):
 
     qs = Invoice.objects.filter(
         status='paid',
+        organization=request.organization,
         created_at__date__gte=start,
         created_at__date__lte=end,
     )
     if doctor_id:
         qs = qs.filter(doctor_id=doctor_id)
 
-    # KPIs
-    revenue = qs.aggregate(t=Sum('total'))['t'] or 0
-    count = qs.count()
+    # KPIs — об'єднано у 1 aggregate (раніше було 6 окремих).
+    from django.db.models import Q
+    agg = qs.aggregate(
+        revenue=Sum('total'),
+        count=Count('id'),
+        cash=Sum('total', filter=Q(payment_method='cash')),
+        cash_cnt=Count('id', filter=Q(payment_method='cash')),
+        card=Sum('total', filter=Q(payment_method='card')),
+        card_cnt=Count('id', filter=Q(payment_method='card')),
+    )
+    revenue = agg['revenue'] or 0
+    count = agg['count'] or 0
+    cash = agg['cash'] or 0
+    cash_cnt = agg['cash_cnt'] or 0
+    card = agg['card'] or 0
+    card_cnt = agg['card_cnt'] or 0
     avg_check = (revenue / count) if count else 0
     delta_days = (end - start).days + 1
     active_days = qs.annotate(day=TruncDate('created_at')).values('day').distinct().count()
     avg_daily = revenue / active_days if active_days else 0
     new_clients = Client.objects.filter(
+        organization=request.organization,
         created_at__date__gte=start,
         created_at__date__lte=end,
     ).count()
-    cash_qs = qs.filter(payment_method='cash').aggregate(t=Sum('total'), c=Count('id'))
-    card_qs = qs.filter(payment_method='card').aggregate(t=Sum('total'), c=Count('id'))
-    cash = cash_qs['t'] or 0
-    cash_cnt = cash_qs['c'] or 0
-    card = card_qs['t'] or 0
-    card_cnt = card_qs['c'] or 0
 
-    # Рекордна каса за весь час (для організації, без фільтрів)
+    # Рекордна каса за весь час (для організації)
     record_day = (
-        Invoice.objects.filter(status='paid')
+        Invoice.objects.filter(status='paid', organization=request.organization)
         .annotate(day=TruncDate('created_at'))
         .values('day')
         .annotate(total=Sum('total'))

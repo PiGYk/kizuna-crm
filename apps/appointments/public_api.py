@@ -323,14 +323,23 @@ def _create_crm_objects(lead: LeadRequest, org) -> None:
         if lead.preferred_date and lead.preferred_time:
             naive_dt = dt_module.datetime.combine(lead.preferred_date, lead.preferred_time)
             starts_at = tz.make_aware(naive_dt)
-            notes = f'Заявка з сайту. Причина: {lead.service_note}' if lead.service_note else 'Заявка з сайту'
-            Appointment.objects.create(
-                client=client,
-                patient=patient,
-                starts_at=starts_at,
+
+            # Перевірка вільного слота — якщо зайнято, лід зберігаємо без appointment
+            # (адмін потім розбереться через CRM)
+            slot_taken = Appointment.objects.filter(
                 organization=org,
-                notes=notes,
-            )
+                starts_at=starts_at,
+                status__in=['scheduled', 'confirmed'],
+            ).exists()
+            if not slot_taken:
+                notes = f'Заявка з сайту. Причина: {lead.service_note}' if lead.service_note else 'Заявка з сайту'
+                Appointment.objects.create(
+                    client=client,
+                    patient=patient,
+                    starts_at=starts_at,
+                    organization=org,
+                    notes=notes,
+                )
 
     except Exception:
         logger.exception('Lead CRM create failed')

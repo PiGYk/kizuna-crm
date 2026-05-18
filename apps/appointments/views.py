@@ -45,7 +45,7 @@ def calendar_day_view(request):
 
     appts = list(
         Appointment.objects
-        .filter(starts_at__date=ref)
+        .filter(organization=request.organization, starts_at__date=ref)
         .select_related('client', 'patient', 'doctor')
         .prefetch_related('services')
         .order_by('starts_at')
@@ -57,7 +57,7 @@ def calendar_day_view(request):
         from collections import Counter
         future_qs = (
             Appointment.objects
-            .filter(starts_at__date__gt=ref)
+            .filter(organization=request.organization, starts_at__date__gt=ref)
             .exclude(status__in=['cancelled', 'no_show'])
             .order_by('starts_at')[:50]
         )
@@ -98,7 +98,11 @@ def calendar_view(request):
     # всі записи на цей тиждень
     appts = (
         Appointment.objects
-        .filter(starts_at__date__gte=days[0], starts_at__date__lte=days[-1])
+        .filter(
+            organization=request.organization,
+            starts_at__date__gte=days[0],
+            starts_at__date__lte=days[-1],
+        )
         .select_related('client', 'patient', 'doctor')
         .prefetch_related('services')
         .exclude(status='cancelled')
@@ -246,7 +250,23 @@ def appointment_move(request, pk):
 
     # Зберегти тривалість, змінити тільки час
     new_dt = datetime(new_date.year, new_date.month, new_date.day, hour, minute)
-    appt.starts_at = timezone.make_aware(new_dt)
+    new_starts_at = timezone.make_aware(new_dt)
+
+    # Перевірка конфлікту слотів з тим самим лікарем
+    if appt.doctor_id:
+        conflict = Appointment.objects.filter(
+            organization=request.organization,
+            doctor_id=appt.doctor_id,
+            starts_at=new_starts_at,
+            status__in=['scheduled', 'confirmed'],
+        ).exclude(pk=appt.pk).exists()
+        if conflict:
+            return JsonResponse(
+                {'error': f'На {hour:02d}:{minute:02d} вже є запис у цього лікаря'},
+                status=409,
+            )
+
+    appt.starts_at = new_starts_at
     appt.save(update_fields=['starts_at'])
 
     return JsonResponse({'ok': True, 'id': appt.pk})

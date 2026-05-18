@@ -48,6 +48,7 @@ def calculate_balances(org=None):
     """Розраховує поточні залишки готівки та карти по всіх операціях.
 
     Один SUM-aggregate з Q-filter на queryset замість 8 окремих aggregate.
+    Явний organization filter — multi-tenant guard незалежно від thread-local.
     """
     from django.db.models import Sum, Q
     from apps.billing.models import Invoice
@@ -59,21 +60,25 @@ def calculate_balances(org=None):
     fs = FinanceSettings.get_for_org(org)
     zero = Decimal('0')
 
-    inv_agg = Invoice.objects.filter(status='paid').aggregate(
+    if org is None:
+        # Без org немає за чим рахувати — повертаємо нулі.
+        return {'cash': fs.initial_cash, 'card': fs.initial_card}
+
+    inv_agg = Invoice.objects.filter(status='paid', organization=org).aggregate(
         cash=Sum('total', filter=Q(payment_method='cash')),
         card=Sum('total', filter=Q(payment_method='card')),
     )
     income_cash = inv_agg['cash'] or zero
     income_card = inv_agg['card'] or zero
 
-    exp_agg = Expense.objects.aggregate(
+    exp_agg = Expense.objects.filter(organization=org).aggregate(
         cash=Sum('amount', filter=Q(payment_method='cash')),
         card=Sum('amount', filter=Q(payment_method='card')),
     )
     expense_cash = exp_agg['cash'] or zero
     expense_card = exp_agg['card'] or zero
 
-    cash_agg = CashOperation.objects.aggregate(
+    cash_agg = CashOperation.objects.filter(organization=org).aggregate(
         card_to_cash=Sum('amount', filter=Q(type='card_to_cash')),
         cash_to_card=Sum('amount', filter=Q(type='cash_to_card')),
         deposits=Sum('amount', filter=Q(type='deposit')),
