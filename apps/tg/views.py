@@ -220,6 +220,7 @@ def webhook(request, org_slug):
         return HttpResponse('ok')
 
     from apps.clinic.models import Organization
+    from apps.clinic.tenant import set_current_org, clear_current_org
     try:
         org = Organization.objects.get(slug=org_slug, is_active=True)
     except Organization.DoesNotExist:
@@ -237,6 +238,20 @@ def webhook(request, org_slug):
         data = json.loads(request.body)
     except Exception:
         return HttpResponse('bad json', status=400)
+
+    # Виставляємо thread-local org щоб OrgManager (fail-closed) працював у всіх
+    # subsequent ORM запитах усередині webhook'а. Public endpoint без middleware-auth,
+    # тому request.organization тут не виставляється автоматично.
+    set_current_org(org)
+    request.organization = org
+    try:
+        return _webhook_process(request, org, data)
+    finally:
+        clear_current_org()
+
+
+def _webhook_process(request, org, data):
+    """Розпаковано з webhook() щоб обернути set/clear_current_org через try/finally."""
 
     # ── Обробка натискання inline кнопок (вибір тварини) ────────────────────
     callback = data.get('callback_query')
