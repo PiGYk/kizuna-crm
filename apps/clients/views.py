@@ -62,6 +62,9 @@ class ClientListView(LoginRequiredMixin, ListView):
         qs = super().get_queryset().prefetch_related('patients')
         if self.request.organization:
             qs = qs.filter(organization=self.request.organization)
+        # Soft-delete: за замовч ховаємо архівованих; ?archived=1 показує лише архів
+        archived_view = self.request.GET.get('archived') == '1'
+        qs = qs.filter(is_archived=archived_view)
         q = self.request.GET.get('q', '').strip()
         if q:
             qs = qs.filter(
@@ -465,21 +468,14 @@ def patients_by_period(request):
 
 @login_required
 def client_delete(request, pk):
-    from django.db.models import ProtectedError
+    """Архівувати клієнта (soft-delete). Медичну історію зберігаємо
+    регуляторно ≥5 років — hard delete заборонений."""
     client = get_object_or_404(Client, pk=pk)
     invoices_count = client.invoices.count()
     if request.method == 'POST':
-        try:
-            client.delete()
-        except ProtectedError:
-            # Запобіжник: якщо хтось встиг створити рахунок між GET та POST.
-            messages.error(
-                request,
-                f'Не можна видалити клієнта «{client.first_name} {client.last_name}» — '
-                f'є {client.invoices.count()} рахун(ків). Спочатку видаліть або скасуйте їх.'
-            )
-            return redirect('clients:detail', pk=client.pk)
-        messages.success(request, f'Клієнта {client.first_name} {client.last_name} видалено')
+        name = f'{client.first_name} {client.last_name}'
+        client.archive()
+        messages.success(request, f'Клієнта {name} та його пацієнтів архівовано')
         return redirect('clients:list')
     return render(request, 'clients/confirm_delete.html', {
         'client': client,
@@ -489,12 +485,13 @@ def client_delete(request, pk):
 
 @login_required
 def patient_delete(request, pk):
+    """Архівувати пацієнта (soft-delete)."""
     patient = get_object_or_404(Patient, pk=pk)
     client_pk = patient.client.pk
     if request.method == 'POST':
         name = patient.name
-        patient.delete()
-        messages.success(request, f'Пацієнта {name} видалено')
+        patient.archive()
+        messages.success(request, f'Пацієнта {name} архівовано')
         return redirect('clients:detail', pk=client_pk)
     return render(request, 'clients/patient_confirm_delete.html', {'patient': patient})
 

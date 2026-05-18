@@ -23,6 +23,8 @@ class Client(models.Model):
         related_name='clients',
         verbose_name='Організація',
     )
+    is_archived = models.BooleanField('Архівовано', default=False, db_index=True)
+    archived_at = models.DateTimeField('Дата архівування', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     objects = OrgManager()
@@ -31,12 +33,23 @@ class Client(models.Model):
         verbose_name = 'Клієнт'
         verbose_name_plural = 'Клієнти'
         ordering = ('last_name', 'first_name')
+        indexes = [
+            models.Index(fields=['organization', 'is_archived', 'last_name'], name='client_org_arch_lname_idx'),
+        ]
 
     def __str__(self):
         return f"{self.last_name} {self.first_name}"
 
     def full_name(self):
         return f"{self.last_name} {self.first_name}"
+
+    def archive(self):
+        from django.utils import timezone
+        self.is_archived = True
+        self.archived_at = timezone.now()
+        self.save(update_fields=['is_archived', 'archived_at'])
+        # Каскад на пацієнтів
+        self.patients.update(is_archived=True, archived_at=self.archived_at)
 
 
 class Patient(models.Model):
@@ -82,6 +95,8 @@ class Patient(models.Model):
     notes = models.TextField('Нотатки', blank=True)
     allergies = models.TextField('Алергії / хронічні', blank=True,
         help_text='Алергії на препарати, хронічні захворювання — видно на картці червоним')
+    is_archived = models.BooleanField('Архівовано', default=False, db_index=True)
+    archived_at = models.DateTimeField('Дата архівування', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     objects = RelatedOrgManager('client__organization')
@@ -90,9 +105,19 @@ class Patient(models.Model):
         verbose_name = 'Пацієнт'
         verbose_name_plural = 'Пацієнти'
         ordering = ('name',)
+        indexes = [
+            models.Index(fields=['client', 'name'], name='patient_client_name_idx'),
+            models.Index(fields=['species'], name='patient_species_idx'),
+        ]
 
     def __str__(self):
         return f"{self.name} ({self.get_species_display()}) — {self.client}"
+
+    def archive(self):
+        from django.utils import timezone
+        self.is_archived = True
+        self.archived_at = timezone.now()
+        self.save(update_fields=['is_archived', 'archived_at'])
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
@@ -157,6 +182,10 @@ class Visit(models.Model):
         verbose_name = 'Візит'
         verbose_name_plural = 'Візити'
         ordering = ('-date',)
+        indexes = [
+            models.Index(fields=['patient', '-date'], name='visit_patient_date_idx'),
+            models.Index(fields=['date'], name='visit_date_idx'),
+        ]
 
     def __str__(self):
         return f"{self.patient.name} — {self.date:%d.%m.%Y}"
@@ -318,6 +347,11 @@ class Vaccine(models.Model):
         verbose_name = 'Вакцина'
         verbose_name_plural = 'Вакцини'
         ordering = ('-date',)
+        indexes = [
+            models.Index(fields=['patient'], name='vacc_patient_idx'),
+            models.Index(fields=['next_date'], name='vacc_next_date_idx'),
+            models.Index(fields=['valid_until'], name='vacc_valid_until_idx'),
+        ]
 
     def __str__(self):
         return f"{self.name} — {self.patient.name} ({self.date:%d.%m.%Y})"
@@ -361,6 +395,9 @@ class Hospitalization(models.Model):
         verbose_name = 'Госпіталізація'
         verbose_name_plural = 'Стаціонар'
         ordering = ('-admitted_at',)
+        indexes = [
+            models.Index(fields=['organization', 'status'], name='hosp_org_status_idx'),
+        ]
 
     def __str__(self):
         return f"{self.patient.name} — {self.get_status_display()} ({self.admitted_at:%d.%m.%Y})"
