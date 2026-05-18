@@ -1,5 +1,25 @@
 /* === Mobile UX overrides for VetCRM === */
 
+/* 0. Bottom-nav висота — центральна змінна, від якої залежить padding всіх mobile-сторінок.
+   Висота nav ≈ 56px (py-2 + 20px icon + 11px label) + safe-area-inset-bottom (іфон notch). */
+:root {
+  --bottom-nav-h: calc(56px + env(safe-area-inset-bottom));
+}
+
+@media (max-width: 767px) {
+  /* main padding знизу — обходимо bottom_nav + breathing room.
+     base.html має `pb-20 md:pb-6` — це 5rem (80px) fallback, перевизначаємо. */
+  main {
+    padding-bottom: calc(var(--bottom-nav-h) + 1rem) !important;
+  }
+  /* sticky/fixed bottom-bar у формах (submit toolbars) — підіймаємо над nav */
+  .mobile-sticky-bottom,
+  [data-mobile-sticky-bottom] {
+    bottom: var(--bottom-nav-h) !important;
+  }
+}
+
+
 /* 1. Hover-only stuck-state на тачі */
 @media (hover: none) {
   .hover\:bg-gray-50:hover,
