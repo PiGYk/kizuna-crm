@@ -19,6 +19,7 @@ from django.views.decorators.http import require_POST
 from django.db import transaction
 
 from .models import TelegramChat, TelegramMessage, QuickReplyPrompt
+from .utils import is_mobile
 
 
 def _require_telegram_plan(view_fn):
@@ -1406,7 +1407,8 @@ def chat_list(request):
         last_msg_text=Subquery(last_msg.values('text')[:1]),
         last_msg_direction=Subquery(last_msg.values('direction')[:1]),
     )
-    return render(request, 'tg/chat_list.html', {'chats': chats})
+    template = 'tg/chat_list_mobile.html' if is_mobile(request) else 'tg/chat_list.html'
+    return render(request, template, {'chats': chats})
 
 
 # ── Відкрити чат ─────────────────────────────────────────────────────────────
@@ -1430,7 +1432,8 @@ def chat_detail(request, pk):
     # позначаємо прочитаними
     chat.messages.filter(direction='in', is_read=False).update(is_read=True)
 
-    return render(request, 'tg/chat_detail.html', {
+    template = 'tg/chat_detail_mobile.html' if is_mobile(request) else 'tg/chat_detail.html'
+    return render(request, template, {
         'chat': chat,
     })
 
@@ -1463,7 +1466,8 @@ def chat_messages(request, pk):
     # HTMX-poll endpoint — повертаємо лише останні 50 повідомлень (chronological).
     recent_qs = chat.messages.order_by('-created_at')[:50]
     chat_messages = list(recent_qs)[::-1]
-    return render(request, 'tg/partials/messages.html', {'chat': chat, 'messages': chat_messages})
+    template = 'tg/partials/messages_mobile.html' if is_mobile(request) else 'tg/partials/messages.html'
+    return render(request, template, {'chat': chat, 'messages': chat_messages})
 
 
 # ── HTMX: список чатів (для оновлення лічильників) ───────────────────────────
@@ -1495,7 +1499,8 @@ def chat_list_partial(request):
         last_msg_text=Subquery(last_msg.values('text')[:1]),
         last_msg_direction=Subquery(last_msg.values('direction')[:1]),
     )
-    return render(request, 'tg/partials/chat_list.html', {'chats': chats})
+    template = 'tg/partials/chat_list_mobile.html' if is_mobile(request) else 'tg/partials/chat_list.html'
+    return render(request, template, {'chats': chats})
 
 
 # ── Відправити повідомлення ───────────────────────────────────────────────────

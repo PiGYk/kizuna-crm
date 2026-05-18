@@ -1,0 +1,102 @@
+{% load tg_filters %}
+<div id="mobile-messages-list" class="flex flex-col gap-1.5 px-3 py-3">
+  {% for msg in messages %}
+  <div class="flex {% if msg.direction == 'out' %}justify-end{% else %}justify-start{% endif %}">
+
+    {% if msg.media_type == 'sticker' %}
+      {# Стікер без bubble #}
+      <div class="flex flex-col {% if msg.direction == 'out' %}items-end{% else %}items-start{% endif %}">
+        {% if msg.media_file %}
+          <img src="{{ msg.media_file.url }}" alt="sticker" class="w-24 h-24 object-contain">
+        {% endif %}
+        <span class="text-xs text-gray-400 mt-0.5 px-1">{{ msg.created_at|date:"H:i" }}</span>
+      </div>
+    {% else %}
+
+    <div class="tg-bubble {% if msg.direction == 'out' %}tg-bubble-out bg-brand-gold text-brand-dark{% else %}tg-bubble-in bg-white border border-gray-200 text-brand-dark{% endif %}">
+
+      {% if msg.media_type == 'photo' or msg.media_type == 'image' %}
+        {% if msg.media_file %}
+          <a href="{{ msg.media_file.url }}" target="_blank" rel="noopener" class="block">
+            <img src="{{ msg.media_file.url }}"
+                 loading="lazy"
+                 class="max-w-full max-h-[50vh] object-contain rounded-2xl mb-1 active:opacity-80 transition"
+                 alt="фото">
+          </a>
+        {% endif %}
+
+      {% elif msg.media_type == 'pdf' %}
+        <a href="{{ msg.media_file.url }}" target="_blank" rel="noopener"
+           class="flex items-center gap-2 py-1.5 active:opacity-80 transition">
+          <svg class="w-8 h-8 shrink-0 text-red-500" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 1.5L18.5 9H13V3.5z"/>
+          </svg>
+          <span class="text-sm truncate flex-1">{{ msg.media_filename|default:"document.pdf" }}</span>
+        </a>
+
+      {% elif msg.media_type == 'video' %}
+        {% if msg.media_file %}
+        <video controls playsinline preload="metadata"
+               class="w-full max-h-[50vh] rounded-2xl mt-1 bg-black">
+          <source src="{{ msg.media_file.url }}" type="{{ msg.media_file.name|video_mime|default:'video/mp4' }}">
+        </video>
+        {% endif %}
+        {% if msg.media_filename %}
+        <div class="text-xs opacity-60 mt-1 truncate">{{ msg.media_filename }}</div>
+        {% endif %}
+
+      {% elif msg.media_type == 'document' %}
+        <a href="{{ msg.media_file.url }}" download="{{ msg.media_filename|default:'file' }}"
+           class="flex items-center gap-2 py-1.5 active:opacity-80 transition">
+          <svg class="w-7 h-7 shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+          </svg>
+          <span class="text-sm truncate flex-1">{{ msg.media_filename|default:"файл" }}</span>
+        </a>
+
+      {% elif msg.media_type == 'location' %}
+        <a href="https://www.google.com/maps?q={{ msg.text }}" target="_blank" rel="noopener"
+           class="flex items-center gap-2 py-1.5 active:opacity-80 transition">
+          <svg class="w-6 h-6 shrink-0 text-green-500" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"/>
+          </svg>
+          <span class="text-sm">Відкрити на карті</span>
+        </a>
+
+      {% elif msg.media_type == 'voice' %}
+        <div class="flex flex-col gap-1 min-w-[200px]">
+          <div class="flex items-center gap-2 text-xs opacity-70">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+            </svg>
+            {% if msg.text %}{{ msg.text }}с{% endif %}
+          </div>
+          {% if msg.media_file %}
+            <audio controls playsinline class="w-full" style="height:36px">
+              <source src="{{ msg.media_file.url }}" type="{{ msg.media_file.name|audio_mime|default:'audio/ogg' }}">
+              <source src="{{ msg.media_file.url }}">
+            </audio>
+          {% endif %}
+        </div>
+      {% endif %}
+
+      {% if msg.text and msg.media_type != 'voice' and msg.media_type != 'location' %}
+        <div class="text-[15px] whitespace-pre-wrap">{{ msg.text }}</div>
+      {% endif %}
+
+      <div class="text-[11px] mt-1 {% if msg.direction == 'out' %}text-brand-dark/50{% else %}text-gray-400{% endif %} text-right">
+        {{ msg.created_at|date:"H:i" }}
+        {% if msg.direction == 'out' and msg.sent_by %}
+          · {{ msg.sent_by.get_full_name|default:msg.sent_by.username }}
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+  {% empty %}
+  <div class="text-center text-sm text-gray-400 py-12">
+    Повідомлень ще немає.<br>Напишіть перше — або зачекайте, поки клієнт відповість боту.
+  </div>
+  {% endfor %}
+</div>

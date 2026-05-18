@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% block title %}Чати — Kizuna CRM{% endblock %}
+
+{% block extra_head %}
+<script>
+  // Прибрати глобальні відступи main та налаштувати fullscreen list
+  document.documentElement.classList.add('has-tg-mobile-list');
+  document.addEventListener('DOMContentLoaded', function () {
+    document.body.classList.add('has-tg-mobile-list');
+  });
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="tg-mobile-shell" style="background:#fff;">
+
+  <!-- Sticky header -->
+  <div class="tg-mobile-header sticky top-0 z-20 bg-white border-b border-gray-100 flex items-center gap-2 px-4 py-3">
+    <h1 class="text-xl font-bold text-brand-dark flex-1">Чати</h1>
+    {% if user.role == 'admin' %}
+    <a href="{% url 'tg:broadcast_list' %}"
+       class="tg-mobile-tap text-brand-dark active:opacity-70"
+       aria-label="Розсилки"
+       title="Розсилки">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+      </svg>
+    </a>
+    {% endif %}
+  </div>
+
+  <!-- Search bar (sticky одразу під header) -->
+  <div class="sticky top-[57px] z-10 bg-white border-b border-gray-100 px-3 py-2">
+    <input type="search"
+           id="mobile-chat-search"
+           name="q"
+           placeholder="Пошук за клієнтом або твариною…"
+           autocomplete="off"
+           autocorrect="off"
+           autocapitalize="none"
+           spellcheck="false"
+           enterkeyhint="search"
+           hx-get="{% url 'tg:list_partial' %}?m=1"
+           hx-trigger="input changed delay:300ms"
+           hx-target="#mobile-chat-list"
+           hx-swap="innerHTML"
+           class="tg-mobile-search w-full border border-gray-200 rounded-xl px-4 py-2.5 text-base bg-gray-50">
+  </div>
+
+  <!-- Список чатів (scrollable) -->
+  <div id="mobile-chat-list"
+       class="tg-mobile-messages"
+       style="background:#fff;"
+       hx-get="{% url 'tg:list_partial' %}?m=1"
+       hx-trigger="load, every 10s [!document.hidden && !document.getElementById('mobile-chat-search').value]"
+       hx-include="#mobile-chat-search"
+       hx-swap="innerHTML">
+    <div class="p-8 text-center text-gray-400 text-sm">Завантаження…</div>
+  </div>
+
+</div>
+{% endblock %}

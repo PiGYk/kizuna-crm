@@ -1,0 +1,52 @@
+{% for chat in chats %}
+<a href="{% url 'tg:detail' chat.pk %}?m=1"
+   class="flex items-center gap-3 px-4 py-3 active:bg-gray-100 border-b border-gray-100 last:border-0"
+   style="min-height: 64px;">
+
+  {% if chat.avatar_file_id %}
+  <img src="{% url 'tg:avatar' chat.pk %}"
+       class="w-12 h-12 rounded-full object-cover shrink-0"
+       loading="lazy"
+       onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"
+       alt="">
+  {% endif %}
+  {% with letter=chat.display_name|slice:":1"|upper %}
+  <div class="w-12 h-12 rounded-full flex items-center justify-center text-white font-semibold text-base shrink-0
+    {% if letter == 'A' or letter == 'Б' or letter == 'B' or letter == 'В' or letter == 'C' or letter == 'Г' %}bg-blue-500
+    {% elif letter == 'D' or letter == 'Д' or letter == 'E' or letter == 'Е' or letter == 'Є' or letter == 'F' or letter == 'Ж' %}bg-purple-500
+    {% elif letter == 'G' or letter == 'З' or letter == 'H' or letter == 'И' or letter == 'І' or letter == 'Ї' or letter == 'I' %}bg-green-600
+    {% elif letter == 'J' or letter == 'Й' or letter == 'K' or letter == 'К' or letter == 'L' or letter == 'Л' or letter == 'M' or letter == 'М' %}bg-orange-500
+    {% elif letter == 'N' or letter == 'Н' or letter == 'O' or letter == 'О' or letter == 'П' or letter == 'P' or letter == 'Р' %}bg-pink-500
+    {% elif letter == 'Q' or letter == 'С' or letter == 'R' or letter == 'T' or letter == 'Т' or letter == 'S' or letter == 'У' %}bg-teal-500
+    {% elif letter == 'U' or letter == 'Ф' or letter == 'V' or letter == 'Х' or letter == 'W' or letter == 'Ц' or letter == 'X' or letter == 'Ч' %}bg-blue-500
+    {% elif letter == 'Y' or letter == 'Ш' or letter == 'Z' or letter == 'Щ' or letter == 'Ь' or letter == 'Ю' or letter == 'Я' %}bg-purple-500
+    {% else %}bg-teal-500{% endif %}
+    {% if chat.avatar_file_id %}hidden{% endif %}">
+    {{ letter }}
+  </div>
+  {% endwith %}
+
+  <div class="flex-1 min-w-0">
+    <div class="flex items-baseline justify-between gap-2">
+      <span class="font-semibold text-brand-dark truncate text-base">{{ chat.display_name }}</span>
+      {% if chat.last_message_at %}
+        <span class="text-xs text-gray-400 shrink-0">{{ chat.last_message_at|date:"H:i" }}</span>
+      {% endif %}
+    </div>
+    <div class="flex items-center gap-2 mt-0.5">
+      <span class="text-sm text-gray-500 truncate flex-1">
+        {% if chat.last_msg_direction == 'out' %}<span class="text-brand-gold">Ви: </span>{% endif %}{{ chat.last_msg_text|default:"Немає повідомлень" }}
+      </span>
+      {% if chat.unread_count_ann %}
+      <span class="w-6 h-6 rounded-full bg-brand-gold text-brand-dark text-xs font-bold flex items-center justify-center shrink-0">
+        {{ chat.unread_count_ann }}
+      </span>
+      {% endif %}
+    </div>
+  </div>
+</a>
+{% empty %}
+<div class="px-6 py-16 text-center text-sm text-gray-400">
+  Чатів ще немає.<br>Клієнт має написати боту першим.
+</div>
+{% endfor %}

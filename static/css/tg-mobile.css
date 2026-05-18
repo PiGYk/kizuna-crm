@@ -1,0 +1,137 @@
+/*
+ * Mobile-only стилі для Telegram-чату VetCRM.
+ * Підключається у base.html ПІСЛЯ mobile-overrides.css.
+ * Усе перевизначення обмежується body.has-tg-mobile-chat або body.has-tg-mobile-list,
+ * щоб не зачіпати решту інтерфейсу.
+ */
+
+/* ── Загальна "оболонка" повноекранного чату/списку ─────────────────────── */
+.tg-mobile-shell {
+  /* 100svh / 100dvh потрібні бо 100vh на iOS Safari "стрибає" з адресним рядком */
+  height: 100svh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+}
+
+/* ── Прокручуваний контейнер повідомлень ────────────────────────────────── */
+.tg-mobile-messages {
+  flex: 1 1 auto;
+  min-height: 0; /* фікс для flex children, інакше overflow ламається */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  background: #f7f7f8;
+}
+
+/* ── Поле вводу: safe-area-inset знизу (iPhone notch / home indicator) ──── */
+.tg-mobile-input {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  background: #fff;
+}
+
+/* ── Header chat detail ──────────────────────────────────────────────────── */
+.tg-mobile-header {
+  padding-top: max(0px, env(safe-area-inset-top));
+}
+
+/* ── Touch targets (Apple HIG: мінімум 44×44) ───────────────────────────── */
+.tg-mobile-tap {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Bubble стилі (override Tailwind для точного контролю border-radius) ─ */
+.tg-bubble {
+  max-width: 85%;
+  padding: 8px 12px;
+  border-radius: 18px;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+.tg-bubble-out { border-bottom-right-radius: 6px; }
+.tg-bubble-in  { border-bottom-left-radius: 6px; }
+
+/* ── Bottom-sheet (slide-up меню для quick-send / admin-actions / link) ── */
+.tg-mobile-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease-out;
+  z-index: 60;
+}
+.tg-mobile-sheet-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+.tg-mobile-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #fff;
+  border-top-left-radius: 18px;
+  border-top-right-radius: 18px;
+  transform: translateY(100%);
+  transition: transform 0.25s ease-out;
+  z-index: 61;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+.tg-mobile-sheet.open { transform: translateY(0); }
+.tg-mobile-sheet-handle {
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: #d4d4d8;
+  margin: 8px auto 4px;
+  flex-shrink: 0;
+}
+.tg-mobile-sheet-body {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── На сторінці mobile-chat — приховуємо глобальний bottom_nav ────────── */
+.has-tg-mobile-chat .bottom-nav,
+.has-tg-mobile-chat #bottom-nav,
+.has-tg-mobile-chat [data-bottom-nav] {
+  display: none !important;
+}
+.has-tg-mobile-chat main,
+.has-tg-mobile-chat .main-content {
+  padding-bottom: 0 !important;
+  margin-bottom: 0 !important;
+}
+.has-tg-mobile-chat body,
+body.has-tg-mobile-chat {
+  overflow: hidden;
+}
+
+/* На списку чатів bottom_nav лишаємо, але прибираємо main padding,
+   бо у нас власна структура */
+.has-tg-mobile-list main,
+.has-tg-mobile-list .main-content {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  padding-top: 0 !important;
+}
+
+/* ── Скриваємо native scrollbar на messages (естетика, як у Telegram) ─── */
+.tg-mobile-messages::-webkit-scrollbar { width: 0; background: transparent; }
+
+/* ── Search bar focus state ──────────────────────────────────────────────── */
+.tg-mobile-search:focus {
+  outline: none;
+  border-color: #C9A961;
+  box-shadow: 0 0 0 2px rgba(201, 169, 97, 0.2);
+}
