@@ -3,6 +3,8 @@ import time
 import logging
 from celery import shared_task
 
+from apps.clinic.tenant import org_context
+
 logger = logging.getLogger(__name__)
 
 
@@ -15,43 +17,45 @@ def notify_staff_new_message_task(self, chat_id, preview_text):
     from .views import _send_tg
 
     try:
-        chat = TelegramChat.objects.select_related('client', 'organization').get(pk=chat_id)
+        # _base_manager — обхід OrgManager fail-closed (немає org context у Celery).
+        chat = TelegramChat._base_manager.select_related('client', 'organization').get(pk=chat_id)
     except TelegramChat.DoesNotExist:
         logger.warning('notify_staff_new_message_task: chat %s not found', chat_id)
         return
 
-    try:
-        staff_chats = TelegramChat.objects.filter(
-            organization=chat.organization,
-            is_staff=True,
-            receive_messages=True,
-        ).exclude(tg_user_id=chat.tg_user_id)
+    with org_context(chat.organization):
+        try:
+            staff_chats = TelegramChat.objects.filter(
+                organization=chat.organization,
+                is_staff=True,
+                receive_messages=True,
+            ).exclude(tg_user_id=chat.tg_user_id)
 
-        if not staff_chats.exists():
-            return
+            if not staff_chats.exists():
+                return
 
-        if chat.client:
-            client_name = str(chat.client)
-        else:
-            client_name = f'{chat.display_name} (неверифікований)'
-        preview = (preview_text or '')[:150]
-        text = (
-            f'💬 <b>Нове повідомлення</b>\n\n'
-            f'Від: <b>{client_name}</b>\n'
-            f'{preview}'
-        )
-        reply_markup = {
-            'inline_keyboard': [[
-                {'text': '✍️ Швидка відповідь', 'callback_data': f'quickreply:{chat.pk}'}
-            ]]
-        }
-        for sc in staff_chats:
-            try:
-                _send_tg(sc.tg_user_id, text, reply_markup=reply_markup, org=chat.organization)
-            except Exception as exc:
-                logger.warning('notify staff %s failed: %s', sc.tg_user_id, exc)
-    except Exception as exc:
-        logger.exception('notify_staff_new_message_task crashed: %s', exc)
+            if chat.client:
+                client_name = str(chat.client)
+            else:
+                client_name = f'{chat.display_name} (неверифікований)'
+            preview = (preview_text or '')[:150]
+            text = (
+                f'💬 <b>Нове повідомлення</b>\n\n'
+                f'Від: <b>{client_name}</b>\n'
+                f'{preview}'
+            )
+            reply_markup = {
+                'inline_keyboard': [[
+                    {'text': '✍️ Швидка відповідь', 'callback_data': f'quickreply:{chat.pk}'}
+                ]]
+            }
+            for sc in staff_chats:
+                try:
+                    _send_tg(sc.tg_user_id, text, reply_markup=reply_markup, org=chat.organization)
+                except Exception as exc:
+                    logger.warning('notify staff %s failed: %s', sc.tg_user_id, exc)
+        except Exception as exc:
+            logger.exception('notify_staff_new_message_task crashed: %s', exc)
 
 
 @shared_task(bind=True, max_retries=0)
@@ -62,12 +66,23 @@ def send_broadcast(self, broadcast_id):
     from .views import _send_tg
 
     try:
-        broadcast = Broadcast.objects.select_related('organization').get(pk=broadcast_id)
+        # _base_manager — обхід OrgManager fail-closed у Celery.
+        broadcast = Broadcast._base_manager.select_related('organization').get(pk=broadcast_id)
     except Broadcast.DoesNotExist:
         logger.error('Broadcast %s not found', broadcast_id)
         return
 
     org = broadcast.organization
+
+    with org_context(org):
+        _send_broadcast_inner(broadcast, org)
+
+
+def _send_broadcast_inner(broadcast, org):
+    from django.utils import timezone
+    from datetime import timedelta
+    from .models import Broadcast, BroadcastRecipient, TelegramChat, TelegramMessage
+    from .views import _send_tg
 
     # Всі чати організації
     chats = list(TelegramChat.objects.filter(organization=org))

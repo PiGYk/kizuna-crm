@@ -4,6 +4,8 @@ from django.conf import settings
 from django.utils import timezone
 from django.core.mail import send_mail
 
+from apps.clinic.tenant import org_context
+
 logger = logging.getLogger(__name__)
 
 REMIND_DAYS_BEFORE = 10
@@ -20,8 +22,9 @@ def send_vaccine_reminders():
 
     target_date = date.today() + timedelta(days=REMIND_DAYS_BEFORE)
 
+    # _base_manager — обійти fail-closed RelatedOrgManager для початкового вибору.
     vaccines = (
-        Vaccine.objects
+        Vaccine._base_manager
         .filter(valid_until=target_date, reminder_sent=False)
         .select_related('patient__client', 'patient__client__organization')
     )
@@ -31,9 +34,12 @@ def send_vaccine_reminders():
         client = vaccine.patient.client
         patient = vaccine.patient
         org = client.organization
+        if org is None:
+            continue
 
-        ok_tg = _remind_telegram(vaccine, patient, client, org)
-        ok_email = _remind_email(vaccine, patient, client, org)
+        with org_context(org):
+            ok_tg = _remind_telegram(vaccine, patient, client, org)
+            ok_email = _remind_email(vaccine, patient, client, org)
 
         if ok_tg or ok_email:
             vaccine.reminder_sent = True
@@ -127,46 +133,47 @@ def send_appointment_reminders():
 
     now = tz.now()
 
-    for org in Organization.objects.filter(is_active=True):
+    for org in Organization._base_manager.filter(is_active=True):
         notify_24h = getattr(org, 'notify_appointment_24h', True)
         notify_2h = getattr(org, 'notify_appointment_2h', True)
 
         if not notify_24h and not notify_2h:
             continue
 
-        try:
-            from apps.tg.views import _get_token
-            token = _get_token(org)
-            if not token:
+        with org_context(org):
+            try:
+                from apps.tg.views import _get_token
+                token = _get_token(org)
+                if not token:
+                    continue
+            except Exception:
                 continue
-        except Exception:
-            continue
 
-        appointments = Appointment.objects.filter(
-            organization=org,
-            status__in=['scheduled', 'confirmed'],
-            starts_at__gt=now,
-        ).select_related('client', 'patient')
+            appointments = Appointment.objects.filter(
+                organization=org,
+                status__in=['scheduled', 'confirmed'],
+                starts_at__gt=now,
+            ).select_related('client', 'patient')
 
-        for appt in appointments:
-            delta = appt.starts_at - now
-            hours = delta.total_seconds() / 3600
+            for appt in appointments:
+                delta = appt.starts_at - now
+                hours = delta.total_seconds() / 3600
 
-            # 24 години (вікно 23-25 год) — тільки якщо ще не відправлено
-            if notify_24h and 23 <= hours <= 25 and not appt.reminder_24h_sent:
-                _send_appointment_reminder(appt, org, '24 години')
-                appt.reminder_24h_sent = True
-                appt.save(update_fields=['reminder_24h_sent'])
+                # 24 години (вікно 23-25 год) — тільки якщо ще не відправлено
+                if notify_24h and 23 <= hours <= 25 and not appt.reminder_24h_sent:
+                    _send_appointment_reminder(appt, org, '24 години')
+                    appt.reminder_24h_sent = True
+                    appt.save(update_fields=['reminder_24h_sent'])
 
-            # 2 години (вікно 1.5-2.5 год) — тільки якщо ще не відправлено
-            if notify_2h and 1.5 <= hours <= 2.5 and not appt.reminder_2h_sent:
-                _send_appointment_reminder(appt, org, '2 години')
-                appt.reminder_2h_sent = True
-                appt.save(update_fields=['reminder_2h_sent'])
+                # 2 години (вікно 1.5-2.5 год) — тільки якщо ще не відправлено
+                if notify_2h and 1.5 <= hours <= 2.5 and not appt.reminder_2h_sent:
+                    _send_appointment_reminder(appt, org, '2 години')
+                    appt.reminder_2h_sent = True
+                    appt.save(update_fields=['reminder_2h_sent'])
 
 
 def _send_appointment_reminder(appt, org, time_label):
-    """Відправляє нагадування клієнту про запис."""
+    """Відправляє нагадування клієнту про запис. Caller має виставити org_context."""
     from apps.tg.models import TelegramChat
     from apps.tg.views import _send_tg
 
@@ -205,7 +212,6 @@ def send_followup_reminders():
     Нагадування про контрольний візит (follow_up_date на Visit).
     Відправляє за 1 день до дати.
     """
-    from apps.clinic.models import Organization
     from apps.tg.models import TelegramChat
     from apps.tg.views import _send_tg, _get_token
     from django.utils import timezone as tz
@@ -217,35 +223,38 @@ def send_followup_reminders():
     if not hasattr(Visit, 'follow_up_date'):
         return
 
-    visits = Visit.objects.filter(
+    visits = Visit._base_manager.filter(
         follow_up_date=tomorrow,
         patient__client__organization__is_active=True,
     ).select_related('patient', 'patient__client', 'patient__client__organization')
 
     for visit in visits:
-        try:
-            org = visit.patient.client.organization
-            token = _get_token(org)
-            if not token:
-                continue
+        org = visit.patient.client.organization
+        if org is None:
+            continue
+        with org_context(org):
+            try:
+                token = _get_token(org)
+                if not token:
+                    continue
 
-            tg_chat = TelegramChat.objects.filter(
-                client=visit.patient.client, organization=org
-            ).first()
-            if not tg_chat:
-                continue
+                tg_chat = TelegramChat.objects.filter(
+                    client=visit.patient.client, organization=org
+                ).first()
+                if not tg_chat:
+                    continue
 
-            phone = getattr(org, 'phone', '') or ''
-            phone_line = f'\n\nЗапишіться: {phone}' if phone else ''
-            text = (
-                f'\U0001f514 <b>Нагадування</b>\n\n'
-                f'Завтра контрольний візит для <b>{visit.patient.name}</b>.\n'
-                f'Лікар призначив повторний огляд {visit.follow_up_date.strftime("%d.%m.%Y")}.'
-                f'{phone_line}'
-            )
-            _send_tg(tg_chat.tg_user_id, text, org=org)
-        except Exception:
-            logger.exception('Follow-up reminder failed for visit=%s', visit.pk)
+                phone = getattr(org, 'phone', '') or ''
+                phone_line = f'\n\nЗапишіться: {phone}' if phone else ''
+                text = (
+                    f'\U0001f514 <b>Нагадування</b>\n\n'
+                    f'Завтра контрольний візит для <b>{visit.patient.name}</b>.\n'
+                    f'Лікар призначив повторний огляд {visit.follow_up_date.strftime("%d.%m.%Y")}.'
+                    f'{phone_line}'
+                )
+                _send_tg(tg_chat.tg_user_id, text, org=org)
+            except Exception:
+                logger.exception('Follow-up reminder failed for visit=%s', visit.pk)
 
 
 @shared_task
@@ -265,103 +274,52 @@ def send_health_checks():
 
     today = date.today()
 
-    for org in Organization.objects.filter(is_active=True):
-        token = None
-        try:
-            token = _get_token(org)
-        except Exception:
-            pass
-        if not token:
-            continue
-
-        # -- Post-visit (3 дні після візиту з лікуванням) --
-        target_date = today - timedelta(days=3)
-        visits = Visit.objects.filter(
-            patient__client__organization=org,
-            date__date=target_date,
-        ).exclude(treatment='').select_related('patient', 'patient__client')
-
-        for visit in visits:
-            # Не дублювати
-            if HealthCheck.objects.filter(patient=visit.patient, visit=visit).exists():
+    for org in Organization._base_manager.filter(is_active=True):
+        with org_context(org):
+            token = None
+            try:
+                token = _get_token(org)
+            except Exception:
+                pass
+            if not token:
                 continue
 
-            chat = TelegramChat.objects.filter(
-                client=visit.patient.client, organization=org
-            ).first()
-            if not chat:
-                continue
+            # -- Post-visit (3 дні після візиту з лікуванням) --
+            target_date = today - timedelta(days=3)
+            visits = Visit.objects.filter(
+                patient__client__organization=org,
+                date__date=target_date,
+            ).exclude(treatment='').select_related('patient', 'patient__client')
 
-            question = (
-                f'Як почувається <b>{visit.patient.name}</b> після візиту?\n\n'
-                f'Оберіть відповідь:'
-            )
-
-            hc = HealthCheck.objects.create(
-                patient=visit.patient,
-                organization=org,
-                trigger=HealthCheck.Trigger.POST_VISIT,
-                question=question,
-                visit=visit,
-            )
-
-            # Inline keyboard
-            keyboard = {
-                'inline_keyboard': [[
-                    {'text': '\u2705 Все добре', 'callback_data': f'hc_ok_{hc.pk}'},
-                    {'text': '\u2753 Є питання', 'callback_data': f'hc_concern_{hc.pk}'},
-                ]]
-            }
-
-            import requests
-            requests.post(
-                f'https://api.telegram.org/bot{token}/sendMessage',
-                json={
-                    'chat_id': chat.tg_user_id,
-                    'text': f'\U0001fa7a <b>Як справи?</b>\n\n{question}',
-                    'parse_mode': 'HTML',
-                    'reply_markup': keyboard,
-                },
-                timeout=10,
-            )
-
-        # -- Weekly для тварин з алергіями/хронічними --
-        if today.weekday() == 0:  # Понеділок
-            patients_with_allergies = Patient.objects.filter(
-                client__organization=org,
-            ).exclude(allergies='').select_related('client')
-
-            for patient in patients_with_allergies:
-                # Не частіше ніж раз на тиждень
-                last = HealthCheck.objects.filter(
-                    patient=patient, trigger='weekly',
-                    sent_at__date__gte=today - timedelta(days=6),
-                ).exists()
-                if last:
+            for visit in visits:
+                # Не дублювати
+                if HealthCheck.objects.filter(patient=visit.patient, visit=visit).exists():
                     continue
 
                 chat = TelegramChat.objects.filter(
-                    client=patient.client, organization=org
+                    client=visit.patient.client, organization=org
                 ).first()
                 if not chat:
                     continue
 
                 question = (
-                    f'Як почувається <b>{patient.name}</b> цього тижня?\n'
-                    f'<i>(хронічне: {patient.allergies[:100]})</i>'
+                    f'Як почувається <b>{visit.patient.name}</b> після візиту?\n\n'
+                    f'Оберіть відповідь:'
                 )
 
                 hc = HealthCheck.objects.create(
-                    patient=patient,
+                    patient=visit.patient,
                     organization=org,
-                    trigger=HealthCheck.Trigger.WEEKLY,
+                    trigger=HealthCheck.Trigger.POST_VISIT,
                     question=question,
+                    visit=visit,
                 )
 
+                # Inline keyboard
                 keyboard = {
                     'inline_keyboard': [[
-                        {'text': '\u2705 Все добре', 'callback_data': f'hc_ok_{hc.pk}'},
-                        {'text': '\u2753 Є питання', 'callback_data': f'hc_concern_{hc.pk}'},
+                        {'text': '✅ Все добре', 'callback_data': f'hc_ok_{hc.pk}'},
+                        {'text': '❓ Є питання', 'callback_data': f'hc_concern_{hc.pk}'},
                     ]]
                 }
 
@@ -370,11 +328,63 @@ def send_health_checks():
                     f'https://api.telegram.org/bot{token}/sendMessage',
                     json={
                         'chat_id': chat.tg_user_id,
-                        'text': f'\U0001fa7a <b>Щотижневе опитування</b>\n\n{question}',
+                        'text': f'\U0001fa7a <b>Як справи?</b>\n\n{question}',
                         'parse_mode': 'HTML',
                         'reply_markup': keyboard,
                     },
                     timeout=10,
                 )
+
+            # -- Weekly для тварин з алергіями/хронічними --
+            if today.weekday() == 0:  # Понеділок
+                patients_with_allergies = Patient.objects.filter(
+                    client__organization=org,
+                ).exclude(allergies='').select_related('client')
+
+                for patient in patients_with_allergies:
+                    # Не частіше ніж раз на тиждень
+                    last = HealthCheck.objects.filter(
+                        patient=patient, trigger='weekly',
+                        sent_at__date__gte=today - timedelta(days=6),
+                    ).exists()
+                    if last:
+                        continue
+
+                    chat = TelegramChat.objects.filter(
+                        client=patient.client, organization=org
+                    ).first()
+                    if not chat:
+                        continue
+
+                    question = (
+                        f'Як почувається <b>{patient.name}</b> цього тижня?\n'
+                        f'<i>(хронічне: {patient.allergies[:100]})</i>'
+                    )
+
+                    hc = HealthCheck.objects.create(
+                        patient=patient,
+                        organization=org,
+                        trigger=HealthCheck.Trigger.WEEKLY,
+                        question=question,
+                    )
+
+                    keyboard = {
+                        'inline_keyboard': [[
+                            {'text': '✅ Все добре', 'callback_data': f'hc_ok_{hc.pk}'},
+                            {'text': '❓ Є питання', 'callback_data': f'hc_concern_{hc.pk}'},
+                        ]]
+                    }
+
+                    import requests
+                    requests.post(
+                        f'https://api.telegram.org/bot{token}/sendMessage',
+                        json={
+                            'chat_id': chat.tg_user_id,
+                            'text': f'\U0001fa7a <b>Щотижневе опитування</b>\n\n{question}',
+                            'parse_mode': 'HTML',
+                            'reply_markup': keyboard,
+                        },
+                        timeout=10,
+                    )
 
     logger.info('send_health_checks completed')
