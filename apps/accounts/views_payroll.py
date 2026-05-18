@@ -8,6 +8,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from .mixins import admin_required
+
 
 @login_required
 def shift_list(request):
@@ -99,7 +101,7 @@ def shift_toggle(request):
     return redirect(request.META.get('HTTP_REFERER', 'accounts:shifts'))
 
 
-@login_required
+@admin_required
 def payroll_list(request):
     """Список розрахунків зарплат."""
     from .models_payroll import PayrollPeriod
@@ -119,7 +121,7 @@ def payroll_list(request):
     })
 
 
-@login_required
+@admin_required
 def payroll_calculate(request):
     """Створити розрахунок зарплати за період."""
     from .models import User
@@ -195,7 +197,7 @@ def payroll_calculate(request):
     })
 
 
-@login_required
+@admin_required
 def payroll_detail(request, pk):
     """Деталі розрахунку зарплати."""
     from .models_payroll import PayrollPeriod, Shift
@@ -212,7 +214,7 @@ def payroll_detail(request, pk):
     })
 
 
-@login_required
+@admin_required
 @require_POST
 def payroll_approve(request, pk):
     """Затвердити розрахунок."""
@@ -227,7 +229,7 @@ def payroll_approve(request, pk):
     return redirect('accounts:payroll_detail', pk=pk)
 
 
-@login_required
+@admin_required
 @require_POST
 def payroll_pay(request, pk):
     """Позначити як виплачено + створити Expense."""
@@ -266,7 +268,7 @@ def payroll_pay(request, pk):
     return redirect('accounts:payroll_detail', pk=pk)
 
 
-@login_required
+@admin_required
 @require_POST
 def payroll_recalculate(request, pk):
     """Перерахувати зарплату."""
@@ -280,7 +282,7 @@ def payroll_recalculate(request, pk):
     return redirect('accounts:payroll_detail', pk=pk)
 
 
-@login_required
+@admin_required
 @require_POST
 def payroll_delete(request, pk):
     """Видалити розрахунок (тільки чернетки)."""

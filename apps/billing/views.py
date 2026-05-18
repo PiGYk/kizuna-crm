@@ -534,6 +534,7 @@ def send_payment_link_tg(request, pk):
 
 @login_required
 @require_POST
+@transaction.atomic
 def fiscalize_invoice(request, pk):
     org = request.organization
     if org and not request.user.is_superuser and not org.can_use_checkbox:
@@ -550,14 +551,27 @@ def fiscalize_invoice(request, pk):
         svc.authenticate()
 
         if payment_type == 'cash':
-            # Готівка: фіскалізуємо одразу (чек без QR)
+            # Готівка: фіскалізуємо одразу + закриваємо рахунок (списуємо склад).
             svc.ensure_shift_open()
             receipt = svc.create_cash_receipt(invoice)
             invoice.fiscal_receipt_id = receipt.get('id', '')
             invoice.fiscal_status = Invoice.FiscalStatus.SENT
             invoice.payment_method = Invoice.PaymentMethod.CASH
-            invoice.save(update_fields=['fiscal_receipt_id', 'fiscal_status', 'payment_method'])
-            messages.success(request, 'Готівковий чек відправлено в Checkbox.')
+
+            try:
+                _writeoff_stock(invoice, request.user)
+            except InsufficientStockError as exc:
+                transaction.set_rollback(True)
+                messages.error(
+                    request,
+                    'Чек пробитий, але не вистачає на складі: ' + '; '.join(exc.items)
+                    + '. Поповніть склад і спробуйте знову.'
+                )
+                return redirect('billing:edit', pk=pk)
+
+            invoice.status = Invoice.Status.PAID
+            invoice.save(update_fields=['fiscal_receipt_id', 'fiscal_status', 'payment_method', 'status'])
+            messages.success(request, 'Готівковий чек пробито, рахунок закрито.')
 
         else:
             # Картка: створюємо invoice → QR отримує суму → очікуємо оплату
@@ -589,6 +603,7 @@ def fiscalize_invoice(request, pk):
 
 @login_required
 @require_POST
+@transaction.atomic
 def confirm_checkbox_payment(request, pk):
     """
     Перевіряє статус Checkbox invoice.
@@ -684,8 +699,12 @@ def cancel_fiscal(request, pk):
 
     try:
         svc.authenticate()
-        if invoice.fiscal_status == Invoice.FiscalStatus.PENDING:
-            svc.cancel_invoice(invoice.fiscal_receipt_id)
+        if invoice.fiscal_status in (Invoice.FiscalStatus.PENDING, Invoice.FiscalStatus.ERROR):
+            try:
+                svc.cancel_invoice(invoice.fiscal_receipt_id)
+            except Exception as cancel_exc:
+                # Якщо Checkbox каже invoice не існує/вже завершено — все одно скидаємо state.
+                logger.warning('Checkbox cancel returned error (continuing): %s', cancel_exc)
         invoice.fiscal_receipt_id = ''
         invoice.fiscal_status = Invoice.FiscalStatus.NONE
         invoice.payment_method = None

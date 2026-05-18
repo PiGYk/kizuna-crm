@@ -11,6 +11,7 @@ from apps.billing.models import Invoice, InvoiceLine
 from apps.clients.models import Client
 from apps.inventory.models import StockMovement
 from apps.finance.models import Expense, ExpenseCategory
+from apps.accounts.mixins import admin_required
 
 CONSUMABLES_RATE = Decimal('0.05')  # 5% від COGS — шприци/рукавички/пелюшки
 
@@ -263,9 +264,10 @@ def services_view(request):
     })
 
 
-@login_required
+@admin_required
 def payroll_view(request):
     from apps.accounts.models import User
+    from apps.accounts.models_payroll import Shift
     start, end, preset = _parse_range(request)
     doctor_id = request.GET.get('doctor') or None
 
@@ -289,6 +291,19 @@ def payroll_view(request):
     )
     stats_by_doc = {s['doctor_id']: s for s in doctor_stats_qs}
 
+    # Shift aggregate для per_shift/hourly типів.
+    shift_stats_qs = (
+        Shift.objects
+        .filter(
+            organization=request.organization,
+            date__gte=start,
+            date__lte=end,
+        )
+        .values('user_id')
+        .annotate(shift_count=Count('id'), hours_total=Sum('hours'))
+    )
+    shifts_by_doc = {s['user_id']: s for s in shift_stats_qs}
+
     results = []
     for doctor in doctors:
         if doctor_id and str(doctor.pk) != str(doctor_id):
@@ -297,14 +312,22 @@ def payroll_view(request):
         s = stats_by_doc.get(doctor.pk, {'revenue': 0, 'inv_count': 0})
         revenue = s['revenue'] or 0
         count = s['inv_count'] or 0
+        sh = shifts_by_doc.get(doctor.pk, {'shift_count': 0, 'hours_total': 0})
+        shift_count = sh['shift_count'] or 0
+        hours_total = float(sh['hours_total'] or 0)
 
         salary = 0
-        if doctor.salary_type == 'fixed':
+        st = doctor.salary_type
+        if st == 'fixed':
             salary = float(doctor.salary_fixed)
-        elif doctor.salary_type == 'percent':
+        elif st == 'percent':
             salary = float(revenue) * float(doctor.salary_percent) / 100
-        elif doctor.salary_type == 'mixed':
+        elif st in ('mixed', 'fixed_percent'):
             salary = float(doctor.salary_fixed) + float(revenue) * float(doctor.salary_percent) / 100
+        elif st == 'per_shift':
+            salary = shift_count * float(doctor.salary_per_shift)
+        elif st == 'hourly':
+            salary = hours_total * float(doctor.salary_hourly)
 
         results.append({
             'doctor': doctor,

@@ -5,6 +5,7 @@ from decimal import Decimal
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db import transaction
 from django.db.models import Q, Sum, ExpressionWrapper, DecimalField, F, OuterRef, Subquery
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -289,6 +290,7 @@ def import_upload(request):
 
 
 @login_required
+@transaction.atomic
 def import_execute(request):
     """Крок 2: виконання імпорту з маппінгом від юзера."""
     if request.method != 'POST':
@@ -835,6 +837,7 @@ def export_inventory(request):
 
 
 @login_required
+@transaction.atomic
 def batch_intake(request):
     """Масовий прихід товарів за накладною."""
     org = request.organization
@@ -970,6 +973,7 @@ def movements_list(request):
 
 
 @login_required
+@transaction.atomic
 def stocktake(request):
     """Інвентаризація — звірка залишків."""
     org = request.organization
