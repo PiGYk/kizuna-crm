@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'apps.analytics',
     'apps.finance',
     'apps.dashboard_builder',
+    'apps.carddav',
 ]
 
 MIDDLEWARE = [
@@ -66,8 +67,10 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 # django-axes: brute-force protection на login
-AXES_FAILURE_LIMIT = 5
-AXES_COOLOFF_TIME = 1  # годин
+# 2026-07-16: підняли ліміт і скоротили блокування (юзер держветклініки Ірпінь
+# отримав too-many-attempts після кількох невдалих паролів на новому акаунті).
+AXES_FAILURE_LIMIT = 10
+AXES_COOLOFF_TIME = 0.33  # годин (~20 хв)
 AXES_LOCKOUT_PARAMETERS = ['ip_address', 'username']
 AXES_RESET_ON_SUCCESS = True
 AXES_ENABLE_ADMIN = False  # не показуємо у Django admin
