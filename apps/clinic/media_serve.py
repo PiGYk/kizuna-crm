@@ -1,6 +1,7 @@
 """Protected media serving via nginx X-Accel-Redirect."""
 import logging
 import os
+from urllib.parse import quote
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
@@ -44,7 +45,10 @@ def serve_media(request, path):
             raise Http404
 
     response = HttpResponse(status=200)
-    response['X-Accel-Redirect'] = f'/x-media/{safe_path}'
+    # quote(): percent-encode шлях (кирилиця/не-ASCII) — інакше Django загортає
+    # заголовок X-Accel-Redirect у RFC2047 (=?utf-8?b?...?=), а nginx це не
+    # розкодовує і віддає 404, хоча файл фізично існує.
+    response['X-Accel-Redirect'] = f'/x-media/{quote(safe_path)}'
     # Видаляємо CT — порожній рядок змушує nginx відправляти text/html для mp4.
     # Без хедера nginx сам визначить Content-Type через mime.types.
     del response['Content-Type']

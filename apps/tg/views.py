@@ -1857,23 +1857,43 @@ def send_analysis_photo(request, analysis_pk):
     if analysis.notes:
         caption += f'\n📝 {analysis.notes}'
 
+    filename = analysis.image.name.split('/')[-1]
+    ext = filename.lower().rsplit('.', 1)[-1] if '.' in filename else ''
+    is_video = ext in ('mp4', 'mov', 'avi', 'mkv', 'webm', '3gp', 'm4v')
+
+    if not analysis.is_image:
+        # Файл/документ/відео — читаємо байти один раз наперед, sendPhoto їх не приймає.
+        with analysis.image.open('rb') as f:
+            file_bytes = f.read()
+
     sent = 0
     for tg_chat in tg_chats:
-        result = _send_tg_photo(tg_chat.tg_user_id, photo_path, caption, org=tg_chat.organization)
+        if analysis.is_image:
+            result = _send_tg_photo(tg_chat.tg_user_id, photo_path, caption, org=tg_chat.organization)
+            media_type = 'photo'
+        elif is_video:
+            result = _send_tg_video_upload(tg_chat.tg_user_id, file_bytes, filename, caption=caption, org=tg_chat.organization)
+            media_type = 'video'
+        else:
+            result = _send_tg_document_upload(tg_chat.tg_user_id, file_bytes, filename, caption=caption, org=tg_chat.organization)
+            media_type = 'document'
+
         if result.get('ok'):
             msg = TelegramMessage(
                 chat=tg_chat,
                 direction=TelegramMessage.Direction.OUT,
                 text=caption,
-                media_type='photo',
+                media_type=media_type,
                 tg_message_id=result.get('result', {}).get('message_id'),
                 sent_by=request.user,
                 is_read=True,
             )
-            with analysis.image.open('rb') as f:
-                file_bytes = f.read()
-            filename = analysis.image.name.split('/')[-1]
-            msg.media_file.save(filename, ContentFile(file_bytes), save=False)
+            if analysis.is_image:
+                with analysis.image.open('rb') as f:
+                    saved_bytes = f.read()
+            else:
+                saved_bytes = file_bytes
+            msg.media_file.save(filename, ContentFile(saved_bytes), save=False)
             msg.save()
             tg_chat.last_message_at = timezone.now()
             tg_chat.save(update_fields=['last_message_at'])
