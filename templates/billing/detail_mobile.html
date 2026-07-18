@@ -1,0 +1,225 @@
+{% extends 'base.html' %}
+{% block title %}Чек #{{ invoice.pk }} — Kizuna CRM{% endblock %}
+
+{% block extra_head %}
+<script>
+  document.documentElement.classList.add('has-mobile-fullscreen');
+  document.addEventListener('DOMContentLoaded', function () {
+    document.body.classList.add('has-mobile-fullscreen');
+  });
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+{% endblock %}
+
+{% block fab_url %}{% endblock %}
+
+{% block content %}
+<div class="tg-mobile-shell">
+
+  <header class="tg-mobile-header shrink-0 bg-white border-b border-gray-100 flex items-center gap-2 px-2"
+          style="min-height: 56px;">
+    <a href="{% url 'billing:list' %}"
+       class="tg-mobile-tap text-brand-dark active:opacity-70" aria-label="Назад">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+      </svg>
+    </a>
+    <h1 class="flex-1 font-semibold text-brand-dark text-base truncate">Чек #{{ invoice.pk }}</h1>
+    <span class="text-xs px-2 py-0.5 rounded-full font-medium
+      {% if invoice.status == 'paid' %}bg-green-100 text-green-700
+      {% elif invoice.status == 'draft' %}bg-yellow-100 text-yellow-700
+      {% else %}bg-gray-100 text-gray-500{% endif %}">
+      {% if invoice.status == 'paid' %}Оплачено{% elif invoice.status == 'draft' %}Чернетка{% else %}Скасовано{% endif %}
+    </span>
+  </header>
+
+  <div class="flex-1 overflow-y-auto pb-32" style="-webkit-overflow-scrolling: touch; background: #f7f7f8;">
+
+    <!-- Meta section -->
+    <div class="px-3 pt-3">
+      <div class="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
+        <a href="{% url 'clients:detail' invoice.client.pk %}" class="flex items-center gap-3 px-4 py-3 active:bg-gray-50">
+          <span class="text-lg shrink-0">👤</span>
+          <div class="flex-1 min-w-0">
+            <div class="text-[11px] text-gray-400 uppercase">Клієнт</div>
+            <div class="text-sm font-medium text-brand-dark truncate">{{ invoice.client }}</div>
+          </div>
+          <svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+        </a>
+        {% if invoice.patient %}
+        <a href="{% url 'clients:patient_detail' invoice.patient.pk %}" class="flex items-center gap-3 px-4 py-3 active:bg-gray-50">
+          <span class="text-lg shrink-0">🐾</span>
+          <div class="flex-1 min-w-0">
+            <div class="text-[11px] text-gray-400 uppercase">Пацієнт</div>
+            <div class="text-sm font-medium text-brand-dark truncate">{{ invoice.patient.name }}</div>
+          </div>
+          <svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+        </a>
+        {% endif %}
+        <div class="flex items-center gap-3 px-4 py-3">
+          <span class="text-lg shrink-0">📅</span>
+          <div class="flex-1 min-w-0">
+            <div class="text-[11px] text-gray-400 uppercase">Дата</div>
+            <div class="text-sm font-medium text-brand-dark">{{ invoice.created_at|date:"d.m.Y H:i" }}</div>
+          </div>
+        </div>
+        {% if invoice.doctor %}
+        <div class="flex items-center gap-3 px-4 py-3">
+          <span class="text-lg shrink-0">🩺</span>
+          <div class="flex-1 min-w-0">
+            <div class="text-[11px] text-gray-400 uppercase">Лікар</div>
+            <div class="text-sm font-medium text-brand-dark truncate">{{ invoice.doctor.get_full_name|default:invoice.doctor.username }}</div>
+          </div>
+        </div>
+        {% endif %}
+        <div class="flex items-center gap-3 px-4 py-3">
+          <span class="text-lg shrink-0">💳</span>
+          <div class="flex-1 min-w-0">
+            <div class="text-[11px] text-gray-400 uppercase">Оплата</div>
+            {% if invoice.status == 'paid' %}
+              <form method="post" action="{% url 'billing:update_payment' invoice.pk %}" class="flex gap-1.5 mt-0.5">
+                {% csrf_token %}
+                <button type="submit" name="payment_method" value="cash"
+                  class="px-2.5 py-1 rounded-lg text-xs font-medium
+                    {% if invoice.payment_method == 'cash' %}bg-green-100 text-green-700 ring-1 ring-green-400{% else %}bg-gray-100 text-gray-500{% endif %}">
+                  💵 Готівка
+                </button>
+                <button type="submit" name="payment_method" value="card"
+                  class="px-2.5 py-1 rounded-lg text-xs font-medium
+                    {% if invoice.payment_method == 'card' %}bg-blue-100 text-blue-700 ring-1 ring-blue-400{% else %}bg-gray-100 text-gray-500{% endif %}">
+                  💳 Картка
+                </button>
+              </form>
+            {% elif invoice.payment_method %}
+              <div class="text-sm font-medium text-brand-dark">
+                {% if invoice.payment_method == 'cash' %}💵 Готівка{% else %}💳 Картка{% endif %}
+              </div>
+            {% else %}
+              <div class="text-sm text-gray-400">—</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lines -->
+    <div class="px-3 pt-3">
+      <div class="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
+        {% for line in lines %}
+        <div class="px-4 py-3 {% if line.parent_line_id %}pl-12 bg-stone-50/60{% endif %}">
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex-1 min-w-0">
+              {% if line.parent_line_id %}
+              <div class="flex items-center gap-2">
+                <div class="w-1.5 h-1.5 rounded-full bg-gray-300 shrink-0"></div>
+                <span class="text-sm text-gray-500 truncate">{{ line.name }}</span>
+              </div>
+              <div class="text-[11px] text-gray-400 ml-3.5 mt-0.5">{{ line.quantity|floatformat:"-3" }} — витратний</div>
+              {% else %}
+              <div class="text-sm font-medium text-brand-dark">{{ line.name }}</div>
+              <div class="text-[11px] text-gray-400 mt-0.5">
+                {{ line.quantity|floatformat:"-3" }} × {{ line.unit_price }} ₴
+                {% if line.discount %}· знижка {{ line.discount }}{% if line.discount_type == 'percent' %}%{% else %} ₴{% endif %}{% endif %}
+              </div>
+              {% endif %}
+            </div>
+            {% if not line.parent_line_id %}
+            <div class="text-sm font-semibold text-brand-dark whitespace-nowrap">{{ line.total|floatformat:0 }} ₴</div>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+
+        {% if invoice.discount %}
+        <div class="px-4 py-2 flex justify-between text-xs text-gray-500">
+          <span>Знижка на чек</span>
+          <span>−{{ invoice.discount }}{% if invoice.discount_type == 'percent' %}%{% else %} ₴{% endif %}</span>
+        </div>
+        {% endif %}
+
+        <div class="bg-gray-50 px-4 py-3 flex items-center justify-between">
+          <span class="font-semibold text-gray-700">Разом:</span>
+          <span class="text-2xl font-bold text-brand-gold">{{ invoice.total|floatformat:0 }} ₴</span>
+        </div>
+      </div>
+    </div>
+
+    {% if invoice.fiscal_status == 'sent' %}
+    <div class="px-3 pt-3">
+      <div class="bg-green-50 border border-green-200 rounded-xl px-3 py-2.5 text-xs text-green-700 flex items-start gap-2">
+        <svg class="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <div class="flex-1">
+          Фіскальний чек відправлено{% if invoice.fiscal_receipt_id %} · <span class="font-mono">{{ invoice.fiscal_receipt_id }}</span>{% endif %}
+        </div>
+      </div>
+    </div>
+    {% elif invoice.fiscal_status == 'error' %}
+    <div class="px-3 pt-3">
+      <div class="bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 text-xs text-red-700">
+        Помилка фіскалізації — чек не відправлено в Checkbox.
+      </div>
+    </div>
+    {% endif %}
+
+    {% if invoice.notes %}
+    <div class="px-3 pt-3">
+      <div class="bg-white rounded-2xl border border-gray-100 px-4 py-3 text-sm text-gray-600">
+        {{ invoice.notes }}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Sticky bottom actions -->
+  <div class="shrink-0 border-t border-gray-200 bg-white px-3 py-2 flex items-center gap-2"
+       style="padding-bottom: max(8px, env(safe-area-inset-bottom));">
+    {% if invoice.status == 'draft' %}
+      <a href="{% url 'billing:edit' invoice.pk %}"
+         class="flex-1 py-3 rounded-xl text-sm font-semibold bg-brand-gold text-brand-dark text-center active:opacity-80">
+        ✏️ Продовжити
+      </a>
+      <form method="post" action="{% url 'billing:delete' invoice.pk %}"
+            onsubmit="return confirm('Видалити рахунок #{{ invoice.pk }}?');">
+        {% csrf_token %}
+        <button type="submit" class="tg-mobile-tap text-red-400 active:opacity-70" aria-label="Видалити">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22"/>
+          </svg>
+        </button>
+      </form>
+    {% else %}
+      <a href="{% url 'billing:pdf' invoice.pk %}" target="_blank"
+         class="flex-1 py-3 rounded-xl text-sm font-semibold bg-brand-gold text-brand-dark text-center active:opacity-80">
+        📥 PDF
+      </a>
+      {% if invoice.client.tg_chats.exists %}
+      <form method="post" action="{% url 'tg:send_invoice_pdf' invoice.pk %}"
+            class="flex-1"
+            onsubmit="var b=this.querySelector('button');b.disabled=true;b.innerHTML='⏳';">
+        {% csrf_token %}
+        <button type="submit"
+                class="w-full py-3 rounded-xl text-sm font-semibold bg-blue-500 text-white active:opacity-80">
+          ✈️ TG
+        </button>
+      </form>
+      {% endif %}
+      {% if invoice.status == 'cancelled' or invoice.status == 'paid' and user.is_admin %}
+      <form method="post" action="{% url 'billing:delete' invoice.pk %}"
+            onsubmit="return confirm('{% if invoice.status == 'paid' %}УВАГА! Видалити ОПЛАЧЕНИЙ #{{ invoice.pk }}?\nТовари на склад НЕ повертаються. Запис зникне з аналітики.{% else %}Видалити рахунок?{% endif %}');">
+        {% csrf_token %}
+        <button type="submit" class="tg-mobile-tap text-red-400 active:opacity-70" aria-label="Видалити">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22"/>
+          </svg>
+        </button>
+      </form>
+      {% endif %}
+    {% endif %}
+  </div>
+
+</div>
+
+{% include 'finance/_partials/mobile_toast.html' %}
+{% endblock %}

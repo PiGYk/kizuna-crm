@@ -27,12 +27,20 @@ logger = logging.getLogger(__name__)
 from apps.clients.models import Client, Patient
 from apps.inventory.models import Product, StockMovement
 from apps.services.models import Service
+from apps.tg.utils import is_mobile
 
 from .models import Invoice, InvoiceLine
 
 
+def _lines_render(request, invoice):
+    """Render lines partial — обирає mobile або desktop варіант за UA."""
+    template = 'billing/partials/mobile_lines.html' if is_mobile(request) else 'billing/partials/lines_table.html'
+    return render(request, template, _lines_context(invoice))
+
+
 def _lines_context(invoice):
     """Контекст для partial lines_table — top-level рядки з prefetch дітей."""
+    from django.db.models import Sum
     lines = list(
         invoice.lines
         .filter(parent_line__isnull=True)
@@ -44,6 +52,11 @@ def _lines_context(invoice):
             )
         )
     )
+    subtotal = invoice.lines.filter(parent_line__isnull=True).aggregate(s=Sum('total'))['s'] or Decimal('0')
+    if invoice.discount_type == Invoice.DiscountType.PERCENT:
+        discount_amt = subtotal * invoice.discount / Decimal('100')
+    else:
+        discount_amt = invoice.discount
     has_vaccination = any(
         l.line_type == 'service' and l.service and 'вакцинац' in l.service.name.lower()
         for l in lines
@@ -62,6 +75,8 @@ def _lines_context(invoice):
     return {
         'invoice': invoice,
         'lines': lines,
+        'subtotal': subtotal,
+        'discount_amt': discount_amt,
         'has_vaccination': has_vaccination,
         'vaccine_products': vaccine_products,
         'vaccine_in_invoice': vaccine_in_invoice,
@@ -72,21 +87,113 @@ def _lines_context(invoice):
 
 @login_required
 def invoice_list(request):
-    invoices = Invoice.objects.select_related('client', 'patient', 'doctor').filter(
+    from datetime import datetime, time, timedelta
+    from django.core.paginator import Paginator
+    from django.db.models import Sum
+    from django.utils import timezone
+
+    base = Invoice.objects.select_related('client', 'patient', 'doctor').filter(
         organization=request.organization
-    ).order_by('-created_at')
+    )
     # Лікар бачить тільки свої рахунки
     if request.user.role == 'doctor':
-        invoices = invoices.filter(doctor=request.user)
+        base = base.filter(doctor=request.user)
+
+    q = request.GET.get('q', '').strip()
     payment = request.GET.get('payment', '')
+    status = request.GET.get('status', '')
+    doctor_id = request.GET.get('doctor', '')
+    date_from = request.GET.get('from', '')
+    date_to = request.GET.get('to', '')
+    sort = request.GET.get('sort', '-created_at')
+    try:
+        per_page = int(request.GET.get('per_page', '50'))
+    except (TypeError, ValueError):
+        per_page = 50
+    if per_page not in (25, 50, 100):
+        per_page = 50
+
+    filtered = base
+    if q:
+        cond = (
+            Q(client__last_name__icontains=q)
+            | Q(client__first_name__icontains=q)
+            | Q(client__phone__icontains=q)
+            | Q(patient__name__icontains=q)
+        )
+        if q.lstrip('#').isdigit():
+            cond = cond | Q(pk=int(q.lstrip('#')))
+        filtered = filtered.filter(cond)
     if payment in Invoice.PaymentMethod.values:
-        invoices = invoices.filter(payment_method=payment)
-    from django.core.paginator import Paginator
-    paginator = Paginator(invoices, 50)
+        filtered = filtered.filter(payment_method=payment)
+    if status in Invoice.Status.values:
+        filtered = filtered.filter(status=status)
+    if doctor_id:
+        try:
+            filtered = filtered.filter(doctor_id=int(doctor_id))
+        except (TypeError, ValueError):
+            doctor_id = ''
+    if date_from:
+        try:
+            df = datetime.combine(datetime.fromisoformat(date_from).date(), time.min)
+            filtered = filtered.filter(created_at__gte=df)
+        except ValueError:
+            date_from = ''
+    if date_to:
+        try:
+            dt = datetime.combine(datetime.fromisoformat(date_to).date(), time.max)
+            filtered = filtered.filter(created_at__lte=dt)
+        except ValueError:
+            date_to = ''
+
+    sort_allowed = {'-created_at', 'created_at', '-total', 'total', '-pk', 'pk'}
+    if sort not in sort_allowed:
+        sort = '-created_at'
+    invoices_qs = filtered.order_by(sort)
+
+    # ── KPI aggregates over filtered set ───────────────────────────────────
+    paid_qs = filtered.filter(status=Invoice.Status.PAID)
+    paid_agg = paid_qs.aggregate(s=Sum('total'))
+    paid_sum = paid_agg['s'] or 0
+    paid_count = paid_qs.count()
+    avg_check = (paid_sum / paid_count) if paid_count else 0
+    cutoff = timezone.now() - timedelta(hours=24)
+    debtor_count = base.filter(status=Invoice.Status.DRAFT, created_at__lt=cutoff).count()
+
+    total_count = filtered.count()
+
+    doctors = []
+    if request.user.is_admin():
+        from apps.accounts.models import User as UserModel
+        doctors = UserModel.objects.filter(
+            organization=request.organization,
+            role__in=(UserModel.Role.DOCTOR, UserModel.Role.ADMIN, UserModel.Role.ASSISTANT),
+        ).order_by('first_name', 'last_name', 'username')
+
+    paginator = Paginator(invoices_qs, per_page)
     page = paginator.get_page(request.GET.get('page', 1))
-    return render(request, 'billing/list.html', {
+
+    template = 'billing/list_mobile.html' if is_mobile(request) else 'billing/list.html'
+    return render(request, template, {
         'invoices': page,
         'payment_filter': payment,
+        'status_filter': status,
+        'doctor_filter': doctor_id,
+        'q': q,
+        'date_from': date_from,
+        'date_to': date_to,
+        'per_page': per_page,
+        'sort': sort,
+        'kpi': {
+            'paid_sum': paid_sum,
+            'paid_count': paid_count,
+            'avg_check': avg_check,
+            'debtor_count': debtor_count,
+        },
+        'doctors': doctors,
+        'total_count': total_count,
+        'overdue_cutoff': cutoff,
+        'has_active_filter': bool(q or payment or status or doctor_id or date_from or date_to),
     })
 
 
@@ -114,7 +221,24 @@ def invoice_create(request):
         )
         return redirect('billing:edit', pk=invoice.pk)
 
-    return render(request, 'billing/create.html')
+    # Недавні клієнти: топ-5 за останніми рахунками (60 днів)
+    from datetime import timedelta
+    from django.utils import timezone
+    recent_cutoff = timezone.now() - timedelta(days=60)
+    recent_qs = (
+        Invoice.objects
+        .filter(organization=request.organization, created_at__gte=recent_cutoff)
+        .values('client_id').distinct()
+        .order_by('-created_at')[:20]
+    )
+    recent_client_ids = [r['client_id'] for r in recent_qs][:5]
+    recent_clients = []
+    if recent_client_ids:
+        cmap = {c.pk: c for c in Client.objects.filter(pk__in=recent_client_ids)}
+        recent_clients = [cmap[pk] for pk in recent_client_ids if pk in cmap]
+
+    template = 'billing/create_mobile.html' if is_mobile(request) else 'billing/create.html'
+    return render(request, template, {'recent_clients': recent_clients})
 
 
 # ── HTMX: пошук клієнтів при створенні рахунку ──────────────────────────────
@@ -130,7 +254,9 @@ def client_search(request):
             Q(phone__icontains=q),
             organization=request.organization,
         )[:10]
-    return render(request, 'billing/partials/client_results.html', {'clients': clients, 'q': q})
+    mobile = request.GET.get('mobile') == '1' or is_mobile(request)
+    template = 'billing/partials/mobile_client_results.html' if mobile else 'billing/partials/client_results.html'
+    return render(request, template, {'clients': clients, 'q': q})
 
 
 # ── HTMX: пошук пацієнтів по кличці ────────────────────────────────────────
@@ -145,7 +271,9 @@ def patient_search(request):
             Q(breed__icontains=q),
             client__organization=request.organization,
         )[:10]
-    return render(request, 'billing/partials/patient_search_results.html', {'patients': patients, 'q': q})
+    mobile = request.GET.get('mobile') == '1' or is_mobile(request)
+    template = 'billing/partials/mobile_patient_search_results.html' if mobile else 'billing/partials/patient_search_results.html'
+    return render(request, template, {'patients': patients, 'q': q})
 
 
 # ── HTMX: пацієнти клієнта ──────────────────────────────────────────────────
@@ -154,7 +282,9 @@ def patient_search(request):
 def patient_list(request, client_id):
     client = get_object_or_404(Client, pk=client_id)
     patients = client.patients.all()
-    return render(request, 'billing/partials/patient_list.html', {'client': client, 'patients': patients})
+    mobile = request.GET.get('mobile') == '1' or is_mobile(request)
+    template = 'billing/partials/mobile_patient_list.html' if mobile else 'billing/partials/patient_list.html'
+    return render(request, template, {'client': client, 'patients': patients})
 
 
 # ── редагування рахунку (основна сторінка checkout) ─────────────────────────
@@ -171,7 +301,8 @@ def invoice_edit(request, pk):
     ctx = _lines_context(invoice)
     ctx['services'] = services
     ctx['products'] = products
-    return render(request, 'billing/edit.html', ctx)
+    template = 'billing/edit_mobile.html' if is_mobile(request) else 'billing/edit.html'
+    return render(request, template, ctx)
 
 
 # ── HTMX: додати рядок ──────────────────────────────────────────────────────
@@ -235,7 +366,7 @@ def add_line(request, pk):
         line.save()
 
     invoice.save_total()
-    return render(request, 'billing/partials/lines_table.html', _lines_context(invoice))
+    return _lines_render(request, invoice)
 
 
 # ── HTMX: додати компонент (препарат) до послуги в чеку ─────────────────────
@@ -249,7 +380,7 @@ def add_component(request, pk, line_id):
 
     product_id = request.POST.get('product_id')
     if not product_id:
-        return render(request, 'billing/partials/lines_table.html', _lines_context(invoice))
+        return _lines_render(request, invoice)
 
     product = get_object_or_404(Product, pk=product_id, organization=request.organization)
     qty = _parse_decimal(request.POST.get('quantity'), Decimal('1'))
@@ -265,7 +396,7 @@ def add_component(request, pk, line_id):
     )
 
     invoice.save_total()
-    return render(request, 'billing/partials/lines_table.html', _lines_context(invoice))
+    return _lines_render(request, invoice)
 
 
 # ── HTMX: оновити ціну / кількість рядка ────────────────────────────────────
@@ -279,7 +410,7 @@ def update_line(request, pk, line_id):
     line.quantity = _parse_decimal(request.POST.get('quantity'), line.quantity)
     line.save()
     invoice.save_total()
-    return render(request, 'billing/partials/lines_table.html', _lines_context(invoice))
+    return _lines_render(request, invoice)
 
 
 # ── HTMX: видалити рядок ────────────────────────────────────────────────────
@@ -291,7 +422,7 @@ def remove_line(request, pk, line_id):
     line = get_object_or_404(InvoiceLine, pk=line_id, invoice=invoice)
     line.delete()
     invoice.save_total()
-    return render(request, 'billing/partials/lines_table.html', _lines_context(invoice))
+    return _lines_render(request, invoice)
 
 
 # ── HTMX: оновити знижку на рахунок ─────────────────────────────────────────
@@ -305,7 +436,7 @@ def update_discount(request, pk):
     invoice.notes = request.POST.get('notes', '')
     invoice.save(update_fields=['discount', 'discount_type', 'notes'])
     invoice.save_total()
-    return render(request, 'billing/partials/lines_table.html', _lines_context(invoice))
+    return _lines_render(request, invoice)
 
 
 # ── HTMX: перемикач вакцини (додати/видалити з ціною 0) ─────────────────────
@@ -332,7 +463,7 @@ def toggle_vaccine(request, pk):
         invoice.lines.filter(product=product, unit_price=0).delete()
 
     invoice.save_total()
-    return render(request, 'billing/partials/lines_table.html', _lines_context(invoice))
+    return _lines_render(request, invoice)
 
 
 # ── JSON-пошук послуг і товарів ─────────────────────────────────────────────
@@ -410,7 +541,20 @@ def pay_invoice(request, pk):
 def invoice_detail(request, pk):
     invoice = get_object_or_404(Invoice, pk=pk)
     lines = invoice.lines.select_related('service', 'product').all()
-    return render(request, 'billing/detail.html', {'invoice': invoice, 'lines': lines})
+
+    base_nav = Invoice.objects.filter(organization=request.organization)
+    if request.user.role == 'doctor':
+        base_nav = base_nav.filter(doctor=request.user)
+    prev_invoice = base_nav.filter(pk__lt=invoice.pk).order_by('-pk').values_list('pk', flat=True).first()
+    next_invoice = base_nav.filter(pk__gt=invoice.pk).order_by('pk').values_list('pk', flat=True).first()
+
+    template = 'billing/detail_mobile.html' if is_mobile(request) else 'billing/detail.html'
+    return render(request, template, {
+        'invoice': invoice,
+        'lines': lines,
+        'prev_pk': prev_invoice,
+        'next_pk': next_invoice,
+    })
 
 
 # ── скасувати рахунок ────────────────────────────────────────────────────────
@@ -426,47 +570,31 @@ def cancel_invoice(request, pk):
 
 # ── видалити рахунок ─────────────────────────────────────────────────────────
 # DRAFT / CANCELLED — будь-який користувач
-# PAID — тільки admin, з автоматичним поверненням товарів на склад
+# PAID — тільки admin; товари на склад НЕ повертаються (вже відпущені пацієнту)
 
 @login_required
 @require_POST
 def delete_invoice(request, pk):
-    from django.db import transaction
     from django.contrib import messages
-    from apps.inventory.models import StockMovement
 
     invoice = get_object_or_404(Invoice, pk=pk)
 
-    # DRAFT / CANCELLED — як було
     if invoice.status in (Invoice.Status.DRAFT, Invoice.Status.CANCELLED):
         invoice.delete()
         return redirect('billing:list')
 
-    # PAID — тільки admin з поверненням товарів на склад
     if invoice.status == Invoice.Status.PAID:
         if not request.user.is_admin():
             messages.error(request, 'Тільки адміністратор може видаляти оплачені рахунки')
             return redirect('billing:detail', pk=pk)
 
-        with transaction.atomic():
-            returned = 0
-            # Компенсаційний StockMovement IN на кожен товар який списали при оплаті
-            for line in invoice.lines.filter(line_type='product', stock_written_off=True):
-                if line.product:
-                    StockMovement.objects.create(
-                        product=line.product,
-                        type=StockMovement.Type.IN,
-                        quantity=line.quantity,
-                        price=line.product.buy_price,
-                        reason=f'Повернення товару з видаленого рахунку #{invoice.pk}',
-                        created_by=request.user,
-                    )
-                    returned += 1
-            invoice.delete()
-            messages.success(
-                request,
-                f'Рахунок #{pk} видалено. На склад повернуто {returned} позицій.'
-            )
+        fiscal_note = ' Фіскальний чек Checkbox лишається в ДПС.' if invoice.fiscal_status == Invoice.FiscalStatus.SENT else ''
+        invoice_id = invoice.pk
+        invoice.delete()
+        messages.success(
+            request,
+            f'Рахунок #{invoice_id} видалено з CRM. Товари на склад не повернуто.{fiscal_note}'
+        )
         return redirect('billing:list')
 
     return redirect('billing:detail', pk=pk)
@@ -730,7 +858,6 @@ class InsufficientStockError(Exception):
 def _writeoff_stock(invoice, user):
     from apps.inventory.models import Product
 
-    insufficient = []
     lines = list(
         invoice.lines
         .select_related('product', 'parent_line', 'parent_line__service')
@@ -744,9 +871,7 @@ def _writeoff_stock(invoice, user):
         if line.line_type == 'product' and line.product_id and not line.stock_written_off
     }
 
-    # Беремо row-level lock одним запитом, щоб уникнути race з паралельними
-    # оплатами/списаннями. select_for_update тримає блокування до кінця
-    # @transaction.atomic блоку. organization filter — multi-tenant guard.
+    # Row-level lock щоб уникнути race з паралельними оплатами/списаннями.
     locked_products = {
         p.pk: p
         for p in Product.objects.select_for_update().filter(
@@ -755,20 +880,23 @@ def _writeoff_stock(invoice, user):
         )
     }
 
+    # ВАЖЛИВО: не блокуємо закриття чека через нестачу складу. Розбіжності
+    # допускаються (зловживання залишком, неточний прихід). StockMovement
+    # пише в мінус — буде видно у звіті inventory для подальшого reconciliation.
     for line in lines:
         if line.line_type == 'product' and line.product and not line.stock_written_off:
             product = locked_products.get(line.product_id)
             if product is None:
-                # Продукту немає у списку залоченого — найімовірніше cross-tenant
-                # або видалений. Не списуємо, повідомляємо.
-                insufficient.append(f'{line.product.name}: товар недоступний')
+                logger.warning(
+                    'Product %s (line %s) недоступний при списанні invoice=%s — пропускаємо',
+                    line.product.name, line.pk, invoice.pk,
+                )
                 continue
             if product.quantity < line.quantity:
-                insufficient.append(
-                    f'{product.name}: є {product.quantity}, потрібно {line.quantity}'
+                logger.warning(
+                    'Stock below zero: invoice=%s product=%s have=%s wrote=%s',
+                    invoice.pk, product.name, product.quantity, line.quantity,
                 )
-    if insufficient:
-        raise InsufficientStockError(insufficient)
 
     for line in lines:
         if line.line_type == 'product' and line.product and not line.stock_written_off:
