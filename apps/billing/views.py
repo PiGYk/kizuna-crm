@@ -570,7 +570,7 @@ def cancel_invoice(request, pk):
 
 # ── видалити рахунок ─────────────────────────────────────────────────────────
 # DRAFT / CANCELLED — будь-який користувач
-# PAID — тільки admin; товари на склад НЕ повертаються (вже відпущені пацієнту)
+# PAID — тільки admin; два режими: з поверненням або без
 
 @login_required
 @require_POST
@@ -588,16 +588,44 @@ def delete_invoice(request, pk):
             messages.error(request, 'Тільки адміністратор може видаляти оплачені рахунки')
             return redirect('billing:detail', pk=pk)
 
+        restore = request.POST.get('restore')
+        if restore not in ('yes', 'no'):
+            messages.error(request, 'Оберіть режим видалення: з поверненням чи без.')
+            return redirect('billing:detail', pk=pk)
+
         fiscal_note = ' Фіскальний чек Checkbox лишається в ДПС.' if invoice.fiscal_status == Invoice.FiscalStatus.SENT else ''
         invoice_id = invoice.pk
-        invoice.delete()
-        messages.success(
-            request,
-            f'Рахунок #{invoice_id} видалено з CRM. Товари на склад не повернуто.{fiscal_note}'
-        )
+
+        if restore == 'yes':
+            _restore_stock_from_invoice(invoice, request.user)
+            invoice.delete()
+            messages.success(
+                request,
+                f'Рахунок #{invoice_id} видалено. Товари повернуто на склад.{fiscal_note}'
+            )
+        else:
+            invoice.delete()
+            messages.success(
+                request,
+                f'Рахунок #{invoice_id} видалено. Товари на склад НЕ повернуто.{fiscal_note}'
+            )
         return redirect('billing:list')
 
     return redirect('billing:detail', pk=pk)
+
+
+def _restore_stock_from_invoice(invoice, user):
+    """Повертає на склад товари зі списаних рядків рахунку (компенсуючий прихід IN)."""
+    lines = invoice.lines.filter(line_type='product', stock_written_off=True).select_related('product')
+    for line in lines:
+        if line.product and line.quantity > 0:
+            StockMovement.objects.create(
+                product=line.product,
+                type=StockMovement.Type.IN,
+                quantity=line.quantity,
+                reason=f'Повернення з рахунку #{invoice.pk} (скасовано)',
+                created_by=user,
+            )
 
 
 # ── змінити спосіб оплати на оплаченому рахунку ─────────────────────────────
