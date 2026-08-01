@@ -1,0 +1,19 @@
+{% comment %}
+Верхній «якір» історії: підвантажує попередні HISTORY_PAGE повідомлень,
+коли користувач доскролив до верху (або натиснув кнопку).
+Замінює сам себе (hx-swap=outerHTML) на history_chunk.html.
+{% endcomment %}
+{% if has_more %}
+<div class="tg-history-top py-2 text-center"
+     hx-get="{% url 'tg:messages' chat.pk %}?before_id={{ oldest_id }}{{ mq }}"
+     hx-trigger="intersect once, click"
+     hx-target="this"
+     hx-swap="outerHTML">
+  <button type="button"
+          class="text-[11px] text-gray-500 hover:text-brand-dark px-3 py-1 rounded-full border border-gray-200 bg-white shadow-sm">
+    Показати попередні
+  </button>
+</div>
+{% elif exhausted or messages %}
+<div class="py-2 text-center text-[11px] text-gray-300 select-none">Початок листування</div>
+{% endif %}

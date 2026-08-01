@@ -1,4 +1,5 @@
 import functools
+import html
 import io
 import json
 import logging
@@ -40,6 +41,16 @@ def _require_telegram_plan(view_fn):
 
 MENU_BUTTONS = ['🐾 Мої тварини', '📋 Паспорт', '📅 Мої записи', '🔬 Аналізи', '💊 Назначення', '📄 Рахунки', '📅 Записатись', '🎫 Знижка', '📞 Контакти']
 
+# Пагінація чату
+MESSAGES_PAGE = 50      # скільки повідомлень у першому рендері
+HISTORY_PAGE = 30       # порція історії при скролі вгору
+INCREMENTAL_MAX = 100   # запобіжник: скільки нових віддаємо за один poll
+CHATS_PAGE = 30         # чатів у списку за раз (було: усі 464 кожні 10с)
+
+# Ліміти Telegram Bot API на upload
+MAX_PHOTO_BYTES = 10 * 1024 * 1024
+MAX_FILE_BYTES = 50 * 1024 * 1024
+
 
 def _get_token(org=None):
     """Повертає Telegram bot token: з організації (per-tenant) або з settings (fallback)."""
@@ -59,6 +70,15 @@ def _get_base_url():
     if main_domain:
         return f'https://{main_domain}'
     return 'http://localhost'
+
+
+def _esc(text):
+    """Екранує текст користувача для parse_mode='HTML'.
+
+    Без цього повідомлення з '<' («темп <39», «1<2») Telegram відхиляє з
+    "can't parse entities" — воно просто не доходить до клієнта.
+    """
+    return html.escape(str(text or ''), quote=False)
 
 
 def _send_tg(chat_id, text, reply_markup=None, org=None):
@@ -145,6 +165,15 @@ def _main_menu_keyboard():
 
 def _remove_keyboard():
     return {'remove_keyboard': True}
+
+
+def _request_contact_keyboard(button_text='📱 Поділитися номером'):
+    """ReplyKeyboard з єдиною кнопкою request_contact — TG сам віддасть номер користувача."""
+    return {
+        'keyboard': [[{'text': button_text, 'request_contact': True}]],
+        'resize_keyboard': True,
+        'one_time_keyboard': True,
+    }
 
 
 def _send_tg_document(chat_id, pdf_bytes, filename, caption='', org=None):
@@ -478,6 +507,16 @@ def _webhook_process(request, org, data):
             media_type='contact',
             tg_message_id=incoming_msg_id,
         )
+        # Якщо чат у онбордингу на кроці ask_contact — підхоплюємо номер і ведемо далі.
+        if (chat.onboarding_state or {}).get('step') == 'ask_contact':
+            reply_text, reply_markup = _onboarding_handle_contact(chat, contact)
+            _send_tg(tg_user_id, reply_text, reply_markup, org=chat.organization)
+            TelegramMessage.objects.create(
+                chat=chat,
+                direction=TelegramMessage.Direction.OUT,
+                text=reply_text,
+                is_read=True,
+            )
 
     elif voice:
         file_id = voice['file_id']
@@ -646,7 +685,7 @@ def _handle_staff_quickreply_message(staff_chat, text, reply_to_message_id):
         prompt.save(update_fields=['used_at'])
         return True
 
-    resp = _send_tg(target.tg_user_id, text, org=target.organization)
+    resp = _send_tg(target.tg_user_id, _esc(text), org=target.organization)
     if resp.get('ok'):
         TelegramMessage.objects.create(
             chat=target,
@@ -658,14 +697,14 @@ def _handle_staff_quickreply_message(staff_chat, text, reply_to_message_id):
         target.save(update_fields=['last_message_at'])
         _send_tg(
             staff_chat.tg_user_id,
-            f'✅ Надіслано клієнту <b>{str(target.client) if target.client else target.display_name}</b>.',
+            f'✅ Надіслано клієнту <b>{_esc(target.client if target.client else target.display_name)}</b>.',
             org=target.organization,
         )
     else:
         err = resp.get('description', 'невідома помилка')
         _send_tg(
             staff_chat.tg_user_id,
-            f'⚠️ Не вдалось надіслати: {err}',
+            f'⚠️ Не вдалось надіслати: {_esc(err)}',
             org=target.organization,
         )
 
@@ -677,6 +716,13 @@ def _handle_staff_quickreply_message(staff_chat, text, reply_to_message_id):
 def _handle_command(chat, text, from_user):
     """Повертає (text, reply_markup) або None якщо відповідати не треба."""
     is_verified = chat.client is not None
+
+    # Онбординг має пріоритет: поки чат у активному стейті — інші команди ігноруємо,
+    # окрім /start (щоб юзер міг вибратися).
+    if (chat.onboarding_state or {}).get('step') and text != '/start':
+        onb = _onboarding_handle_text(chat, text)
+        if onb is not None:
+            return onb
 
     # /start
     if text == '/start':
@@ -951,6 +997,37 @@ def _cmd_book_choose_date(chat, doctor_id):
     return 'Оберіть дату запису:', markup
 
 
+def _doctor_busy_intervals(doctor_id, chosen_date, kyiv_tz, slot_min=30):
+    """Зайняті інтервали лікаря (у локальному часі) які перетинають chosen_date.
+
+    Повертає список (start_local_naive, end_local_naive). Враховує реальну тривалість
+    кожного запису (15/30/60/90/120 хв) + ловить запис що почався вчора пізно і
+    тягнеться у chosen_date (max 24h backwards).
+    """
+    from datetime import datetime, time, timedelta
+    from apps.appointments.models import Appointment
+
+    day_start_local = datetime.combine(chosen_date, time(0, 0))
+    day_end_local = day_start_local + timedelta(days=1)
+    day_start_aware = day_start_local.replace(tzinfo=kyiv_tz)
+    day_end_aware = day_end_local.replace(tzinfo=kyiv_tz)
+
+    qs = Appointment.objects.filter(
+        doctor_id=doctor_id,
+        status__in=['scheduled', 'confirmed'],
+        starts_at__gte=day_start_aware - timedelta(hours=24),
+        starts_at__lt=day_end_aware,
+    ).values_list('starts_at', 'duration')
+
+    busy = []
+    for starts_at, duration in qs:
+        s = starts_at.astimezone(kyiv_tz).replace(tzinfo=None)
+        e = s + timedelta(minutes=duration or slot_min)
+        if e > day_start_local and s < day_end_local:
+            busy.append((s, e))
+    return busy
+
+
 def _cmd_book_choose_time(chat, doctor_id, date_str):
     """Step 3: Show available time slots."""
     from datetime import datetime, time, timedelta, date as date_type
@@ -973,21 +1050,18 @@ def _cmd_book_choose_time(chat, doctor_id, date_str):
         slots.append(current.time())
         current += timedelta(minutes=slot_min)
 
-    # Check existing appointments for this doctor on this date
-    from apps.appointments.models import Appointment
-    busy = set(
-        Appointment.objects.filter(
-            doctor_id=doctor_id,
-            starts_at__date=chosen_date,
-            status__in=['scheduled', 'confirmed'],
-        ).values_list('starts_at', flat=True)
-    )
     kyiv_tz = ZoneInfo('Europe/Kyiv')
-    busy_times = {dt.astimezone(kyiv_tz).strftime('%H:%M') for dt in busy}
+    busy = _doctor_busy_intervals(doctor_id, chosen_date, kyiv_tz, slot_min=slot_min)
+
+    def _slot_is_free(slot_time):
+        slot_start = datetime.combine(chosen_date, slot_time)
+        slot_end = slot_start + timedelta(minutes=slot_min)
+        # Слот вільний якщо жоден busy-інтервал не перетинає [slot_start, slot_end).
+        return all(not (b_start < slot_end and b_end > slot_start) for b_start, b_end in busy)
 
     available = [
         (t.strftime('%H:%M'), f"book_time:{doctor_id}:{date_str}:{t.strftime('%H:%M')}")
-        for t in slots if t.strftime('%H:%M') not in busy_times
+        for t in slots if _slot_is_free(t)
     ]
     if not available:
         return (
@@ -1050,13 +1124,24 @@ def _cmd_book_create(chat, doctor_id, date_str, time_str):
     except Exception:
         return 'Помилка дати/часу.', _main_menu_keyboard()
 
+    from datetime import timedelta
+    slot_min = chat.organization.slot_duration if chat.organization and chat.organization.slot_duration else 30
+    new_end = starts_at + timedelta(minutes=slot_min)
+
+    # Real overlap check (а не лише exact-start) — захист від race + некоректних
+    # callback_data. Вікно −2 год покриває максимальну тривалість запису (120 хв).
     from apps.appointments.models import Appointment
-    conflict = Appointment.objects.filter(
+    nearby = Appointment.objects.filter(
         organization=chat.organization,
         doctor=doctor,
-        starts_at=starts_at,
         status__in=['scheduled', 'confirmed'],
-    ).exists()
+        starts_at__gte=starts_at - timedelta(hours=2),
+        starts_at__lt=new_end,
+    ).values_list('starts_at', 'duration')
+    conflict = any(
+        s < new_end and s + timedelta(minutes=d or slot_min) > starts_at
+        for s, d in nearby
+    )
     if conflict:
         return f'На {time_str} вже є запис. Оберіть інший час.', _main_menu_keyboard()
 
@@ -1064,7 +1149,7 @@ def _cmd_book_create(chat, doctor_id, date_str, time_str):
         client=chat.client,
         doctor=doctor,
         starts_at=starts_at,
-        duration=chat.organization.slot_duration if chat.organization and chat.organization.slot_duration else 30,
+        duration=slot_min,
         status='scheduled',
         organization=chat.organization,
         notes='Записано через Telegram-бот',
@@ -1078,6 +1163,210 @@ def _cmd_book_create(chat, doctor_id, date_str, time_str):
         f'Чекаємо вас! 🐾'
     )
     return text, _main_menu_keyboard()
+
+
+# ── Онбординг незареєстрованих клієнтів (CRM-кнопка → анкета в TG) ────────────
+#
+# Стейт-машина зберігається у TelegramChat.onboarding_state як {"step": "...", "data": {...}}.
+# Кроки:
+#   ask_contact     — чекаємо message.contact (request_contact)
+#   ask_first_name  — чекаємо текст: імʼя
+#   ask_last_name   — чекаємо текст: прізвище
+#   ask_pet_name    — чекаємо текст: кличка
+#   ask_pet_species — чекаємо callback onb_species:<code>
+# По завершенню — створюємо Client+Patient, прівʼязуємо chat.client, заходимо в booking flow.
+
+ONBOARDING_STEPS = ('ask_contact', 'ask_first_name', 'ask_last_name', 'ask_pet_name', 'ask_pet_species')
+
+
+def _onboarding_send_invite(chat):
+    """Відправляє в TG-чат запрошення зареєструватися (з callback-кнопкою)."""
+    org_name = chat.organization.name if chat.organization else 'нашій клініці'
+    text = (
+        f'👋 Вітаємо у <b>{org_name}</b>!\n\n'
+        'Щоб записатися на прийом, нам потрібні базові дані про вас і вашого улюбленця. '
+        'Це займе хвилину — натисніть кнопку нижче, щоб почати.'
+    )
+    markup = _inline_keyboard([
+        ('📝 Розпочати реєстрацію', f'onb_start:{chat.pk}'),
+        ('Не зараз', 'onb_cancel'),
+    ])
+    return _send_tg(chat.tg_user_id, text, markup, org=chat.organization)
+
+
+def _onboarding_begin(chat):
+    """Крок 1: попросити контакт через request_contact."""
+    chat.onboarding_state = {'step': 'ask_contact', 'data': {}}
+    chat.save(update_fields=['onboarding_state'])
+    text = (
+        '📱 <b>Крок 1 з 4</b>\n\n'
+        'Натисніть кнопку нижче, щоб поділитися номером телефону. '
+        'Так нам простіше з вами звʼязатися щодо запису.'
+    )
+    return text, _request_contact_keyboard()
+
+
+def _onboarding_set_step(chat, step, data_update=None):
+    state = chat.onboarding_state or {}
+    data = dict(state.get('data') or {})
+    if data_update:
+        data.update(data_update)
+    chat.onboarding_state = {'step': step, 'data': data}
+    chat.save(update_fields=['onboarding_state'])
+
+
+def _onboarding_clear(chat):
+    chat.onboarding_state = {}
+    chat.save(update_fields=['onboarding_state'])
+
+
+def _onboarding_handle_contact(chat, contact):
+    """Викликається з _webhook_process коли прийшов message.contact і чат на кроці ask_contact."""
+    phone = (contact.get('phone_number') or '').strip()
+    if not phone:
+        return 'Не вдалось прочитати номер. Спробуйте ще раз.', _request_contact_keyboard()
+    # TG іноді віддає phone без '+', нормалізуємо.
+    if not phone.startswith('+'):
+        phone = '+' + phone.lstrip('+')
+    tg_first = (contact.get('first_name') or chat.tg_first_name or '').strip()
+    tg_last = (contact.get('last_name') or chat.tg_last_name or '').strip()
+    _onboarding_set_step(chat, 'ask_first_name', {
+        'phone': phone[:20],
+        'tg_first_name': tg_first,
+        'tg_last_name': tg_last,
+    })
+    text = (
+        '✅ Номер отримано.\n\n'
+        '👤 <b>Крок 2 з 4</b>\n\n'
+        'Введіть, будь ласка, ваше <b>імʼя</b>:'
+    )
+    return text, _remove_keyboard()
+
+
+def _onboarding_handle_text(chat, text):
+    """Обробляє вільний текст під час онбордингу. Повертає (reply, markup) або None якщо крок не текстовий."""
+    state = chat.onboarding_state or {}
+    step = state.get('step')
+    text = (text or '').strip()
+
+    if step == 'ask_contact':
+        # Юзер ігнорує кнопку — нагадуємо.
+        return (
+            'Будь ласка, натисніть кнопку «📱 Поділитися номером» нижче, '
+            'щоб надіслати номер телефону.',
+            _request_contact_keyboard(),
+        )
+
+    if step == 'ask_first_name':
+        if not text or len(text) > 100:
+            return 'Введіть, будь ласка, ваше імʼя (до 100 символів):', _remove_keyboard()
+        _onboarding_set_step(chat, 'ask_last_name', {'first_name': text})
+        return (
+            '👤 <b>Крок 3 з 4</b>\n\n'
+            'Введіть ваше <b>прізвище</b>:',
+            _remove_keyboard(),
+        )
+
+    if step == 'ask_last_name':
+        if not text or len(text) > 100:
+            return 'Введіть, будь ласка, ваше прізвище (до 100 символів):', _remove_keyboard()
+        _onboarding_set_step(chat, 'ask_pet_name', {'last_name': text})
+        return (
+            '🐾 <b>Крок 4 з 4</b>\n\n'
+            'Як звати вашого улюбленця? (кличка тварини)',
+            _remove_keyboard(),
+        )
+
+    if step == 'ask_pet_name':
+        if not text or len(text) > 100:
+            return 'Введіть, будь ласка, кличку (до 100 символів):', _remove_keyboard()
+        _onboarding_set_step(chat, 'ask_pet_species', {'pet_name': text})
+        from apps.clients.models import Patient
+        species_choices = [
+            (Patient.Species.DOG, '🐕 Собака'),
+            (Patient.Species.CAT, '🐈 Кіт'),
+            (Patient.Species.RABBIT, '🐇 Кролик'),
+            (Patient.Species.BIRD, '🦜 Птах'),
+            (Patient.Species.HAMSTER, '🐹 Хомʼяк'),
+            (Patient.Species.FERRET, '🦝 Тхір'),
+            (Patient.Species.TURTLE, '🐢 Черепаха'),
+            (Patient.Species.OTHER, '🐾 Інше'),
+        ]
+        markup = _inline_keyboard([(label, f'onb_species:{code}') for code, label in species_choices])
+        return f'Який вид тварини у <b>{_esc(text)}</b>?', markup
+
+    if step == 'ask_pet_species':
+        return (
+            'Оберіть вид тварини на кнопках вище, будь ласка.',
+            None,
+        )
+
+    return None  # не в онбордингу — нехай далі обробить _handle_command
+
+
+def _onboarding_finish(chat, species_code):
+    """Створює Client+Patient, лінкує до chat. Без автозапису — час/лікаря призначає адмін."""
+    from apps.clients.models import Client, Patient
+
+    state = chat.onboarding_state or {}
+    data = state.get('data') or {}
+
+    valid_codes = {c for c, _ in Patient.Species.choices}
+    if species_code not in valid_codes:
+        return 'Невідомий вид тварини. Спробуйте ще раз.', None
+
+    phone = (data.get('phone') or '').strip()
+    first_name = (data.get('first_name') or '').strip()
+    last_name = (data.get('last_name') or '').strip()
+    pet_name = (data.get('pet_name') or '').strip()
+
+    if not (phone and first_name and last_name and pet_name):
+        _onboarding_clear(chat)
+        return (
+            '⚠️ Дані онбордингу втрачено. Зверніться до адміністратора або почніть спочатку.',
+            _remove_keyboard(),
+        )
+
+    with transaction.atomic():
+        # Пробуємо знайти існуючого клієнта по телефону в межах орг — щоб не дублювати.
+        client = Client.objects.filter(
+            organization=chat.organization, phone=phone,
+        ).first()
+        if client is None:
+            client = Client.objects.create(
+                organization=chat.organization,
+                first_name=first_name,
+                last_name=last_name,
+                phone=phone,
+            )
+        patient = Patient.objects.create(
+            client=client,
+            name=pet_name,
+            species=species_code,
+        )
+        chat.client = client
+        chat.onboarding_state = {}
+        chat.last_message_at = timezone.now()  # щоб чат сплив угору у списку CRM
+        chat.save(update_fields=['client', 'onboarding_state', 'last_message_at'])
+
+    # Сповіщення staff — щоб адмін одразу побачив нову реєстрацію і записав вручну.
+    try:
+        from .broadcast_tasks import notify_staff_new_message_task
+        notify_staff_new_message_task.delay(
+            chat.pk,
+            f'🆕 Нова реєстрація: {last_name} {first_name} ({phone}), 🐾 {pet_name}',
+        )
+    except Exception as exc:
+        logger.warning('onboarding notify_staff dispatch failed: %s', exc)
+
+    welcome = (
+        '🎉 <b>Дякуємо за реєстрацію!</b>\n\n'
+        f'Зареєстровано: <b>{last_name} {first_name}</b>\n'
+        f'🐾 Улюбленець: <b>{pet_name}</b> ({patient.get_species_display()})\n\n'
+        'Адміністратор отримав ваші дані і скоро звʼяжеться щодо запису на прийом. '
+        'Ви також можете написати нам тут у чаті — ми на звʼязку. 🐾'
+    )
+    return welcome, _main_menu_keyboard()
 
 
 def _cmd_passport_for_pet(chat, patient):
@@ -1272,6 +1561,51 @@ def _handle_callback(callback, org=None):
                 _cmd_send_invoice_pdf(chat, int(parts[1]))
         except (TelegramChat.DoesNotExist, ValueError):
             pass
+        return
+
+    # ── Онбординг (запуск з інвайту, фінал-вибір виду тварини, скасування) ─
+    if action == 'onb_start':
+        try:
+            chat = TelegramChat.objects.get(tg_user_id=tg_user_id, organization=org)
+        except TelegramChat.DoesNotExist:
+            return
+        if chat.client:
+            _send_tg(tg_user_id, 'Ви вже зареєстровані 👌', _main_menu_keyboard(), org=org)
+            return
+        reply_text, markup = _onboarding_begin(chat)
+        _send_tg(tg_user_id, reply_text, markup, org=org)
+        TelegramMessage.objects.create(
+            chat=chat, direction=TelegramMessage.Direction.OUT,
+            text=reply_text, is_read=True,
+        )
+        return
+
+    if action == 'onb_cancel':
+        try:
+            chat = TelegramChat.objects.get(tg_user_id=tg_user_id, organization=org)
+            _onboarding_clear(chat)
+        except TelegramChat.DoesNotExist:
+            pass
+        _send_tg(
+            tg_user_id,
+            'Гаразд, реєстрацію відкладено. Натисніть кнопку «Розпочати реєстрацію» коли будете готові.',
+            org=org,
+        )
+        return
+
+    if action == 'onb_species' and len(parts) > 1:
+        try:
+            chat = TelegramChat.objects.get(tg_user_id=tg_user_id, organization=org)
+        except TelegramChat.DoesNotExist:
+            return
+        if (chat.onboarding_state or {}).get('step') != 'ask_pet_species':
+            return
+        reply_text, markup = _onboarding_finish(chat, parts[1])
+        _send_tg(tg_user_id, reply_text, markup, org=org)
+        TelegramMessage.objects.create(
+            chat=chat, direction=TelegramMessage.Direction.OUT,
+            text=reply_text, is_read=True,
+        )
         return
 
     # ── Booking flow (окремий блок, не потребує chat.client для першого кроку) ─
@@ -1480,20 +1814,122 @@ def chat_toggle_staff(request, pk):
     return redirect('tg:detail', pk=pk)
 
 
-# ── HTMX: нові повідомлення (polling) ────────────────────────────────────────
+# ── HTMX: повідомлення чату ──────────────────────────────────────────────────
+
+def _day_label(dt):
+    """«Сьогодні» / «Вчора» / «12 травня» / «12 травня 2025» — для роздільника дат."""
+    from django.utils import formats
+    local = timezone.localtime(dt)
+    today = timezone.localdate()
+    delta = (today - local.date()).days
+    if delta == 0:
+        return 'Сьогодні'
+    if delta == 1:
+        return 'Вчора'
+    # 'E' — місяць у родовому відмінку («4 липня», а не «4 Липень»)
+    fmt = 'j E' if local.year == today.year else 'j E Y'
+    return formats.date_format(local, fmt)
+
+
+def _mark_day_dividers(msgs, prev_dt=None):
+    """Проставляє msg.day_label там, де починається новий день.
+
+    Рахуємо в Python, а не через {% ifchanged %}, бо при інкрементальному
+    довантаженні шаблон не бачить попередніх повідомлень.
+    """
+    prev_date = timezone.localtime(prev_dt).date() if prev_dt else None
+    for m in msgs:
+        cur = timezone.localtime(m.created_at).date()
+        m.day_label = _day_label(m.created_at) if cur != prev_date else ''
+        prev_date = cur
+    return msgs
+
+
+def _items_template(mobile):
+    return 'tg/partials/message_items_mobile.html' if mobile else 'tg/partials/message_items.html'
+
 
 @login_required
 @_require_telegram_plan
 def chat_messages(request, pk):
+    """Три режими:
+
+    * ?after_id=N  — тільки нові (polling, hx-swap=beforeend). 204 якщо нових нема.
+    * ?before_id=N — порція історії вгору (hx-swap=outerHTML на sentinel).
+    * без параметрів — перший рендер: обгортка + останні MESSAGES_PAGE.
+    """
     chat = get_object_or_404(
         TelegramChat, pk=pk, organization=request.organization
     )
-    chat.messages.filter(direction='in', is_read=False).update(is_read=True)
-    # HTMX-poll endpoint — повертаємо лише останні 50 повідомлень (chronological).
-    recent_qs = chat.messages.order_by('-created_at')[:50]
-    chat_messages = list(recent_qs)[::-1]
-    template = 'tg/partials/messages_mobile.html' if is_mobile(request) else 'tg/partials/messages.html'
-    return render(request, template, {'chat': chat, 'messages': chat_messages})
+    mobile = is_mobile(request)
+
+    # Прочитаним позначаємо, тільки якщо вкладка реально перед очима (seen=1).
+    # Раніше це робив кожен poll — непрочитані «танули» від просто відкритої вкладки.
+    if request.GET.get('seen') == '1':
+        chat.messages.filter(direction='in', is_read=False).update(is_read=True)
+
+    # ── інкремент: тільки нові повідомлення ──
+    if 'after_id' in request.GET:
+        try:
+            after_id = int(request.GET['after_id'] or 0)
+        except (TypeError, ValueError):
+            after_id = 0
+        if not after_id:
+            return HttpResponse(status=204)
+        new_msgs = list(
+            chat.messages.filter(id__gt=after_id).order_by('id')[:INCREMENTAL_MAX]
+        )
+        if not new_msgs:
+            return HttpResponse(status=204)  # htmx на 204 нічого не свапає
+        prev = chat.messages.filter(id__lte=after_id).order_by('-id').first()
+        _mark_day_dividers(new_msgs, prev.created_at if prev else None)
+        response = render(request, _items_template(mobile), {'chat': chat, 'messages': new_msgs})
+        # Клієнт вирішує: скролити вниз чи показати кнопку «нові повідомлення».
+        response['HX-Trigger'] = json.dumps({
+            'tg-new-messages': {
+                'count': len(new_msgs),
+                'incoming': sum(1 for m in new_msgs if m.direction == 'in'),
+            }
+        })
+        return response
+
+    # ── історія вгору ──
+    if 'before_id' in request.GET:
+        try:
+            before_id = int(request.GET['before_id'] or 0)
+        except (TypeError, ValueError):
+            before_id = 0
+        older = list(
+            chat.messages.filter(id__lt=before_id).order_by('-id')[:HISTORY_PAGE]
+        )[::-1] if before_id else []
+        if not older:
+            return render(request, 'tg/partials/history_top.html', {
+                'chat': chat, 'exhausted': True, 'has_more': False,
+            })
+        prev = chat.messages.filter(id__lt=older[0].id).order_by('-id').first()
+        _mark_day_dividers(older, prev.created_at if prev else None)
+        return render(request, 'tg/partials/history_chunk.html', {
+            'chat': chat,
+            'messages': older,
+            'oldest_id': older[0].id,
+            'has_more': chat.messages.filter(id__lt=older[0].id).exists(),
+            'items_template': _items_template(mobile),
+            'mq': '&m=1' if mobile else '',
+        })
+
+    # ── перший рендер ──
+    recent = list(chat.messages.order_by('-id')[:MESSAGES_PAGE])[::-1]
+    _mark_day_dividers(recent)
+    oldest_id = recent[0].id if recent else 0
+    template = 'tg/partials/messages_mobile.html' if mobile else 'tg/partials/messages.html'
+    return render(request, template, {
+        'chat': chat,
+        'messages': recent,
+        'oldest_id': oldest_id,
+        'has_more': bool(oldest_id) and chat.messages.filter(id__lt=oldest_id).exists(),
+        'items_template': _items_template(mobile),
+        'mq': '&m=1' if mobile else '',
+    })
 
 
 # ── HTMX: список чатів (для оновлення лічильників) ───────────────────────────
@@ -1501,14 +1937,26 @@ def chat_messages(request, pk):
 @login_required
 @_require_telegram_plan
 def chat_list_partial(request):
-    from django.db.models import Q, Count, Subquery, OuterRef
+    """Список чатів: сторінками по CHATS_PAGE + 204, коли нічого не змінилось.
+
+    Раніше кожні 10с віддавались УСІ чати (464 → 470 КБ HTML на опит).
+    Тепер клієнт присилає ?sig=<підпис попередньої відповіді>; якщо підпис той
+    самий — 204 No Content і htmx нічого не свапає (кілька сотень байт замість 470 КБ).
+    """
+    from django.db.models import Q, Count, Max, Subquery, OuterRef
+    org = request.organization
     q = request.GET.get('q', '').strip()
+    try:
+        limit = min(max(int(request.GET.get('limit') or CHATS_PAGE), CHATS_PAGE), 1000)
+    except (TypeError, ValueError):
+        limit = CHATS_PAGE
+
     last_msg = TelegramMessage.objects.filter(chat=OuterRef('pk')).order_by('-id')
-    chats = TelegramChat.objects.filter(
-        organization=request.organization,
-    ).select_related('client')
+    chats = TelegramChat.objects.filter(organization=org).select_related('client')
+
+    found_in_text = False
     if q:
-        chats = chats.filter(
+        base = (
             Q(tg_first_name__icontains=q) |
             Q(tg_last_name__icontains=q) |
             Q(tg_username__icontains=q) |
@@ -1516,7 +1964,23 @@ def chat_list_partial(request):
             Q(client__last_name__icontains=q) |
             Q(client__phone__icontains=q) |
             Q(client__patients__name__icontains=q)
-        ).distinct()
+        )
+        # Пошук ще й по ТЕКСТУ листування (окремим запитом, щоб зайвий JOIN
+        # не задвоював Count непрочитаних).
+        text_hits = []
+        if len(q) >= 3:
+            text_hits = list(
+                TelegramMessage.objects
+                .filter(chat__organization=org, text__icontains=q)
+                .values_list('chat_id', flat=True).distinct()[:200]
+            )
+        name_hits = set(
+            TelegramChat.objects.filter(organization=org).filter(base)
+            .values_list('pk', flat=True).distinct()
+        )
+        found_in_text = bool(set(text_hits) - name_hits)
+        chats = chats.filter(pk__in=name_hits | set(text_hits))
+
     chats = chats.annotate(
         unread_count_ann=Count(
             'messages',
@@ -1525,8 +1989,33 @@ def chat_list_partial(request):
         last_msg_text=Subquery(last_msg.values('text')[:1]),
         last_msg_direction=Subquery(last_msg.values('direction')[:1]),
     ).order_by('-last_message_at')
+
+    total = chats.count()
+    page = list(chats[:limit])
+
+    # Підпис стану: найбільший id повідомлення + скільки непрочитаних + що на екрані.
+    state = TelegramMessage.objects.filter(chat__organization=org).aggregate(
+        max_id=Max('id'),
+        unread=Count('id', filter=Q(direction='in', is_read=False)),
+    )
+    sig = '{}-{}-{}-{}-{}'.format(
+        state['max_id'] or 0, state['unread'] or 0, total, limit, q,
+    )
+    if request.GET.get('sig') == sig:
+        return HttpResponse(status=204)
+
     template = 'tg/partials/chat_list_mobile.html' if is_mobile(request) else 'tg/partials/chat_list.html'
-    return render(request, template, {'chats': chats})
+    return render(request, template, {
+        'chats': page,
+        'sig': sig,
+        'limit': limit,
+        'total': total,
+        'has_more': total > limit,
+        'remaining': max(total - limit, 0),
+        'next_limit': limit + CHATS_PAGE * 3,
+        'q': q,
+        'found_in_text': found_in_text,
+    })
 
 
 # ── Відправити повідомлення ───────────────────────────────────────────────────
@@ -1535,15 +2024,36 @@ def chat_list_partial(request):
 @_require_telegram_plan
 @require_POST
 def send_message(request, pk):
+    """Відправка з CRM у Telegram.
+
+    Успіх → рендер ЛИШЕ нової бульбашки (hx-swap=beforeend), а не всіх 50.
+    Помилка → 422 + HX-Trigger: htmx не свапає, JS не чистить форму,
+    текст лишається в полі (раніше this.reset() з'їдав його разом з помилкою).
+    """
     chat = get_object_or_404(
         TelegramChat, pk=pk, organization=request.organization
     )
+    mobile = is_mobile(request)
     text = request.POST.get('text', '').strip()
     media = request.FILES.get('media')
 
+    def _fail(message, status=422):
+        response = HttpResponse(status=status)
+        response['HX-Trigger'] = json.dumps({'tg-send-failed': {'message': message}})
+        return response
+
     if not text and not media:
-        chat_messages = list(chat.messages.order_by('-created_at')[:50])[::-1]
-        return render(request, 'tg/partials/messages.html', {'chat': chat, 'messages': chat_messages})
+        return _fail('Порожнє повідомлення', status=400)
+
+    if media:
+        is_photo_like = (media.content_type or '').startswith('image/')
+        cap = MAX_PHOTO_BYTES if is_photo_like else MAX_FILE_BYTES
+        if media.size > cap:
+            return _fail(
+                'Файл завеликий: {:.1f} МБ, ліміт Telegram — {} МБ.'.format(
+                    media.size / 1048576, cap // 1048576,
+                )
+            )
 
     msg = TelegramMessage(
         chat=chat,
@@ -1586,25 +2096,23 @@ def send_message(request, pk):
         msg.tg_message_id = result.get('result', {}).get('message_id')
         msg.media_file.save(filename, ContentFile(file_bytes), save=False)
     else:
-        result = _send_tg(chat.tg_user_id, text, org=chat.organization)
+        # _esc: без екранування текст із '<' («температура <39») Telegram відхиляє.
+        result = _send_tg(chat.tg_user_id, _esc(text), org=chat.organization)
         msg.tg_message_id = result.get('result', {}).get('message_id')
 
-    # TG помилка (юзер заблокував бота, чат недоступний тощо) — не зберігаємо як OUT,
-    # повертаємо HX-Trigger щоб frontend показав banner.
+    # TG помилка (юзер заблокував бота, чат недоступний тощо) — не зберігаємо як OUT.
     if not result.get('ok'):
         err = (result.get('description') or 'невідома помилка Telegram')[:200]
         logger.warning('send_message: TG error for chat %s: %s', chat.pk, result)
-        chat_messages = list(chat.messages.order_by('-created_at')[:50])[::-1]
-        response = render(request, 'tg/partials/messages.html', {'chat': chat, 'messages': chat_messages})
-        response['HX-Trigger'] = json.dumps({'tg-send-failed': {'message': f'Telegram: {err}'}})
-        return response
+        return _fail(f'Telegram: {err}')
 
     msg.save()
     chat.last_message_at = timezone.now()
     chat.save(update_fields=['last_message_at'])
 
-    chat_messages = list(chat.messages.order_by('-created_at')[:50])[::-1]
-    return render(request, 'tg/partials/messages.html', {'chat': chat, 'messages': chat_messages})
+    prev = chat.messages.filter(id__lt=msg.id).order_by('-id').first()
+    _mark_day_dividers([msg], prev.created_at if prev else None)
+    return render(request, _items_template(mobile), {'chat': chat, 'messages': [msg]})
 
 
 # ── Прив'язати до клієнта ─────────────────────────────────────────────────────
@@ -1655,6 +2163,43 @@ def link_client(request, pk):
                 org=chat.organization,
             )
 
+    return redirect('tg:detail', pk=chat.pk)
+
+
+# ── Запросити незареєстрованого юзера на реєстрацію через бота ────────────────
+
+@login_required
+@_require_telegram_plan
+@require_POST
+def invite_register(request, pk):
+    """Шле в TG-чат запрошення-кнопку "Розпочати реєстрацію".
+
+    Працює тільки для чатів без привʼязаного клієнта (інакше дублюватиме клієнтів).
+    Після натискання кнопки в TG юзер проходить онбординг (контакт → імʼя → прізвище →
+    кличка → вид) і автоматично переходить у booking flow.
+    """
+    chat = get_object_or_404(TelegramChat, pk=pk, organization=request.organization)
+    if chat.client:
+        messages.warning(request, 'Цей чат вже привʼязаний до клієнта.')
+        return redirect('tg:detail', pk=chat.pk)
+
+    result = _onboarding_send_invite(chat)
+    if not result.get('ok'):
+        err = (result.get('description') or 'невідома помилка')[:200]
+        messages.error(request, f'Не вдалось відправити запрошення: {err}')
+        logger.warning('invite_register: TG error for chat %s: %s', chat.pk, result)
+    else:
+        TelegramMessage.objects.create(
+            chat=chat,
+            direction=TelegramMessage.Direction.OUT,
+            text='[Запрошення на реєстрацію]',
+            is_read=True,
+            sent_by=request.user,
+            tg_message_id=result.get('result', {}).get('message_id'),
+        )
+        chat.last_message_at = timezone.now()
+        chat.save(update_fields=['last_message_at'])
+        messages.success(request, 'Запрошення відправлено в Telegram.')
     return redirect('tg:detail', pk=chat.pk)
 
 

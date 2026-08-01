@@ -49,11 +49,11 @@
 
   <!-- Список чатів (scrollable) -->
   <div id="mobile-chat-list"
-       class="tg-mobile-messages"
+       class="tg-mobile-messages tg-chat-list-container"
        style="background:#fff;"
        hx-get="{% url 'tg:list_partial' %}?m=1"
-       hx-trigger="load, every 10s [!document.hidden && !document.getElementById('mobile-chat-search').value]"
-       hx-include="#mobile-chat-search"
+       hx-trigger="load, every 10s [!document.hidden]"
+       hx-include="[name='q'], #chat-list-sig, #chat-list-limit"
        hx-swap="innerHTML">
     <div class="p-8 text-center text-gray-400 text-sm">Завантаження…</div>
   </div>

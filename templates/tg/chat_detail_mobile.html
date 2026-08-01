@@ -67,10 +67,25 @@
   <div id="mobile-messages"
        class="tg-mobile-messages"
        hx-get="{% url 'tg:messages' chat.pk %}?m=1"
-       hx-trigger="load, every 5s [!document.hidden]"
+       hx-trigger="load"
        hx-swap="innerHTML">
     <div class="p-8 text-center text-sm text-gray-400">Завантаження…</div>
   </div>
+
+  <!-- Polling: дописує лише нові повідомлення (див. chat_detail.html) -->
+  <div id="tg-poller"
+       hx-get="{% url 'tg:messages' chat.pk %}?m=1"
+       hx-trigger="every 5s [!document.hidden]"
+       hx-vals='js:{after_id: tgLastMsgId(), seen: tgIsSeen()}'
+       hx-target="#mobile-messages-list"
+       hx-swap="beforeend"></div>
+
+  <button type="button" id="tg-jump-new" onclick="tgScrollBottom()"
+          class="hidden fixed left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-full
+                 bg-brand-dark text-white text-xs font-medium shadow-lg"
+          style="bottom: calc(env(safe-area-inset-bottom, 0px) + 72px);">
+    ↓ Нові повідомлення
+  </button>
 
   <!-- ── Attachment preview (над input bar, показується по вибору файла) ── -->
   <div id="mobile-attach-preview"
@@ -90,13 +105,16 @@
   </div>
 
   <!-- ── Bottom input bar ──────────────────────────────────────────────── -->
+  <div id="tg-toast"
+       class="hidden mx-2 mb-1 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs shrink-0"></div>
+
   <form id="mobile-send-form"
         class="tg-mobile-input shrink-0 border-t border-gray-100 flex items-end gap-1 px-2 pt-2"
         hx-post="{% url 'tg:send' chat.pk %}?m=1"
-        hx-target="#mobile-messages"
-        hx-swap="innerHTML"
+        hx-target="#mobile-messages-list"
+        hx-swap="beforeend"
         hx-encoding="multipart/form-data"
-        hx-on::after-request="tgClearAttach(); this.reset(); window._tgmScrollToBottom=true;">
+        hx-on::after-request="if (event.detail.successful) { tgClearAttach(); this.reset(); tgScrollBottom(); }">
     {% csrf_token %}
 
     {% if chat.client and user.role != 'client' %}
@@ -212,6 +230,19 @@
         {% if chat.client %}Перепривʼязати клієнта{% else %}Привʼязати клієнта{% endif %}
       </span>
     </button>
+
+    {% if not chat.client %}
+    <!-- Запросити на реєстрацію (онбординг у боті) -->
+    <form method="post" action="{% url 'tg:invite_register' chat.pk %}" class="block border-t border-gray-100">
+      {% csrf_token %}
+      <button type="submit"
+              class="w-full flex items-center gap-3 px-5 py-3 text-left active:bg-gray-100"
+              style="min-height: 48px;">
+        <span class="text-xl">📝</span>
+        <span class="flex-1 text-sm text-brand-dark">Запросити на реєстрацію</span>
+      </button>
+    </form>
+    {% endif %}
 
     {% if chat.client %}
     <form method="post" action="{% url 'tg:link' chat.pk %}" class="block"
@@ -414,45 +445,126 @@ function tgClearAttach() {
 })();
 
 // ════════════════════════════════════════════════════════════════════════
-// Auto-scroll до низу: HTMX swap + перший load
+// Стрічка повідомлень: інкрементальна (append), без ререндеру всього списку.
+// Скрол-контейнер тут #mobile-messages, сам список — #mobile-messages-list.
 // ════════════════════════════════════════════════════════════════════════
 (function () {
-  window._tgmScrollToBottom = true;
-  window._tgmSavedBottom = null;
+  var BOTTOM_EPS = 80;
+  var baseTitle = document.title;
+  var unseen = 0;
 
-  function bottom() {
-    var ml = document.getElementById('mobile-messages');
-    if (ml) ml.scrollTop = ml.scrollHeight;
+  function scroller() { return document.getElementById('mobile-messages'); }
+
+  function atBottom() {
+    var ml = scroller();
+    if (!ml) return true;
+    return ml.scrollHeight - ml.scrollTop - ml.clientHeight < BOTTOM_EPS;
   }
 
+  window.tgLastMsgId = function () {
+    var items = document.querySelectorAll('#mobile-messages-list [data-msg-id]');
+    return items.length ? items[items.length - 1].getAttribute('data-msg-id') : 0;
+  };
+
+  window.tgIsSeen = function () {
+    return (!document.hidden && document.hasFocus()) ? '1' : '0';
+  };
+
+  window.tgScrollBottom = function () {
+    var ml = scroller();
+    if (!ml) return;
+    ml.scrollTop = ml.scrollHeight;
+    hideJump();
+    if (typeof ResizeObserver !== 'undefined') {
+      var ro = new ResizeObserver(function () { ml.scrollTop = ml.scrollHeight; });
+      ro.observe(ml);
+      setTimeout(function () { ro.disconnect(); }, 1500);
+    }
+  };
+
+  function showJump() {
+    var b = document.getElementById('tg-jump-new');
+    if (b) b.classList.remove('hidden');
+  }
+  function hideJump() {
+    var b = document.getElementById('tg-jump-new');
+    if (b) b.classList.add('hidden');
+    unseen = 0;
+    document.title = baseTitle;
+  }
+
+  var wasAtBottom = true;
+  var historyAnchor = null;
+
   document.body.addEventListener('htmx:beforeSwap', function (e) {
-    if (e.detail.target.id !== 'mobile-messages') return;
-    var ml = document.getElementById('mobile-messages');
-    if (!ml) { window._tgmScrollToBottom = true; window._tgmSavedBottom = null; return; }
-    var dist = ml.scrollHeight - ml.scrollTop - ml.clientHeight;
-    if (dist < 80) {
-      window._tgmScrollToBottom = true;
-      window._tgmSavedBottom = null;
-    } else {
-      window._tgmScrollToBottom = false;
-      window._tgmSavedBottom = dist;
+    var t = e.detail.target;
+    if (!t) return;
+    if (t.id === 'mobile-messages') { wasAtBottom = true; return; }
+    if (t.id === 'mobile-messages-list') { wasAtBottom = atBottom(); return; }
+    if (t.classList && t.classList.contains('tg-history-top')) {
+      // Якір на конкретне повідомлення — див. пояснення в chat_detail.html.
+      var ml = scroller();
+      var first = document.querySelector('#mobile-messages-list [data-msg-id]');
+      historyAnchor = (ml && first)
+        ? { el: first, offset: first.getBoundingClientRect().top - ml.getBoundingClientRect().top }
+        : null;
     }
   });
 
   document.body.addEventListener('htmx:afterSwap', function (e) {
-    if (e.detail.target.id !== 'mobile-messages') return;
-    var ml = document.getElementById('mobile-messages');
-    if (!ml) return;
-    if (window._tgmScrollToBottom) {
-      window._tgmScrollToBottom = false;
-      requestAnimationFrame(bottom);
-    } else if (window._tgmSavedBottom !== null) {
-      var saved = window._tgmSavedBottom;
-      window._tgmSavedBottom = null;
-      requestAnimationFrame(function () {
-        ml.scrollTop = ml.scrollHeight - ml.clientHeight - saved;
-      });
+    var t = e.detail.target;
+    if (!t) return;
+    if (t.id === 'mobile-messages') { tgScrollBottom(); return; }
+    if (t.id === 'mobile-messages-list') {
+      if (wasAtBottom) tgScrollBottom();
+      return;
     }
+    if (historyAnchor) {
+      var a = historyAnchor;
+      historyAnchor = null;
+      var ml = scroller();
+      if (!ml || !a.el.isConnected) return;
+      var keep = function () {
+        var cur = a.el.getBoundingClientRect().top - ml.getBoundingClientRect().top;
+        ml.scrollTop += (cur - a.offset);
+      };
+      keep();
+      if (typeof ResizeObserver !== 'undefined') {
+        var ro = new ResizeObserver(keep);
+        ro.observe(ml);
+        setTimeout(function () { ro.disconnect(); }, 2000);
+      }
+    }
+  });
+
+  document.body.addEventListener('tg-new-messages', function (e) {
+    var d = (e.detail || {});
+    if (!d.incoming) return;
+    if (!atBottom()) showJump();
+    if (document.hidden || !document.hasFocus()) {
+      unseen += d.incoming;
+      document.title = '(' + unseen + ') ' + baseTitle;
+    }
+  });
+
+  window.addEventListener('focus', function () {
+    unseen = 0;
+    document.title = baseTitle;
+    if (atBottom()) hideJump();
+  });
+
+  document.addEventListener('scroll', function (e) {
+    if (e.target && e.target.id === 'mobile-messages' && atBottom()) hideJump();
+  }, true);
+
+  document.body.addEventListener('tg-send-failed', function (e) {
+    var msg = (e.detail && e.detail.message) || 'Не вдалось надіслати';
+    var box = document.getElementById('tg-toast');
+    if (!box) return;
+    box.textContent = '⚠️ ' + msg;
+    box.classList.remove('hidden');
+    clearTimeout(window._tgToastTimer);
+    window._tgToastTimer = setTimeout(function () { box.classList.add('hidden'); }, 8000);
   });
 
   // Close sheets on Esc

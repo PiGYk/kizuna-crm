@@ -14,7 +14,7 @@ def notify_staff_new_message_task(self, chat_id, preview_text):
     від 500ms+ синхронних TG API calls. Telegram не буде retry-ати webhook.
     """
     from .models import TelegramChat
-    from .views import _send_tg
+    from .views import _send_tg, _esc
 
     try:
         # _base_manager — обхід OrgManager fail-closed (немає org context у Celery).
@@ -39,10 +39,12 @@ def notify_staff_new_message_task(self, chat_id, preview_text):
             else:
                 client_name = f'{chat.display_name} (неверифікований)'
             preview = (preview_text or '')[:150]
+            # _esc: текст клієнта може містити '<' — без екранування TG відхиляє
+            # сповіщення цілком і персонал мовчки не дізнається про повідомлення.
             text = (
                 f'💬 <b>Нове повідомлення</b>\n\n'
-                f'Від: <b>{client_name}</b>\n'
-                f'{preview}'
+                f'Від: <b>{_esc(client_name)}</b>\n'
+                f'{_esc(preview)}'
             )
             reply_markup = {
                 'inline_keyboard': [[
@@ -82,7 +84,7 @@ def _send_broadcast_inner(broadcast, org):
     from django.utils import timezone
     from datetime import timedelta
     from .models import Broadcast, BroadcastRecipient, TelegramChat, TelegramMessage
-    from .views import _send_tg
+    from .views import _send_tg, _esc
 
     # Всі чати організації
     chats = list(TelegramChat.objects.filter(organization=org))
@@ -159,7 +161,7 @@ def _send_broadcast_inner(broadcast, org):
         status = BroadcastRecipient.Status.SENT
         tg_msg_id = None
         try:
-            result = _send_tg(chat.tg_user_id, broadcast.text, org=org)
+            result = _send_tg(chat.tg_user_id, _esc(broadcast.text), org=org)
             if result.get('ok'):
                 sent += 1
                 tg_msg_id = result.get('result', {}).get('message_id')

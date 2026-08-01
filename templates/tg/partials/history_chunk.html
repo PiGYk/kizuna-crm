@@ -1,0 +1,7 @@
+{% comment %}
+Порція історії: новий верхній якір + самі повідомлення.
+Вставляється замість попереднього якоря (hx-swap=outerHTML), тому порядок
+елементів у стрічці лишається хронологічним.
+{% endcomment %}
+{% include 'tg/partials/history_top.html' %}
+{% include items_template %}

@@ -45,6 +45,30 @@
 </a>
 {% empty %}
 <div class="px-4 py-8 text-center text-sm text-gray-400">
-  Чатів ще немає.<br>Клієнт має написати боту першим.
+  {% if q %}Нічого не знайдено за «{{ q }}».{% else %}Чатів ще немає.<br>Клієнт має написати боту першим.{% endif %}
 </div>
 {% endfor %}
+
+{% if found_in_text %}
+<div class="px-4 py-1.5 text-[11px] text-gray-400 bg-gray-50 border-t border-gray-100">
+  Частину чатів знайдено за текстом листування.
+</div>
+{% endif %}
+
+{% if has_more %}
+<button type="button"
+        class="w-full py-2.5 text-xs font-medium text-gray-500 hover:text-brand-dark hover:bg-gray-50 border-t border-gray-100"
+        hx-get="{% url 'tg:list_partial' %}"
+        hx-vals='{"limit": "{{ next_limit }}"}'
+        hx-include="[name='q']"
+        hx-target="closest .tg-chat-list-container"
+        hx-swap="innerHTML">
+  Показати ще ({{ remaining }})
+</button>
+{% endif %}
+
+{# Стан для polling: сервер відповідає 204, поки sig не змінився #}
+<span class="hidden">
+  <input type="hidden" id="chat-list-sig" name="sig" value="{{ sig }}">
+  <input type="hidden" id="chat-list-limit" name="limit" value="{{ limit }}">
+</span>
