@@ -484,8 +484,12 @@
 
       <!-- База -->
       <div class="rounded-2xl border-2 border-brand-gold p-8 relative shadow-xl shadow-brand-gold/10">
-        <div class="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 gradient-gold text-brand-dark text-xs font-bold rounded-full whitespace-nowrap">
-          Обирають найчастіше
+        <!-- Центрування через inline-стилі: клас -translate-x-1/2 відсутній у зібраному landing.min.css -->
+        <div style="position:absolute;top:-14px;left:0;right:0;text-align:center;">
+          <span class="gradient-gold text-brand-dark text-xs font-bold rounded-full"
+                style="display:inline-block;padding:4px 16px;white-space:nowrap;">
+            Обирають найчастіше
+          </span>
         </div>
         <div class="text-sm font-semibold text-brand-gold mb-2">База</div>
         <div class="text-4xl font-extrabold text-brand-dark mb-1">₴900<span class="text-lg font-normal text-gray-400">/міс</span></div>
