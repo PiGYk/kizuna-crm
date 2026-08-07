@@ -32,7 +32,7 @@
 
   <!-- OG -->
   <meta property="og:title" content="Kizuna CRM — Ветеринарна CRM для клінік України">
-  <meta property="og:description" content="Все що потрібно ветклініці в одній системі: клієнти, розклад, склад, рахунки, фіскалізація, Telegram-бот. 14 днів безкоштовно.">
+  <meta property="og:description" content="Все що потрібно ветклініці в одній системі: клієнти, розклад, склад, рахунки, фіскалізація, Telegram-бот. 30 днів безкоштовно.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://crm.kizuna.com.ua/">
   <meta property="og:locale" content="uk_UA">
@@ -137,23 +137,31 @@
           яка не гальмує
         </h1>
 
-        <p class="text-white/70 text-lg mb-8 leading-relaxed">
-          Замість блокнотів, таблиць Excel і кількох месенджерів — одна система. Клієнти, розклад, склад, рахунки, фіскалізація і Telegram-бот для клієнтів.
+        <p class="text-white/70 text-lg mb-6 leading-relaxed">
+          Замість блокнотів, таблиць Excel і кількох месенджерів — одна система.
+          Клієнти й тварини, розклад, склад, каса з фіскалізацією, Telegram-бот
+          і фінанси, які нарешті сходяться.
+        </p>
+
+        <p class="text-white/90 text-base mb-8 leading-relaxed">
+          <span class="text-brand-gold font-bold">900 ₴ на місяць за всю клініку</span> —
+          не за кожного лікаря, як беруть інші.
         </p>
 
         <div class="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
           <a href="/register/"
              onclick="gtag('event','begin_registration',{event_category:'cta',event_label:'hero'})"
              class="px-8 py-3.5 gradient-gold text-brand-dark rounded-xl font-bold text-base hover:brightness-95 transition-all shadow-lg shadow-brand-gold/20">
-            Почати безкоштовно →
+            Спробувати 30 днів безкоштовно →
           </a>
-          <a href="#screens"
+          <a href="/login/?demo=1"
+             onclick="gtag('event','open_demo',{event_category:'cta',event_label:'hero'})"
              class="px-8 py-3.5 bg-white/10 border border-white/20 text-white rounded-xl font-medium text-base hover:bg-white/15 transition-all">
-            Подивитись систему
+            Зайти в демо без реєстрації
           </a>
         </div>
 
-        <p class="text-white/40 text-xs mt-4">Без кредитної картки · Готово за 5 хвилин</p>
+        <p class="text-white/40 text-xs mt-4">Картка не потрібна · Готово за 5 хвилин · Демо — логін <span class="text-white/60">demo</span> / пароль <span class="text-white/60">demo12345</span></p>
       </div>
 
       <!-- скрін дашборду -->
@@ -167,6 +175,34 @@
       </div>
 
     </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════ ДОВІРА ═══════════════════ -->
+<section class="py-10 px-6 bg-white border-b border-gray-100">
+  <div class="max-w-5xl mx-auto">
+    <p class="text-center text-xs uppercase tracking-wider text-gray-400 mb-6">
+      Система працює в реальних клініках щодня
+    </p>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+      <div>
+        <div class="text-3xl font-extrabold text-brand-dark mb-1">1&nbsp;200+</div>
+        <p class="text-gray-500 text-sm">проведених чеків у живій касі</p>
+      </div>
+      <div>
+        <div class="text-3xl font-extrabold text-brand-dark mb-1">700+</div>
+        <p class="text-gray-500 text-sm">карток клієнтів і тварин у роботі</p>
+      </div>
+      <div>
+        <div class="text-3xl font-extrabold text-brand-dark mb-1">2&nbsp;роки</div>
+        <p class="text-gray-500 text-sm">система пишеться під живу клініку, а не «взагалі»</p>
+      </div>
+    </div>
+    <p class="text-center text-sm text-gray-500 mt-8">
+      Серед користувачів — <span class="text-brand-dark font-semibold">державна ветеринарна
+      клініка міста Ірпінь</span>.
+    </p>
   </div>
 </section>
 
@@ -426,76 +462,94 @@
 <!-- ═══════════════════ ТАРИФИ ═══════════════════ -->
 <section id="pricing" class="py-20 px-6 bg-white">
   <div class="max-w-5xl mx-auto">
-    <div class="text-center mb-14">
-      <h2 class="text-3xl lg:text-4xl font-extrabold text-brand-dark mb-4">Прозорі тарифи</h2>
-      <p class="text-gray-500 text-lg">Без прихованих платежів. Без «дзвоніть для уточнення ціни».</p>
+    <div class="text-center mb-8">
+      <h2 class="text-3xl lg:text-4xl font-extrabold text-brand-dark mb-4">Одна ціна за клініку</h2>
+      <p class="text-gray-500 text-lg">Не за лікаря. Не за робоче місце. Скільки б вас не було —
+        ціна не змінюється.</p>
+    </div>
+
+    <!-- Порівняння моделі оплати: головна перевага -->
+    <div class="max-w-3xl mx-auto mb-14 rounded-2xl border border-gray-200 bg-brand-cream p-6">
+      <p class="text-sm text-gray-600 leading-relaxed text-center">
+        Більшість ветеринарних програм в Україні беруть плату <strong>за кожного лікаря</strong>:
+        близько 700 ₴ на місяць за одного. Клініка з чотирма лікарями віддає під 2 800 ₴ —
+        і платить більше щоразу, коли наймає людину.
+        <br class="hidden md:block">
+        <span class="text-brand-dark font-semibold">У нас — 900 ₴ за всю клініку.
+        Наймайте скільки треба, платіж не зростає.</span>
+      </p>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
 
-      <!-- Старт -->
-      <div class="rounded-2xl border border-gray-200 p-8">
-        <div class="text-sm font-semibold text-gray-500 mb-2">Старт</div>
-        <div class="text-4xl font-extrabold text-brand-dark mb-1">₴990<span class="text-lg font-normal text-gray-400">/міс</span></div>
-        <p class="text-gray-500 text-sm mb-8">Для невеликої клініки що тільки починає</p>
+      <!-- База -->
+      <div class="rounded-2xl border-2 border-brand-gold p-8 relative shadow-xl shadow-brand-gold/10">
+        <div class="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 gradient-gold text-brand-dark text-xs font-bold rounded-full whitespace-nowrap">
+          Обирають найчастіше
+        </div>
+        <div class="text-sm font-semibold text-brand-gold mb-2">База</div>
+        <div class="text-4xl font-extrabold text-brand-dark mb-1">₴900<span class="text-lg font-normal text-gray-400">/міс</span></div>
+        <p class="text-gray-400 text-xs mb-4">₴720/міс при оплаті за рік</p>
+        <p class="text-gray-500 text-sm mb-8">Уся система без обмежень. Для клініки, яка сама дає собі раду.</p>
         <ul class="space-y-3 text-sm text-gray-600 mb-8">
-          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> До 2 лікарів</li>
-          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Клієнти та тварини</li>
-          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Розклад</li>
-          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Білінг та рахунки</li>
-          <li class="flex items-center gap-2 text-gray-300"><span>✗</span> Telegram-бот</li>
-          <li class="flex items-center gap-2 text-gray-300"><span>✗</span> Checkbox РРО</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Лікарів — скільки завгодно</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Клієнти, тварини, історія хвороб</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Розклад, склад, рахунки</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Фіскалізація Checkbox</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Telegram-бот для клієнтів</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Аналітика, зарплати, фінанси</li>
         </ul>
-        <a href="/register/" onclick="gtag('event','begin_registration',{event_category:'pricing',event_label:'start'})"
+        <a href="/register/" onclick="gtag('event','begin_registration',{event_category:'pricing',event_label:'base'})"
+           class="block text-center py-2.5 gradient-gold text-brand-dark rounded-xl font-bold text-sm hover:brightness-95 transition-all">
+          Почати безкоштовно →
+        </a>
+      </div>
+
+      <!-- Підтримка -->
+      <div class="rounded-2xl border border-gray-200 p-8">
+        <div class="text-sm font-semibold text-gray-500 mb-2">Підтримка</div>
+        <div class="text-4xl font-extrabold text-brand-dark mb-1">₴2 200<span class="text-lg font-normal text-gray-400">/міс</span></div>
+        <p class="text-gray-400 text-xs mb-4">₴1 760/міс при оплаті за рік</p>
+        <p class="text-gray-500 text-sm mb-8">Коли не хочеться розбиратися самим — я веду вас особисто.</p>
+        <ul class="space-y-3 text-sm text-gray-600 mb-8">
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Усе з «Бази»</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Перенесення даних зі старої програми</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Навчання адміністраторів і лікарів</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Особистий контакт, не служба підтримки</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Налаштування під ваші процеси</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Ваші побажання — у першу чергу</li>
+        </ul>
+        <a href="/register/" onclick="gtag('event','begin_registration',{event_category:'pricing',event_label:'support'})"
            class="block text-center py-2.5 border-2 border-brand-gold text-brand-gold rounded-xl font-semibold text-sm hover:bg-brand-gold hover:text-brand-dark transition-all">
           Спробувати
         </a>
       </div>
 
-      <!-- Клініка — highlighted -->
-      <div class="rounded-2xl border-2 border-brand-gold p-8 relative shadow-xl shadow-brand-gold/10">
-        <div class="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 gradient-gold text-brand-dark text-xs font-bold rounded-full">
-          Найпопулярніший
-        </div>
-        <div class="text-sm font-semibold text-brand-gold mb-2">Клініка</div>
-        <div class="text-4xl font-extrabold text-brand-dark mb-1">₴1 990<span class="text-lg font-normal text-gray-400">/міс</span></div>
-        <p class="text-gray-500 text-sm mb-8">Повний функціонал для активної клініки</p>
-        <ul class="space-y-3 text-sm text-gray-600 mb-8">
-          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> До 10 лікарів</li>
-          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Клієнти та тварини</li>
-          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Розклад</li>
-          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Білінг та рахунки</li>
-          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Telegram-бот</li>
-          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Checkbox РРО</li>
-        </ul>
-        <a href="/register/" onclick="gtag('event','begin_registration',{event_category:'pricing',event_label:'clinic'})"
-           class="block text-center py-2.5 gradient-gold text-brand-dark rounded-xl font-bold text-sm hover:brightness-95 transition-all">
-          Почати зараз →
-        </a>
-      </div>
-
-      <!-- Мережа -->
+      <!-- Індивідуальний -->
       <div class="rounded-2xl border border-gray-200 p-8">
-        <div class="text-sm font-semibold text-gray-500 mb-2">Мережа</div>
-        <div class="text-4xl font-extrabold text-brand-dark mb-1">₴3 990<span class="text-lg font-normal text-gray-400">/міс</span></div>
-        <p class="text-gray-500 text-sm mb-8">Для мережі клінік або великих центрів</p>
+        <div class="text-sm font-semibold text-gray-500 mb-2">Індивідуальний</div>
+        <div class="text-4xl font-extrabold text-brand-dark mb-1">від ₴4 500<span class="text-lg font-normal text-gray-400">/міс</span></div>
+        <p class="text-gray-400 text-xs mb-4">Вартість — після розмови про задачі</p>
+        <p class="text-gray-500 text-sm mb-8">Коли клініка працює інакше, ніж усі — систему підганяємо під неї.</p>
         <ul class="space-y-3 text-sm text-gray-600 mb-8">
-          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Необмежена кількість лікарів</li>
-          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Все з тарифу «Клініка»</li>
-          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Пріоритетна підтримка</li>
-          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Персональне налаштування</li>
-          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Навчання команди</li>
-          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> SLA підтримка</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Усе з «Підтримки»</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Доробки під ваші процеси</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Свої звіти й документи</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Інтеграції з вашими сервісами</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Кілька філій в одній системі</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Домовлений час реакції</li>
         </ul>
-        <a href="/register/" onclick="gtag('event','begin_registration',{event_category:'pricing',event_label:'network'})"
+        <a href="/register/" onclick="gtag('event','begin_registration',{event_category:'pricing',event_label:'custom'})"
            class="block text-center py-2.5 border-2 border-brand-gold text-brand-gold rounded-xl font-semibold text-sm hover:bg-brand-gold hover:text-brand-dark transition-all">
-          Зв'язатись
+          Обговорити
         </a>
       </div>
 
     </div>
 
-    <p class="text-center text-gray-400 text-sm mt-8">Перші 14 днів безкоштовно для будь-якого тарифу</p>
+    <p class="text-center text-gray-400 text-sm mt-8">
+      Перші 30 днів — безкоштовно, картка не потрібна. При оплаті за рік — знижка 20%.
+    </p>
   </div>
 </section>
 
@@ -599,28 +653,28 @@
         </div>
         <div class="space-y-3.5">
           <div class="flex items-start gap-3">
-            <span class="mt-0.5 px-2 py-0.5 bg-green-500/15 text-green-400 text-xs rounded-md font-medium flex-shrink-0">квіт</span>
-            <span class="text-gray-300 text-sm">Онлайн-оплата підписки через WayForPay прямо з системи</span>
+            <span class="mt-0.5 px-2 py-0.5 bg-green-500/15 text-green-400 text-xs rounded-md font-medium flex-shrink-0">серп</span>
+            <span class="text-gray-300 text-sm">Форма запису на сайт клініки — два рядки коду, і клієнти записуються самі</span>
           </div>
           <div class="flex items-start gap-3">
-            <span class="mt-0.5 px-2 py-0.5 bg-green-500/15 text-green-400 text-xs rounded-md font-medium flex-shrink-0">квіт</span>
-            <span class="text-gray-300 text-sm">Email-верифікація при реєстрації для захисту акаунтів</span>
+            <span class="mt-0.5 px-2 py-0.5 bg-green-500/15 text-green-400 text-xs rounded-md font-medium flex-shrink-0">серп</span>
+            <span class="text-gray-300 text-sm">Переписаний розділ Telegram — листування з клієнтом просто в системі</span>
           </div>
           <div class="flex items-start gap-3">
-            <span class="mt-0.5 px-2 py-0.5 bg-brand-gold/15 text-brand-gold text-xs rounded-md font-medium flex-shrink-0">бер</span>
-            <span class="text-gray-300 text-sm">Аналітика по лікарях — хто скільки заробив за місяць</span>
+            <span class="mt-0.5 px-2 py-0.5 bg-brand-gold/15 text-brand-gold text-xs rounded-md font-medium flex-shrink-0">лип</span>
+            <span class="text-gray-300 text-sm">Мобільна версія всіх екранів — каса, склад і записи з телефона</span>
           </div>
           <div class="flex items-start gap-3">
-            <span class="mt-0.5 px-2 py-0.5 bg-brand-gold/15 text-brand-gold text-xs rounded-md font-medium flex-shrink-0">бер</span>
-            <span class="text-gray-300 text-sm">Фінансовий журнал — прибутки та витрати з категоріями</span>
+            <span class="mt-0.5 px-2 py-0.5 bg-brand-gold/15 text-brand-gold text-xs rounded-md font-medium flex-shrink-0">лип</span>
+            <span class="text-gray-300 text-sm">Інвентаризація складу і підказка «що замовити» за витратами</span>
           </div>
           <div class="flex items-start gap-3">
-            <span class="mt-0.5 px-2 py-0.5 bg-white/10 text-gray-400 text-xs rounded-md font-medium flex-shrink-0">лют</span>
-            <span class="text-gray-300 text-sm">Telegram-бот для клієнтів — запис і нагадування автоматично</span>
+            <span class="mt-0.5 px-2 py-0.5 bg-white/10 text-gray-400 text-xs rounded-md font-medium flex-shrink-0">трав</span>
+            <span class="text-gray-300 text-sm">Контакти клієнтів у телефоні — синхронізуються самі, з кличкою тварини</span>
           </div>
           <div class="flex items-start gap-3">
-            <span class="mt-0.5 px-2 py-0.5 bg-white/10 text-gray-400 text-xs rounded-md font-medium flex-shrink-0">лют</span>
-            <span class="text-gray-300 text-sm">Checkbox РРО — фіскальний чек одним кліком з рахунку</span>
+            <span class="mt-0.5 px-2 py-0.5 bg-white/10 text-gray-400 text-xs rounded-md font-medium flex-shrink-0">трав</span>
+            <span class="text-gray-300 text-sm">Власний дашборд — самі обираєте, які показники бачити при вході</span>
           </div>
         </div>
       </div>
@@ -651,22 +705,15 @@
           <div class="flex items-start gap-3">
             <span class="mt-0.5 w-2 h-2 rounded-full bg-blue-400 flex-shrink-0 mt-1.5"></span>
             <div>
-              <span class="text-gray-200 text-sm font-medium">Онлайн-запис для клієнтів</span>
-              <p class="text-gray-500 text-xs mt-0.5">Виджет на сайт клініки — клієнти самі обирають час</p>
-            </div>
-          </div>
-          <div class="flex items-start gap-3">
-            <span class="mt-0.5 w-2 h-2 rounded-full bg-blue-400 flex-shrink-0 mt-1.5"></span>
-            <div>
-              <span class="text-gray-200 text-sm font-medium">Мобільний застосунок</span>
-              <p class="text-gray-500 text-xs mt-0.5">iOS та Android для лікарів та адміністраторів</p>
+              <span class="text-gray-200 text-sm font-medium">Кілька філій в одній системі</span>
+              <p class="text-gray-500 text-xs mt-0.5">Спільна база клієнтів, окремі каса і склад по кожній точці</p>
             </div>
           </div>
           <div class="flex items-start gap-3">
             <span class="mt-0.5 w-2 h-2 rounded-full bg-purple-400 flex-shrink-0 mt-1.5"></span>
             <div>
-              <span class="text-gray-200 text-sm font-medium">Автоматичний маркетинг</span>
-              <p class="text-gray-500 text-xs mt-0.5">Email / Telegram кампанії по клієнтській базі</p>
+              <span class="text-gray-200 text-sm font-medium">Перенесення з Excel і старих програм</span>
+              <p class="text-gray-500 text-xs mt-0.5">Клієнти, тварини й залишки складу — без ручного набивання</p>
             </div>
           </div>
         </div>
@@ -711,7 +758,7 @@
   </div>
   <div class="relative max-w-2xl mx-auto">
     <h2 class="text-4xl font-extrabold text-white mb-4">Готові спробувати?</h2>
-    <p class="text-white/60 text-lg mb-8">14 днів безкоштовно. Без кредитної картки. Без обмежень функцій.</p>
+    <p class="text-white/60 text-lg mb-8">30 днів безкоштовно. Без кредитної картки. Без обмежень функцій.</p>
     <a href="/register/"
        onclick="gtag('event','begin_registration',{event_category:'cta',event_label:'bottom_cta'})"
        class="inline-block px-10 py-4 gradient-gold text-brand-dark rounded-xl font-bold text-lg hover:brightness-95 transition-all shadow-xl shadow-brand-gold/20">

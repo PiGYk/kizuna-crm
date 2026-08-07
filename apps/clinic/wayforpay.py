@@ -15,21 +15,26 @@ MERCHANT_DOMAIN = (
 )
 
 PLANS = {
-    'start': {
-        'label': 'Старт',
-        'price': 990,
-        'product_name': 'Kizuna CRM — Тариф Старт (1 місяць)',
+    'base': {
+        'label': 'База',
+        'price': 900,
+        'product_name': 'Kizuna CRM — Тариф База (1 місяць)',
     },
-    'clinic': {
-        'label': 'Клініка',
-        'price': 1990,
-        'product_name': 'Kizuna CRM — Тариф Клініка (1 місяць)',
+    'support': {
+        'label': 'Підтримка',
+        'price': 2200,
+        'product_name': 'Kizuna CRM — Тариф Підтримка (1 місяць)',
     },
-    'network': {
-        'label': 'Мережа',
-        'price': 3990,
-        'product_name': 'Kizuna CRM — Тариф Мережа (1 місяць)',
+    'custom': {
+        'label': 'Індивідуальний',
+        'price': 4500,
+        'product_name': 'Kizuna CRM — Тариф Індивідуальний (1 місяць)',
     },
+    # Легасі-ключі старої сітки: якщо десь лишилось посилання на старий тариф,
+    # оплата не повинна падати 404.
+    'start':   {'label': 'Старт',   'price': 990,  'product_name': 'Kizuna CRM — Тариф Старт (1 місяць)'},
+    'clinic':  {'label': 'Клініка', 'price': 1990, 'product_name': 'Kizuna CRM — Тариф Клініка (1 місяць)'},
+    'network': {'label': 'Мережа',  'price': 3990, 'product_name': 'Kizuna CRM — Тариф Мережа (1 місяць)'},
 }
 
 

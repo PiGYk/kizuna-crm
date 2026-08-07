@@ -94,7 +94,9 @@ class ClinicRegistrationForm(forms.Form):
         org = Organization.objects.create(
             name=cd['clinic_name'],
             slug=self._unique_slug(cd['clinic_name']),
-            trial_expires_at=timezone.now() + timedelta(days=14),
+            # 30 днів: у найближчого конкурента (ENOTE) пробний період — місяць,
+            # і на цьому нас порівнюють. 14 днів читались як «менше дають».
+            trial_expires_at=timezone.now() + timedelta(days=30),
         )
         user = User(
             username=cd['username'],

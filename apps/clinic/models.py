@@ -26,20 +26,29 @@ class Organization(models.Model):
 
     # --- Тріал / Підписка ---
     PLAN_CHOICES = [
-        ('start',   'Старт — ₴990/міс'),
-        ('clinic',  'Клініка — ₴1 990/міс'),
-        ('network', 'Мережа — ₴3 990/міс'),
+        ('base',    'База — ₴900/міс'),
+        ('support', 'Підтримка — ₴2 200/міс'),
+        ('custom',  'Індивідуальний — від ₴4 500/міс'),
     ]
     plan = models.CharField(
         'Тариф', max_length=20, choices=PLAN_CHOICES, blank=True, default='',
     )
 
-    # Ліміти по плану. plan='' (тріал) — повний доступ для оцінки.
+    # Тарифи РІЗНЯТЬСЯ РІВНЕМ СУПРОВОДУ, а не обрізаним функціоналом: клініка на
+    # найдешевшому тарифі отримує систему цілком. Різати телеграм і фіскалізацію
+    # у малої клініки — найшвидший спосіб її втратити.
+    # plan='' (тріал) — теж повний доступ.
+    _FULL = {'max_doctors': None, 'telegram': True, 'checkbox': True}
     _PLAN_LIMITS = {
-        '':        {'max_doctors': None, 'telegram': True,  'checkbox': True},
-        'start':   {'max_doctors': 2,    'telegram': False, 'checkbox': False},
-        'clinic':  {'max_doctors': 10,   'telegram': True,  'checkbox': True},
-        'network': {'max_doctors': None, 'telegram': True,  'checkbox': True},
+        '':        _FULL,
+        'base':    _FULL,
+        'support': _FULL,
+        'custom':  _FULL,
+        # Легасі-ключі старої сітки — лишені, щоб уже заведені організації
+        # не втратили доступ до модулів після переходу на нові тарифи.
+        'start':   _FULL,
+        'clinic':  _FULL,
+        'network': _FULL,
     }
 
     def _limits(self):
