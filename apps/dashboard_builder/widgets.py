@@ -332,7 +332,12 @@ def render_list_today_appointments(request, config):
     for a in qs:
         time_s = timezone.localtime(a.starts_at).strftime('%H:%M')
         client = escape(str(a.client))
-        patient = escape(str(a.patient or '—'))
+        # Тільки кличка і вид: повний __str__ пацієнта тягне ще й власника, а він
+        # уже стоїть у сусідній колонці — рядок роздувався на три лінії і ламав таблицю.
+        if a.patient:
+            patient = escape(f'{a.patient.name} ({a.patient.get_species_display()})')
+        else:
+            patient = '—'
         doctor = escape(a.doctor.get_full_name() or a.doctor.username) if a.doctor else '—'
         st = status_color.get(a.status, 'bg-gray-100 text-gray-700')
         st_label = escape(a.get_status_display())
