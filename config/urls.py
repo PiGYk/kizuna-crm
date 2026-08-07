@@ -19,13 +19,20 @@ from apps.clinic.views import (
 )
 from apps.clinic.wayforpay import WAYFORPAY_URL, _sign, MERCHANT_DOMAIN
 from apps.dashboard_builder.views import dashboard_view
+from apps.carddav import setup_views as carddav_setup_views
+from apps.carddav.views import well_known as carddav_well_known
 import time as _time
 
 
 @login_required
 def subscribe_test_payment(request):
-    """Тестова оплата 1 UAH для перевірки WayForPay інтеграції."""
+    """Тестова оплата 1 UAH для перевірки WayForPay інтеграції. ТІЛЬКИ суперюзер:
+    order_ref тут має вигляд kizuna-test-*, який callback розпарсити не може, тож
+    у клієнта гроші б списались, а підписка не подовжилась."""
     from django.conf import settings
+    from django.http import Http404
+    if not request.user.is_superuser:
+        raise Http404('Not found')
     order_ref = f'kizuna-test-{request.user.pk}-{int(_time.time())}'
     order_date = int(_time.time())
     amount = '1'
@@ -167,6 +174,11 @@ urlpatterns = [
     path('analytics/', include('apps.analytics.urls')),
     path('finance/', include('apps.finance.urls')),
     path('clinic/', include('apps.clinic.urls')),
+    # CardDAV (синхронізація контактів з телефоном)
+    path('carddav/', include('apps.carddav.urls')),
+    path('carddav-setup/', carddav_setup_views.setup_page, name='carddav_setup'),
+    path('carddav-setup/regenerate/', carddav_setup_views.regenerate_token, name='carddav_setup_regenerate'),
+    path('.well-known/carddav', carddav_well_known),
     path('api/public/', include('apps.appointments.urls_public')),
     path('api/public/', include('apps.services.urls_public')),
     path('media/<path:path>', serve_media, name='serve_media'),

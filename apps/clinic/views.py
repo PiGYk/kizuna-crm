@@ -257,8 +257,8 @@ def subscribe_success(request):
     plan_key = org.plan if org else ''
     plan_info = PLANS.get(plan_key, {})
     return render(request, 'clinic/subscribe_success.html', {
-        'plan_name': plan_info.get('name', 'Тариф'),
-        'amount': plan_info.get('amount', 0),
+        'plan_name': plan_info.get('label', 'Тариф'),
+        'amount': plan_info.get('price', 0),
         'order_ref': request.GET.get('order_ref', ''),
     })
 

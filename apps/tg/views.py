@@ -1482,10 +1482,12 @@ def _handle_health_check_callback(callback_query, chat, org, token):
     if is_ok:
         reply = f'Дякуємо! Раді що {hc.patient.name} почувається добре \U0001f43e'
     else:
-        reply = (
-            f'Дякуємо за відповідь. Наш лікар зв\'яжеться з вами щодо {hc.patient.name}.\n\n'
-            f'Або зателефонуйте: {getattr(org, "phone", "") or "+38 (068) 239-80-95"}'
-        )
+        # Телефон — ТІЛЬКИ власний номер організації. Без fallback: інакше клієнти
+        # клініки, яка не заповнила поле, отримували б чужий номер.
+        reply = f'Дякуємо за відповідь. Наш лікар зв\'яжеться з вами щодо {hc.patient.name}.'
+        org_phone = (getattr(org, 'phone', '') or '').strip()
+        if org_phone:
+            reply += f'\n\nАбо зателефонуйте: {org_phone}'
         # Надіслати нотифікацію staff
         from apps.tg.models import TelegramChat as TC
         staff_chats = TC.objects.filter(organization=org, receive_leads=True)

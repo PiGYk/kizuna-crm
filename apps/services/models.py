@@ -32,7 +32,7 @@ class Service(models.Model):
     show_on_website = models.BooleanField(
         'Показувати на сайті',
         default=False,
-        help_text='Якщо увімкнено — послуга з\'явиться на kizuna.com.ua/pricelist/',
+        help_text='Якщо увімкнено — послуга з\'явиться у публічному прайсі на сайті клініки',
     )
     category = models.ForeignKey(
         ServiceCategory,
