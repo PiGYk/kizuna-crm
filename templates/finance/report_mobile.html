@@ -1,0 +1,279 @@
+{% extends 'base.html' %}
+{% block title %}Звіт — Kizuna CRM{% endblock %}
+
+{% block extra_head %}
+<script>
+  document.documentElement.classList.add('has-mobile-fullscreen');
+  document.addEventListener('DOMContentLoaded', function () {
+    document.body.classList.add('has-mobile-fullscreen');
+  });
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+{% endblock %}
+
+{% block fab_url %}{% endblock %}
+
+{% block content %}
+<div class="tg-mobile-shell">
+
+  <header class="tg-mobile-header shrink-0 bg-white border-b border-gray-100 flex items-center gap-2 px-3"
+          style="min-height: 56px;">
+    <h1 class="flex-1 font-semibold text-brand-dark text-base truncate">Звіт P&amp;L</h1>
+    <span id="rep-period-label" class="text-xs text-gray-400">Місяць</span>
+  </header>
+
+  {% include 'finance/_partials/mobile_nav.html' with active='report' %}
+
+  <!-- Preset chips horizontal scroll -->
+  <nav class="shrink-0 bg-white border-b border-gray-100 overflow-x-auto" style="-webkit-overflow-scrolling: touch;">
+    <div class="flex items-center gap-2 px-3 py-2.5" id="rep-presets" style="white-space: nowrap;">
+      <button data-preset="today" class="rep-chip">Сьогодні</button>
+      <button data-preset="week" class="rep-chip">7 днів</button>
+      <button data-preset="month" class="rep-chip rep-chip-active">Місяць</button>
+      <button data-preset="year" class="rep-chip">Рік</button>
+      <button type="button" onclick="tgOpenSheet('rep-custom-sheet')" class="rep-chip">Свій…</button>
+    </div>
+  </nav>
+
+  <div class="flex-1 overflow-y-auto pb-6" style="-webkit-overflow-scrolling: touch; background: #f7f7f8;">
+
+    <!-- KPI 2×2 -->
+    <div class="px-3 pt-3 grid grid-cols-2 gap-2">
+      <div class="fin-kpi">
+        <div class="text-[11px] text-gray-400 uppercase tracking-wide">Дохід</div>
+        <div class="text-xl font-bold text-green-600 mt-0.5" id="kpi-income">—</div>
+        <div class="text-[10px] text-gray-400 mt-1">
+          <span id="kpi-income-cash">0</span> гот · <span id="kpi-income-card">0</span> карт
+        </div>
+      </div>
+      <div class="fin-kpi">
+        <div class="text-[11px] text-gray-400 uppercase tracking-wide">Витрати</div>
+        <div class="text-xl font-bold text-red-500 mt-0.5" id="kpi-expenses">—</div>
+        <div class="text-[10px] text-gray-400 mt-1">
+          <span id="kpi-exp-cash">0</span>г · <span id="kpi-exp-card">0</span>к · <span id="kpi-exp-transfer">0</span>п
+        </div>
+      </div>
+      <div class="fin-kpi">
+        <div class="text-[11px] text-gray-400 uppercase tracking-wide">Прибуток</div>
+        <div class="text-xl font-bold mt-0.5" id="kpi-profit">—</div>
+      </div>
+      <div class="fin-kpi">
+        <div class="text-[11px] text-gray-400 uppercase tracking-wide mb-1">Каса</div>
+        <div class="text-[10px] space-y-0.5">
+          <div class="flex justify-between"><span class="text-gray-500">К→Г</span><strong id="kpi-c2c">0</strong></div>
+          <div class="flex justify-between"><span class="text-gray-500">Г→К</span><strong id="kpi-c2k">0</strong></div>
+          <div class="flex justify-between"><span class="text-gray-500">внес.</span><strong id="kpi-dep">0</strong></div>
+          <div class="flex justify-between"><span class="text-gray-500">вил.</span><strong id="kpi-wd">0</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="px-3 pt-3">
+      <div class="fin-kpi">
+        <div class="text-[11px] text-gray-400 uppercase tracking-wide mb-2">Доходи vs Витрати по днях</div>
+        <div style="position: relative; height: 200px;">
+          <canvas id="rep-chart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs: По категоріях / По постачальниках -->
+    <div class="px-3 pt-4">
+      <div class="flex border-b border-gray-200 mb-2">
+        <button data-tab="cat" class="rep-tab rep-tab-active flex-1 py-2 text-sm font-medium">По категоріях</button>
+        <button data-tab="sup" class="rep-tab flex-1 py-2 text-sm font-medium text-gray-400">По постачальниках</button>
+      </div>
+      <div id="rep-tab-cat" class="fin-kpi space-y-2 text-sm"></div>
+      <div id="rep-tab-sup" class="fin-kpi space-y-2 text-sm hidden"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Custom date range sheet -->
+<div id="tg-sheet-backdrop" class="tg-mobile-sheet-backdrop" onclick="tgCloseAllSheets()"></div>
+<div id="rep-custom-sheet" class="tg-mobile-sheet">
+  <div class="tg-mobile-sheet-handle"></div>
+  <div class="px-4 py-3 border-b border-gray-100 text-sm font-semibold text-brand-dark">Свій період</div>
+  <div class="tg-mobile-sheet-body px-4 py-3 space-y-3">
+    <div class="grid grid-cols-2 gap-2">
+      <div>
+        <label class="fin-label">Від</label>
+        <input type="date" id="rep-date-start" class="fin-input">
+      </div>
+      <div>
+        <label class="fin-label">До</label>
+        <input type="date" id="rep-date-end" class="fin-input">
+      </div>
+    </div>
+    <button type="button" onclick="repApplyCustom()"
+            class="w-full px-4 py-3 rounded-xl text-sm font-semibold bg-brand-gold text-brand-dark active:opacity-80">
+      Застосувати
+    </button>
+  </div>
+</div>
+
+<style>
+.rep-chip {
+  display: inline-flex; align-items: center;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid transparent;
+}
+.rep-chip-active {
+  background: #DEAA01;
+  color: #12100F;
+}
+.rep-tab {
+  position: relative;
+  color: #9ca3af;
+}
+.rep-tab-active {
+  color: #12100F;
+}
+.rep-tab-active::after {
+  content: '';
+  position: absolute;
+  left: 8px; right: 8px; bottom: -1px;
+  height: 2px;
+  background: #DEAA01;
+  border-radius: 1px;
+}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script>
+function tgOpenSheet(id) {
+  var s = document.getElementById(id), bd = document.getElementById('tg-sheet-backdrop');
+  if (!s || !bd) return; s.classList.add('open'); bd.classList.add('open');
+}
+function tgCloseAllSheets() {
+  document.querySelectorAll('.tg-mobile-sheet.open').forEach(function (s) { s.classList.remove('open'); });
+  var bd = document.getElementById('tg-sheet-backdrop'); if (bd) bd.classList.remove('open');
+}
+
+(function () {
+  const fmt = n => Number(n).toLocaleString('uk-UA', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  const labelMap = {today: 'Сьогодні', week: '7 днів', month: 'Місяць', year: 'Рік', custom: 'Свій'};
+  let chart = null;
+  let preset = 'month';
+
+  function load() {
+    let url = '{% url "finance:report_data" %}?preset=' + preset;
+    if (preset === 'custom') {
+      url += '&start=' + document.getElementById('rep-date-start').value;
+      url += '&end=' + document.getElementById('rep-date-end').value;
+    }
+    fetch(url).then(r => r.json()).then(d => {
+      document.getElementById('rep-period-label').textContent = labelMap[preset] || preset;
+
+      document.getElementById('kpi-income').textContent = fmt(d.income.total) + ' ₴';
+      document.getElementById('kpi-income-cash').textContent = fmt(d.income.cash);
+      document.getElementById('kpi-income-card').textContent = fmt(d.income.card);
+
+      document.getElementById('kpi-expenses').textContent = fmt(d.expenses.total) + ' ₴';
+      document.getElementById('kpi-exp-cash').textContent = fmt(d.expenses.cash);
+      document.getElementById('kpi-exp-card').textContent = fmt(d.expenses.card);
+      document.getElementById('kpi-exp-transfer').textContent = fmt(d.expenses.transfer);
+
+      const p = document.getElementById('kpi-profit');
+      p.textContent = fmt(d.profit) + ' ₴';
+      p.className = 'text-xl font-bold mt-0.5 ' + (d.profit >= 0 ? 'text-green-600' : 'text-red-500');
+
+      document.getElementById('kpi-c2c').textContent = fmt(d.cash_register.card_to_cash);
+      document.getElementById('kpi-c2k').textContent = fmt(d.cash_register.cash_to_card);
+      document.getElementById('kpi-dep').textContent = fmt(d.cash_register.deposits);
+      document.getElementById('kpi-wd').textContent = fmt(d.cash_register.withdrawals);
+
+      // Chart
+      if (chart) chart.destroy();
+      const ctx = document.getElementById('rep-chart').getContext('2d');
+      const rotate = d.daily.labels.length > 14;
+      chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: d.daily.labels,
+          datasets: [
+            {label: 'Дохід', data: d.daily.income, backgroundColor: 'rgba(34,197,94,0.7)', borderRadius: 3},
+            {label: 'Витрати', data: d.daily.expenses, backgroundColor: 'rgba(239,68,68,0.6)', borderRadius: 3},
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {position: 'top', labels: {boxWidth: 10, font: {size: 11}}},
+          },
+          scales: {
+            x: {ticks: {font: {size: 10}, maxRotation: rotate ? 60 : 0, minRotation: rotate ? 45 : 0, autoSkip: true}},
+            y: {beginAtZero: true, ticks: {font: {size: 10}, callback: v => v >= 1000 ? (v/1000).toFixed(0) + 'k' : v}},
+          },
+        }
+      });
+
+      // By category
+      const catEl = document.getElementById('rep-tab-cat');
+      catEl.innerHTML = d.by_category.length
+        ? d.by_category.map(c =>
+            `<div class="flex items-center justify-between gap-2 py-1 border-b border-gray-50 last:border-0">
+              <span class="truncate text-brand-dark">${c.name} <span class="text-gray-400 text-xs">(${c.cnt})</span></span>
+              <span class="font-semibold whitespace-nowrap">${fmt(c.total)} ₴</span>
+             </div>`
+          ).join('')
+        : '<p class="text-gray-400 text-center py-4">Немає даних</p>';
+
+      // By supplier
+      const supEl = document.getElementById('rep-tab-sup');
+      supEl.innerHTML = d.by_supplier.length
+        ? d.by_supplier.map(s =>
+            `<div class="flex items-center justify-between gap-2 py-1 border-b border-gray-50 last:border-0">
+              <span class="truncate text-brand-dark">${s.name} <span class="text-gray-400 text-xs">(${s.cnt})</span></span>
+              <span class="font-semibold whitespace-nowrap">${fmt(s.total)} ₴</span>
+             </div>`
+          ).join('')
+        : '<p class="text-gray-400 text-center py-4">Немає даних</p>';
+    });
+  }
+
+  document.querySelectorAll('.rep-chip[data-preset]').forEach(btn => {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.rep-chip').forEach(b => b.classList.remove('rep-chip-active'));
+      this.classList.add('rep-chip-active');
+      preset = this.dataset.preset;
+      load();
+    });
+  });
+
+  document.querySelectorAll('.rep-tab').forEach(t => {
+    t.addEventListener('click', function () {
+      document.querySelectorAll('.rep-tab').forEach(x => {
+        x.classList.remove('rep-tab-active'); x.classList.add('text-gray-400');
+      });
+      this.classList.add('rep-tab-active'); this.classList.remove('text-gray-400');
+      const which = this.dataset.tab;
+      document.getElementById('rep-tab-cat').classList.toggle('hidden', which !== 'cat');
+      document.getElementById('rep-tab-sup').classList.toggle('hidden', which !== 'sup');
+    });
+  });
+
+  window.repApplyCustom = function () {
+    var s = document.getElementById('rep-date-start').value;
+    var e = document.getElementById('rep-date-end').value;
+    if (!s || !e) { alert('Виберіть обидві дати'); return; }
+    document.querySelectorAll('.rep-chip').forEach(b => b.classList.remove('rep-chip-active'));
+    preset = 'custom';
+    tgCloseAllSheets();
+    load();
+  };
+
+  load();
+})();
+</script>
+
+{% include 'finance/_partials/mobile_toast.html' %}
+{% endblock %}

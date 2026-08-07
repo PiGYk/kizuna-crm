@@ -223,14 +223,15 @@
               {{ analysis_form.title }}
             </div>
             <div>
-              <label class="block text-xs text-gray-500 mb-1">Фото *</label>
-              <input type="file" accept="image/*" id="analysis-photo-input"
+              <label class="block text-xs text-gray-500 mb-1">Файл *</label>
+              <input type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,video/*" id="analysis-photo-input"
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                onchange="openAnalysisCrop(this)">
+                onchange="handleAnalysisFile(this)">
               <input type="file" name="image" id="analysis-photo-hidden" class="hidden">
               <div id="analysis-crop-preview" class="mt-2 hidden">
                 <img id="analysis-crop-preview-img" class="h-16 rounded border border-brand-gold object-contain">
-                <button type="button" onclick="openAnalysisCrop(document.getElementById('analysis-photo-input'))" class="text-xs text-brand-gold ml-2">Редагувати</button>
+                <span id="analysis-file-name" class="text-xs text-gray-600"></span>
+                <button type="button" id="analysis-crop-reedit" onclick="openAnalysisCrop(document.getElementById('analysis-photo-input'))" class="text-xs text-brand-gold ml-2 hidden">Редагувати</button>
               </div>
             </div>
             <div>
@@ -253,10 +254,17 @@
         <div class="grid grid-cols-2 gap-2">
           {% for a in analyses %}
           <div class="group relative rounded-lg overflow-hidden border border-gray-100">
+            {% if a.is_image %}
             <a href="{{ a.image.url }}" target="_blank">
               <img src="{{ a.image.url }}" alt="{{ a.title }}"
                    class="w-full h-24 object-cover">
             </a>
+            {% else %}
+            <a href="{{ a.image.url }}" target="_blank"
+               class="flex items-center justify-center h-24 bg-gray-50 hover:bg-gray-100 transition">
+              <span class="text-4xl">{{ a.file_icon }}</span>
+            </a>
+            {% endif %}
             <div class="px-2 py-1.5">
               <div class="text-xs font-medium text-brand-dark truncate">{{ a.title }}</div>
               <div class="text-xs text-gray-400">{{ a.date|date:"d.m.Y" }}</div>
@@ -295,18 +303,18 @@
         <div>
           <select id="compare-left" class="w-full text-xs border border-gray-200 rounded-lg px-2 py-1 mb-2" onchange="loadCompareImg('left')">
             <option value="">Оберіть...</option>
-            {% for a in analyses %}
+            {% for a in analyses %}{% if a.is_image %}
             <option value="{{ a.image.url }}">{{ a.title }} ({{ a.date|date:"d.m.Y" }})</option>
-            {% endfor %}
+            {% endif %}{% endfor %}
           </select>
           <img id="compare-img-left" class="w-full rounded-lg" style="display:none">
         </div>
         <div>
           <select id="compare-right" class="w-full text-xs border border-gray-200 rounded-lg px-2 py-1 mb-2" onchange="loadCompareImg('right')">
             <option value="">Оберіть...</option>
-            {% for a in analyses %}
+            {% for a in analyses %}{% if a.is_image %}
             <option value="{{ a.image.url }}">{{ a.title }} ({{ a.date|date:"d.m.Y" }})</option>
-            {% endfor %}
+            {% endif %}{% endfor %}
           </select>
           <img id="compare-img-right" class="w-full rounded-lg" style="display:none">
         </div>

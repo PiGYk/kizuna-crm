@@ -69,7 +69,7 @@ class AppointmentForm(forms.ModelForm):
 
         # Тільки лікарі/адміни поточної організації у виборі лікаря
         from django.contrib.auth import get_user_model
-        from apps.clients.models import Client
+        from apps.clients.models import Client, Patient
         from apps.services.models import Service
         User = get_user_model()
         if org is not None:
@@ -79,12 +79,21 @@ class AppointmentForm(forms.ModelForm):
             self.fields['client'].queryset = Client.objects.filter(
                 organization=org,
             ).order_by('last_name', 'first_name')
+            self.fields['client'].empty_label = None
+            self.fields['doctor'].empty_label = '— Не вказано —'
+            # Patient: явний queryset через base_manager — бо RelatedOrgManager
+            # потребує thread-local org, який не доступний при імпорті форми
+            # (queryset кешується як .none() назавжди → patient validation fail).
+            self.fields['patient'].queryset = Patient._meta.base_manager.filter(
+                client__organization=org,
+            )
             self.fields['services'].queryset = Service.objects.filter(
                 organization=org, is_active=True,
             ).order_by('name')
         else:
             self.fields['doctor'].queryset = User.objects.none()
             self.fields['client'].queryset = Client.objects.none()
+            self.fields['patient'].queryset = Patient._meta.base_manager.none()
             self.fields['services'].queryset = Service.objects.none()
 
         # HTMX: клієнт → фільтр пацієнтів

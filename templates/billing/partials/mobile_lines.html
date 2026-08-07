@@ -1,0 +1,219 @@
+{% load l10n %}
+{% comment %}
+Mobile lines partial — HTMX target #lines-section (outerHTML swap).
+Кожен рядок — card з action-sheet (поза цим div щоб не ловитись у stacking context).
+Action-sheets, vaccine-sheet, discount-sheet рендеряться відразу після #lines-section
+на верхньому рівні body — див. edit_mobile.html
+{% endcomment %}
+<div id="lines-section">
+
+{% if lines %}
+<div class="flex flex-col gap-2">
+  {% for line in lines %}
+  <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+    <!-- Header рядка -->
+    <div class="px-3 py-2.5 flex items-start gap-2">
+      <div class="w-9 h-9 rounded-lg flex items-center justify-center shrink-0
+                  {% if line.line_type == 'service' %}bg-amber-50{% else %}bg-blue-50{% endif %}">
+        {% if line.line_type == 'service' %}🩺{% else %}💊{% endif %}
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="font-semibold text-brand-dark text-[14px] leading-snug">{{ line.name }}</div>
+        <div class="text-[11px] text-gray-400 mt-0.5">
+          {{ line.get_line_type_display }}
+          {% if line.discount %} · знижка {{ line.discount }}{% if line.discount_type == 'percent' %}%{% else %}₴{% endif %}{% endif %}
+        </div>
+      </div>
+      <div class="text-right shrink-0">
+        <div class="text-[15px] font-bold text-brand-dark tabular-nums">{{ line.total|floatformat:0 }} ₴</div>
+        <form hx-post="{% url 'billing:remove_line' invoice.pk line.pk %}"
+              hx-target="#lines-section" hx-swap="outerHTML"
+              hx-confirm="Видалити{% if line.children.count %} разом з матеріалами{% endif %}?"
+              class="inline-block mt-0.5">
+          {% csrf_token %}
+          <button type="submit" class="text-gray-300 active:text-red-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22"/>
+            </svg>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Inline qty + price update -->
+    <form hx-post="{% url 'billing:update_line' invoice.pk line.pk %}"
+          hx-target="#lines-section" hx-swap="outerHTML"
+          hx-trigger="change delay:500ms"
+          class="px-3 pb-2.5 flex items-center gap-2">
+      {% csrf_token %}
+      <div class="flex items-center gap-1.5">
+        <span class="text-[11px] text-gray-400">К-сть</span>
+        <input type="number" name="quantity" value="{% localize off %}{{ line.quantity|floatformat:'-3' }}{% endlocalize %}"
+          inputmode="decimal" min="0" step="any"
+          class="w-20 border border-gray-200 rounded-lg px-2 py-1.5 text-base text-center focus:outline-none focus:border-brand-gold">
+      </div>
+      <div class="flex items-center gap-1.5">
+        <span class="text-[11px] text-gray-400">Ціна</span>
+        <input type="number" name="unit_price" value="{% localize off %}{{ line.unit_price }}{% endlocalize %}"
+          inputmode="decimal" min="0" step="0.01"
+          class="w-24 border border-gray-200 rounded-lg px-2 py-1.5 text-base text-center focus:outline-none focus:border-brand-gold">
+      </div>
+    </form>
+
+    <!-- Children (components) -->
+    {% with children=line.children.all %}
+    {% if children %}
+    <div class="border-t border-gray-100 bg-stone-50/80 px-3 py-2">
+      <div class="text-[10px] font-medium text-gray-400 uppercase tracking-wider mb-1.5">Витратні матеріали</div>
+      <div class="space-y-1">
+        {% for child in children %}
+        <div class="flex items-center gap-2">
+          <div class="w-1.5 h-1.5 rounded-full bg-gray-300 shrink-0"></div>
+          <span class="text-[13px] text-gray-600 flex-1 min-w-0 truncate">{{ child.name }}</span>
+          <form hx-post="{% url 'billing:update_line' invoice.pk child.pk %}"
+                hx-target="#lines-section" hx-swap="outerHTML"
+                hx-trigger="change delay:500ms"
+                class="flex items-center gap-1 shrink-0">
+            {% csrf_token %}
+            <input type="hidden" name="unit_price" value="0">
+            <input type="number" name="quantity" value="{% localize off %}{{ child.quantity|floatformat:'-3' }}{% endlocalize %}"
+              inputmode="decimal" min="0" step="any"
+              class="w-16 border border-gray-200 rounded-lg px-1.5 py-1 text-sm text-center bg-white focus:outline-none focus:border-brand-gold">
+            {% if child.product.unit %}<span class="text-[10px] text-gray-400 w-7 text-center">{{ child.product.unit.short }}</span>{% endif %}
+          </form>
+          <span class="text-[10px] text-gray-300 tabular-nums" title="Склад">{{ child.product.quantity|floatformat:"-3" }}</span>
+          <form hx-post="{% url 'billing:remove_line' invoice.pk child.pk %}"
+                hx-target="#lines-section" hx-swap="outerHTML"
+                hx-confirm="Прибрати {{ child.name }}?"
+                class="shrink-0">
+            {% csrf_token %}
+            <button type="submit" class="text-gray-300 active:text-red-400 p-0.5">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </form>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <!-- + Препарат для service -->
+    {% if line.line_type == 'service' %}
+    <button type="button"
+            onclick="openAddCompSheet({{ line.pk }}, '{{ line.name|escapejs }}')"
+            class="block w-full border-t border-gray-100 px-3 py-2 text-left text-xs text-brand-gold font-medium active:bg-gray-50">
+      + Додати препарат
+    </button>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Vaccine button (open sheet) -->
+{% if has_vaccination %}
+<button type="button" onclick="tgOpenSheet('mob-vaccine-sheet')"
+        class="mt-2 w-full bg-yellow-50 border border-yellow-200 rounded-2xl px-3 py-3 flex items-center gap-3 active:bg-yellow-100">
+  <span class="text-xl">💉</span>
+  <div class="flex-1 text-left">
+    <div class="text-sm font-semibold text-yellow-700">Вакцини</div>
+    <div class="text-[11px] text-yellow-600">Обрано: {{ vaccine_in_invoice|length }} з {{ vaccine_products|length }}</div>
+  </div>
+  <svg class="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+</button>
+{% endif %}
+
+<!-- Discount / notes summary card -->
+<div class="mt-2 bg-white rounded-2xl border border-gray-100 overflow-hidden">
+  <button type="button" onclick="tgOpenSheet('mob-discount-sheet')"
+          class="w-full flex items-center gap-3 px-3 py-2.5 active:bg-gray-50">
+    <span class="text-lg">🏷️</span>
+    <div class="flex-1 text-left">
+      <div class="text-[11px] text-gray-400 uppercase">Знижка + нотатки</div>
+      <div class="text-sm text-brand-dark">
+        {% if invoice.discount %}−{{ invoice.discount }}{% if invoice.discount_type == 'percent' %}%{% else %} ₴{% endif %}{% else %}Без знижки{% endif %}
+        {% if invoice.notes %}<span class="text-gray-400"> · нотатки</span>{% endif %}
+      </div>
+    </div>
+    <svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+  </button>
+</div>
+
+<!-- Total bar -->
+<div class="mt-2 bg-brand-gold/10 border border-brand-gold/30 rounded-2xl px-4 py-3 flex items-center justify-between">
+  <span class="font-semibold text-brand-dark">Разом:</span>
+  <span class="text-2xl font-bold text-brand-gold tabular-nums">{{ invoice.total|floatformat:0 }} ₴</span>
+</div>
+
+{% else %}
+<div class="bg-white rounded-2xl border border-dashed border-gray-300 px-4 py-12 text-center">
+  <div class="text-4xl text-gray-200 mb-2">📋</div>
+  <div class="text-sm text-gray-400">Чек порожній.<br>Натисни <span class="text-brand-gold font-medium">+</span> щоб додати позицію.</div>
+</div>
+{% endif %}
+
+</div>
+
+<!-- Vaccine sheet data — викладається тут щоб HTMX-swap оновлював чекбокси -->
+{% if has_vaccination %}
+<script>
+  window._vaccineHTML = `
+    <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+      <div class="text-sm font-semibold text-brand-dark">Вакцини</div>
+      <button type="button" onclick="tgCloseAllSheets()" class="text-xs text-brand-gold font-medium">Готово</button>
+    </div>
+    <div class="tg-mobile-sheet-body py-1">
+      {% for vaccine in vaccine_products %}
+      <label class="flex items-center gap-3 px-4 py-3 active:bg-yellow-50 border-b border-gray-50 last:border-0">
+        <input type="checkbox" class="w-5 h-5 accent-yellow-500"
+               {% if vaccine.pk in vaccine_in_invoice %}checked{% endif %}
+               hx-post="{% url 'billing:toggle_vaccine' invoice.pk %}"
+               hx-target="#lines-section" hx-swap="outerHTML"
+               hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+               hx-vals='{"product_id": "{{ vaccine.pk }}", "checked": "{% if vaccine.pk in vaccine_in_invoice %}false{% else %}true{% endif %}"}'
+               hx-trigger="change">
+        <span class="text-sm text-brand-dark flex-1">{{ vaccine.name }}</span>
+        <span class="text-xs text-gray-400 tabular-nums">{{ vaccine.sell_price }} ₴</span>
+      </label>
+      {% endfor %}
+    </div>
+  `;
+  document.getElementById('mob-vaccine-sheet').innerHTML = window._vaccineHTML;
+  if (window.htmx) htmx.process(document.getElementById('mob-vaccine-sheet'));
+</script>
+{% endif %}
+
+<!-- Discount sheet data -->
+<script>
+  window._discountHTML = `
+    <div class="px-4 py-3 border-b border-gray-100 text-sm font-semibold text-brand-dark">Знижка + нотатки</div>
+    <form hx-post="{% url 'billing:update_discount' invoice.pk %}"
+          hx-target="#lines-section" hx-swap="outerHTML"
+          hx-on::after-request="tgCloseAllSheets()"
+          class="tg-mobile-sheet-body px-4 py-3 space-y-3">
+      <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+      <div>
+        <label class="fin-label">Знижка на чек</label>
+        <div class="flex gap-2">
+          <input type="number" name="discount" value="{% localize off %}{{ invoice.discount }}{% endlocalize %}" min="0" step="0.01" inputmode="decimal"
+                 class="fin-input flex-1">
+          <select name="discount_type" class="fin-input w-20 shrink-0">
+            <option value="percent" {% if invoice.discount_type == 'percent' %}selected{% endif %}>%</option>
+            <option value="amount" {% if invoice.discount_type == 'amount' %}selected{% endif %}>₴</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="fin-label">Нотатки</label>
+        <textarea name="notes" rows="3" class="fin-input" style="resize: vertical;" placeholder="Коментар до чеку">{{ invoice.notes }}</textarea>
+      </div>
+      <button type="submit" class="w-full px-4 py-3 rounded-xl text-sm font-semibold bg-brand-gold text-brand-dark active:opacity-80">
+        Зберегти
+      </button>
+    </form>
+  `;
+  document.getElementById('mob-discount-sheet').innerHTML = window._discountHTML;
+  if (window.htmx) htmx.process(document.getElementById('mob-discount-sheet'));
+</script>

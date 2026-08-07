@@ -36,6 +36,11 @@ class TelegramChat(models.Model):
         help_text='Отримує сповіщення коли клієнт пише в бота.',
     )
     avatar_file_id = models.CharField(max_length=200, blank=True, default='')
+    onboarding_state = models.JSONField(
+        'Стан онбордингу',
+        default=dict, blank=True,
+        help_text='Тимчасовий state-machine для реєстрації через бота: {"step": "...", "data": {...}}',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     last_message_at = models.DateTimeField(null=True, blank=True)
 

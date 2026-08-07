@@ -1,0 +1,19 @@
+{% if clients %}
+<div class="flex flex-col gap-2">
+  {% for client in clients %}
+  <button type="button"
+    onclick="selectClient({{ client.pk }}, '{{ client|escapejs }}')"
+    class="text-left bg-white rounded-2xl border border-gray-100 px-3 py-3 active:bg-brand-gold/10 transition flex items-center gap-3">
+    <div class="w-10 h-10 rounded-full bg-brand-gold/20 text-brand-dark flex items-center justify-center shrink-0 font-bold text-sm">
+      {{ client.last_name|default:client.first_name|slice:":1"|upper }}
+    </div>
+    <div class="flex-1 min-w-0">
+      <div class="font-medium text-brand-dark text-sm truncate">{{ client }}</div>
+      <div class="text-[11px] text-gray-400 truncate">{{ client.phone|default:"—" }}</div>
+    </div>
+  </button>
+  {% endfor %}
+</div>
+{% elif q %}
+<div class="text-center text-sm text-gray-400 py-6">Нічого не знайдено</div>
+{% endif %}

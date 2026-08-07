@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+{% load l10n %}
+{% block title %}Нова касова операція — Kizuna CRM{% endblock %}
+
+{% block extra_head %}
+<script>
+  document.documentElement.classList.add('has-mobile-fullscreen');
+  document.addEventListener('DOMContentLoaded', function () {
+    document.body.classList.add('has-mobile-fullscreen');
+  });
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+{% endblock %}
+
+{% block fab_url %}{% endblock %}
+
+{% block content %}
+<div class="tg-mobile-shell">
+
+  <header class="tg-mobile-header shrink-0 bg-white border-b border-gray-100 flex items-center gap-2 px-2"
+          style="min-height: 56px;">
+    <a href="{% url 'finance:cash_operations' %}"
+       class="tg-mobile-tap text-brand-dark active:opacity-70" aria-label="Назад">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+      </svg>
+    </a>
+    <h1 class="flex-1 font-semibold text-brand-dark text-base truncate">Нова операція</h1>
+    <button type="submit" form="cash-op-form"
+            class="tg-mobile-tap text-brand-gold font-semibold text-[15px] px-2">
+      Зберегти
+    </button>
+  </header>
+
+  <form id="cash-op-form" method="post"
+        class="flex-1 overflow-y-auto px-4 py-4 space-y-4" style="background: #f7f7f8;">
+    {% csrf_token %}
+
+    <div>
+      <label class="fin-label">Тип операції</label>
+      <div class="grid grid-cols-2 gap-2">
+        <label>
+          <input type="radio" name="type" value="deposit" class="hidden peer"
+                 {% if form.type.value == "deposit" or not form.type.value %}checked{% endif %}>
+          <span class="block text-center px-3 py-2.5 rounded-xl text-sm border border-gray-200 bg-white peer-checked:bg-yellow-100 peer-checked:border-yellow-300 peer-checked:text-yellow-800">
+            ➕ Внесення
+          </span>
+        </label>
+        <label>
+          <input type="radio" name="type" value="withdrawal" class="hidden peer"
+                 {% if form.type.value == "withdrawal" %}checked{% endif %}>
+          <span class="block text-center px-3 py-2.5 rounded-xl text-sm border border-gray-200 bg-white peer-checked:bg-red-100 peer-checked:border-red-300 peer-checked:text-red-700">
+            ➖ Вилучення
+          </span>
+        </label>
+        <label>
+          <input type="radio" name="type" value="card_to_cash" class="hidden peer"
+                 {% if form.type.value == "card_to_cash" %}checked{% endif %}>
+          <span class="block text-center px-3 py-2.5 rounded-xl text-sm border border-gray-200 bg-white peer-checked:bg-green-100 peer-checked:border-green-300 peer-checked:text-green-700">
+            💳→💵 К→Гот
+          </span>
+        </label>
+        <label>
+          <input type="radio" name="type" value="cash_to_card" class="hidden peer"
+                 {% if form.type.value == "cash_to_card" %}checked{% endif %}>
+          <span class="block text-center px-3 py-2.5 rounded-xl text-sm border border-gray-200 bg-white peer-checked:bg-blue-100 peer-checked:border-blue-300 peer-checked:text-blue-700">
+            💵→💳 Гот→К
+          </span>
+        </label>
+      </div>
+      {% if form.type.errors %}<p class="text-red-500 text-xs mt-1">{{ form.type.errors.0 }}</p>{% endif %}
+    </div>
+
+    <div>
+      <label class="fin-label">Сума (₴)</label>
+      <input type="number" name="amount" step="0.01" inputmode="decimal"
+             value="{% localize off %}{{ form.amount.value|default_if_none:'' }}{% endlocalize %}"
+             class="fin-input" required placeholder="0.00">
+      {% if form.amount.errors %}<p class="text-red-500 text-xs mt-1">{{ form.amount.errors.0 }}</p>{% endif %}
+    </div>
+
+    <div>
+      <label class="fin-label">Дата</label>
+      <input type="date" name="date" value="{{ form.date.value|date:'Y-m-d' }}" class="fin-input" required>
+      {% if form.date.errors %}<p class="text-red-500 text-xs mt-1">{{ form.date.errors.0 }}</p>{% endif %}
+    </div>
+
+    <div>
+      <label class="fin-label">Опис (необов'язково)</label>
+      <textarea name="description" rows="3" class="fin-input" style="resize: vertical;"
+                placeholder="Коментар">{{ form.description.value|default_if_none:'' }}</textarea>
+      {% if form.description.errors %}<p class="text-red-500 text-xs mt-1">{{ form.description.errors.0 }}</p>{% endif %}
+    </div>
+  </form>
+</div>
+
+{% include 'finance/_partials/mobile_toast.html' %}
+{% endblock %}

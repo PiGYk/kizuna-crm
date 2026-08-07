@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+{% load l10n %}
+{% block title %}Інвентаризація — Kizuna CRM{% endblock %}
+
+{% block extra_head %}
+<script>
+  document.documentElement.classList.add('has-mobile-fullscreen');
+  document.addEventListener('DOMContentLoaded', function () {
+    document.body.classList.add('has-mobile-fullscreen');
+  });
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+{% endblock %}
+
+{% block fab_url %}{% endblock %}
+
+{% block content %}
+<div class="tg-mobile-shell">
+
+  <header class="tg-mobile-header shrink-0 bg-white border-b border-gray-100 flex items-center gap-2 px-2"
+          style="min-height: 56px;">
+    <a href="{% url 'inventory:list' %}"
+       class="tg-mobile-tap text-brand-dark active:opacity-70" aria-label="Назад">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+      </svg>
+    </a>
+    <h1 class="flex-1 font-semibold text-brand-dark text-base truncate">Інвентаризація</h1>
+    <button type="submit" form="stocktake-form"
+            class="tg-mobile-tap text-brand-gold font-semibold text-[15px] px-2">
+      Зберегти
+    </button>
+  </header>
+
+  <!-- Sticky search/filter -->
+  <div class="shrink-0 bg-white border-b border-gray-100 px-3 py-2 flex items-center gap-2">
+    <input type="search" id="st-search" placeholder="🔍 Фільтр товарів…"
+           class="fin-input flex-1"
+           oninput="stFilter(this.value)">
+    <button type="button" onclick="stShowOnly('all')" id="st-tab-all"
+            class="px-3 py-2 rounded-lg text-xs font-medium bg-brand-gold text-brand-dark whitespace-nowrap">Усі</button>
+    <button type="button" onclick="stShowOnly('diff')" id="st-tab-diff"
+            class="px-3 py-2 rounded-lg text-xs font-medium bg-gray-100 text-gray-700 whitespace-nowrap">Розб.</button>
+  </div>
+
+  <!-- Counter banner -->
+  <div class="shrink-0 bg-amber-50 border-b border-amber-200 px-3 py-2 text-xs text-amber-800">
+    Введіть фактичний залишок. Пусті поля — пропускаються.
+    <span id="st-counter" class="float-right font-semibold">0 / {{ products|length }}</span>
+  </div>
+
+  <form id="stocktake-form" method="post"
+        class="flex-1 overflow-y-auto pb-6"
+        style="-webkit-overflow-scrolling: touch; background: #f7f7f8;"
+        onsubmit="return confirm('Зберегти інвентаризацію? Залишки будуть скориговані.');">
+    {% csrf_token %}
+
+    <div class="px-3 pt-3 flex flex-col gap-2" id="st-list">
+      {% for p in products %}
+      <div class="st-row bg-white rounded-2xl border border-gray-100 px-3 py-2.5"
+           id="st-row-{{ p.pk }}"
+           data-name="{{ p.name|lower }}{{ p.category.name|lower|default:'' }}"
+           data-system="{% localize off %}{{ p.quantity }}{% endlocalize %}">
+        <div class="flex items-center justify-between gap-2 mb-1">
+          <div class="flex-1 min-w-0">
+            <div class="text-[14px] font-medium text-brand-dark truncate">{{ p.name }}</div>
+            <div class="text-[11px] text-gray-400 truncate">
+              {% if p.category %}{{ p.category.name }} · {% endif %}у системі {{ p.quantity|floatformat:"-3" }} {{ p.unit.short|default:"" }}
+            </div>
+          </div>
+          <div class="text-[10px] uppercase shrink-0 tabular-nums" id="st-diff-{{ p.pk }}">—</div>
+        </div>
+        <div class="flex items-center gap-2">
+          <input type="number" name="actual_{{ p.pk }}" step="any" min="0" inputmode="decimal"
+                 placeholder="{% localize off %}{{ p.quantity|floatformat:'-3' }}{% endlocalize %}"
+                 data-row="{{ p.pk }}"
+                 class="st-input fin-input flex-1"
+                 oninput="stOnInput(this)">
+          <button type="button" onclick="stSetSame({{ p.pk }})"
+                  class="px-3 py-2 rounded-xl text-xs font-medium bg-gray-100 text-gray-700 active:bg-gray-200 whitespace-nowrap">
+            = {{ p.quantity|floatformat:"-3" }}
+          </button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+  </form>
+</div>
+
+{% include 'finance/_partials/mobile_toast.html' %}
+
+<script>
+function stOnInput(input) {
+  const row = document.getElementById('st-row-' + input.dataset.row);
+  const sys = parseFloat(row.dataset.system) || 0;
+  const actual = parseFloat(input.value);
+  const diffEl = document.getElementById('st-diff-' + input.dataset.row);
+
+  if (isNaN(actual) || input.value === '') {
+    diffEl.textContent = '—';
+    diffEl.className = 'text-[10px] uppercase shrink-0 tabular-nums text-gray-300';
+    row.className = 'st-row bg-white rounded-2xl border border-gray-100 px-3 py-2.5';
+    stUpdateCounter();
+    return;
+  }
+
+  const diff = actual - sys;
+  if (Math.abs(diff) < 0.001) {
+    diffEl.textContent = '✓ ОК';
+    diffEl.className = 'text-[10px] uppercase shrink-0 tabular-nums text-green-600 font-semibold';
+    row.className = 'st-row bg-green-50 rounded-2xl border border-green-200 px-3 py-2.5';
+  } else {
+    diffEl.textContent = (diff > 0 ? '+' : '') + diff.toFixed(3);
+    diffEl.className = 'text-[11px] shrink-0 tabular-nums font-semibold ' + (diff < 0 ? 'text-red-600' : 'text-green-600');
+    row.className = 'st-row ' + (diff < 0 ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200') + ' rounded-2xl border px-3 py-2.5';
+  }
+  stUpdateCounter();
+}
+
+function stSetSame(pk) {
+  const row = document.getElementById('st-row-' + pk);
+  const input = row.querySelector('.st-input');
+  input.value = row.dataset.system;
+  stOnInput(input);
+}
+
+function stUpdateCounter() {
+  const filled = document.querySelectorAll('.st-input').length > 0
+    ? Array.from(document.querySelectorAll('.st-input')).filter(i => i.value !== '').length
+    : 0;
+  const total = {{ products|length }};
+  document.getElementById('st-counter').textContent = filled + ' / ' + total;
+}
+
+function stFilter(q) {
+  q = (q || '').toLowerCase().trim();
+  document.querySelectorAll('.st-row').forEach(row => {
+    if (!q || (row.dataset.name || '').includes(q)) row.style.display = '';
+    else row.style.display = 'none';
+  });
+}
+
+let _stMode = 'all';
+function stShowOnly(mode) {
+  _stMode = mode;
+  document.getElementById('st-tab-all').className = 'px-3 py-2 rounded-lg text-xs font-medium ' + (mode === 'all' ? 'bg-brand-gold text-brand-dark' : 'bg-gray-100 text-gray-700') + ' whitespace-nowrap';
+  document.getElementById('st-tab-diff').className = 'px-3 py-2 rounded-lg text-xs font-medium ' + (mode === 'diff' ? 'bg-brand-gold text-brand-dark' : 'bg-gray-100 text-gray-700') + ' whitespace-nowrap';
+  document.querySelectorAll('.st-row').forEach(row => {
+    if (mode === 'all') row.style.display = '';
+    else {
+      const has_diff = row.classList.contains('bg-red-50') || row.classList.contains('bg-green-50');
+      row.style.display = has_diff ? '' : 'none';
+    }
+  });
+}
+</script>
+{% endblock %}

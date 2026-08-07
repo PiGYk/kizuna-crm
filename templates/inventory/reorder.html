@@ -1,145 +1,103 @@
 {% extends 'base.html' %}
-{% block title %}Замовлення постачальникам — Kizuna CRM{% endblock %}
-{% block content %}
+{% block title %}Що замовити — Склад{% endblock %}
 
-<div class="flex items-center justify-between mb-6">
+{% block content %}
+{# ── Header ─────────────────────────────────────────────────────────── #}
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
   <div>
-    <h1 class="text-2xl font-bold text-brand-dark">Замовлення постачальникам</h1>
-    <p class="text-sm text-gray-500 mt-0.5">Товари, що закінчуються або нижче мінімального залишку</p>
+    <h1 class="text-2xl font-bold text-brand-dark">Що замовити</h1>
+    <p class="text-xs text-gray-400 mt-0.5">Товари у яких залишок ≤ мінімального</p>
   </div>
   {% if products %}
   <a href="{% url 'inventory:reorder_export' %}"
-     class="flex items-center gap-2 bg-brand-gold text-brand-dark font-medium px-4 py-2 rounded-xl hover:brightness-95 transition-all text-sm shrink-0">
-    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-    </svg>
-    Завантажити XLSX
+     class="inline-flex items-center gap-2 bg-brand-gold text-brand-dark px-4 h-10 rounded-lg text-sm font-semibold hover:brightness-95 transition">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+    Експорт у XLSX
   </a>
   {% endif %}
 </div>
 
+{# ── KPI ────────────────────────────────────────────────────────────── #}
+<div class="grid grid-cols-2 gap-3 mb-5">
+  <div class="bg-white rounded-xl border border-gray-200 px-4 py-3">
+    <div class="text-[11px] text-gray-400 uppercase tracking-wide">Потребують замовлення</div>
+    <div class="text-2xl font-bold text-brand-dark mt-0.5">{{ count }}</div>
+  </div>
+  <div class="bg-white rounded-xl border border-gray-200 px-4 py-3">
+    <div class="text-[11px] text-gray-400 uppercase tracking-wide">Із них з нульовим залишком</div>
+    <div class="text-2xl font-bold text-red-600 mt-0.5">
+      {% with zero_count=0 %}
+        {% for p in products %}{% if p.quantity <= 0 %}{% with zero_count=zero_count|add:1 %}{% endwith %}{% endif %}{% endfor %}
+        {{ zero_count }}
+      {% endwith %}
+    </div>
+  </div>
+</div>
+
+{# ── List ──────────────────────────────────────────────────────────── #}
 {% if products %}
-
-<!-- KPI -->
-<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-  <div class="bg-white rounded-2xl shadow-sm border border-gray-100 px-5 py-4">
-    <div class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Позицій для замовлення</div>
-    <div class="text-2xl font-bold text-red-500">{{ count }}</div>
-  </div>
-  <div class="bg-white rounded-2xl shadow-sm border border-gray-100 px-5 py-4">
-    <div class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Повністю відсутні</div>
-    <div class="text-2xl font-bold text-red-600">{{ products|length }}</div>
-  </div>
-  <div class="bg-white rounded-2xl shadow-sm border border-gray-100 px-5 py-4">
-    <div class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Статус</div>
-    <div class="text-sm font-semibold text-orange-500 mt-1">Потребує уваги</div>
-  </div>
+<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 border-b border-gray-200">
+      <tr>
+        <th class="px-4 py-3 text-left font-medium text-gray-500 text-xs uppercase tracking-wide">Товар</th>
+        <th class="px-4 py-3 text-left font-medium text-gray-500 text-xs uppercase tracking-wide hidden md:table-cell">Категорія</th>
+        <th class="px-4 py-3 text-right font-medium text-gray-500 text-xs uppercase tracking-wide">На складі</th>
+        <th class="px-4 py-3 text-right font-medium text-gray-500 text-xs uppercase tracking-wide">Мінімум</th>
+        <th class="px-4 py-3 text-right font-medium text-gray-500 text-xs uppercase tracking-wide">Замовити</th>
+        <th class="px-4 py-3 text-right font-medium text-gray-500 text-xs uppercase tracking-wide hidden lg:table-cell">Вхідна ціна</th>
+        <th class="px-4 py-3 text-left font-medium text-gray-500 text-xs uppercase tracking-wide hidden md:table-cell">Останній постачальник</th>
+        <th class="px-3 py-3 w-12"></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-100">
+      {% for p in products %}
+      <tr class="hover:bg-gray-50/50 transition-colors cursor-pointer"
+          onclick="location.href='{% url 'inventory:detail' p.pk %}'">
+        <td class="px-4 py-3">
+          <div class="font-medium text-brand-dark">{{ p.name }}</div>
+          {% if p.sku %}<div class="text-[11px] text-gray-400 font-mono mt-0.5">{{ p.sku }}</div>{% endif %}
+        </td>
+        <td class="px-4 py-3 text-gray-500 text-xs hidden md:table-cell">{{ p.category.name|default:"—" }}</td>
+        <td class="px-4 py-3 text-right">
+          <span class="font-semibold tabular-nums {% if p.quantity <= 0 %}text-red-600{% else %}text-amber-600{% endif %}">
+            {{ p.quantity|floatformat:"-3" }}
+          </span>
+          <span class="text-[11px] text-gray-400 ml-1">{{ p.unit.short|default:"" }}</span>
+        </td>
+        <td class="px-4 py-3 text-right text-gray-500 tabular-nums">{{ p.min_quantity|floatformat:"-3" }}</td>
+        <td class="px-4 py-3 text-right">
+          <span class="font-semibold text-brand-dark tabular-nums">+{{ p.shortage|floatformat:"-3" }}</span>
+        </td>
+        <td class="px-4 py-3 text-right text-gray-500 tabular-nums hidden lg:table-cell">{{ p.buy_price|floatformat:2 }} ₴</td>
+        <td class="px-4 py-3 hidden md:table-cell">
+          {% if p.last_supplier_name %}
+            <span class="text-xs text-gray-600">{{ p.last_supplier_name }}</span>
+          {% else %}
+            <span class="text-gray-300 text-xs">—</span>
+          {% endif %}
+        </td>
+        <td class="px-3 py-3 text-right" onclick="event.stopPropagation()">
+          <button type="button"
+                  hx-get="{% url 'inventory:quick_intake' p.pk %}"
+                  hx-target="body"
+                  hx-swap="beforeend"
+                  hx-on::after-swap="window.scrollTo({top:0, behavior:'smooth'})"
+                  class="w-8 h-8 rounded-lg text-gray-400 hover:bg-green-50 hover:text-green-600 transition inline-flex items-center justify-center"
+                  title="Швидкий прихід">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+          </button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </div>
-
-<!-- Таблиця -->
-<div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-  <div class="overflow-x-auto">
-    <table class="w-full text-sm min-w-[640px]">
-      <thead>
-        <tr class="bg-gray-50 border-b border-gray-200">
-          <th class="px-4 py-3 text-left font-semibold text-gray-500 text-xs uppercase tracking-wide">Назва</th>
-          <th class="px-4 py-3 text-left font-semibold text-gray-500 text-xs uppercase tracking-wide hidden md:table-cell">Категорія</th>
-          <th class="px-4 py-3 text-right font-semibold text-gray-500 text-xs uppercase tracking-wide">На складі</th>
-          <th class="px-4 py-3 text-right font-semibold text-gray-500 text-xs uppercase tracking-wide">Мін. залишок</th>
-          <th class="px-4 py-3 text-right font-semibold text-gray-500 text-xs uppercase tracking-wide">Замовити</th>
-          <th class="px-4 py-3 text-left font-semibold text-gray-500 text-xs uppercase tracking-wide hidden lg:table-cell">Постачальник</th>
-          <th class="px-4 py-3 text-right font-semibold text-gray-500 text-xs uppercase tracking-wide hidden lg:table-cell">Ціна закупки</th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-gray-100">
-        {% for p in products %}
-        <tr class="hover:bg-gray-50/70 transition-colors">
-
-          <!-- Назва -->
-          <td class="px-4 py-3.5">
-            <a href="{% url 'inventory:detail' p.pk %}"
-               class="font-medium text-brand-dark hover:text-brand-gold transition-colors leading-snug">
-              {{ p.name }}
-            </a>
-            {% if p.sku %}
-            <div class="text-xs text-gray-400 mt-0.5">{{ p.sku }}</div>
-            {% endif %}
-          </td>
-
-          <!-- Категорія -->
-          <td class="px-4 py-3.5 hidden md:table-cell">
-            <span class="text-gray-500">{{ p.category.name|default:"—" }}</span>
-          </td>
-
-          <!-- На складі -->
-          <td class="px-4 py-3.5 text-right whitespace-nowrap">
-            {% if p.quantity == 0 %}
-              <span class="font-semibold text-red-500">0</span>
-            {% else %}
-              <span class="font-semibold text-orange-500">{{ p.quantity|floatformat:"-2" }}</span>
-            {% endif %}
-            {% if p.unit %}
-              <span class="text-xs text-gray-400 ml-1">{{ p.unit.short }}</span>
-            {% endif %}
-          </td>
-
-          <!-- Мін. залишок -->
-          <td class="px-4 py-3.5 text-right whitespace-nowrap">
-            <span class="text-gray-500">{{ p.min_quantity|floatformat:"-2" }}</span>
-            {% if p.unit %}
-              <span class="text-xs text-gray-400 ml-1">{{ p.unit.short }}</span>
-            {% endif %}
-          </td>
-
-          <!-- Замовити -->
-          <td class="px-4 py-3.5 text-right whitespace-nowrap">
-            {% if p.quantity == 0 %}
-              <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-red-100 text-red-700 font-bold text-sm">
-                {{ p.shortage|floatformat:"-2" }}
-                {% if p.unit %}<span class="font-normal text-xs text-red-500">{{ p.unit.short }}</span>{% endif %}
-              </span>
-            {% else %}
-              <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-100 text-amber-700 font-bold text-sm">
-                {{ p.shortage|floatformat:"-2" }}
-                {% if p.unit %}<span class="font-normal text-xs text-amber-500">{{ p.unit.short }}</span>{% endif %}
-              </span>
-            {% endif %}
-          </td>
-
-          <!-- Постачальник -->
-          <td class="px-4 py-3.5 hidden lg:table-cell">
-            {% if p.last_supplier_name %}
-              <span class="text-gray-700">{{ p.last_supplier_name }}</span>
-            {% else %}
-              <span class="text-gray-300">—</span>
-            {% endif %}
-          </td>
-
-          <!-- Ціна закупки -->
-          <td class="px-4 py-3.5 text-right text-gray-500 hidden lg:table-cell whitespace-nowrap">
-            {% if p.buy_price %}
-              {{ p.buy_price|floatformat:"-2" }} ₴
-            {% else %}
-              <span class="text-gray-300">—</span>
-            {% endif %}
-          </td>
-
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-
 {% else %}
-
-<div class="bg-white rounded-2xl border border-gray-100 p-16 text-center">
-  <svg class="w-12 h-12 text-green-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-  </svg>
-  <p class="text-gray-400 font-medium">Всі товари в нормі — замовляти нічого</p>
-  <p class="text-sm text-gray-300 mt-1">Залишки вище мінімального рівня. Тримайте так.</p>
+<div class="bg-white rounded-xl border border-dashed border-gray-200 p-16 text-center">
+  <div class="text-green-300 text-6xl mb-3">✓</div>
+  <p class="text-lg text-brand-dark font-medium mb-1">Усе на місці</p>
+  <p class="text-sm text-gray-400">Немає товарів, які потребують замовлення</p>
 </div>
-
 {% endif %}
 {% endblock %}

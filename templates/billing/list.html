@@ -3,133 +3,267 @@
 {% block title %}Рахунки — Kizuna CRM{% endblock %}
 
 {% block content %}
-<div class="flex items-center justify-between mb-6">
-  <h1 class="text-2xl font-bold text-brand-dark">
-    Рахунки
-    <span class="ml-2 text-sm font-normal text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{{ invoices|length }}</span>
-  </h1>
-  <div class="flex items-center gap-2">
-    <a href="{% url 'analytics:debtors' %}"
-       class="border border-gray-200 text-gray-600 px-4 py-2 rounded-lg text-sm font-medium hover:border-brand-gold hover:text-brand-dark transition-all">
-      Боржники
-    </a>
+<div class="flex items-start justify-between gap-4 mb-5">
+  <div>
+    <h1 class="text-2xl font-bold text-brand-dark">Рахунки</h1>
+    <div class="text-[11px] uppercase tracking-wide text-gray-400 font-medium mt-1">
+      {{ total_count }} {% if date_from or date_to %}за період{% else %}всього{% endif %}
+      {% if request.user.role == 'doctor' %} · тільки мої{% endif %}
+    </div>
+  </div>
+  <div class="flex items-center gap-2 shrink-0">
+    <div class="relative" data-menu>
+      <button type="button" onclick="toggleListMenu(this)"
+        class="w-9 h-9 rounded-lg border border-gray-200 text-gray-500 hover:border-gray-300 hover:text-brand-dark flex items-center justify-center transition" title="Меню">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="6" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="18" r="1.5"/></svg>
+      </button>
+      <div data-menu-body class="absolute right-0 top-full mt-1 w-60 bg-white border border-gray-200 rounded-xl shadow-lg z-30 py-1 hidden">
+        <a href="{% url 'analytics:debtors' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">📋 Боржники (аналітика)</a>
+        <a href="?status=draft" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">📝 Тільки чернетки</a>
+        <a href="?status=paid" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">✅ Тільки оплачені</a>
+      </div>
+    </div>
     <a href="{% url 'billing:create' %}"
-       class="bg-brand-gold text-brand-dark px-4 py-2 rounded-lg text-sm font-medium hover:brightness-95 transition-all">
-      + Новий чек
+       class="inline-flex items-center gap-1.5 bg-brand-gold text-brand-dark px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-95 transition">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m6-6H6"/></svg>
+      Новий чек
     </a>
   </div>
 </div>
 
-<div class="flex gap-2 mb-4 flex-wrap">
-  <a href="{% url 'billing:list' %}"
-     class="px-3 py-1.5 rounded-lg text-sm font-medium border {% if not payment_filter %}bg-brand-gold text-brand-dark border-brand-gold{% else %}border-gray-200 text-gray-500 hover:border-gray-300{% endif %}">
-    Всі
-  </a>
-  <a href="?payment=cash"
-     class="px-3 py-1.5 rounded-lg text-sm font-medium border {% if payment_filter == 'cash' %}bg-brand-gold text-brand-dark border-brand-gold{% else %}border-gray-200 text-gray-500 hover:border-gray-300{% endif %}">
-    💵 Готівка
-  </a>
-  <a href="?payment=card"
-     class="px-3 py-1.5 rounded-lg text-sm font-medium border {% if payment_filter == 'card' %}bg-brand-gold text-brand-dark border-brand-gold{% else %}border-gray-200 text-gray-500 hover:border-gray-300{% endif %}">
-    💳 Картка
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+  <div class="bg-white border border-gray-200 rounded-xl px-4 py-3">
+    <div class="text-[11px] uppercase tracking-wide text-gray-500 font-medium">Оплачено</div>
+    <div class="text-2xl font-bold text-brand-dark mt-1 tabular-nums">{{ kpi.paid_sum|floatformat:0 }} ₴</div>
+    <div class="text-xs text-gray-400 mt-0.5">у вибірці</div>
+  </div>
+  <div class="bg-white border border-gray-200 rounded-xl px-4 py-3">
+    <div class="text-[11px] uppercase tracking-wide text-gray-500 font-medium">К-сть оплачених</div>
+    <div class="text-2xl font-bold text-brand-dark mt-1 tabular-nums">{{ kpi.paid_count }}</div>
+    <div class="text-xs text-gray-400 mt-0.5">чеків</div>
+  </div>
+  <div class="bg-white border border-gray-200 rounded-xl px-4 py-3">
+    <div class="text-[11px] uppercase tracking-wide text-gray-500 font-medium">Середній чек</div>
+    <div class="text-2xl font-bold text-brand-dark mt-1 tabular-nums">{{ kpi.avg_check|floatformat:0 }} ₴</div>
+    <div class="text-xs text-gray-400 mt-0.5">з оплачених</div>
+  </div>
+  <a href="?status=draft" class="bg-white border rounded-xl px-4 py-3 transition block {% if kpi.debtor_count %}border-amber-300 hover:border-amber-400{% else %}border-gray-200 hover:border-gray-300{% endif %}">
+    <div class="text-[11px] uppercase tracking-wide text-gray-500 font-medium">Чернетки &gt;24 год</div>
+    <div class="text-2xl font-bold mt-1 tabular-nums {% if kpi.debtor_count %}text-amber-600{% else %}text-brand-dark{% endif %}">{{ kpi.debtor_count }}</div>
+    <div class="text-xs text-gray-400 mt-0.5">потребують уваги</div>
   </a>
 </div>
+
+<form method="get" id="filter-form" class="bg-white border border-gray-200 rounded-xl p-3 mb-4">
+  <div class="grid grid-cols-1 md:grid-cols-12 gap-2">
+    <div class="md:col-span-4 relative">
+      <input type="search" name="q" value="{{ q }}" placeholder="Клієнт, телефон, пацієнт, #номер…"
+        class="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+      <svg class="w-4 h-4 text-gray-300 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path stroke-linecap="round" d="m21 21-3.5-3.5"/></svg>
+    </div>
+    <input type="date" name="from" value="{{ date_from }}"
+      class="md:col-span-2 border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold" title="Дата від">
+    <input type="date" name="to" value="{{ date_to }}"
+      class="md:col-span-2 border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold" title="Дата до">
+    <select name="status" class="md:col-span-2 border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+      <option value="">Усі статуси</option>
+      <option value="draft" {% if status_filter == 'draft' %}selected{% endif %}>Чернетка</option>
+      <option value="paid" {% if status_filter == 'paid' %}selected{% endif %}>Оплачено</option>
+      <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Скасовано</option>
+    </select>
+    {% if doctors %}
+    <select name="doctor" class="md:col-span-2 border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+      <option value="">Усі лікарі</option>
+      {% for d in doctors %}
+      <option value="{{ d.pk }}" {% if doctor_filter == d.pk|stringformat:'s' %}selected{% endif %}>{{ d.get_full_name|default:d.username }}</option>
+      {% endfor %}
+    </select>
+    {% else %}
+    <div class="md:col-span-2"></div>
+    {% endif %}
+  </div>
+  <div class="flex items-center gap-2 mt-3 flex-wrap">
+    <button type="button" data-payment="" class="payment-chip px-2.5 py-1 rounded-lg text-xs font-medium border {% if not payment_filter %}bg-brand-dark text-white border-brand-dark{% else %}border-gray-200 text-gray-500 hover:border-gray-300{% endif %}">Усі</button>
+    <button type="button" data-payment="cash" class="payment-chip px-2.5 py-1 rounded-lg text-xs font-medium border {% if payment_filter == 'cash' %}bg-brand-dark text-white border-brand-dark{% else %}border-gray-200 text-gray-500 hover:border-gray-300{% endif %}">💵 Готівка</button>
+    <button type="button" data-payment="card" class="payment-chip px-2.5 py-1 rounded-lg text-xs font-medium border {% if payment_filter == 'card' %}bg-brand-dark text-white border-brand-dark{% else %}border-gray-200 text-gray-500 hover:border-gray-300{% endif %}">💳 Картка</button>
+    <input type="hidden" name="payment" value="{{ payment_filter }}" id="payment-input">
+
+    <span class="ml-auto text-xs text-gray-400">{{ total_count }} рах.</span>
+    <select name="per_page" class="border border-gray-200 rounded-lg px-2 py-1 text-xs">
+      <option value="25" {% if per_page == 25 %}selected{% endif %}>25/стор</option>
+      <option value="50" {% if per_page == 50 %}selected{% endif %}>50/стор</option>
+      <option value="100" {% if per_page == 100 %}selected{% endif %}>100/стор</option>
+    </select>
+    {% if has_active_filter %}
+    <a href="{% url 'billing:list' %}" class="text-xs text-brand-gold hover:text-brand-dark font-medium">Скинути</a>
+    {% endif %}
+  </div>
+</form>
 
 <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
   {% if invoices %}
-  <!-- Mobile: card layout -->
-  <div class="md:hidden divide-y divide-gray-50">
-    {% for inv in invoices %}
-    <a href="{% url 'billing:detail' inv.pk %}" class="block px-4 py-3 hover:bg-gray-50 transition">
-      <div class="flex items-center justify-between mb-1">
-        <div class="font-medium text-brand-dark text-sm">{{ inv.client }}</div>
-        <div class="font-semibold text-brand-dark text-sm">{{ inv.total }} ₴</div>
-      </div>
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2 text-xs text-gray-400">
-          {% if inv.patient %}<span>{{ inv.patient.name }}</span><span>·</span>{% endif %}
-          <span>{{ inv.created_at|date:"d.m H:i" }}</span>
-          {% if inv.payment_method == 'cash' %}<span>💵</span>{% elif inv.payment_method == 'card' %}<span>💳</span>{% endif %}
-        </div>
-        <div>
-          {% if inv.status == 'paid' %}
-            <span class="inline-block px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">Оплачено</span>
-          {% elif inv.status == 'draft' %}
-            <span class="inline-block px-2 py-0.5 rounded-full text-xs bg-yellow-100 text-yellow-700">Чернетка</span>
-          {% else %}
-            <span class="inline-block px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-500">Скасовано</span>
-          {% endif %}
-        </div>
-      </div>
-    </a>
-    {% endfor %}
-  </div>
-  <!-- Desktop: table layout -->
-  <table class="w-full text-sm hidden md:table">
+  <div class="overflow-x-auto">
+  <table class="w-full text-sm">
     <thead class="border-b border-gray-100 bg-gray-50">
       <tr>
-        <th class="text-left px-4 py-3 text-gray-500 font-medium">#</th>
-        <th class="text-left px-4 py-3 text-gray-500 font-medium">Клієнт / Пацієнт</th>
-        <th class="text-left px-4 py-3 text-gray-500 font-medium">Лікар</th>
-        <th class="text-left px-4 py-3 text-gray-500 font-medium">Дата</th>
-        <th class="text-right px-4 py-3 text-gray-500 font-medium">Сума</th>
-        <th class="text-center px-4 py-3 text-gray-500 font-medium">Оплата</th>
-        <th class="text-center px-4 py-3 text-gray-500 font-medium">Статус</th>
-        <th class="px-4 py-3"></th>
+        <th class="text-left px-4 py-2.5 text-xs uppercase tracking-wide font-medium text-gray-500">
+          <button type="button" onclick="changeSort('pk')" class="hover:text-brand-dark inline-flex items-center gap-1">
+            # {% if sort == '-pk' %}↓{% elif sort == 'pk' %}↑{% endif %}
+          </button>
+        </th>
+        <th class="text-left px-4 py-2.5 text-xs uppercase tracking-wide font-medium text-gray-500">Клієнт / Пацієнт</th>
+        <th class="text-left px-4 py-2.5 text-xs uppercase tracking-wide font-medium text-gray-500">Лікар</th>
+        <th class="text-left px-4 py-2.5 text-xs uppercase tracking-wide font-medium text-gray-500">
+          <button type="button" onclick="changeSort('created_at')" class="hover:text-brand-dark inline-flex items-center gap-1">
+            Дата {% if sort == '-created_at' %}↓{% elif sort == 'created_at' %}↑{% endif %}
+          </button>
+        </th>
+        <th class="text-right px-4 py-2.5 text-xs uppercase tracking-wide font-medium text-gray-500">
+          <button type="button" onclick="changeSort('total')" class="hover:text-brand-dark inline-flex items-center gap-1">
+            Сума {% if sort == '-total' %}↓{% elif sort == 'total' %}↑{% endif %}
+          </button>
+        </th>
+        <th class="text-center px-4 py-2.5 text-xs uppercase tracking-wide font-medium text-gray-500">Оплата</th>
+        <th class="text-center px-4 py-2.5 text-xs uppercase tracking-wide font-medium text-gray-500">Статус</th>
+        <th class="px-4 py-2.5 w-24"></th>
       </tr>
     </thead>
     <tbody class="divide-y divide-gray-50">
       {% for inv in invoices %}
-      <tr class="hover:bg-gray-50 cursor-pointer" onclick="location='{% url 'billing:detail' inv.pk %}'">
-        <td class="px-4 py-3 text-gray-400">#{{ inv.pk }}</td>
-        <td class="px-4 py-3">
+      <tr class="group hover:bg-gray-50 cursor-pointer" onclick="if(!event.target.closest('[data-stop]')) location='{% url 'billing:detail' inv.pk %}'">
+        <td class="px-4 py-2.5 text-gray-400 font-mono text-xs whitespace-nowrap">#{{ inv.pk }}</td>
+        <td class="px-4 py-2.5">
           <div class="font-medium text-brand-dark">{{ inv.client }}</div>
           {% if inv.patient %}<div class="text-xs text-gray-400">{{ inv.patient.name }}</div>{% endif %}
         </td>
-        <td class="px-4 py-3 text-gray-500">{% if inv.doctor %}{{ inv.doctor.get_full_name|default:inv.doctor.username }}{% else %}—{% endif %}</td>
-        <td class="px-4 py-3 text-gray-500">{{ inv.created_at|date:"d.m.Y H:i" }}</td>
-        <td class="px-4 py-3 text-right font-semibold text-brand-dark">{{ inv.total }} ₴</td>
-        <td class="px-4 py-3 text-center text-sm">
-          {% if inv.payment_method == 'cash' %}
-            <span class="text-gray-600">💵 Готівка</span>
-          {% elif inv.payment_method == 'card' %}
-            <span class="text-gray-600">💳 Картка</span>
-          {% else %}
-            <span class="text-gray-300">—</span>
-          {% endif %}
+        <td class="px-4 py-2.5 text-gray-500 text-sm">{% if inv.doctor %}{{ inv.doctor.get_full_name|default:inv.doctor.username }}{% else %}—{% endif %}</td>
+        <td class="px-4 py-2.5 text-gray-500 text-xs whitespace-nowrap">{{ inv.created_at|date:"d.m.Y H:i" }}</td>
+        <td class="px-4 py-2.5 text-right font-semibold text-brand-dark tabular-nums whitespace-nowrap">{{ inv.total|floatformat:2 }} ₴</td>
+        <td class="px-4 py-2.5 text-center text-base">
+          {% if inv.payment_method == 'cash' %}<span title="Готівка">💵</span>
+          {% elif inv.payment_method == 'card' %}<span title="Картка">💳</span>
+          {% else %}<span class="text-gray-300 text-sm">—</span>{% endif %}
         </td>
-        <td class="px-4 py-3 text-center">
+        <td class="px-4 py-2.5 text-center">
           {% if inv.status == 'paid' %}
-            <span class="inline-block px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">Оплачено</span>
+            <span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium bg-green-100 text-green-700">Оплачено</span>
           {% elif inv.status == 'draft' %}
-            <span class="inline-block px-2 py-0.5 rounded-full text-xs bg-yellow-100 text-yellow-700">Чернетка</span>
+            {% if inv.created_at < overdue_cutoff %}
+              <span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-100 text-amber-700" title="Чернетка старша 24 год">Чернетка</span>
+            {% else %}
+              <span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium bg-yellow-100 text-yellow-700">Чернетка</span>
+            {% endif %}
           {% else %}
-            <span class="inline-block px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-500">Скасовано</span>
+            <span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium bg-gray-100 text-gray-500">Скасовано</span>
           {% endif %}
         </td>
-        <td class="px-4 py-3 text-center" onclick="event.stopPropagation()">
-          {% if inv.status != 'paid' or user.is_admin %}
-          <form method="post" action="{% url 'billing:delete' inv.pk %}"
-                onsubmit="return confirm('{% if inv.status == 'paid' %}УВАГА! Видалити ОПЛАЧЕНИЙ рахунок #{{ inv.pk }}?\n\nТовари повернуться на склад. Запис зникне з аналітики.\n\nПродовжити?{% else %}Видалити рахунок #{{ inv.pk }}?{% endif %}')">
-            {% csrf_token %}
-            <button type="submit" class="text-gray-300 hover:text-red-400 transition-colors" title="{% if inv.status == 'paid' %}Видалити (admin only){% else %}Видалити{% endif %}">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-              </svg>
-            </button>
-          </form>
-          {% endif %}
+        <td class="px-4 py-2.5 text-right opacity-0 group-hover:opacity-100 transition" data-stop>
+          <div class="flex items-center justify-end gap-0.5">
+            {% if inv.status == 'draft' %}
+            <a href="{% url 'billing:edit' inv.pk %}" class="text-gray-400 hover:text-brand-gold p-1.5" title="Редагувати">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.4-9.6a2 2 0 1 1 2.83 2.83L11.83 15H9v-2.83l8.6-8.77z"/></svg>
+            </a>
+            {% endif %}
+            <a href="{% url 'billing:pdf' inv.pk %}" target="_blank" class="text-gray-400 hover:text-brand-dark p-1.5" title="PDF">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.6L19 9.4V19a2 2 0 0 1-2 2z"/></svg>
+            </a>
+            {% if inv.status != 'paid' or user.is_admin %}
+            <form method="post" action="{% url 'billing:delete' inv.pk %}"
+                  onsubmit="return confirm('{% if inv.status == 'paid' %}УВАГА! Видалити ОПЛАЧЕНИЙ #{{ inv.pk }}? Товари повернуться на склад. Запис зникне з аналітики. Продовжити?{% else %}Видалити рахунок #{{ inv.pk }}?{% endif %}')">
+              {% csrf_token %}
+              <button type="submit" class="text-gray-400 hover:text-red-500 p-1.5" title="Видалити">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.87 12.14A2 2 0 0 1 16.14 21H7.86a2 2 0 0 1-2-1.86L5 7m5 4v6m4-6v6m1-10V4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3M4 7h16"/></svg>
+              </button>
+            </form>
+            {% endif %}
+          </div>
         </td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
+  </div>
+
+  {% if invoices.has_other_pages %}
+  <div class="flex items-center justify-between px-4 py-3 border-t border-gray-100 bg-gray-50 text-sm">
+    <div class="text-xs text-gray-500">Сторінка {{ invoices.number }} з {{ invoices.paginator.num_pages }} · усього {{ invoices.paginator.count }}</div>
+    <div class="flex items-center gap-1">
+      {% if invoices.has_previous %}
+      <button type="button" onclick="goPage(1)" class="px-2.5 py-1 border border-gray-200 rounded-lg text-xs hover:border-gray-300">«</button>
+      <button type="button" onclick="goPage({{ invoices.previous_page_number }})" class="px-2.5 py-1 border border-gray-200 rounded-lg text-xs hover:border-gray-300">‹</button>
+      {% endif %}
+      {% if invoices.has_next %}
+      <button type="button" onclick="goPage({{ invoices.next_page_number }})" class="px-2.5 py-1 border border-gray-200 rounded-lg text-xs hover:border-gray-300">›</button>
+      <button type="button" onclick="goPage({{ invoices.paginator.num_pages }})" class="px-2.5 py-1 border border-gray-200 rounded-lg text-xs hover:border-gray-300">»</button>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
   {% else %}
-  <div class="p-12 text-center text-gray-400">
-    <p>Рахунків ще немає</p>
-    <a href="{% url 'billing:create' %}" class="mt-2 inline-block text-brand-gold font-medium text-sm">Створити перший</a>
+  <div class="p-12 text-center">
+    <div class="text-5xl mb-3">🧾</div>
+    <div class="text-base font-semibold text-brand-dark mb-1">Рахунків не знайдено</div>
+    <div class="text-sm text-gray-400 mb-4">
+      {% if has_active_filter %}Спробуй <a href="{% url 'billing:list' %}" class="text-brand-gold font-medium">скинути фільтри</a>{% else %}Створи перший чек щоб почати{% endif %}
+    </div>
+    <a href="{% url 'billing:create' %}" class="inline-block bg-brand-gold text-brand-dark px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-95">+ Новий чек</a>
   </div>
   {% endif %}
 </div>
+
+<script>
+function toggleListMenu(btn) {
+  const menu = btn.parentElement.querySelector('[data-menu-body]');
+  document.querySelectorAll('[data-menu-body]').forEach(m => { if (m !== menu) m.classList.add('hidden'); });
+  menu.classList.toggle('hidden');
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('[data-menu]')) {
+    document.querySelectorAll('[data-menu-body]').forEach(m => m.classList.add('hidden'));
+  }
+});
+
+// Filter form auto-submit (status, doctor, dates, per_page)
+const form = document.getElementById('filter-form');
+['status', 'doctor', 'from', 'to', 'per_page'].forEach(name => {
+  const el = form.querySelector(`[name="${name}"]`);
+  el && el.addEventListener('change', () => form.submit());
+});
+// Search debounce
+let _sTimer;
+const sInput = form.querySelector('input[name="q"]');
+sInput && sInput.addEventListener('input', () => { clearTimeout(_sTimer); _sTimer = setTimeout(() => form.submit(), 450); });
+// Payment chips → set hidden + submit
+document.querySelectorAll('.payment-chip').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.getElementById('payment-input').value = btn.dataset.payment;
+    form.submit();
+  });
+});
+
+// Sort + pagination via URL builder (зберігає всі поточні фільтри)
+function navWith(updates) {
+  const url = new URL(window.location);
+  for (const k in updates) {
+    if (updates[k] === null || updates[k] === '') url.searchParams.delete(k);
+    else url.searchParams.set(k, updates[k]);
+  }
+  url.searchParams.delete('page'); // сбросити пагінацію при зміні сортування
+  if ('page' in updates) url.searchParams.set('page', updates.page);
+  window.location = url.toString();
+}
+function changeSort(field) {
+  const cur = new URL(window.location).searchParams.get('sort') || '-created_at';
+  const next = cur === '-' + field ? field : '-' + field;
+  navWith({sort: next});
+}
+function goPage(p) {
+  const url = new URL(window.location);
+  url.searchParams.set('page', p);
+  window.location = url.toString();
+}
+</script>
 {% endblock %}
+</content>
+</invoke>

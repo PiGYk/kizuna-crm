@@ -1,0 +1,336 @@
+{% extends 'base.html' %}
+{% block title %}Склад — Kizuna CRM{% endblock %}
+
+{% block extra_head %}
+<script>
+  document.documentElement.classList.add('has-mobile-fullscreen');
+  document.addEventListener('DOMContentLoaded', function () {
+    document.body.classList.add('has-mobile-fullscreen');
+  });
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+{% endblock %}
+
+{% block fab_url %}{% endblock %}
+
+{% block content %}
+<div class="tg-mobile-shell">
+
+  <header class="tg-mobile-header shrink-0 bg-white border-b border-gray-100 flex items-center gap-2 px-3"
+          style="min-height: 56px;">
+    <h1 class="flex-1 font-semibold text-brand-dark text-base truncate">
+      Склад <span class="text-xs font-normal text-gray-400">({{ products.paginator.count }})</span>
+    </h1>
+    <button type="button" onclick="tgOpenSheet('inv-filter-sheet')"
+            class="tg-mobile-tap relative text-gray-500 active:text-brand-dark" aria-label="Фільтр">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M3 4h18M6 12h12M10 20h4"/>
+      </svg>
+      {% if cat or stock or expiry %}
+      <span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-brand-gold"></span>
+      {% endif %}
+    </button>
+    <button type="button" onclick="tgOpenSheet('inv-menu-sheet')"
+            class="tg-mobile-tap text-gray-500 active:text-brand-dark" aria-label="Меню">
+      <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+        <circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/>
+      </svg>
+    </button>
+  </header>
+
+  <!-- Sticky search -->
+  <div class="shrink-0 bg-white border-b border-gray-100 px-3 py-2">
+    <form method="get" id="inv-search-form">
+      <input type="search" name="q" value="{{ q }}" placeholder="🔍 Пошук товару…"
+             autocomplete="off"
+             class="fin-input"
+             oninput="clearTimeout(window._invT); window._invT = setTimeout(() => this.form.submit(), 500)">
+      {% if cat %}<input type="hidden" name="cat" value="{{ cat }}">{% endif %}
+      {% if stock %}<input type="hidden" name="stock" value="{{ stock }}">{% endif %}
+      {% if expiry %}<input type="hidden" name="expiry" value="{{ expiry }}">{% endif %}
+    </form>
+  </div>
+
+  <div class="flex-1 overflow-y-auto pb-24" style="-webkit-overflow-scrolling: touch; background: #f7f7f8;">
+
+    {% if products %}
+    <div class="px-3 pt-3 flex flex-col gap-2">
+      {% for p in products %}
+      <a href="{% url 'inventory:detail' p.pk %}"
+         class="block bg-white rounded-2xl border border-gray-100 px-3 py-3 active:bg-gray-50">
+        <div class="flex items-start gap-3">
+          {# Кольоровий індикатор залишку #}
+          <div class="w-1 self-stretch rounded-full shrink-0
+            {% if p.quantity <= 0 %}bg-red-500
+            {% elif p.min_quantity > 0 and p.quantity <= p.min_quantity %}bg-yellow-400
+            {% elif p.expiry_date and p.is_expired %}bg-red-500
+            {% elif p.expiry_date and p.is_expiring_soon %}bg-yellow-400
+            {% else %}bg-green-400{% endif %}"></div>
+
+          <div class="flex-1 min-w-0">
+            <div class="flex items-baseline justify-between gap-2">
+              <div class="font-medium text-brand-dark text-[14px] leading-snug truncate">{{ p.name }}</div>
+              <div class="text-right shrink-0">
+                <div class="font-bold text-brand-dark text-[15px] tabular-nums leading-none">
+                  {{ p.quantity|floatformat:"-3" }}
+                </div>
+                <div class="text-[10px] text-gray-400 mt-0.5">{{ p.unit.short|default:"" }}</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 text-[11px] text-gray-400 mt-1">
+              {% if p.category %}<span class="truncate">{{ p.category.name }}</span>{% endif %}
+              {% if p.sku %}<span>·</span><span class="font-mono text-gray-400">{{ p.sku }}</span>{% endif %}
+              {% if p.min_quantity > 0 and p.quantity <= p.min_quantity %}
+              <span class="ml-auto px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700 text-[10px] font-medium whitespace-nowrap">
+                мін {{ p.min_quantity|floatformat:"-3" }}
+              </span>
+              {% endif %}
+              {% if p.expiry_date and p.is_expired %}
+              <span class="ml-auto px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 text-[10px] font-medium whitespace-nowrap">
+                прострочено
+              </span>
+              {% elif p.expiry_date and p.is_expiring_soon %}
+              <span class="ml-auto px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700 text-[10px] font-medium whitespace-nowrap">
+                до {{ p.expiry_date|date:"d.m" }}
+              </span>
+              {% endif %}
+            </div>
+            <div class="flex items-center justify-between text-[11px] text-gray-500 mt-1">
+              <span>{{ p.sell_price|floatformat:"0" }} ₴ / {{ p.unit.short|default:"" }}</span>
+            </div>
+          </div>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+
+    {% if products.has_other_pages %}
+    <div class="px-3 pt-4 flex items-center justify-between gap-2">
+      {% if products.has_previous %}
+      <a href="?page={{ products.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if cat %}&cat={{ cat }}{% endif %}{% if stock %}&stock={{ stock }}{% endif %}{% if expiry %}&expiry={{ expiry }}{% endif %}"
+         class="flex-1 text-center py-2 rounded-xl text-sm bg-white border border-gray-200 active:bg-gray-100">← Попер.</a>
+      {% else %}<div class="flex-1"></div>{% endif %}
+      <div class="text-xs text-gray-400 px-2">{{ products.number }} / {{ products.paginator.num_pages }}</div>
+      {% if products.has_next %}
+      <a href="?page={{ products.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if cat %}&cat={{ cat }}{% endif %}{% if stock %}&stock={{ stock }}{% endif %}{% if expiry %}&expiry={{ expiry }}{% endif %}"
+         class="flex-1 text-center py-2 rounded-xl text-sm bg-white border border-gray-200 active:bg-gray-100">Наст. →</a>
+      {% else %}<div class="flex-1"></div>{% endif %}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="text-center text-sm text-gray-400 py-16">
+      Товарів не знайдено.
+    </div>
+    {% endif %}
+  </div>
+
+  <a href="#" onclick="tgOpenSheet('inv-quick-sheet'); return false;"
+     class="fin-fab" aria-label="Швидкий прихід">
+    <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+    </svg>
+  </a>
+
+</div>
+
+<div id="tg-sheet-backdrop" class="tg-mobile-sheet-backdrop" onclick="tgCloseAllSheets()"></div>
+
+<!-- Filter sheet -->
+<div id="inv-filter-sheet" class="tg-mobile-sheet" style="max-height: 85vh;">
+  <div class="tg-mobile-sheet-handle"></div>
+  <div class="px-4 py-3 border-b border-gray-100 text-sm font-semibold text-brand-dark">Фільтри</div>
+  <form method="get" class="tg-mobile-sheet-body px-4 py-3 space-y-3">
+    {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+
+    <div>
+      <label class="fin-label">Категорія</label>
+      <select name="cat" class="fin-input">
+        <option value="">Усі</option>
+        {% for c in categories %}
+        <option value="{{ c.pk }}" {% if cat == c.pk|stringformat:"d" %}selected{% endif %}>{{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div>
+      <label class="fin-label">Залишок</label>
+      <div class="flex flex-wrap gap-2">
+        <label>
+          <input type="radio" name="stock" value="" class="hidden peer" {% if not stock %}checked{% endif %}>
+          <span class="block px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 peer-checked:bg-brand-gold peer-checked:text-brand-dark">Усі</span>
+        </label>
+        <label>
+          <input type="radio" name="stock" value="low" class="hidden peer" {% if stock == 'low' %}checked{% endif %}>
+          <span class="block px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 peer-checked:bg-yellow-400 peer-checked:text-brand-dark">Закінчується</span>
+        </label>
+        <label>
+          <input type="radio" name="stock" value="out" class="hidden peer" {% if stock == 'out' %}checked{% endif %}>
+          <span class="block px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 peer-checked:bg-red-500 peer-checked:text-white">Нуль</span>
+        </label>
+      </div>
+    </div>
+
+    <div>
+      <label class="fin-label">Термін придатності</label>
+      <div class="flex flex-wrap gap-2">
+        <label>
+          <input type="radio" name="expiry" value="" class="hidden peer" {% if not expiry %}checked{% endif %}>
+          <span class="block px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 peer-checked:bg-brand-gold peer-checked:text-brand-dark">Усі</span>
+        </label>
+        <label>
+          <input type="radio" name="expiry" value="expiring" class="hidden peer" {% if expiry == 'expiring' %}checked{% endif %}>
+          <span class="block px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 peer-checked:bg-yellow-400 peer-checked:text-brand-dark">Скоро (30 днів)</span>
+        </label>
+        <label>
+          <input type="radio" name="expiry" value="expired" class="hidden peer" {% if expiry == 'expired' %}checked{% endif %}>
+          <span class="block px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 peer-checked:bg-red-500 peer-checked:text-white">Прострочено</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="pt-2 flex gap-2">
+      <a href="{% url 'inventory:list' %}"
+         class="flex-1 text-center px-4 py-3 rounded-xl text-sm font-medium bg-gray-100 text-gray-600 active:bg-gray-200">
+        Скинути
+      </a>
+      <button type="submit"
+              class="flex-1 px-4 py-3 rounded-xl text-sm font-semibold bg-brand-gold text-brand-dark active:opacity-80">
+        Застосувати
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- ⋮ menu sheet -->
+<div id="inv-menu-sheet" class="tg-mobile-sheet">
+  <div class="tg-mobile-sheet-handle"></div>
+  <div class="px-4 py-3 border-b border-gray-100 text-sm font-semibold text-brand-dark">Меню складу</div>
+  <div class="tg-mobile-sheet-body py-2">
+    <a href="{% url 'inventory:create' %}" class="flex items-center gap-3 px-5 py-3 active:bg-gray-100" style="min-height: 48px;">
+      <span class="text-xl">➕</span><span class="text-sm">Створити товар</span>
+    </a>
+    <a href="{% url 'inventory:reorder' %}" class="flex items-center gap-3 px-5 py-3 active:bg-gray-100 border-t border-gray-100" style="min-height: 48px;">
+      <span class="text-xl">📋</span><span class="text-sm">Що замовити</span>
+    </a>
+    <a href="{% url 'inventory:stocktake' %}" class="flex items-center gap-3 px-5 py-3 active:bg-gray-100 border-t border-gray-100" style="min-height: 48px;">
+      <span class="text-xl">🧮</span><span class="text-sm">Інвентаризація</span>
+    </a>
+    <a href="{% url 'inventory:supplier_list' %}" class="flex items-center gap-3 px-5 py-3 active:bg-gray-100 border-t border-gray-100" style="min-height: 48px;">
+      <span class="text-xl">🏭</span><span class="text-sm">Постачальники</span>
+    </a>
+  </div>
+</div>
+
+<!-- Quick intake sheet (search + qty) -->
+<div id="inv-quick-sheet" class="tg-mobile-sheet" style="max-height: 80vh;">
+  <div class="tg-mobile-sheet-handle"></div>
+  <div class="px-4 py-3 border-b border-gray-100 text-sm font-semibold text-brand-dark">Швидкий прихід</div>
+  <div class="tg-mobile-sheet-body px-4 py-3 space-y-3">
+    <div>
+      <label class="fin-label">Товар</label>
+      <div class="relative">
+        <input type="text" id="qi-search" placeholder="Назва товару…" autocomplete="off" class="fin-input">
+        <div id="qi-drop" class="hidden bg-white border border-gray-200 rounded-xl mt-1 max-h-56 overflow-y-auto shadow-sm"></div>
+      </div>
+      <div id="qi-selected" class="hidden mt-2 px-3 py-2 bg-brand-gold/10 rounded-lg text-sm">
+        <strong id="qi-selected-name"></strong> · залишок <span id="qi-selected-qty"></span>
+      </div>
+    </div>
+    <div class="grid grid-cols-2 gap-2">
+      <div>
+        <label class="fin-label">Кількість</label>
+        <input type="number" id="qi-qty" inputmode="decimal" step="any" min="0" placeholder="0" class="fin-input">
+      </div>
+      <div>
+        <label class="fin-label">Ціна за од.</label>
+        <input type="number" id="qi-price" inputmode="decimal" step="0.01" min="0" placeholder="0.00" class="fin-input">
+      </div>
+    </div>
+    <div>
+      <label class="fin-label">Нотатки (необов'язково)</label>
+      <input type="text" id="qi-note" class="fin-input">
+    </div>
+    <button type="button" id="qi-submit" disabled onclick="qiSubmit()"
+            class="w-full py-3 rounded-xl text-sm font-semibold bg-brand-gold text-brand-dark active:opacity-80 disabled:opacity-40 disabled:bg-gray-200 disabled:text-gray-500">
+      Записати прихід
+    </button>
+  </div>
+</div>
+
+{% include 'finance/_partials/mobile_toast.html' %}
+
+<script>
+function tgOpenSheet(id) {
+  var s = document.getElementById(id), bd = document.getElementById('tg-sheet-backdrop');
+  if (!s || !bd) return; s.classList.add('open'); bd.classList.add('open');
+}
+function tgCloseAllSheets() {
+  document.querySelectorAll('.tg-mobile-sheet.open').forEach(function (s) { s.classList.remove('open'); });
+  var bd = document.getElementById('tg-sheet-backdrop'); if (bd) bd.classList.remove('open');
+}
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') tgCloseAllSheets(); });
+
+// ── Quick intake: search + select + submit ──────────────────────────────────
+let _qiSelectedId = null;
+let _qiTimer = null;
+function qiSearch(q) {
+  clearTimeout(_qiTimer);
+  const drop = document.getElementById('qi-drop');
+  if (!q || q.length < 1) { drop.classList.add('hidden'); return; }
+  _qiTimer = setTimeout(function () {
+    fetch('{% url "inventory:product_search" %}?q=' + encodeURIComponent(q))
+      .then(r => r.json()).then(d => {
+        if (!d.results.length) {
+          drop.innerHTML = '<div class="px-3 py-3 text-sm text-gray-400 text-center">Нічого</div>';
+        } else {
+          drop.innerHTML = d.results.map(r =>
+            `<div class="qi-item px-3 py-2.5 active:bg-brand-gold/10 cursor-pointer border-b border-gray-50 last:border-0"
+                  data-id="${r.id}" data-name="${r.name.replace(/"/g, '&quot;')}" data-qty="${r.qty} ${r.unit||''}" data-price="${r.price}">
+              <div class="flex justify-between gap-2">
+                <span class="text-sm text-brand-dark">${r.name}</span>
+                <span class="text-xs text-gray-400">${r.qty} ${r.unit||''} · ${r.price} ₴</span>
+              </div>
+            </div>`
+          ).join('');
+        }
+        drop.classList.remove('hidden');
+      });
+  }, 220);
+}
+document.getElementById('qi-search').addEventListener('input', function () { qiSearch(this.value); });
+document.addEventListener('mousedown', function (e) {
+  const item = e.target.closest('.qi-item');
+  if (!item) return;
+  e.preventDefault();
+  _qiSelectedId = item.dataset.id;
+  document.getElementById('qi-search').value = item.dataset.name;
+  document.getElementById('qi-drop').classList.add('hidden');
+  document.getElementById('qi-selected').classList.remove('hidden');
+  document.getElementById('qi-selected-name').textContent = item.dataset.name;
+  document.getElementById('qi-selected-qty').textContent = item.dataset.qty;
+  document.getElementById('qi-price').value = item.dataset.price || '';
+  document.getElementById('qi-submit').disabled = false;
+});
+
+function qiSubmit() {
+  if (!_qiSelectedId) return;
+  const qty = document.getElementById('qi-qty').value;
+  const price = document.getElementById('qi-price').value;
+  const note = document.getElementById('qi-note').value;
+  if (!qty || parseFloat(qty) <= 0) { alert('Вкажіть кількість'); return; }
+
+  const fd = new FormData();
+  fd.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+  fd.append('quantity', qty);
+  if (price) fd.append('price', price);
+  if (note) fd.append('reason', note);
+
+  document.getElementById('qi-submit').disabled = true;
+  document.getElementById('qi-submit').textContent = '⏳';
+
+  fetch('/inventory/' + _qiSelectedId + '/in/', {method: 'POST', body: fd})
+    .then(() => location.reload());
+}
+</script>
+{% endblock %}

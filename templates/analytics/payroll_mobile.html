@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+{% block title %}Зарплата — Kizuna CRM{% endblock %}
+
+{% block extra_head %}
+<script>
+  document.documentElement.classList.add('has-mobile-fullscreen');
+  document.addEventListener('DOMContentLoaded', function () {
+    document.body.classList.add('has-mobile-fullscreen');
+  });
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+{% endblock %}
+
+{% block fab_url %}{% endblock %}
+
+{% block content %}
+<div class="tg-mobile-shell">
+
+  <header class="tg-mobile-header shrink-0 bg-white border-b border-gray-100 flex items-center gap-2 px-3"
+          style="min-height: 56px;">
+    <h1 class="flex-1 font-semibold text-brand-dark text-base truncate">Зарплата</h1>
+    <button type="button" onclick="tgOpenSheet('pay-filter-sheet')"
+            class="tg-mobile-tap relative text-gray-500 active:text-brand-dark" aria-label="Фільтри">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M3 4h18M6 12h12M10 20h4"/>
+      </svg>
+      {% if preset != 'month' or selected_doctor %}
+      <span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-brand-gold"></span>
+      {% endif %}
+    </button>
+  </header>
+
+  {% include 'analytics/_partials/mobile_nav.html' with active='payroll' %}
+
+  <div class="flex-1 overflow-y-auto pb-24" style="-webkit-overflow-scrolling: touch; background: #f7f7f8;">
+
+    <!-- 2 KPI -->
+    <div class="px-3 pt-3 grid grid-cols-2 gap-2">
+      <div class="fin-kpi">
+        <div class="text-[11px] text-gray-400 uppercase tracking-wide">Виручка</div>
+        <div class="text-xl font-bold text-brand-dark mt-0.5">{{ total_revenue|floatformat:0 }} ₴</div>
+        <div class="text-[10px] text-gray-400 mt-1">{{ start|date:"d.m" }} — {{ end|date:"d.m.Y" }}</div>
+      </div>
+      <div class="fin-kpi">
+        <div class="text-[11px] text-gray-400 uppercase tracking-wide">До нарахування</div>
+        <div class="text-xl font-bold text-brand-gold mt-0.5">{{ total_salary|floatformat:0 }} ₴</div>
+        <div class="text-[10px] text-gray-400 mt-1">{{ results|length }} лікар(ів)</div>
+      </div>
+    </div>
+
+    <!-- Cards-per-doctor -->
+    <div class="px-3 pt-3 flex flex-col gap-2">
+      {% for r in results %}
+      <div class="bg-white rounded-2xl border border-gray-100 px-3 py-3 flex items-start gap-3">
+        <div class="w-10 h-10 rounded-full bg-brand-gold/20 text-brand-dark flex items-center justify-center shrink-0 font-bold text-sm">
+          {{ r.doctor.last_name|default:r.doctor.first_name|slice:":1"|upper }}
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-baseline justify-between gap-2">
+            <div class="font-semibold text-brand-dark text-[15px] truncate">{{ r.doctor.get_full_name|default:r.doctor.username }}</div>
+            <div class="font-bold text-brand-gold text-[15px] whitespace-nowrap">{{ r.salary|floatformat:0 }} ₴</div>
+          </div>
+          <div class="text-xs text-gray-500 mt-0.5">{{ r.salary_type }}</div>
+          <div class="text-[11px] text-gray-400 mt-0.5">
+            {{ r.count }} чек(ів) · виручка {{ r.revenue|floatformat:0 }} ₴
+          </div>
+        </div>
+      </div>
+      {% empty %}
+      <div class="text-center text-sm text-gray-400 py-16">
+        Немає даних.
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Sticky footer total -->
+  {% if results %}
+  <div class="shrink-0 border-t border-gray-200 bg-white px-4 py-3 flex items-center justify-between"
+       style="padding-bottom: max(12px, env(safe-area-inset-bottom));">
+    <span class="text-xs text-gray-500 uppercase">Всього до виплати</span>
+    <span class="text-lg font-bold text-brand-dark">{{ total_salary|floatformat:2 }} ₴</span>
+  </div>
+  {% endif %}
+
+</div>
+
+<!-- Filter sheet (поза shell) -->
+<div id="tg-sheet-backdrop" class="tg-mobile-sheet-backdrop" onclick="tgCloseAllSheets()"></div>
+<div id="pay-filter-sheet" class="tg-mobile-sheet">
+  <div class="tg-mobile-sheet-handle"></div>
+  <div class="px-4 py-3 border-b border-gray-100 text-sm font-semibold text-brand-dark">Фільтри</div>
+  <form method="get" class="tg-mobile-sheet-body px-4 py-3 space-y-3">
+    <div>
+      <label class="fin-label">Період</label>
+      <div class="flex flex-wrap gap-2">
+        {% for key, label in presets %}
+        <label>
+          <input type="radio" name="preset" value="{{ key }}" class="hidden peer"
+                 {% if preset == key %}checked{% endif %}>
+          <span class="block px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 peer-checked:bg-brand-gold peer-checked:text-brand-dark">
+            {{ label }}
+          </span>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="grid grid-cols-2 gap-2">
+      <div>
+        <label class="fin-label">Від (custom)</label>
+        <input type="date" name="start" value="{{ start|date:'Y-m-d' }}" class="fin-input">
+      </div>
+      <div>
+        <label class="fin-label">До (custom)</label>
+        <input type="date" name="end" value="{{ end|date:'Y-m-d' }}" class="fin-input">
+      </div>
+    </div>
+    <div>
+      <label class="fin-label">Лікар</label>
+      <select name="doctor" class="fin-input">
+        <option value="">Усі</option>
+        {% for d in doctors %}
+        <option value="{{ d.pk }}" {% if selected_doctor == d.pk|stringformat:"s" %}selected{% endif %}>{{ d.get_full_name|default:d.username }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="pt-2 flex gap-2">
+      <a href="{% url 'analytics:payroll' %}"
+         class="flex-1 text-center px-4 py-3 rounded-xl text-sm font-medium bg-gray-100 text-gray-600 active:bg-gray-200">
+        Скинути
+      </a>
+      <button type="submit"
+              class="flex-1 px-4 py-3 rounded-xl text-sm font-semibold bg-brand-gold text-brand-dark active:opacity-80">
+        Застосувати
+      </button>
+    </div>
+  </form>
+</div>
+
+{% include 'finance/_partials/mobile_toast.html' %}
+
+<script>
+function tgOpenSheet(id) {
+  var s = document.getElementById(id), bd = document.getElementById('tg-sheet-backdrop');
+  if (!s || !bd) return; s.classList.add('open'); bd.classList.add('open');
+}
+function tgCloseAllSheets() {
+  document.querySelectorAll('.tg-mobile-sheet.open').forEach(function (s) { s.classList.remove('open'); });
+  var bd = document.getElementById('tg-sheet-backdrop'); if (bd) bd.classList.remove('open');
+}
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') tgCloseAllSheets(); });
+</script>
+{% endblock %}

@@ -1,6 +1,7 @@
 {# Bottom nav for mobile only. Highlight active по app_name (як у sidebar). #}
 {% with an=request.resolver_match.app_name un=request.resolver_match.url_name %}
-<nav class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-brand-dark border-t border-white/10 pb-[env(safe-area-inset-bottom)]"
+<nav data-bottom-nav
+     class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-brand-dark border-t border-white/10 pb-[env(safe-area-inset-bottom)]"
      aria-label="Нижня навігація">
   <div class="grid grid-cols-5">
     {# Дашборд #}

@@ -7,9 +7,15 @@
 
 /* ── Загальна "оболонка" повноекранного чату/списку ─────────────────────── */
 .tg-mobile-shell {
-  /* 100svh / 100dvh потрібні бо 100vh на iOS Safari "стрибає" з адресним рядком */
+  /* Фіксована поверх усієї сторінки: оминаємо h-screen=100vh обгортки
+     base.html (яка на iOS Safari довша за видимий вьюпорт через адресну
+     стрічку). 100svh/100dvh = реальна видима висота, тож input не йде
+     за край, а keyboard коректно ресайзить (interactive-widget). */
+  position: fixed;
+  inset: 0;
   height: 100svh;
   height: 100dvh;
+  z-index: 50;
   display: flex;
   flex-direction: column;
   background: #fff;
@@ -101,20 +107,51 @@
   -webkit-overflow-scrolling: touch;
 }
 
-/* ── На сторінці mobile-chat — приховуємо глобальний bottom_nav ────────── */
+/* ── На сторінці mobile-fullscreen — приховуємо глобальний bottom_nav ───── */
+/* .has-tg-mobile-chat — legacy alias (tg chat), .has-mobile-fullscreen — generic */
 .has-tg-mobile-chat .bottom-nav,
 .has-tg-mobile-chat #bottom-nav,
-.has-tg-mobile-chat [data-bottom-nav] {
+.has-tg-mobile-chat [data-bottom-nav],
+.has-mobile-fullscreen .bottom-nav,
+.has-mobile-fullscreen #bottom-nav,
+.has-mobile-fullscreen [data-bottom-nav] {
   display: none !important;
 }
 .has-tg-mobile-chat main,
-.has-tg-mobile-chat .main-content {
-  padding-bottom: 0 !important;
-  margin-bottom: 0 !important;
+.has-tg-mobile-chat .main-content,
+.has-mobile-fullscreen main,
+.has-mobile-fullscreen .main-content {
+  padding: 0 !important;
+  margin: 0 !important;
 }
 .has-tg-mobile-chat body,
-body.has-tg-mobile-chat {
+body.has-tg-mobile-chat,
+.has-mobile-fullscreen body,
+body.has-mobile-fullscreen {
   overflow: hidden;
+}
+
+/* ── Finance/analytics mobile: лишаємо global mobile-header + sidebar над shell ─
+   Бо shell з position:fixed; z-index:50 інакше накриває hamburger-кнопку
+   і user не може перейти на іншу сторінку. У tg-chat-detail user має свій
+   "Назад" → tg list, тож там shell лишається повноекранним. */
+.has-mobile-fullscreen #global-mobile-header {
+  position: relative;
+  z-index: 70;
+}
+.has-mobile-fullscreen #sidebar {
+  z-index: 71 !important;
+}
+.has-mobile-fullscreen #mobile-overlay {
+  z-index: 70 !important;
+}
+/* Shell стартує під global header (~52px) щоб два бари не наповзали */
+@media (max-width: 767px) {
+  .has-mobile-fullscreen .tg-mobile-shell {
+    top: 52px;
+    height: calc(100svh - 52px);
+    height: calc(100dvh - 52px);
+  }
 }
 
 /* На списку чатів bottom_nav лишаємо, але прибираємо main padding,
@@ -134,4 +171,77 @@ body.has-tg-mobile-chat {
   outline: none;
   border-color: #C9A961;
   box-shadow: 0 0 0 2px rgba(201, 169, 97, 0.2);
+}
+
+/* ── Finance sub-tabs (Витрати / Каса / Звіт / Налашт.) ─────────────────── */
+.fin-mobile-tabs { -webkit-overflow-scrolling: touch; }
+.fin-mobile-tabs::-webkit-scrollbar { display: none; }
+.fin-tab {
+  position: relative;
+  padding-top: 12px;
+  padding-bottom: 12px;
+  font-weight: 500;
+}
+.fin-tab-active {
+  color: #12100F;
+}
+.fin-tab-active::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 0;
+  height: 2px;
+  background: #DEAA01;
+  border-radius: 1px;
+}
+
+/* ── Finance FAB ─────────────────────────────────────────────────────────── */
+.fin-fab {
+  position: fixed;
+  right: 16px;
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #DEAA01;
+  color: #12100F;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.2);
+  z-index: 40;
+  transition: transform 120ms ease-out;
+}
+.fin-fab:active { transform: scale(0.94); }
+
+/* ── Finance bottom-sheet form generic input ─────────────────────────────── */
+.fin-input {
+  width: 100%;
+  border: 1px solid #d4d4d8;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 16px;
+  background: #fafafa;
+}
+.fin-input:focus {
+  outline: none;
+  border-color: #DEAA01;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(222, 170, 1, 0.15);
+}
+.fin-label {
+  display: block;
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+/* ── KPI card для mobile ─────────────────────────────────────────────────── */
+.fin-kpi {
+  background: #fff;
+  border-radius: 16px;
+  padding: 16px;
+  border: 1px solid #f3f4f6;
 }

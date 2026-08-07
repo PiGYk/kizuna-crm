@@ -1,0 +1,264 @@
+{% extends 'base.html' %}
+{% block title %}Чистий прибуток — Kizuna CRM{% endblock %}
+
+{% block extra_head %}
+<script>
+  document.documentElement.classList.add('has-mobile-fullscreen');
+  document.addEventListener('DOMContentLoaded', function () {
+    document.body.classList.add('has-mobile-fullscreen');
+  });
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+{% endblock %}
+
+{% block fab_url %}{% endblock %}
+
+{% block content %}
+<div class="tg-mobile-shell">
+
+  <header class="tg-mobile-header shrink-0 bg-white border-b border-gray-100 flex items-center gap-2 px-3"
+          style="min-height: 56px;">
+    <h1 class="flex-1 font-semibold text-brand-dark text-base truncate">Прибуток</h1>
+    <button type="button" onclick="tgOpenSheet('profit-filter-sheet')"
+            class="tg-mobile-tap text-gray-500 active:text-brand-dark" aria-label="Виключення">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+      </svg>
+    </button>
+  </header>
+
+  {% include 'analytics/_partials/mobile_nav.html' with active='profit' %}
+
+  <div class="flex-1 overflow-y-auto pb-6" style="-webkit-overflow-scrolling: touch; background: #f7f7f8;">
+
+    <!-- Formula -->
+    <div class="px-3 pt-3">
+      <details class="bg-green-50 border border-green-200 rounded-2xl px-3 py-2.5 text-xs text-green-900">
+        <summary class="cursor-pointer font-medium list-none flex items-center gap-2">
+          <span>ℹ️</span>
+          <span>Формула розрахунку</span>
+        </summary>
+        <div class="mt-2 leading-relaxed">
+          <strong>Net = Виручка − Собівартість (COGS) − Витратники (5%) − Витрати</strong><br>
+          Витратники (шприци, рукавички, пелюшки) — припущення 5% від COGS.
+        </div>
+      </details>
+    </div>
+
+    <!-- 4 KPI cards 2×2 -->
+    <div class="px-3 pt-3 grid grid-cols-2 gap-2" id="profit-cards">
+      {% for key, label in periods %}
+      <div class="fin-kpi" data-card="{{ key }}">
+        <div class="text-[11px] text-gray-400 uppercase tracking-wide">{{ label }}</div>
+        <div class="text-xl font-bold mt-0.5" data-field="net">—</div>
+        <div class="text-[10px] text-gray-500 mt-1 space-y-0.5">
+          <div class="flex justify-between"><span>виручка</span><strong data-field="revenue" class="text-brand-dark">—</strong></div>
+          <div class="flex justify-between"><span>COGS</span><strong data-field="cogs" class="text-red-500">—</strong></div>
+          <div class="flex justify-between"><span>витратники</span><strong data-field="consumables" class="text-red-500">—</strong></div>
+          <div class="flex justify-between"><span>витрати</span><strong data-field="expenses" class="text-red-500">—</strong></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Chart -->
+    <div class="px-3 pt-3">
+      <div class="fin-kpi">
+        <div class="flex items-center justify-between mb-2">
+          <div class="text-[11px] text-gray-400 uppercase tracking-wide">Динаміка</div>
+          <div class="flex gap-1">
+            <button type="button" data-cp="month" id="cp-month" class="profit-cp px-2 py-1 rounded-md text-[11px] font-medium bg-brand-gold text-brand-dark">Місяць</button>
+            <button type="button" data-cp="year" id="cp-year" class="profit-cp px-2 py-1 rounded-md text-[11px] font-medium bg-gray-100 text-gray-700">Рік</button>
+          </div>
+        </div>
+        <div style="position: relative; height: 220px;">
+          <canvas id="profit-chart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Filter sheet з 2 tabs (cats + exps) -->
+<div id="tg-sheet-backdrop" class="tg-mobile-sheet-backdrop" onclick="tgCloseAllSheets()"></div>
+<div id="profit-filter-sheet" class="tg-mobile-sheet" style="max-height: 85vh;">
+  <div class="tg-mobile-sheet-handle"></div>
+  <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+    <div class="text-sm font-semibold text-brand-dark">Виключити з розрахунку</div>
+    <button type="button" onclick="tgCloseAllSheets()" class="text-xs text-brand-gold font-medium">Готово</button>
+  </div>
+
+  <div class="px-4 pt-2 flex border-b border-gray-200">
+    <button type="button" data-fp="cats" class="profit-fp-tab flex-1 py-2 text-sm font-medium border-b-2 border-brand-gold text-brand-dark">Категорії</button>
+    <button type="button" data-fp="exps" class="profit-fp-tab flex-1 py-2 text-sm font-medium border-b-2 border-transparent text-gray-400">Витрати міс.</button>
+  </div>
+
+  <!-- Cats tab -->
+  <div id="profit-fp-cats" class="tg-mobile-sheet-body px-4 py-3">
+    <div class="flex gap-2 mb-3">
+      <button type="button" onclick="profitSelectAll('.cat-cb', true)" class="px-3 py-1.5 rounded-full text-xs bg-gray-100 text-gray-700">Усі</button>
+      <button type="button" onclick="profitSelectAll('.cat-cb', false)" class="px-3 py-1.5 rounded-full text-xs bg-gray-100 text-gray-700">Жодної</button>
+    </div>
+    <div class="space-y-1">
+      {% for c in categories %}
+      <label class="flex items-center gap-3 py-2.5 active:bg-gray-50 rounded-lg px-2 cursor-pointer">
+        <input type="checkbox" class="cat-cb w-5 h-5 accent-brand-gold" data-cat-id="{{ c.pk }}" checked>
+        <span class="text-lg">{{ c.icon|default:"📦" }}</span>
+        <span class="text-sm text-brand-dark flex-1">{{ c.name }}</span>
+      </label>
+      {% empty %}
+      <div class="text-xs text-gray-400 text-center py-4">Категорій немає</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Expenses tab -->
+  <div id="profit-fp-exps" class="tg-mobile-sheet-body px-4 py-3 hidden">
+    <div class="flex gap-2 mb-3">
+      <button type="button" onclick="profitSelectAll('.exp-cb', true)" class="px-3 py-1.5 rounded-full text-xs bg-gray-100 text-gray-700">Усі</button>
+      <button type="button" onclick="profitSelectAll('.exp-cb', false)" class="px-3 py-1.5 rounded-full text-xs bg-gray-100 text-gray-700">Жодної</button>
+    </div>
+    <div class="space-y-1">
+      {% for e in month_expenses %}
+      <label class="flex items-start gap-3 py-2.5 active:bg-gray-50 rounded-lg px-2 cursor-pointer">
+        <input type="checkbox" class="exp-cb w-5 h-5 accent-brand-gold mt-0.5" data-exp-id="{{ e.pk }}" checked>
+        <div class="flex-1 min-w-0">
+          <div class="text-sm text-brand-dark truncate">{{ e.description|default:e.category.name }}</div>
+          <div class="text-[11px] text-gray-400">{{ e.date|date:"d.m.Y" }} · {{ e.category.name }}</div>
+        </div>
+        <div class="text-sm font-semibold text-brand-dark whitespace-nowrap">{{ e.amount|floatformat:0 }} ₴</div>
+      </label>
+      {% empty %}
+      <div class="text-xs text-gray-400 text-center py-4">Витрат за місяць немає</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+{% include 'finance/_partials/mobile_toast.html' %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+function tgOpenSheet(id) {
+  var s = document.getElementById(id), bd = document.getElementById('tg-sheet-backdrop');
+  if (!s || !bd) return; s.classList.add('open'); bd.classList.add('open');
+}
+function tgCloseAllSheets() {
+  document.querySelectorAll('.tg-mobile-sheet.open').forEach(function (s) { s.classList.remove('open'); });
+  var bd = document.getElementById('tg-sheet-backdrop'); if (bd) bd.classList.remove('open');
+}
+
+let chartPeriod = localStorage.getItem('profit-chart-period') || 'month';
+let chartInstance = null;
+const fmt = n => Number(n).toLocaleString('uk-UA', {minimumFractionDigits: 0, maximumFractionDigits: 2});
+
+function getExcluded(selector, attr) {
+  const out = [];
+  document.querySelectorAll(selector).forEach(cb => { if (!cb.checked) out.push(cb.dataset[attr]); });
+  return out;
+}
+
+function persistFilters() {
+  localStorage.setItem('profit-excl-cats', getExcluded('.cat-cb', 'catId').join(','));
+  localStorage.setItem('profit-excl-exps', getExcluded('.exp-cb', 'expId').join(','));
+}
+
+function restoreFilters() {
+  const cats = (localStorage.getItem('profit-excl-cats') || '').split(',').filter(Boolean);
+  const exps = (localStorage.getItem('profit-excl-exps') || '').split(',').filter(Boolean);
+  document.querySelectorAll('.cat-cb').forEach(cb => { if (cats.includes(cb.dataset.catId)) cb.checked = false; });
+  document.querySelectorAll('.exp-cb').forEach(cb => { if (exps.includes(cb.dataset.expId)) cb.checked = false; });
+}
+
+function setChartPeriod(p) {
+  chartPeriod = p;
+  localStorage.setItem('profit-chart-period', p);
+  document.querySelectorAll('.profit-cp').forEach(b => {
+    if (b.dataset.cp === p) b.className = 'profit-cp px-2 py-1 rounded-md text-[11px] font-medium bg-brand-gold text-brand-dark';
+    else b.className = 'profit-cp px-2 py-1 rounded-md text-[11px] font-medium bg-gray-100 text-gray-700';
+  });
+}
+
+function loadProfit() {
+  persistFilters();
+  const url = '{% url "analytics:profit_data" %}?chart=' + chartPeriod
+    + '&exclude_categories=' + getExcluded('.cat-cb', 'catId').join(',')
+    + '&exclude_expenses=' + getExcluded('.exp-cb', 'expId').join(',');
+  fetch(url).then(r => r.json()).then(d => {
+    document.querySelectorAll('#profit-cards [data-card]').forEach(card => {
+      const key = card.dataset.card;
+      const v = d.cards[key];
+      if (!v) return;
+      const netEl = card.querySelector('[data-field="net"]');
+      netEl.textContent = fmt(v.net) + ' ₴';
+      netEl.className = 'text-xl font-bold mt-0.5 ' + (v.net >= 0 ? 'text-green-600' : 'text-red-500');
+      card.querySelector('[data-field="revenue"]').textContent = fmt(v.revenue);
+      card.querySelector('[data-field="cogs"]').textContent = fmt(v.cogs);
+      card.querySelector('[data-field="consumables"]').textContent = fmt(v.consumables);
+      card.querySelector('[data-field="expenses"]').textContent = fmt(v.expenses);
+    });
+    drawChart(d.chart);
+  });
+}
+
+function drawChart(c) {
+  if (chartInstance) chartInstance.destroy();
+  const ctx = document.getElementById('profit-chart').getContext('2d');
+  const colors = c.net.map(v => v >= 0 ? 'rgba(34,197,94,0.7)' : 'rgba(239,68,68,0.6)');
+  chartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: c.labels,
+      datasets: [
+        {label: 'Прибуток', type: 'bar', data: c.net, backgroundColor: colors, borderRadius: 3, order: 2},
+        {label: 'Виручка', type: 'line', data: c.revenue, borderColor: 'rgba(13,148,136,0.9)', backgroundColor: 'rgba(13,148,136,0.1)', borderWidth: 2, pointRadius: c.labels.length > 20 ? 0 : 2, order: 1, tension: 0.3},
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {legend: {position: 'top', labels: {boxWidth: 10, font: {size: 11}}}},
+      scales: {
+        x: {ticks: {font: {size: 10}, autoSkip: true, maxRotation: c.labels.length > 14 ? 60 : 0}},
+        y: {beginAtZero: true, ticks: {font: {size: 10}, callback: v => v >= 1000 ? (v/1000).toFixed(0) + 'k' : v}},
+      },
+    }
+  });
+}
+
+window.profitSelectAll = function (sel, checked) {
+  document.querySelectorAll(sel).forEach(cb => cb.checked = checked);
+  loadProfit();
+};
+
+// Tab switch у filter sheet
+document.querySelectorAll('.profit-fp-tab').forEach(t => {
+  t.addEventListener('click', function () {
+    document.querySelectorAll('.profit-fp-tab').forEach(x => {
+      x.classList.remove('border-brand-gold', 'text-brand-dark');
+      x.classList.add('border-transparent', 'text-gray-400');
+    });
+    this.classList.add('border-brand-gold', 'text-brand-dark');
+    this.classList.remove('border-transparent', 'text-gray-400');
+    const which = this.dataset.fp;
+    document.getElementById('profit-fp-cats').classList.toggle('hidden', which !== 'cats');
+    document.getElementById('profit-fp-exps').classList.toggle('hidden', which !== 'exps');
+  });
+});
+
+document.querySelectorAll('.profit-cp').forEach(b => {
+  b.addEventListener('click', function () { setChartPeriod(this.dataset.cp); loadProfit(); });
+});
+
+// Сheckbox change → reload
+document.addEventListener('change', function (e) {
+  if (e.target.matches('.cat-cb, .exp-cb')) loadProfit();
+});
+
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') tgCloseAllSheets(); });
+
+restoreFilters();
+setChartPeriod(chartPeriod);
+loadProfit();
+</script>
+{% endblock %}

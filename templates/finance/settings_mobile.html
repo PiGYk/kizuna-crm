@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% load l10n %}
+{% block title %}Налаштування фінансів — Kizuna CRM{% endblock %}
+
+{% block extra_head %}
+<script>
+  document.documentElement.classList.add('has-mobile-fullscreen');
+  document.addEventListener('DOMContentLoaded', function () {
+    document.body.classList.add('has-mobile-fullscreen');
+  });
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+{% endblock %}
+
+{% block fab_url %}{% endblock %}
+
+{% block content %}
+<div class="tg-mobile-shell">
+
+  <header class="tg-mobile-header shrink-0 bg-white border-b border-gray-100 flex items-center gap-2 px-3"
+          style="min-height: 56px;">
+    <h1 class="flex-1 font-semibold text-brand-dark text-base truncate">Налаштування</h1>
+  </header>
+
+  {% include 'finance/_partials/mobile_nav.html' with active='settings' %}
+
+  <div class="flex-1 overflow-y-auto pb-6" style="-webkit-overflow-scrolling: touch; background: #f7f7f8;">
+
+    <!-- Section 1: Initial balances -->
+    <div class="px-3 pt-3">
+      <div class="fin-kpi">
+        <h2 class="text-sm font-semibold text-brand-dark mb-1">Початкові залишки</h2>
+        <p class="text-[11px] text-gray-400 mb-3">
+          Сума на рахунках до початку обліку. На основі цього розраховується поточний баланс.
+        </p>
+        <form method="post" action="{% url 'finance:settings_balance_update' %}" class="space-y-3">
+          {% csrf_token %}
+          <div>
+            <label class="fin-label">Готівка в касі (₴)</label>
+            <input type="number" step="0.01" inputmode="decimal" name="initial_cash"
+                   value="{% localize off %}{{ balance_form.initial_cash.value|default_if_none:'0' }}{% endlocalize %}" class="fin-input">
+          </div>
+          <div>
+            <label class="fin-label">На картці (₴)</label>
+            <input type="number" step="0.01" inputmode="decimal" name="initial_card"
+                   value="{% localize off %}{{ balance_form.initial_card.value|default_if_none:'0' }}{% endlocalize %}" class="fin-input">
+          </div>
+          <button type="submit"
+                  class="w-full px-4 py-3 rounded-xl text-sm font-semibold bg-brand-dark text-white active:opacity-80">
+            Зберегти баланси
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Section 2: Categories -->
+    <div class="px-3 pt-3">
+      <div class="fin-kpi">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-semibold text-brand-dark">Категорії витрат</h2>
+          <button type="button" onclick="tgOpenSheet('cat-add-sheet')"
+                  class="text-brand-gold text-sm font-semibold active:opacity-70">
+            + Додати
+          </button>
+        </div>
+
+        <div class="divide-y divide-gray-100">
+          {% for c in categories %}
+          <div class="flex items-center gap-3 py-3">
+            <div class="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-lg shrink-0">
+              {{ c.icon|default:"📦" }}
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="text-sm font-medium text-brand-dark truncate">{{ c.name }}</div>
+              <div class="text-[11px] text-gray-400">
+                {{ c.cnt|default:0 }} витрат · {{ c.total|default:0|floatformat:2 }} ₴
+              </div>
+            </div>
+            {% if c.cnt == 0 %}
+            <form method="post" action="{% url 'finance:category_delete' c.pk %}"
+                  onsubmit="return confirm('Видалити категорію «{{ c.name }}»?');">
+              {% csrf_token %}
+              <button type="submit"
+                      class="tg-mobile-tap text-red-500 active:opacity-70" aria-label="Видалити">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22"/>
+                </svg>
+              </button>
+            </form>
+            {% else %}
+            <span class="text-[10px] text-gray-300 uppercase">в ужитку</span>
+            {% endif %}
+          </div>
+          {% empty %}
+          <div class="text-center text-sm text-gray-400 py-6">
+            Категорій немає. Додай першу.
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Add category sheet -->
+<div id="tg-sheet-backdrop" class="tg-mobile-sheet-backdrop" onclick="tgCloseAllSheets()"></div>
+<div id="cat-add-sheet" class="tg-mobile-sheet">
+  <div class="tg-mobile-sheet-handle"></div>
+  <div class="px-4 py-3 border-b border-gray-100 text-sm font-semibold text-brand-dark">Нова категорія</div>
+  <form method="post" action="{% url 'finance:category_create' %}" class="tg-mobile-sheet-body px-4 py-3 space-y-3">
+    {% csrf_token %}
+    <div>
+      <label class="fin-label">Назва</label>
+      <input type="text" name="name" required maxlength="100" class="fin-input" placeholder="наприклад, Корм">
+    </div>
+    <div>
+      <label class="fin-label">Іконка (emoji)</label>
+      <input type="text" name="icon" maxlength="4" class="fin-input" placeholder="📦" style="font-size: 22px;">
+    </div>
+    <button type="submit"
+            class="w-full px-4 py-3 rounded-xl text-sm font-semibold bg-brand-gold text-brand-dark active:opacity-80">
+      Додати
+    </button>
+  </form>
+</div>
+
+{% include 'finance/_partials/mobile_toast.html' %}
+
+<script>
+function tgOpenSheet(id) {
+  var s = document.getElementById(id), bd = document.getElementById('tg-sheet-backdrop');
+  if (!s || !bd) return; s.classList.add('open'); bd.classList.add('open');
+}
+function tgCloseAllSheets() {
+  document.querySelectorAll('.tg-mobile-sheet.open').forEach(function (s) { s.classList.remove('open'); });
+  var bd = document.getElementById('tg-sheet-backdrop'); if (bd) bd.classList.remove('open');
+}
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') tgCloseAllSheets(); });
+</script>
+{% endblock %}

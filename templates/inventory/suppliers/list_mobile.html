@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% block title %}Постачальники — Kizuna CRM{% endblock %}
+
+{% block extra_head %}
+<script>
+  document.documentElement.classList.add('has-mobile-fullscreen');
+  document.addEventListener('DOMContentLoaded', function () {
+    document.body.classList.add('has-mobile-fullscreen');
+  });
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+{% endblock %}
+
+{% block fab_url %}{% endblock %}
+
+{% block content %}
+<div class="tg-mobile-shell">
+
+  <header class="tg-mobile-header shrink-0 bg-white border-b border-gray-100 flex items-center gap-2 px-2"
+          style="min-height: 56px;">
+    <a href="{% url 'inventory:list' %}"
+       class="tg-mobile-tap text-brand-dark active:opacity-70" aria-label="Назад">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+      </svg>
+    </a>
+    <h1 class="flex-1 font-semibold text-brand-dark text-base truncate">Постачальники</h1>
+  </header>
+
+  <div class="flex-1 overflow-y-auto pb-24" style="-webkit-overflow-scrolling: touch; background: #f7f7f8;">
+
+    {% if suppliers %}
+    <div class="px-3 pt-3 flex flex-col gap-2">
+      {% for s in suppliers %}
+      <a href="{% url 'inventory:supplier_detail' s.pk %}"
+         class="block bg-white rounded-2xl border border-gray-100 px-3 py-3 active:bg-gray-50">
+        <div class="flex items-start gap-3">
+          <div class="w-10 h-10 rounded-full bg-brand-gold/20 text-brand-dark flex items-center justify-center shrink-0 font-bold text-sm">
+            {{ s.name|slice:":1"|upper }}
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="font-semibold text-brand-dark text-[15px] truncate">{{ s.name }}</div>
+            {% if s.contact_person %}
+            <div class="text-[11px] text-gray-500 truncate">{{ s.contact_person }}</div>
+            {% endif %}
+            {% if s.phone %}
+            <div class="text-[11px] text-gray-400 truncate">{{ s.phone }}</div>
+            {% endif %}
+            <div class="flex items-center gap-3 text-[10px] text-gray-400 mt-1">
+              <span>{{ s.total_purchases|default:0 }} закуп · {{ s.total_sum|floatformat:0|default:"0" }} ₴</span>
+              {% if s.last_purchase %}<span>·</span><span>{{ s.last_purchase|date:"d.m.y" }}</span>{% endif %}
+            </div>
+          </div>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center text-sm text-gray-400 py-16">
+      <div class="text-5xl mb-2">🏭</div>
+      Постачальників ще немає.
+    </div>
+    {% endif %}
+  </div>
+
+  <a href="{% url 'inventory:supplier_create' %}" class="fin-fab" aria-label="Новий постачальник">
+    <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+    </svg>
+  </a>
+
+</div>
+
+{% include 'finance/_partials/mobile_toast.html' %}
+{% endblock %}

@@ -12,6 +12,7 @@ from apps.clients.models import Client
 from apps.inventory.models import StockMovement
 from apps.finance.models import Expense, ExpenseCategory
 from apps.accounts.mixins import admin_required
+from apps.tg.utils import is_mobile
 
 CONSUMABLES_RATE = Decimal('0.05')  # 5% від COGS — шприци/рукавички/пелюшки
 
@@ -52,7 +53,8 @@ def analytics_view(request):
         ('year', 'Рік'),
         ('custom', 'Довільно'),
     ]
-    return render(request, 'analytics/index.html', {'doctors': doctors, 'presets': presets})
+    template = 'analytics/index_mobile.html' if is_mobile(request) else 'analytics/index.html'
+    return render(request, template, {'doctors': doctors, 'presets': presets})
 
 
 @login_required
@@ -220,7 +222,8 @@ def debtors_view(request):
     debtors = sorted(client_map.values(), key=lambda x: x['total'], reverse=True)
     grand_total = sum(d['total'] for d in debtors)
 
-    return render(request, 'analytics/debtors.html', {
+    template = 'analytics/debtors_mobile.html' if is_mobile(request) else 'analytics/debtors.html'
+    return render(request, template, {
         'debtors': debtors,
         'grand_total': grand_total,
         'count': len(debtors),
@@ -244,7 +247,8 @@ def usage_view(request):
         ('today', 'Сьогодні'), ('week', '7 днів'),
         ('month', 'Місяць'), ('year', 'Рік'), ('custom', 'Довільно'),
     ]
-    return render(request, 'analytics/usage.html', {
+    template = 'analytics/usage_mobile.html' if is_mobile(request) else 'analytics/usage.html'
+    return render(request, template, {
         'services': list(services),
         'products': list(products),
         'presets': presets,
@@ -392,7 +396,8 @@ def services_view(request):
         ('month', 'Місяць'), ('year', 'Рік'), ('custom', 'Довільно'),
     ]
 
-    return render(request, 'analytics/services.html', {
+    template = 'analytics/services_mobile.html' if is_mobile(request) else 'analytics/services.html'
+    return render(request, template, {
         'services': services,
         'products': products,
         'total_revenue': total_revenue,
@@ -480,7 +485,8 @@ def payroll_view(request):
         ('today', 'Сьогодні'), ('week', '7 днів'),
         ('month', 'Місяць'), ('year', 'Рік'), ('custom', 'Довільно'),
     ]
-    return render(request, 'analytics/payroll.html', {
+    template = 'analytics/payroll_mobile.html' if is_mobile(request) else 'analytics/payroll.html'
+    return render(request, template, {
         'results': results,
         'doctors': doctors,
         'presets': presets,
@@ -626,7 +632,8 @@ def profit_view(request):
         .select_related('category')
         .order_by('-date', '-id')
     )
-    return render(request, 'analytics/profit.html', {
+    template = 'analytics/profit_mobile.html' if is_mobile(request) else 'analytics/profit.html'
+    return render(request, template, {
         'categories': categories,
         'month_expenses': month_expenses,
         'periods': [

@@ -1,0 +1,173 @@
+{% extends 'base.html' %}
+{% block title %}Каса — Kizuna CRM{% endblock %}
+
+{% block extra_head %}
+<script>
+  document.documentElement.classList.add('has-mobile-fullscreen');
+  document.addEventListener('DOMContentLoaded', function () {
+    document.body.classList.add('has-mobile-fullscreen');
+  });
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+{% endblock %}
+
+{% block fab_url %}{% endblock %}
+
+{% block content %}
+<div class="tg-mobile-shell">
+
+  <header class="tg-mobile-header shrink-0 bg-white border-b border-gray-100 flex items-center gap-2 px-3"
+          style="min-height: 56px;">
+    <h1 class="flex-1 font-semibold text-brand-dark text-base truncate">Каса</h1>
+    <button type="button"
+            onclick="tgOpenSheet('cash-filter-sheet')"
+            class="tg-mobile-tap relative text-gray-500 active:text-brand-dark" aria-label="Фільтр періоду">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3M3 11h18M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+      </svg>
+      {% if filter.from or filter.to %}
+      <span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-brand-gold"></span>
+      {% endif %}
+    </button>
+  </header>
+
+  {% include 'finance/_partials/mobile_nav.html' with active='cash' %}
+
+  <div class="flex-1 overflow-y-auto" style="-webkit-overflow-scrolling: touch; background: #f7f7f8;">
+
+    <!-- 2 KPI balance cards (вертикально) -->
+    <div class="px-3 pt-3 grid grid-cols-2 gap-2">
+      <div class="fin-kpi">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="text-lg">💵</span>
+          <span class="text-[11px] text-gray-400 uppercase tracking-wide">Готівка</span>
+        </div>
+        <div class="text-xl font-bold {% if cash_balance < 0 %}text-red-600{% else %}text-brand-dark{% endif %}">
+          {{ cash_balance|floatformat:2 }} ₴
+        </div>
+      </div>
+      <div class="fin-kpi">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="text-lg">💳</span>
+          <span class="text-[11px] text-gray-400 uppercase tracking-wide">Картка</span>
+        </div>
+        <div class="text-xl font-bold {% if card_balance < 0 %}text-red-600{% else %}text-brand-dark{% endif %}">
+          {{ card_balance|floatformat:2 }} ₴
+        </div>
+      </div>
+    </div>
+
+    <div class="px-3 pt-4 pb-24 flex flex-col gap-2">
+      {% for op in operations %}
+      {% with type=op.type %}
+      <div class="bg-white rounded-2xl px-3 py-3 flex items-start gap-3 border border-gray-100 active:bg-gray-50"
+           onclick="tgOpenSheet('op-actions-{{ op.pk }}')">
+        <div class="w-10 h-10 rounded-full shrink-0 flex items-center justify-center text-lg
+                    {% if type == 'card_to_cash' %}bg-green-100
+                    {% elif type == 'cash_to_card' %}bg-blue-100
+                    {% elif type == 'deposit' %}bg-yellow-100
+                    {% else %}bg-red-100{% endif %}">
+          {% if type == 'card_to_cash' %}↓{% elif type == 'cash_to_card' %}↑{% elif type == 'deposit' %}+{% else %}−{% endif %}
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-baseline justify-between gap-2">
+            <div class="font-semibold text-brand-dark text-[15px] truncate">{{ op.get_type_display }}</div>
+            <div class="font-bold text-brand-dark text-[15px] whitespace-nowrap">
+              {% if type == 'withdrawal' %}−{% elif type == 'deposit' %}+{% endif %}{{ op.amount|floatformat:2 }} ₴
+            </div>
+          </div>
+          {% if op.description %}
+          <div class="text-xs text-gray-500 truncate">{{ op.description }}</div>
+          {% endif %}
+          <div class="text-[11px] text-gray-400 mt-1">
+            {{ op.date|date:"d.m.Y" }}
+            {% if op.created_by %}· {{ op.created_by.get_full_name|default:op.created_by.username }}{% endif %}
+          </div>
+        </div>
+      </div>
+      {% endwith %}
+      {% empty %}
+      <div class="text-center text-sm text-gray-400 py-16">
+        Операцій немає.<br>
+        Натисни <span class="text-brand-gold font-medium">+</span> щоб додати.
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <a href="{% url 'finance:cash_operation_create' %}" class="fin-fab" aria-label="Нова операція">
+    <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+    </svg>
+  </a>
+
+</div>
+
+<!-- Per-op action sheets — поза .tg-mobile-shell (stacking context) -->
+{% for op in operations %}
+<div id="op-actions-{{ op.pk }}" class="tg-mobile-sheet">
+  <div class="tg-mobile-sheet-handle"></div>
+  <div class="px-4 py-3 border-b border-gray-100 text-sm font-semibold text-brand-dark truncate">
+    {{ op.get_type_display }} · {{ op.amount|floatformat:2 }} ₴
+  </div>
+  <div class="tg-mobile-sheet-body py-2">
+    <form method="post" action="{% url 'finance:cash_operation_delete' op.pk %}"
+          onsubmit="return confirm('Видалити операцію?');">
+      {% csrf_token %}
+      <button type="submit"
+              class="w-full flex items-center gap-3 px-5 py-3 text-left text-red-600 active:bg-gray-100"
+              style="min-height: 48px;">
+        <span class="text-xl">🗑</span>
+        <span class="text-sm">Видалити</span>
+      </button>
+    </form>
+  </div>
+</div>
+{% endfor %}
+
+<div id="tg-sheet-backdrop" class="tg-mobile-sheet-backdrop" onclick="tgCloseAllSheets()"></div>
+<div id="cash-filter-sheet" class="tg-mobile-sheet">
+  <div class="tg-mobile-sheet-handle"></div>
+  <div class="px-4 py-3 border-b border-gray-100 text-sm font-semibold text-brand-dark">Період</div>
+  <form method="get" class="tg-mobile-sheet-body px-4 py-3 space-y-3">
+    <div class="grid grid-cols-2 gap-2">
+      <div>
+        <label class="fin-label">Від</label>
+        <input type="date" name="from" value="{{ filter.from }}" class="fin-input">
+      </div>
+      <div>
+        <label class="fin-label">До</label>
+        <input type="date" name="to" value="{{ filter.to }}" class="fin-input">
+      </div>
+    </div>
+    <div class="pt-2 flex gap-2">
+      <a href="{% url 'finance:cash_operations' %}"
+         class="flex-1 text-center px-4 py-3 rounded-xl text-sm font-medium bg-gray-100 text-gray-600 active:bg-gray-200">
+        Скинути
+      </a>
+      <button type="submit"
+              class="flex-1 px-4 py-3 rounded-xl text-sm font-semibold bg-brand-gold text-brand-dark active:opacity-80">
+        Застосувати
+      </button>
+    </div>
+  </form>
+</div>
+
+{% include 'finance/_partials/mobile_toast.html' %}
+
+<script>
+function tgOpenSheet(id) {
+  var sheet = document.getElementById(id);
+  var bd = document.getElementById('tg-sheet-backdrop');
+  if (!sheet || !bd) return;
+  sheet.classList.add('open');
+  bd.classList.add('open');
+}
+function tgCloseAllSheets() {
+  document.querySelectorAll('.tg-mobile-sheet.open').forEach(function (s) { s.classList.remove('open'); });
+  var bd = document.getElementById('tg-sheet-backdrop');
+  if (bd) bd.classList.remove('open');
+}
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') tgCloseAllSheets(); });
+</script>
+{% endblock %}

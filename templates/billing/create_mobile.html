@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+{% block title %}Новий чек — Kizuna CRM{% endblock %}
+
+{% block extra_head %}
+<script>
+  document.documentElement.classList.add('has-mobile-fullscreen');
+  document.addEventListener('DOMContentLoaded', function () {
+    document.body.classList.add('has-mobile-fullscreen');
+  });
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+{% endblock %}
+
+{% block fab_url %}{% endblock %}
+
+{% block content %}
+<div class="tg-mobile-shell">
+
+  <header class="tg-mobile-header shrink-0 bg-white border-b border-gray-100 flex items-center gap-2 px-2"
+          style="min-height: 56px;">
+    <a href="{% url 'billing:list' %}"
+       class="tg-mobile-tap text-brand-dark active:opacity-70" aria-label="Назад">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+      </svg>
+    </a>
+    <h1 class="flex-1 font-semibold text-brand-dark text-base truncate">Новий чек</h1>
+  </header>
+
+  <div class="flex-1 overflow-y-auto pb-24" style="-webkit-overflow-scrolling: touch; background: #f7f7f8;">
+
+    <!-- Tabs -->
+    <div class="px-3 pt-3">
+      <div class="flex gap-1 bg-gray-100 rounded-xl p-1">
+        <button type="button" id="tab-client" onclick="switchTab('client')"
+          class="tab-btn flex-1 py-2.5 rounded-lg text-sm font-medium bg-white text-brand-dark shadow-sm">
+          За клієнтом
+        </button>
+        <button type="button" id="tab-patient" onclick="switchTab('patient')"
+          class="tab-btn flex-1 py-2.5 rounded-lg text-sm font-medium text-gray-500">
+          За твариною
+        </button>
+      </div>
+    </div>
+
+    <!-- Selected card -->
+    <div id="selected-card" class="hidden px-3 pt-3">
+      <div class="bg-white rounded-2xl border-2 border-brand-gold px-3 py-3 flex items-center gap-3">
+        <div id="selected-emoji" class="w-12 h-12 rounded-full bg-brand-gold/20 text-brand-dark flex items-center justify-center font-bold text-lg shrink-0">?</div>
+        <div class="flex-1 min-w-0">
+          <div class="font-semibold text-brand-dark text-sm truncate" id="selected-title"></div>
+          <div class="text-[11px] text-gray-400 truncate" id="selected-sub"></div>
+        </div>
+        <button type="button" onclick="clearSelection()" class="tg-mobile-tap text-gray-400 active:text-red-500" aria-label="Очистити">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Client search -->
+    <div id="search-client" class="px-3 pt-3">
+      <input type="text" name="q" placeholder="Прізвище або телефон…"
+        class="fin-input" autocomplete="off"
+        hx-get="{% url 'billing:client_search' %}?mobile=1"
+        hx-trigger="input changed delay:300ms"
+        hx-target="#client-results">
+      <div id="client-results" class="mt-3"></div>
+
+      <!-- Patient picker (після вибору клієнта) -->
+      <div id="patient-section" class="hidden mt-3"></div>
+    </div>
+
+    <!-- Patient search -->
+    <div id="search-patient" class="hidden px-3 pt-3">
+      <input type="text" name="q" placeholder="Кличка або порода…"
+        class="fin-input" autocomplete="off"
+        hx-get="{% url 'billing:patient_search' %}?mobile=1"
+        hx-trigger="input changed delay:300ms"
+        hx-target="#patient-search-results">
+      <div id="patient-search-results" class="mt-3"></div>
+    </div>
+
+  </div>
+
+  <!-- Sticky CTA -->
+  <div class="shrink-0 border-t border-gray-200 bg-white px-3 py-2"
+       style="padding-bottom: max(8px, env(safe-area-inset-bottom));">
+    <form method="post" id="start-form">
+      {% csrf_token %}
+      <input type="hidden" name="client_id" id="selected-client-id">
+      <input type="hidden" name="patient_id" id="selected-patient-id">
+      <button type="submit" id="start-btn" disabled
+        class="w-full py-3 rounded-xl text-sm font-semibold bg-brand-gold text-brand-dark active:opacity-80 disabled:opacity-40 disabled:bg-gray-200 disabled:text-gray-500">
+        Перейти до чеку →
+      </button>
+    </form>
+  </div>
+
+</div>
+
+{% include 'finance/_partials/mobile_toast.html' %}
+
+<script>
+function switchTab(tab) {
+  const isClient = tab === 'client';
+  document.getElementById('search-client').classList.toggle('hidden', !isClient);
+  document.getElementById('search-patient').classList.toggle('hidden', isClient);
+  document.getElementById('tab-client').className = isClient
+    ? 'tab-btn flex-1 py-2.5 rounded-lg text-sm font-medium bg-white text-brand-dark shadow-sm'
+    : 'tab-btn flex-1 py-2.5 rounded-lg text-sm font-medium text-gray-500';
+  document.getElementById('tab-patient').className = isClient
+    ? 'tab-btn flex-1 py-2.5 rounded-lg text-sm font-medium text-gray-500'
+    : 'tab-btn flex-1 py-2.5 rounded-lg text-sm font-medium bg-white text-brand-dark shadow-sm';
+  clearSelection();
+  document.getElementById('client-results').innerHTML = '';
+  document.getElementById('patient-search-results').innerHTML = '';
+  document.getElementById('patient-section').classList.add('hidden');
+}
+
+function selectClient(id, name) {
+  document.getElementById('selected-client-id').value = id;
+  document.getElementById('selected-patient-id').value = '';
+  document.getElementById('start-btn').disabled = false;
+
+  // Показуємо обраного клієнта
+  document.getElementById('selected-emoji').textContent = (name[0] || '?').toUpperCase();
+  document.getElementById('selected-title').textContent = name;
+  document.getElementById('selected-sub').textContent = 'клієнт';
+  document.getElementById('selected-card').classList.remove('hidden');
+
+  // Підвантажуємо пацієнтів клієнта
+  htmx.ajax('GET', '/billing/patients/' + id + '/?mobile=1', {target: '#patient-section', swap: 'innerHTML'});
+  document.getElementById('patient-section').classList.remove('hidden');
+
+  // Згортаємо search-results
+  document.getElementById('client-results').innerHTML = '';
+}
+
+function selectPatient(id) {
+  document.getElementById('selected-patient-id').value = id;
+  document.querySelectorAll('.patient-btn').forEach(b => b.classList.remove('ring-2', 'ring-brand-gold'));
+  document.getElementById('patient-' + id)?.classList.add('ring-2', 'ring-brand-gold');
+}
+
+function selectPatientDirect(patientId, clientId, patientName, clientName) {
+  document.getElementById('selected-patient-id').value = patientId;
+  document.getElementById('selected-client-id').value = clientId;
+  document.getElementById('start-btn').disabled = false;
+
+  document.getElementById('selected-emoji').textContent = '🐾';
+  document.getElementById('selected-title').textContent = patientName;
+  document.getElementById('selected-sub').textContent = clientName;
+  document.getElementById('selected-card').classList.remove('hidden');
+
+  document.getElementById('patient-search-results').innerHTML = '';
+  document.getElementById('patient-section').classList.add('hidden');
+}
+
+function clearSelection() {
+  document.getElementById('selected-client-id').value = '';
+  document.getElementById('selected-patient-id').value = '';
+  document.getElementById('start-btn').disabled = true;
+  document.getElementById('selected-card').classList.add('hidden');
+  document.getElementById('patient-section').classList.add('hidden');
+}
+</script>
+{% endblock %}

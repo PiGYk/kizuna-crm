@@ -1,0 +1,27 @@
+{% if messages %}
+<div id="fin-mobile-toast" class="fixed left-1/2 -translate-x-1/2 z-[70] flex flex-col gap-2 pointer-events-none"
+     style="top: calc(env(safe-area-inset-top) + 64px); max-width: 92vw; width: max-content;">
+  {% for message in messages %}
+  <div class="pointer-events-auto px-4 py-2.5 rounded-xl shadow-lg text-sm font-medium animate-fin-toast
+              {% if message.tags == 'success' %}bg-green-600 text-white
+              {% elif message.tags == 'error' %}bg-red-600 text-white
+              {% else %}bg-brand-dark text-white{% endif %}">
+    {{ message }}
+  </div>
+  {% endfor %}
+</div>
+<style>
+  @keyframes fin-toast-in {
+    0% { opacity: 0; transform: translateY(-10px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  .animate-fin-toast { animation: fin-toast-in 180ms ease-out; }
+</style>
+<script>
+  setTimeout(function () {
+    var t = document.getElementById('fin-mobile-toast');
+    if (t) t.style.transition = 'opacity 240ms', t.style.opacity = '0';
+    setTimeout(function () { if (t) t.remove(); }, 260);
+  }, 2600);
+</script>
+{% endif %}

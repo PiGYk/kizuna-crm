@@ -3,15 +3,20 @@
 
 {% block content %}
 <div class="max-w-5xl">
-  <div class="flex items-center gap-3 mb-6">
-    <a href="{% url 'inventory:list' %}" class="text-gray-400 hover:text-gray-600">
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+  <div class="flex items-start gap-3 mb-6">
+    <a href="{% url 'inventory:list' %}" class="text-gray-400 hover:text-gray-600 mt-2"
+       onclick="if(history.length>1){history.back();return false;}">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
     </a>
-    <h1 class="text-2xl font-bold text-brand-dark">Інвентаризація</h1>
+    <div>
+      <h1 class="text-2xl font-bold text-brand-dark">Інвентаризація</h1>
+      <p class="text-xs text-gray-400 mt-0.5">Звірка фактичних залишків з системою</p>
+    </div>
   </div>
 
-  <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800 mb-4">
-    Введіть фактичний залишок для кожного товару. Пусті поля будуть пропущені. Товари з розбіжностями будуть автоматично скориговані.
+  <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800 mb-4 flex items-start gap-2">
+    <svg class="w-4 h-4 mt-0.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+    <span>Введіть фактичний залишок для кожного товару. Пусті поля будуть пропущені. Товари з розбіжностями будуть автоматично скориговані.</span>
   </div>
 
   <form method="post" onsubmit="return confirm('Зберегти результати інвентаризації? Залишки будуть скориговані.')">

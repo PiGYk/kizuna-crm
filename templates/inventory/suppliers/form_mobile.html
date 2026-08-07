@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% block title %}{% if is_new %}Новий постачальник{% else %}{{ supplier.name }}{% endif %} — Kizuna CRM{% endblock %}
+
+{% block extra_head %}
+<script>
+  document.documentElement.classList.add('has-mobile-fullscreen');
+  document.addEventListener('DOMContentLoaded', function () {
+    document.body.classList.add('has-mobile-fullscreen');
+  });
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+{% endblock %}
+
+{% block fab_url %}{% endblock %}
+
+{% block content %}
+<div class="tg-mobile-shell">
+
+  <header class="tg-mobile-header shrink-0 bg-white border-b border-gray-100 flex items-center gap-2 px-2"
+          style="min-height: 56px;">
+    <a href="{% if supplier %}{% url 'inventory:supplier_detail' supplier.pk %}{% else %}{% url 'inventory:supplier_list' %}{% endif %}"
+       class="tg-mobile-tap text-brand-dark active:opacity-70" aria-label="Назад">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+      </svg>
+    </a>
+    <h1 class="flex-1 font-semibold text-brand-dark text-base truncate">
+      {% if is_new %}Новий постачальник{% else %}Редагувати{% endif %}
+    </h1>
+    <button type="submit" form="supplier-form"
+            class="tg-mobile-tap text-brand-gold font-semibold text-[15px] px-2">
+      Зберегти
+    </button>
+  </header>
+
+  <form id="supplier-form" method="post"
+        class="flex-1 overflow-y-auto px-3 py-3 pb-20 space-y-3" style="background: #f7f7f8;">
+    {% csrf_token %}
+    {% for field in form %}
+    <div class="bg-white rounded-2xl border border-gray-100 p-3">
+      <label class="fin-label">{{ field.label }}</label>
+      {{ field }}
+      {% if field.errors %}<p class="text-red-500 text-xs mt-1">{{ field.errors.0 }}</p>{% endif %}
+    </div>
+    {% endfor %}
+  </form>
+
+</div>
+
+{% include 'finance/_partials/mobile_toast.html' %}
+
+<style>
+  #supplier-form input[type=text], #supplier-form input[type=email], #supplier-form input[type=tel],
+  #supplier-form textarea, #supplier-form select {
+    width: 100%;
+    border: 1px solid #d4d4d8;
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-size: 16px;
+    background: #fafafa;
+  }
+  #supplier-form input:focus, #supplier-form textarea:focus, #supplier-form select:focus {
+    outline: none; border-color: #DEAA01; background: #fff;
+    box-shadow: 0 0 0 3px rgba(222,170,1,.15);
+  }
+</style>
+{% endblock %}

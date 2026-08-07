@@ -1,0 +1,448 @@
+{% extends 'base.html' %}
+{% block title %}Чек #{{ invoice.pk }} — Kizuna CRM{% endblock %}
+
+{% block extra_head %}
+<script>
+  document.documentElement.classList.add('has-mobile-fullscreen');
+  document.addEventListener('DOMContentLoaded', function () {
+    document.body.classList.add('has-mobile-fullscreen');
+  });
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+{% endblock %}
+
+{% block fab_url %}{% endblock %}
+
+{% block content %}
+<div class="tg-mobile-shell">
+
+  <header class="tg-mobile-header shrink-0 bg-white border-b border-gray-100 flex items-center gap-2 px-2"
+          style="min-height: 56px;">
+    <a href="{% url 'billing:list' %}"
+       class="tg-mobile-tap text-brand-dark active:opacity-70" aria-label="Назад">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+      </svg>
+    </a>
+    <div class="flex-1 min-w-0">
+      <h1 class="font-semibold text-brand-dark text-base leading-tight truncate">Чек #{{ invoice.pk }}</h1>
+      <div class="text-[11px] text-gray-400 truncate">{{ invoice.client }}{% if invoice.patient %} · {{ invoice.patient.name }}{% endif %}</div>
+    </div>
+    <form method="post" action="{% url 'billing:cancel' invoice.pk %}"
+          onsubmit="return confirm('Скасувати рахунок #{{ invoice.pk }}?');">
+      {% csrf_token %}
+      <button type="submit" class="tg-mobile-tap text-gray-400 active:text-red-500" aria-label="Скасувати чек">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </form>
+  </header>
+
+  <!-- Pending fiscal banner -->
+  {% if invoice.fiscal_status == 'pending' %}
+  <div class="shrink-0 bg-amber-50 border-b border-amber-200 px-3 py-2.5">
+    <div class="flex items-center gap-2 mb-2">
+      <svg class="w-4 h-4 shrink-0 animate-spin text-amber-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+      </svg>
+      <span class="text-xs font-medium text-amber-800 flex-1">Очікуємо оплату через Monobank QR</span>
+    </div>
+    <div class="flex gap-1.5 flex-wrap">
+      <form method="post" action="{% url 'billing:confirm_payment' invoice.pk %}">
+        {% csrf_token %}
+        <button type="submit" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-green-600 text-white active:opacity-80">
+          Перевірити оплату
+        </button>
+      </form>
+      {% if invoice.fiscal_page_url %}
+      <form method="post" action="{% url 'billing:send_tg_payment' invoice.pk %}">
+        {% csrf_token %}
+        <button type="submit" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-500 text-white active:opacity-80">
+          ✈️ Telegram
+        </button>
+      </form>
+      {% endif %}
+      <form method="post" action="{% url 'billing:cancel_fiscal' invoice.pk %}"
+            onsubmit="return confirm('Скасувати очікування оплати?');">
+        {% csrf_token %}
+        <button type="submit" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-white border border-red-200 text-red-500 active:bg-red-50">
+          Скасувати
+        </button>
+      </form>
+    </div>
+  </div>
+  {% elif invoice.fiscal_status == 'error' %}
+  <div class="shrink-0 bg-red-50 border-b border-red-200 px-3 py-2.5 text-xs text-red-700">
+    Помилка Checkbox — спробуйте натиснути «Розрахувати» знову.
+  </div>
+  {% endif %}
+
+  <!-- Lines area -->
+  <div class="flex-1 overflow-y-auto px-3 pt-3 pb-28" style="-webkit-overflow-scrolling: touch; background: #f7f7f8;">
+    {% include 'billing/partials/mobile_lines.html' %}
+  </div>
+
+  <!-- Sticky bottom: Total + Pay/Fiscalize + FAB+ -->
+  <div class="shrink-0 border-t border-gray-200 bg-white px-3 py-2 flex items-center gap-2"
+       style="padding-bottom: max(8px, env(safe-area-inset-bottom));">
+    <button type="button" onclick="tgOpenSheet('mob-fiscal-sheet')"
+            class="flex-1 py-3 rounded-xl text-sm font-semibold bg-brand-gold text-brand-dark active:opacity-80">
+      Розрахувати
+    </button>
+    <button type="button" onclick="tgOpenSheet('mob-pay-sheet')"
+            class="flex-1 py-3 rounded-xl text-sm font-semibold border-2 border-brand-gold text-brand-dark active:bg-brand-gold/10">
+      Оплатити
+    </button>
+  </div>
+
+  <a href="#" onclick="tgOpenSheet('mob-add-sheet'); return false;" class="fin-fab" aria-label="Додати позицію"
+     style="bottom: calc(76px + env(safe-area-inset-bottom));">
+    <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+    </svg>
+  </a>
+
+</div>
+
+<!-- Backdrop + sheets (поза shell — stacking context rule) -->
+<div id="tg-sheet-backdrop" class="tg-mobile-sheet-backdrop" onclick="tgCloseAllSheets()"></div>
+
+<!-- Add line sheet (tabs: Послуга / Товар + search) -->
+<div id="mob-add-sheet" class="tg-mobile-sheet" style="max-height: 85vh;">
+  <div class="tg-mobile-sheet-handle"></div>
+  <div class="px-4 pt-2 pb-3 border-b border-gray-100">
+    <div class="flex gap-1 bg-gray-100 rounded-xl p-1">
+      <button type="button" data-add-tab="svc"
+              class="add-tab flex-1 py-2 rounded-lg text-sm font-medium bg-white text-brand-dark shadow-sm">
+        🩺 Послуга
+      </button>
+      <button type="button" data-add-tab="prd"
+              class="add-tab flex-1 py-2 rounded-lg text-sm font-medium text-gray-500">
+        💊 Товар
+      </button>
+    </div>
+  </div>
+
+  <div class="tg-mobile-sheet-body px-4 py-3">
+    <!-- Service form -->
+    <form id="mob-add-svc-form"
+          hx-post="{% url 'billing:add_line' invoice.pk %}"
+          hx-target="#lines-section" hx-swap="outerHTML"
+          hx-on::after-request="resetMobileAdd('svc'); tgCloseAllSheets();">
+      {% csrf_token %}
+      <input type="hidden" name="line_type" value="service">
+      <input type="hidden" name="service_id" id="mob-svc-id">
+
+      <div class="relative">
+        <input type="text" id="mob-svc-input" placeholder="Пошук послуги…" autocomplete="off"
+               class="fin-input"
+               oninput="searchMobile('svc', '/billing/service-search/', this.value)">
+        <div id="mob-svc-drop" class="hidden bg-white border border-gray-200 rounded-xl mt-1 max-h-56 overflow-y-auto shadow-sm"></div>
+      </div>
+
+      <div id="mob-svc-components" class="hidden mt-2 p-2 bg-gray-50 rounded-lg text-[11px] text-gray-500">
+        <div class="font-medium text-gray-600 mb-1">Включає:</div>
+        <div id="mob-svc-comp-list"></div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 mt-3">
+        <div>
+          <label class="fin-label">К-сть</label>
+          <input type="number" name="quantity" value="1" min="0" step="any" inputmode="decimal" required class="fin-input">
+        </div>
+        <div>
+          <label class="fin-label">Знижка</label>
+          <div class="flex gap-1">
+            <input type="number" name="discount" value="0" min="0" step="0.01" inputmode="decimal" class="fin-input flex-1">
+            <select name="discount_type" class="fin-input w-16 shrink-0">
+              <option value="percent">%</option>
+              <option value="amount">₴</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" id="mob-svc-submit" disabled
+              class="mt-3 w-full py-3 rounded-xl text-sm font-semibold bg-brand-gold text-brand-dark active:opacity-80 disabled:opacity-40 disabled:bg-gray-200 disabled:text-gray-500">
+        Додати послугу
+      </button>
+    </form>
+
+    <!-- Product form -->
+    <form id="mob-add-prd-form" class="hidden"
+          hx-post="{% url 'billing:add_line' invoice.pk %}"
+          hx-target="#lines-section" hx-swap="outerHTML"
+          hx-on::after-request="resetMobileAdd('prd'); tgCloseAllSheets();">
+      {% csrf_token %}
+      <input type="hidden" name="line_type" value="product">
+      <input type="hidden" name="product_id" id="mob-prd-id">
+
+      <div class="relative">
+        <input type="text" id="mob-prd-input" placeholder="Пошук товару…" autocomplete="off"
+               class="fin-input"
+               oninput="searchMobile('prd', '/billing/product-search/', this.value)">
+        <div id="mob-prd-drop" class="hidden bg-white border border-gray-200 rounded-xl mt-1 max-h-56 overflow-y-auto shadow-sm"></div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 mt-3">
+        <div>
+          <label class="fin-label">К-сть</label>
+          <input type="number" name="quantity" value="1" min="0" step="any" inputmode="decimal" required class="fin-input">
+        </div>
+        <div>
+          <label class="fin-label">Знижка</label>
+          <div class="flex gap-1">
+            <input type="number" name="discount" value="0" min="0" step="0.01" inputmode="decimal" class="fin-input flex-1">
+            <select name="discount_type" class="fin-input w-16 shrink-0">
+              <option value="percent">%</option>
+              <option value="amount">₴</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" id="mob-prd-submit" disabled
+              class="mt-3 w-full py-3 rounded-xl text-sm font-semibold bg-brand-gold text-brand-dark active:opacity-80 disabled:opacity-40 disabled:bg-gray-200 disabled:text-gray-500">
+        Додати товар
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- Add component sheet (товар → послугу) -->
+<div id="mob-comp-sheet" class="tg-mobile-sheet" style="max-height: 80vh;">
+  <div class="tg-mobile-sheet-handle"></div>
+  <div class="px-4 py-3 border-b border-gray-100 text-sm font-semibold text-brand-dark">
+    + Препарат до <span id="mob-comp-parent-name" class="text-brand-gold"></span>
+  </div>
+  <form id="mob-comp-form" class="tg-mobile-sheet-body px-4 py-3"
+        hx-target="#lines-section" hx-swap="outerHTML"
+        hx-on::after-request="resetMobileComp(); tgCloseAllSheets();">
+    {% csrf_token %}
+    <div class="relative">
+      <input type="text" id="mob-comp-input" placeholder="Пошук препарату…" autocomplete="off"
+             class="fin-input"
+             oninput="searchComp(this.value)">
+      <div id="mob-comp-drop" class="hidden bg-white border border-gray-200 rounded-xl mt-1 max-h-56 overflow-y-auto shadow-sm"></div>
+    </div>
+    <input type="hidden" name="product_id" id="mob-comp-pid">
+    <div class="mt-3">
+      <label class="fin-label">К-сть</label>
+      <input type="number" name="quantity" value="1" min="0" step="any" inputmode="decimal" required class="fin-input">
+    </div>
+    <button type="submit" id="mob-comp-submit" disabled
+            class="mt-3 w-full py-3 rounded-xl text-sm font-semibold bg-brand-gold text-brand-dark active:opacity-80 disabled:opacity-40 disabled:bg-gray-200 disabled:text-gray-500">
+      Додати препарат
+    </button>
+  </form>
+</div>
+
+<!-- Vaccine sheet (placeholder — content filled by mobile_lines.html script) -->
+<div id="mob-vaccine-sheet" class="tg-mobile-sheet" style="max-height: 80vh;">
+  <div class="tg-mobile-sheet-handle"></div>
+</div>
+
+<!-- Discount/notes sheet (placeholder) -->
+<div id="mob-discount-sheet" class="tg-mobile-sheet" style="max-height: 75vh;">
+  <div class="tg-mobile-sheet-handle"></div>
+</div>
+
+<!-- Fiscal sheet (CASH/CARD) -->
+<div id="mob-fiscal-sheet" class="tg-mobile-sheet">
+  <div class="tg-mobile-sheet-handle"></div>
+  <div class="px-4 py-3 border-b border-gray-100">
+    <div class="text-sm font-semibold text-brand-dark">Розрахувати (Checkbox)</div>
+    <div class="text-[11px] text-gray-400 mt-0.5">Фіскальний чек буде відправлено в ДПС</div>
+  </div>
+  <form method="post" action="{% url 'billing:fiscalize' invoice.pk %}" class="tg-mobile-sheet-body px-4 py-3 space-y-2">
+    {% csrf_token %}
+    <label>
+      <input type="radio" name="payment_type" value="card" class="hidden peer" checked>
+      <span class="block px-4 py-3 rounded-xl border-2 border-gray-200 text-sm bg-white peer-checked:border-brand-gold peer-checked:bg-brand-gold/10 peer-checked:text-brand-dark">
+        💳 Картка (Monobank QR)
+      </span>
+    </label>
+    <label>
+      <input type="radio" name="payment_type" value="cash" class="hidden peer">
+      <span class="block px-4 py-3 rounded-xl border-2 border-gray-200 text-sm bg-white peer-checked:border-brand-gold peer-checked:bg-brand-gold/10 peer-checked:text-brand-dark">
+        💵 Готівка (офіційна)
+      </span>
+    </label>
+    <button type="submit" class="mt-2 w-full py-3 rounded-xl text-sm font-semibold bg-brand-gold text-brand-dark active:opacity-80">
+      Розрахувати
+    </button>
+  </form>
+</div>
+
+<!-- Pay sheet (no fiscalize) -->
+<div id="mob-pay-sheet" class="tg-mobile-sheet">
+  <div class="tg-mobile-sheet-handle"></div>
+  <div class="px-4 py-3 border-b border-gray-100">
+    <div class="text-sm font-semibold text-brand-dark">Оплата без фіскалізації</div>
+    <div class="text-[11px] text-gray-400 mt-0.5">Закриє рахунок і спише товари зі складу</div>
+  </div>
+  <form method="post" action="{% url 'billing:pay' invoice.pk %}" class="tg-mobile-sheet-body px-4 py-3 space-y-2">
+    {% csrf_token %}
+    <label>
+      <input type="radio" name="payment_method" value="cash" class="hidden peer" checked>
+      <span class="block px-4 py-3 rounded-xl border-2 border-gray-200 text-sm bg-white peer-checked:border-brand-gold peer-checked:bg-brand-gold/10 peer-checked:text-brand-dark">
+        💵 Готівка
+      </span>
+    </label>
+    <label>
+      <input type="radio" name="payment_method" value="card" class="hidden peer">
+      <span class="block px-4 py-3 rounded-xl border-2 border-gray-200 text-sm bg-white peer-checked:border-brand-gold peer-checked:bg-brand-gold/10 peer-checked:text-brand-dark">
+        💳 Картка
+      </span>
+    </label>
+    <button type="submit" class="mt-2 w-full py-3 rounded-xl text-sm font-semibold bg-brand-gold text-brand-dark active:opacity-80">
+      Оплатити
+    </button>
+  </form>
+</div>
+
+{% include 'finance/_partials/mobile_toast.html' %}
+
+<script>
+function tgOpenSheet(id) {
+  var s = document.getElementById(id), bd = document.getElementById('tg-sheet-backdrop');
+  if (!s || !bd) return; s.classList.add('open'); bd.classList.add('open');
+}
+function tgCloseAllSheets() {
+  document.querySelectorAll('.tg-mobile-sheet.open').forEach(function (s) { s.classList.remove('open'); });
+  var bd = document.getElementById('tg-sheet-backdrop'); if (bd) bd.classList.remove('open');
+}
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') tgCloseAllSheets(); });
+
+// ── Add line: tabs ──────────────────────────────────────────────
+document.querySelectorAll('.add-tab').forEach(function (b) {
+  b.addEventListener('click', function () {
+    var which = this.dataset.addTab;
+    document.querySelectorAll('.add-tab').forEach(function (x) { x.className = 'add-tab flex-1 py-2 rounded-lg text-sm font-medium text-gray-500'; });
+    this.className = 'add-tab flex-1 py-2 rounded-lg text-sm font-medium bg-white text-brand-dark shadow-sm';
+    document.getElementById('mob-add-svc-form').classList.toggle('hidden', which !== 'svc');
+    document.getElementById('mob-add-prd-form').classList.toggle('hidden', which !== 'prd');
+  });
+});
+
+// ── Search-as-you-type для add-line ─────────────────────────────
+const _searchTimers = {};
+function searchMobile(key, url, q) {
+  clearTimeout(_searchTimers[key]);
+  const drop = document.getElementById('mob-' + key + '-drop');
+  document.getElementById('mob-' + key + '-submit').disabled = true;
+  document.getElementById('mob-' + key + '-id').value = '';
+  if (!q || q.length < 1) { drop.classList.add('hidden'); return; }
+  _searchTimers[key] = setTimeout(function () {
+    fetch(url + '?q=' + encodeURIComponent(q))
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.results.length) {
+          drop.innerHTML = '<div class="px-3 py-3 text-sm text-gray-400 text-center">Нічого не знайдено</div>';
+        } else {
+          drop.innerHTML = data.results.map(function (r) {
+            var extra = key === 'prd'
+              ? '<span class="text-xs text-gray-400 shrink-0">' + r.qty + ' ' + r.unit + ' · ' + r.price + ' ₴</span>'
+              : '<span class="text-xs text-gray-400 shrink-0">' + r.price + ' ₴</span>';
+            return '<div class="px-3 py-2.5 active:bg-brand-gold/10 cursor-pointer border-b border-gray-50 last:border-0" '
+              + 'data-key="' + key + '" data-id="' + r.id + '" data-name="' + r.name.replace(/"/g, '&quot;') + '" '
+              + 'data-components=\'' + JSON.stringify(r.components || []) + '\'>'
+              + '<div class="flex items-center justify-between gap-2">'
+              + '<span class="text-sm text-brand-dark break-words">' + r.name + '</span>'
+              + extra
+              + '</div></div>';
+          }).join('');
+        }
+        drop.classList.remove('hidden');
+      });
+  }, 220);
+}
+
+function pickMobileItem(key, id, name, comps) {
+  document.getElementById('mob-' + key + '-id').value = id;
+  document.getElementById('mob-' + key + '-input').value = name;
+  document.getElementById('mob-' + key + '-drop').classList.add('hidden');
+  document.getElementById('mob-' + key + '-submit').disabled = false;
+  if (key === 'svc') {
+    var preview = document.getElementById('mob-svc-components');
+    var list = document.getElementById('mob-svc-comp-list');
+    if (comps && comps.length) {
+      list.innerHTML = comps.map(function (c) { return '• ' + c.name + ' ×' + c.qty + ' ' + c.unit; }).join('<br>');
+      preview.classList.remove('hidden');
+    } else {
+      preview.classList.add('hidden');
+    }
+  }
+}
+
+document.addEventListener('mousedown', function (e) {
+  var item = e.target.closest('[data-key]');
+  if (!item) return;
+  e.preventDefault();
+  var key = item.dataset.key;
+  pickMobileItem(key, item.dataset.id, item.dataset.name, JSON.parse(item.dataset.components || '[]'));
+});
+
+function resetMobileAdd(key) {
+  document.getElementById('mob-' + key + '-id').value = '';
+  document.getElementById('mob-' + key + '-input').value = '';
+  document.getElementById('mob-' + key + '-drop').classList.add('hidden');
+  document.getElementById('mob-' + key + '-submit').disabled = true;
+  if (key === 'svc') document.getElementById('mob-svc-components').classList.add('hidden');
+}
+
+// ── Add component: open sheet ───────────────────────────────────
+function openAddCompSheet(parentId, parentName) {
+  var form = document.getElementById('mob-comp-form');
+  form.setAttribute('hx-post', '/billing/' + {{ invoice.pk }} + '/add-component/' + parentId + '/');
+  htmx.process(form);
+  document.getElementById('mob-comp-parent-name').textContent = parentName;
+  resetMobileComp();
+  tgOpenSheet('mob-comp-sheet');
+}
+
+var _compTimer = null;
+function searchComp(q) {
+  clearTimeout(_compTimer);
+  var drop = document.getElementById('mob-comp-drop');
+  document.getElementById('mob-comp-submit').disabled = true;
+  document.getElementById('mob-comp-pid').value = '';
+  if (!q || q.length < 1) { drop.classList.add('hidden'); return; }
+  _compTimer = setTimeout(function () {
+    fetch('/billing/product-search/?q=' + encodeURIComponent(q))
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (!data.results.length) {
+          drop.innerHTML = '<div class="px-3 py-3 text-sm text-gray-400 text-center">Нічого</div>';
+        } else {
+          drop.innerHTML = data.results.map(function (r) {
+            return '<div class="comp-item px-3 py-2.5 active:bg-brand-gold/10 cursor-pointer border-b border-gray-50 last:border-0 flex justify-between gap-2" '
+              + 'data-id="' + r.id + '" data-name="' + r.name.replace(/"/g, '&quot;') + '">'
+              + '<span class="text-sm text-brand-dark">' + r.name + '</span>'
+              + '<span class="text-xs text-gray-400">' + r.qty + ' ' + (r.unit || '') + '</span></div>';
+          }).join('');
+        }
+        drop.classList.remove('hidden');
+      });
+  }, 220);
+}
+
+document.addEventListener('mousedown', function (e) {
+  var item = e.target.closest('.comp-item');
+  if (!item) return;
+  e.preventDefault();
+  document.getElementById('mob-comp-pid').value = item.dataset.id;
+  document.getElementById('mob-comp-input').value = item.dataset.name;
+  document.getElementById('mob-comp-drop').classList.add('hidden');
+  document.getElementById('mob-comp-submit').disabled = false;
+});
+
+function resetMobileComp() {
+  document.getElementById('mob-comp-pid').value = '';
+  document.getElementById('mob-comp-input').value = '';
+  document.getElementById('mob-comp-drop').classList.add('hidden');
+  document.getElementById('mob-comp-submit').disabled = true;
+}
+</script>
+{% endblock %}

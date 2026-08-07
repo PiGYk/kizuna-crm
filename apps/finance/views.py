@@ -10,7 +10,8 @@ from django.contrib import messages
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from apps.billing.models import Invoice
+from apps.billing.models import Invoice, InvoiceLine
+from apps.tg.utils import is_mobile
 from .models import ExpenseCategory, Supplier, Expense, CashOperation, FinanceSettings, calculate_balances
 from .forms import ExpenseCategoryForm, SupplierForm, ExpenseForm, CashOperationForm, FinanceSettingsForm
 
@@ -40,8 +41,9 @@ def expense_list(request):
         qs = qs.filter(date__lte=date_to)
 
     total = qs.aggregate(t=Sum('amount'))['t'] or 0
+    expenses = list(qs[:100])
     ctx = {
-        'expenses': qs[:100],
+        'expenses': expenses,
         'total': total,
         'categories': ExpenseCategory.objects.filter(organization=request.organization),
         'suppliers': Supplier.objects.filter(organization=request.organization),
@@ -53,7 +55,8 @@ def expense_list(request):
             'to': date_to or '',
         },
     }
-    return render(request, 'finance/expense_list.html', ctx)
+    template = 'finance/expense_list_mobile.html' if is_mobile(request) else 'finance/expense_list.html'
+    return render(request, template, ctx)
 
 
 @login_required
@@ -70,7 +73,8 @@ def expense_create(request):
             return redirect('finance:expenses')
     else:
         form = ExpenseForm(initial={'date': timezone.localdate()}, org=org)
-    return render(request, 'finance/expense_form.html', {'form': form, 'title': 'Нова витрата'})
+    template = 'finance/expense_form_mobile.html' if is_mobile(request) else 'finance/expense_form.html'
+    return render(request, template, {'form': form, 'title': 'Нова витрата'})
 
 
 @login_required
@@ -85,7 +89,8 @@ def expense_edit(request, pk):
             return redirect('finance:expenses')
     else:
         form = ExpenseForm(instance=exp, org=org)
-    return render(request, 'finance/expense_form.html', {'form': form, 'title': 'Редагувати витрату', 'expense': exp})
+    template = 'finance/expense_form_mobile.html' if is_mobile(request) else 'finance/expense_form.html'
+    return render(request, template, {'form': form, 'title': 'Редагувати витрату', 'expense': exp})
 
 
 @login_required
@@ -139,8 +144,9 @@ def cash_operations(request):
 
     balances = calculate_balances(request.organization)
 
-    return render(request, 'finance/cash_operations.html', {
-        'operations': ops[:100],
+    template = 'finance/cash_operations_mobile.html' if is_mobile(request) else 'finance/cash_operations.html'
+    return render(request, template, {
+        'operations': list(ops[:100]),
         'filter': {'from': date_from or '', 'to': date_to or ''},
         'cash_balance': balances['cash'],
         'card_balance': balances['card'],
@@ -160,7 +166,8 @@ def cash_operation_create(request):
             return redirect('finance:cash_operations')
     else:
         form = CashOperationForm(initial={'date': timezone.localdate()})
-    return render(request, 'finance/cash_operation_form.html', {'form': form})
+    template = 'finance/cash_operation_form_mobile.html' if is_mobile(request) else 'finance/cash_operation_form.html'
+    return render(request, template, {'form': form})
 
 
 @login_required
@@ -180,7 +187,8 @@ def settings_view(request):
         total=Sum('expenses__amount'),
         cnt=Count('expenses'),
     )
-    return render(request, 'finance/settings.html', {
+    template = 'finance/settings_mobile.html' if is_mobile(request) else 'finance/settings.html'
+    return render(request, template, {
         'categories': categories,
         'form': ExpenseCategoryForm(),
         'balance_form': FinanceSettingsForm(instance=FinanceSettings.get_for_org(request.organization)),
@@ -227,7 +235,8 @@ def category_delete(request, pk):
 
 @login_required
 def report_view(request):
-    return render(request, 'finance/report.html')
+    template = 'finance/report_mobile.html' if is_mobile(request) else 'finance/report.html'
+    return render(request, template)
 
 
 @login_required
@@ -310,6 +319,32 @@ def report_data(request):
 
     profit = income_total - expense_total
 
+    # ── Собівартість реалізованих товарів і послуг (COGS) ─────────────
+    # +10% поверх — поправка на розхідники, які не обліковуються
+    # (рукавички, шприци, серветки, дрібні розхідники тощо)
+    paid_lines = InvoiceLine.objects.filter(invoice__in=invoices)
+
+    cogs_products = Decimal('0')
+    for ln in paid_lines.filter(line_type='product', product__isnull=False).select_related('product'):
+        cogs_products += ln.quantity * (ln.product.buy_price or Decimal('0'))
+
+    cogs_services = Decimal('0')
+    service_lines = paid_lines.filter(line_type='service', service__isnull=False)\
+        .select_related('service')\
+        .prefetch_related('service__components__product')
+    for ln in service_lines:
+        comp_cost = sum(
+            (comp.quantity * (comp.product.buy_price or Decimal('0'))
+             for comp in ln.service.components.all()),
+            Decimal('0'),
+        )
+        cogs_services += ln.quantity * comp_cost
+
+    cogs_total = cogs_products + cogs_services
+    cogs_overhead = income_total * Decimal('0.05')        # −5% від виручки розхідники
+    cogs_adjusted = cogs_total + cogs_overhead
+    gross_profit = income_total - cogs_adjusted
+
     return JsonResponse({
         'income': {
             'total': float(income_total),
@@ -323,6 +358,14 @@ def report_data(request):
             'transfer': float(expense_transfer),
         },
         'profit': float(profit),
+        'cogs': {
+            'products': float(cogs_products),
+            'services': float(cogs_services),
+            'total': float(cogs_total),
+            'overhead': float(cogs_overhead),
+            'adjusted': float(cogs_adjusted),
+        },
+        'gross_profit': float(gross_profit),
         'cash_register': {
             'card_to_cash': float(card_to_cash),
             'cash_to_card': float(cash_to_card),

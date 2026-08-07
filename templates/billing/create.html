@@ -3,85 +3,155 @@
 {% block title %}Новий чек — Kizuna CRM{% endblock %}
 
 {% block content %}
-<div class="max-w-lg">
-  <div class="flex items-center gap-3 mb-6">
-    <a href="{% url 'billing:list' %}" class="text-gray-400 hover:text-gray-600">
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+<div class="flex items-start justify-between gap-4 mb-5">
+  <div class="flex items-center gap-3">
+    <a href="{% url 'billing:list' %}" class="text-gray-400 hover:text-brand-dark p-1.5 -ml-1.5" title="Назад">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
     </a>
-    <h1 class="text-2xl font-bold text-brand-dark">Новий чек</h1>
-  </div>
-
-  <!-- Step 1: пошук клієнта або пацієнта -->
-  <div class="bg-white rounded-xl border border-gray-200 p-6 mb-4">
-
-    <!-- Табики -->
-    <div class="flex gap-1 mb-4 bg-gray-100 rounded-lg p-1">
-      <button type="button" id="tab-client"
-        onclick="switchTab('client')"
-        class="tab-btn flex-1 min-h-[44px] py-2 rounded-md text-sm font-medium transition bg-white text-brand-dark shadow-sm">
-        За клієнтом
-      </button>
-      <button type="button" id="tab-patient"
-        onclick="switchTab('patient')"
-        class="tab-btn flex-1 min-h-[44px] py-2 rounded-md text-sm font-medium transition text-gray-500 hover:text-gray-700">
-        За твариною
-      </button>
-    </div>
-
-    <!-- Пошук за клієнтом -->
-    <div id="search-client">
-      <input
-        type="text"
-        placeholder="Пошук за прізвищем або телефоном…"
-        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
-        hx-get="{% url 'billing:client_search' %}"
-        hx-trigger="input changed delay:300ms"
-        hx-target="#client-results"
-        name="q"
-      >
-      <div id="client-results" class="mt-2"></div>
-    </div>
-
-    <!-- Пошук за твариною -->
-    <div id="search-patient" class="hidden">
-      <input
-        type="text"
-        placeholder="Кличка або порода…"
-        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
-        hx-get="{% url 'billing:patient_search' %}"
-        hx-trigger="input changed delay:300ms"
-        hx-target="#patient-search-results"
-        name="q"
-      >
-      <div id="patient-search-results" class="mt-2"></div>
+    <div>
+      <h1 class="text-2xl font-bold text-brand-dark">Новий чек</h1>
+      <div class="text-[11px] uppercase tracking-wide text-gray-400 font-medium mt-1">Крок 1 з 2 — вибір клієнта</div>
     </div>
   </div>
+</div>
 
-  <!-- Обраний пацієнт (при пошуку за твариною) -->
-  <div id="selected-patient-card" class="hidden bg-white rounded-xl border border-brand-gold p-4 mb-4">
-    <div class="flex items-center gap-3">
-      <div id="selected-patient-photo" class="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-gray-100 flex items-center justify-center text-xl"></div>
-      <div>
-        <div class="font-semibold text-brand-dark text-sm" id="selected-patient-name"></div>
-        <div class="text-xs text-gray-400" id="selected-patient-owner"></div>
+<div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
+  <div class="lg:col-span-3 space-y-4">
+
+    <div id="selected-card" class="hidden bg-white border-2 border-brand-gold rounded-xl p-4">
+      <div class="flex items-center gap-3">
+        <div id="selected-icon" class="w-12 h-12 rounded-full bg-brand-gold/15 flex items-center justify-center text-xl shrink-0">🧾</div>
+        <div class="min-w-0 flex-1">
+          <div class="font-semibold text-brand-dark" id="selected-title"></div>
+          <div class="text-xs text-gray-400 mt-0.5" id="selected-subtitle"></div>
+        </div>
+        <button type="button" onclick="clearSelection()" class="text-gray-300 hover:text-red-500 p-1.5" title="Скинути">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
       </div>
-      <button type="button" onclick="clearSelection()" class="ml-auto text-gray-300 hover:text-gray-500 text-xs">✕</button>
     </div>
+
+    <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <div class="flex bg-gray-50 border-b border-gray-200">
+        <button type="button" id="tab-client" onclick="switchTab('client')"
+          class="flex-1 py-3 text-sm font-medium text-brand-dark bg-white border-b-2 border-brand-gold">За клієнтом</button>
+        <button type="button" id="tab-patient" onclick="switchTab('patient')"
+          class="flex-1 py-3 text-sm font-medium text-gray-500 hover:text-brand-dark border-b-2 border-transparent">За твариною</button>
+      </div>
+
+      <div class="p-4">
+        <div id="search-client">
+          <div class="relative">
+            <input type="text" autocomplete="off"
+              placeholder="Прізвище, ім'я або телефон…"
+              class="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
+              hx-get="{% url 'billing:client_search' %}"
+              hx-trigger="input changed delay:300ms"
+              hx-target="#client-results"
+              name="q">
+            <svg class="w-4 h-4 text-gray-300 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path stroke-linecap="round" d="m21 21-3.5-3.5"/></svg>
+          </div>
+          <div id="client-results" class="mt-2"></div>
+        </div>
+
+        <div id="search-patient" class="hidden">
+          <div class="relative">
+            <input type="text" autocomplete="off"
+              placeholder="Кличка або порода…"
+              class="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"
+              hx-get="{% url 'billing:patient_search' %}"
+              hx-trigger="input changed delay:300ms"
+              hx-target="#patient-search-results"
+              name="q">
+            <svg class="w-4 h-4 text-gray-300 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path stroke-linecap="round" d="m21 21-3.5-3.5"/></svg>
+          </div>
+          <div id="patient-search-results" class="mt-2"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="patient-section" class="hidden bg-white border border-gray-200 rounded-xl p-4"></div>
+
+    <form method="post" id="start-form" class="hidden">
+      {% csrf_token %}
+      <input type="hidden" name="client_id" id="selected-client-id">
+      <input type="hidden" name="patient_id" id="selected-patient-id">
+      <button type="submit" id="start-btn"
+        class="w-full bg-brand-gold text-brand-dark py-3 rounded-xl text-sm font-semibold hover:brightness-95 transition inline-flex items-center justify-center gap-2">
+        Перейти до чеку
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+      </button>
+    </form>
   </div>
 
-  <!-- Step 2: пацієнт (заповнюється після вибору клієнта) -->
-  <div id="patient-section" class="hidden bg-white rounded-xl border border-gray-200 p-6 mb-4"></div>
+  <aside class="lg:col-span-2 space-y-4">
+    {% if recent_clients %}
+    <div class="bg-white border border-gray-200 rounded-xl p-4">
+      <div class="text-[11px] uppercase tracking-wide text-gray-500 font-medium mb-2">Недавні клієнти</div>
+      <div class="space-y-1">
+        {% for c in recent_clients %}
+        <button type="button"
+          onclick="selectClient({{ c.pk }}, '{{ c|escapejs }}', '{{ c.phone|escapejs }}')"
+          class="w-full text-left px-3 py-2 rounded-lg border border-gray-100 hover:border-brand-gold hover:bg-brand-gold/5 transition flex items-center gap-3">
+          <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs text-gray-400 shrink-0">{{ c.last_name|first|default:c.first_name|first|default:'?' }}</div>
+          <div class="min-w-0 flex-1">
+            <div class="font-medium text-brand-dark text-sm truncate">{{ c }}</div>
+            <div class="text-xs text-gray-400 truncate">{{ c.phone }}</div>
+          </div>
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
 
-  <!-- Step 3: форма створення -->
-  <form method="post" id="start-form">
-    {% csrf_token %}
-    <input type="hidden" name="client_id" id="selected-client-id">
-    <input type="hidden" name="patient_id" id="selected-patient-id">
-    <button type="submit" id="start-btn"
-      class="hidden w-full min-h-[44px] bg-brand-gold text-brand-dark py-2.5 rounded-lg text-sm font-semibold hover:brightness-95">
-      Перейти до чеку →
-    </button>
-  </form>
+    <div class="bg-white border border-gray-200 rounded-xl">
+      <button type="button" onclick="toggleQuickClient()"
+        class="w-full px-4 py-3 flex items-center justify-between text-sm font-medium text-brand-dark hover:bg-gray-50 rounded-xl transition">
+        <span class="inline-flex items-center gap-2">
+          <svg class="w-4 h-4 text-brand-gold" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+          Новий клієнт
+        </span>
+        <svg id="quick-chevron" class="w-4 h-4 text-gray-300 transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <div id="quick-body" class="hidden border-t border-gray-100 px-4 py-3 space-y-2">
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-[11px] uppercase tracking-wide text-gray-500 font-medium">Прізвище</label>
+            <input type="text" id="qc-last" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+          </div>
+          <div>
+            <label class="text-[11px] uppercase tracking-wide text-gray-500 font-medium">Ім'я</label>
+            <input type="text" id="qc-first" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+          </div>
+        </div>
+        <div>
+          <label class="text-[11px] uppercase tracking-wide text-gray-500 font-medium">Телефон <span class="text-red-400">*</span></label>
+          <input type="tel" id="qc-phone" placeholder="+380…" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+          <div id="qc-phone-hint" class="text-xs mt-1 hidden"></div>
+        </div>
+        <details class="text-xs">
+          <summary class="cursor-pointer text-brand-gold hover:text-brand-dark">+ Додати тваринку зразу</summary>
+          <div class="grid grid-cols-2 gap-2 mt-2">
+            <input type="text" id="qc-pet-name" placeholder="Кличка" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+            <select id="qc-pet-species" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+              <option value="">Вид…</option>
+              <option value="cat">🐱 Кіт</option>
+              <option value="dog">🐶 Собака</option>
+              <option value="bird">🐦 Птах</option>
+              <option value="rabbit">🐰 Кролик</option>
+              <option value="reptile">🦎 Рептилія</option>
+              <option value="other">🐾 Інше</option>
+            </select>
+          </div>
+        </details>
+        <div id="qc-errors" class="text-xs text-red-500 hidden"></div>
+        <button type="button" onclick="quickCreateClient()" id="qc-submit"
+          class="w-full mt-2 bg-brand-dark text-white py-2 rounded-lg text-sm font-medium hover:brightness-110 transition disabled:opacity-40">
+          Створити і обрати
+        </button>
+      </div>
+    </div>
+  </aside>
 </div>
 
 <script>
@@ -89,55 +159,121 @@ function switchTab(tab) {
   const isClient = tab === 'client';
   document.getElementById('search-client').classList.toggle('hidden', !isClient);
   document.getElementById('search-patient').classList.toggle('hidden', isClient);
-
   document.getElementById('tab-client').className = isClient
-    ? 'tab-btn flex-1 py-1.5 rounded-md text-sm font-medium transition bg-white text-brand-dark shadow-sm'
-    : 'tab-btn flex-1 py-1.5 rounded-md text-sm font-medium transition text-gray-500 hover:text-gray-700';
+    ? 'flex-1 py-3 text-sm font-medium text-brand-dark bg-white border-b-2 border-brand-gold'
+    : 'flex-1 py-3 text-sm font-medium text-gray-500 hover:text-brand-dark border-b-2 border-transparent';
   document.getElementById('tab-patient').className = isClient
-    ? 'tab-btn flex-1 py-1.5 rounded-md text-sm font-medium transition text-gray-500 hover:text-gray-700'
-    : 'tab-btn flex-1 py-1.5 rounded-md text-sm font-medium transition bg-white text-brand-dark shadow-sm';
-
+    ? 'flex-1 py-3 text-sm font-medium text-gray-500 hover:text-brand-dark border-b-2 border-transparent'
+    : 'flex-1 py-3 text-sm font-medium text-brand-dark bg-white border-b-2 border-brand-gold';
   clearSelection();
   document.getElementById('client-results').innerHTML = '';
   document.getElementById('patient-search-results').innerHTML = '';
-  document.getElementById('patient-section').classList.add('hidden');
 }
 
-function selectClient(id, name) {
+function selectClient(id, name, phone) {
   document.getElementById('selected-client-id').value = id;
   document.getElementById('selected-patient-id').value = '';
-  document.getElementById('start-btn').classList.remove('hidden');
-
+  document.getElementById('selected-title').textContent = name;
+  document.getElementById('selected-subtitle').textContent = phone || '';
+  document.getElementById('selected-icon').textContent = '👤';
+  document.getElementById('selected-card').classList.remove('hidden');
+  document.getElementById('start-form').classList.remove('hidden');
   htmx.ajax('GET', '/billing/patients/' + id + '/', {target: '#patient-section', swap: 'innerHTML'});
   document.getElementById('patient-section').classList.remove('hidden');
-  document.getElementById('selected-patient-card').classList.add('hidden');
 }
 
 function selectPatient(id) {
   document.getElementById('selected-patient-id').value = id;
-  document.querySelectorAll('.patient-btn').forEach(b => b.classList.remove('ring-2', 'ring-brand-gold'));
-  document.getElementById('patient-' + id)?.classList.add('ring-2', 'ring-brand-gold');
+  document.querySelectorAll('.patient-btn').forEach(b => b.classList.remove('ring-2', 'ring-brand-gold', 'border-brand-gold'));
+  const btn = document.getElementById('patient-' + id);
+  if (btn) btn.classList.add('ring-2', 'ring-brand-gold', 'border-brand-gold');
+  const cur = document.getElementById('selected-title').textContent;
+  if (btn) {
+    const petName = btn.querySelector('.font-medium')?.textContent.trim();
+    if (petName) document.getElementById('selected-subtitle').textContent = (document.getElementById('selected-subtitle').textContent.split(' / ')[0]) + ' / ' + petName;
+  }
 }
 
 function selectPatientDirect(patientId, clientId, patientName, clientName) {
   document.getElementById('selected-patient-id').value = patientId;
   document.getElementById('selected-client-id').value = clientId;
-  document.getElementById('start-btn').classList.remove('hidden');
+  document.getElementById('selected-title').textContent = patientName;
+  document.getElementById('selected-subtitle').textContent = clientName;
+  document.getElementById('selected-icon').textContent = '🐾';
+  document.getElementById('selected-card').classList.remove('hidden');
+  document.getElementById('start-form').classList.remove('hidden');
   document.getElementById('patient-section').classList.add('hidden');
-  document.getElementById('patient-search-results').innerHTML = '';
-
-  // показати картку обраного пацієнта
-  document.getElementById('selected-patient-name').textContent = patientName;
-  document.getElementById('selected-patient-owner').textContent = clientName;
-  document.getElementById('selected-patient-card').classList.remove('hidden');
 }
 
 function clearSelection() {
   document.getElementById('selected-client-id').value = '';
   document.getElementById('selected-patient-id').value = '';
-  document.getElementById('start-btn').classList.add('hidden');
-  document.getElementById('selected-patient-card').classList.add('hidden');
+  document.getElementById('selected-card').classList.add('hidden');
+  document.getElementById('start-form').classList.add('hidden');
   document.getElementById('patient-section').classList.add('hidden');
+}
+
+function toggleQuickClient() {
+  const body = document.getElementById('quick-body');
+  const chev = document.getElementById('quick-chevron');
+  body.classList.toggle('hidden');
+  chev.classList.toggle('rotate-180');
+}
+
+async function quickCreateClient() {
+  const btn = document.getElementById('qc-submit');
+  const phone = document.getElementById('qc-phone').value.trim();
+  const errBox = document.getElementById('qc-errors');
+  errBox.classList.add('hidden');
+  if (!phone) {
+    errBox.textContent = 'Телефон обов\'язковий';
+    errBox.classList.remove('hidden');
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = 'Створюю...';
+  const fd = new FormData();
+  fd.append('first_name', document.getElementById('qc-first').value);
+  fd.append('last_name', document.getElementById('qc-last').value);
+  fd.append('phone', phone);
+  const petName = document.getElementById('qc-pet-name').value.trim();
+  const petSpecies = document.getElementById('qc-pet-species').value;
+  if (petName && petSpecies) {
+    fd.append('pet_name', petName);
+    fd.append('pet_species', petSpecies);
+  }
+  const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+  try {
+    const res = await fetch('/appointments/quick-client/', {
+      method: 'POST',
+      headers: {'X-CSRFToken': csrf},
+      body: fd,
+    });
+    const data = await res.json();
+    if (data.ok && data.client) {
+      selectClient(data.client.id, data.client.label.split(' · ')[0], phone);
+      if (data.patient && data.patient.id) {
+        document.getElementById('selected-patient-id').value = data.patient.id;
+      }
+      toggleQuickClient();
+      document.getElementById('qc-last').value = '';
+      document.getElementById('qc-first').value = '';
+      document.getElementById('qc-phone').value = '';
+      document.getElementById('qc-pet-name').value = '';
+      document.getElementById('qc-pet-species').value = '';
+    } else {
+      errBox.textContent = Object.values(data.errors || {}).flat().join('; ') || 'Помилка';
+      errBox.classList.remove('hidden');
+    }
+  } catch (e) {
+    errBox.textContent = 'Помилка: ' + e.message;
+    errBox.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Створити і обрати';
+  }
 }
 </script>
 {% endblock %}
+</content>
+</invoke>

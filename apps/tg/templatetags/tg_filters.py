@@ -11,7 +11,9 @@ register = template.Library()
 _VIDEO_MIME = {
     'mp4': 'video/mp4',
     'm4v': 'video/mp4',
-    'mov': 'video/quicktime',
+    # .mov з iPhone містить H.264/AAC у 95% випадків — оголошуємо як mp4
+    # щоб Android Chrome спробував програти (video/quicktime він не підтримує).
+    'mov': 'video/mp4',
     'webm': 'video/webm',
     '3gp': 'video/3gpp',
     'avi': 'video/x-msvideo',

@@ -1,0 +1,178 @@
+{% extends 'base.html' %}
+{% block title %}Доходність — Kizuna CRM{% endblock %}
+
+{% block extra_head %}
+<script>
+  document.documentElement.classList.add('has-mobile-fullscreen');
+  document.addEventListener('DOMContentLoaded', function () {
+    document.body.classList.add('has-mobile-fullscreen');
+  });
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+{% endblock %}
+
+{% block fab_url %}{% endblock %}
+
+{% block content %}
+<div class="tg-mobile-shell">
+
+  <header class="tg-mobile-header shrink-0 bg-white border-b border-gray-100 flex items-center gap-2 px-3"
+          style="min-height: 56px;">
+    <h1 class="flex-1 font-semibold text-brand-dark text-base truncate">Доходність</h1>
+    <button type="button" onclick="tgOpenSheet('srv-filter-sheet')"
+            class="tg-mobile-tap relative text-gray-500 active:text-brand-dark" aria-label="Період">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3M3 11h18M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+      </svg>
+      {% if preset != 'month' %}
+      <span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-brand-gold"></span>
+      {% endif %}
+    </button>
+  </header>
+
+  {% include 'analytics/_partials/mobile_nav.html' with active='services' %}
+
+  <div class="flex-1 overflow-y-auto pb-6" style="-webkit-overflow-scrolling: touch; background: #f7f7f8;">
+
+    <!-- KPI -->
+    <div class="px-3 pt-3">
+      <div class="fin-kpi">
+        <div class="text-[11px] text-gray-400 uppercase tracking-wide">Виручка за період</div>
+        <div class="text-2xl font-bold text-brand-dark mt-0.5">{{ total_revenue|floatformat:0 }} ₴</div>
+        <div class="text-[11px] text-gray-400 mt-1">{{ start|date:"d.m.Y" }} — {{ end|date:"d.m.Y" }}</div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="px-3 pt-3">
+      <div class="flex border-b border-gray-200 mb-2">
+        <button data-tab="srv" class="rep-tab rep-tab-active flex-1 py-2 text-sm font-medium">Послуги</button>
+        <button data-tab="prod" class="rep-tab flex-1 py-2 text-sm font-medium text-gray-400">Товари</button>
+      </div>
+
+      <!-- Послуги -->
+      <div id="tab-srv" class="flex flex-col gap-2">
+        {% for s in services %}
+        <div class="bg-white rounded-2xl border border-gray-100 px-3 py-2.5">
+          <div class="flex items-baseline justify-between gap-2 mb-1">
+            <div class="text-[14px] font-medium text-brand-dark truncate flex-1">{{ s.name }}</div>
+            <div class="text-[14px] font-bold text-brand-dark whitespace-nowrap">{{ s.total|floatformat:0 }} ₴</div>
+          </div>
+          <div class="flex items-center gap-2 text-[11px] text-gray-400">
+            <span>{{ s.cnt }} раз</span>
+            <span>·</span>
+            <span>сер. {{ s.avg_price|floatformat:0 }} ₴</span>
+            {% if total_revenue %}
+              <span class="ml-auto font-medium text-gray-500">{% widthratio s.total total_revenue 100 %}%</span>
+            {% endif %}
+          </div>
+          {% if total_revenue %}
+          <div class="mt-1.5 h-1 rounded-full bg-gray-100 overflow-hidden">
+            <div class="h-full bg-brand-gold" style="width: {% widthratio s.total total_revenue 100 %}%;"></div>
+          </div>
+          {% endif %}
+        </div>
+        {% empty %}
+        <div class="text-center text-sm text-gray-400 py-12">Немає послуг за цей період</div>
+        {% endfor %}
+      </div>
+
+      <!-- Товари -->
+      <div id="tab-prod" class="hidden flex flex-col gap-2">
+        {% for p in products %}
+        <div class="bg-white rounded-2xl border border-gray-100 px-3 py-2.5">
+          <div class="flex items-baseline justify-between gap-2 mb-1">
+            <div class="text-[14px] font-medium text-brand-dark truncate flex-1">{{ p.name }}</div>
+            <div class="text-[14px] font-bold text-brand-dark whitespace-nowrap">{{ p.total|floatformat:0 }} ₴</div>
+          </div>
+          <div class="flex items-center gap-2 text-[11px] text-gray-400">
+            <span>{{ p.cnt }} шт</span>
+            <span>·</span>
+            <span>сер. {{ p.avg_price|floatformat:0 }} ₴</span>
+            {% if total_revenue %}
+              <span class="ml-auto font-medium text-gray-500">{% widthratio p.total total_revenue 100 %}%</span>
+            {% endif %}
+          </div>
+          {% if total_revenue %}
+          <div class="mt-1.5 h-1 rounded-full bg-gray-100 overflow-hidden">
+            <div class="h-full bg-teal-500" style="width: {% widthratio p.total total_revenue 100 %}%;"></div>
+          </div>
+          {% endif %}
+        </div>
+        {% empty %}
+        <div class="text-center text-sm text-gray-400 py-12">Немає товарів за цей період</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="tg-sheet-backdrop" class="tg-mobile-sheet-backdrop" onclick="tgCloseAllSheets()"></div>
+<div id="srv-filter-sheet" class="tg-mobile-sheet">
+  <div class="tg-mobile-sheet-handle"></div>
+  <div class="px-4 py-3 border-b border-gray-100 text-sm font-semibold text-brand-dark">Період</div>
+  <form method="get" class="tg-mobile-sheet-body px-4 py-3 space-y-3">
+    <div>
+      <div class="flex flex-wrap gap-2">
+        {% for key, label in presets %}
+        <label>
+          <input type="radio" name="preset" value="{{ key }}" class="hidden peer"
+                 {% if preset == key %}checked{% endif %}>
+          <span class="block px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 peer-checked:bg-brand-gold peer-checked:text-brand-dark">
+            {{ label }}
+          </span>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="grid grid-cols-2 gap-2">
+      <div>
+        <label class="fin-label">Від (custom)</label>
+        <input type="date" name="start" value="{{ start|date:'Y-m-d' }}" class="fin-input">
+      </div>
+      <div>
+        <label class="fin-label">До (custom)</label>
+        <input type="date" name="end" value="{{ end|date:'Y-m-d' }}" class="fin-input">
+      </div>
+    </div>
+    <div class="pt-2">
+      <button type="submit"
+              class="w-full px-4 py-3 rounded-xl text-sm font-semibold bg-brand-gold text-brand-dark active:opacity-80">
+        Застосувати
+      </button>
+    </div>
+  </form>
+</div>
+
+<style>
+.rep-tab { position: relative; color: #9ca3af; }
+.rep-tab-active { color: #12100F; }
+.rep-tab-active::after {
+  content: ''; position: absolute; left: 8px; right: 8px; bottom: -1px;
+  height: 2px; background: #DEAA01; border-radius: 1px;
+}
+</style>
+
+{% include 'finance/_partials/mobile_toast.html' %}
+
+<script>
+function tgOpenSheet(id) {
+  var s = document.getElementById(id), bd = document.getElementById('tg-sheet-backdrop');
+  if (!s || !bd) return; s.classList.add('open'); bd.classList.add('open');
+}
+function tgCloseAllSheets() {
+  document.querySelectorAll('.tg-mobile-sheet.open').forEach(function (s) { s.classList.remove('open'); });
+  var bd = document.getElementById('tg-sheet-backdrop'); if (bd) bd.classList.remove('open');
+}
+document.querySelectorAll('.rep-tab').forEach(function (t) {
+  t.addEventListener('click', function () {
+    document.querySelectorAll('.rep-tab').forEach(function (x) { x.classList.remove('rep-tab-active'); x.classList.add('text-gray-400'); });
+    this.classList.add('rep-tab-active'); this.classList.remove('text-gray-400');
+    var which = this.dataset.tab;
+    document.getElementById('tab-srv').classList.toggle('hidden', which !== 'srv');
+    document.getElementById('tab-prod').classList.toggle('hidden', which !== 'prod');
+  });
+});
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') tgCloseAllSheets(); });
+</script>
+{% endblock %}

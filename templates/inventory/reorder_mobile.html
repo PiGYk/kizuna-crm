@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% block title %}Що замовити — Склад{% endblock %}
+
+{% block extra_head %}
+<script>
+  document.documentElement.classList.add('has-mobile-fullscreen');
+  document.addEventListener('DOMContentLoaded', function () {
+    document.body.classList.add('has-mobile-fullscreen');
+  });
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+{% endblock %}
+
+{% block fab_url %}{% endblock %}
+
+{% block content %}
+<div class="tg-mobile-shell">
+
+  <header class="tg-mobile-header shrink-0 bg-white border-b border-gray-100 flex items-center gap-2 px-2"
+          style="min-height: 56px;">
+    <a href="{% url 'inventory:list' %}"
+       class="tg-mobile-tap text-brand-dark active:opacity-70" aria-label="Назад">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+      </svg>
+    </a>
+    <h1 class="flex-1 font-semibold text-brand-dark text-base truncate">
+      Що замовити <span class="text-xs font-normal text-gray-400">({{ count }})</span>
+    </h1>
+    {% if products %}
+    <a href="{% url 'inventory:reorder_export' %}" class="tg-mobile-tap text-brand-gold active:opacity-70" aria-label="Експорт XLSX">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+      </svg>
+    </a>
+    {% endif %}
+  </header>
+
+  <div class="flex-1 overflow-y-auto pb-6" style="-webkit-overflow-scrolling: touch; background: #f7f7f8;">
+
+    {% if products %}
+    <div class="px-3 pt-3 flex flex-col gap-2">
+      {% for p in products %}
+      <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        <a href="{% url 'inventory:detail' p.pk %}" class="block px-3 py-3 active:bg-gray-50">
+          <div class="flex items-start gap-3">
+            <div class="w-1 self-stretch rounded-full shrink-0 {% if p.quantity <= 0 %}bg-red-500{% else %}bg-yellow-400{% endif %}"></div>
+            <div class="flex-1 min-w-0">
+              <div class="font-semibold text-brand-dark text-[14px] truncate">{{ p.name }}</div>
+              <div class="flex items-center gap-2 text-[11px] text-gray-500 mt-1">
+                <span class="font-semibold {% if p.quantity <= 0 %}text-red-600{% else %}text-yellow-700{% endif %}">
+                  {{ p.quantity|floatformat:"-3" }} {{ p.unit.short|default:"" }}
+                </span>
+                <span class="text-gray-400">/ мін. {{ p.min_quantity|floatformat:"-3" }}</span>
+              </div>
+              <div class="text-[11px] text-gray-400 mt-0.5">
+                Потрібно: <strong class="text-brand-dark">+{{ p.shortage|floatformat:"-3" }} {{ p.unit.short|default:"" }}</strong>
+                · {{ p.buy_price|floatformat:0 }} ₴
+              </div>
+              {% if p.last_supplier_name %}
+              <div class="text-[10px] text-gray-400 mt-0.5">🏭 {{ p.last_supplier_name }}</div>
+              {% endif %}
+            </div>
+          </div>
+        </a>
+        <a href="{% url 'inventory:detail' p.pk %}#in"
+           class="block border-t border-gray-50 px-3 py-2 text-center text-xs text-brand-gold font-semibold active:bg-gray-50">
+          📥 Записати прихід
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center text-sm text-gray-400 py-16">
+      <div class="text-5xl mb-3">✅</div>
+      Усе на місці — немає товарів що закінчуються.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% include 'finance/_partials/mobile_toast.html' %}
+{% endblock %}

@@ -7,6 +7,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from apps.finance.models import Supplier
 from apps.finance.forms import SupplierForm
 from apps.inventory.models import StockMovement
+from apps.tg.utils import is_mobile
 
 
 @login_required
@@ -19,7 +20,8 @@ def supplier_list(request):
         total_expenses=Sum('expenses__amount'),
         expense_count=Count('expenses'),
     ).order_by('name')
-    return render(request, 'inventory/suppliers/list.html', {'suppliers': suppliers})
+    template = 'inventory/suppliers/list_mobile.html' if is_mobile(request) else 'inventory/suppliers/list.html'
+    return render(request, template, {'suppliers': suppliers})
 
 
 @login_required
@@ -35,7 +37,8 @@ def supplier_create(request):
             return redirect('inventory:supplier_list')
     else:
         form = SupplierForm()
-    return render(request, 'inventory/suppliers/form.html', {'form': form, 'is_new': True})
+    template = 'inventory/suppliers/form_mobile.html' if is_mobile(request) else 'inventory/suppliers/form.html'
+    return render(request, template, {'form': form, 'is_new': True})
 
 
 @login_required
@@ -49,7 +52,8 @@ def supplier_edit(request, pk):
             return redirect('inventory:supplier_detail', pk=pk)
     else:
         form = SupplierForm(instance=supplier)
-    return render(request, 'inventory/suppliers/form.html', {'form': form, 'supplier': supplier, 'is_new': False})
+    template = 'inventory/suppliers/form_mobile.html' if is_mobile(request) else 'inventory/suppliers/form.html'
+    return render(request, template, {'form': form, 'supplier': supplier, 'is_new': False})
 
 
 @login_required
@@ -68,7 +72,8 @@ def supplier_detail(request, pk):
     expenses = supplier.expenses.select_related('category').order_by('-date')[:50]
     expense_total = supplier.expenses.aggregate(t=Sum('amount'))['t'] or 0
 
-    return render(request, 'inventory/suppliers/detail.html', {
+    template = 'inventory/suppliers/detail_mobile.html' if is_mobile(request) else 'inventory/suppliers/detail.html'
+    return render(request, template, {
         'supplier': supplier,
         'movements': movements,
         'stats': stats,

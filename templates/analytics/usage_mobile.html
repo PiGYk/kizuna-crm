@@ -1,0 +1,288 @@
+{% extends 'base.html' %}
+{% block title %}Використання — Kizuna CRM{% endblock %}
+
+{% block extra_head %}
+<script>
+  document.documentElement.classList.add('has-mobile-fullscreen');
+  document.addEventListener('DOMContentLoaded', function () {
+    document.body.classList.add('has-mobile-fullscreen');
+  });
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+{% endblock %}
+
+{% block fab_url %}{% endblock %}
+
+{% block content %}
+<div class="tg-mobile-shell">
+
+  <header class="tg-mobile-header shrink-0 bg-white border-b border-gray-100 flex items-center gap-2 px-3"
+          style="min-height: 56px;">
+    <h1 class="flex-1 font-semibold text-brand-dark text-base truncate">Використання</h1>
+  </header>
+
+  {% include 'analytics/_partials/mobile_nav.html' with active='usage' %}
+
+  <div class="flex-1 overflow-y-auto pb-6" style="-webkit-overflow-scrolling: touch; background: #f7f7f8;">
+
+    <!-- Selector card -->
+    <div class="px-3 pt-3">
+      <div class="fin-kpi space-y-3">
+
+        <!-- Kind toggle -->
+        <div>
+          <label class="fin-label">Тип</label>
+          <div class="grid grid-cols-2 gap-2">
+            <button type="button" id="kind-service"
+                    class="usage-kind-btn px-3 py-2 rounded-xl text-sm font-medium border border-brand-gold bg-brand-gold text-brand-dark">
+              Послуга
+            </button>
+            <button type="button" id="kind-product"
+                    class="usage-kind-btn px-3 py-2 rounded-xl text-sm font-medium border border-gray-200 bg-white text-gray-700">
+              Товар
+            </button>
+          </div>
+        </div>
+
+        <!-- Item select -->
+        <div>
+          <label class="fin-label">Позиція</label>
+          <select id="usage-item" class="fin-input">
+            <option value="">— Оберіть —</option>
+          </select>
+        </div>
+
+        <!-- Period -->
+        <div>
+          <label class="fin-label">Період</label>
+          <div class="flex flex-wrap gap-2" id="usage-presets">
+            {% for key, label in presets %}
+              {% if key != 'custom' %}
+              <button type="button" data-preset="{{ key }}"
+                      class="usage-preset px-3 py-1.5 rounded-full text-xs font-medium {% if key == 'month' %}bg-brand-gold text-brand-dark{% else %}bg-gray-100 text-gray-700{% endif %}">
+                {{ label }}
+              </button>
+              {% endif %}
+            {% endfor %}
+            <button type="button" onclick="tgOpenSheet('usage-custom-sheet')"
+                    class="usage-preset px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+              Свій…
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hint when no selection -->
+    <div id="usage-hint" class="px-3 pt-4">
+      <div class="bg-white rounded-2xl border border-gray-100 px-4 py-8 text-center text-sm text-gray-400">
+        Оберіть позицію щоб побачити статистику.
+      </div>
+    </div>
+
+    <!-- Results (hidden until data) -->
+    <div id="usage-results" class="px-3 pt-3 hidden space-y-3">
+
+      <!-- 3 KPI -->
+      <div class="grid grid-cols-3 gap-2">
+        <div class="fin-kpi">
+          <div class="text-[10px] text-gray-400 uppercase">Разів</div>
+          <div class="text-lg font-bold text-brand-dark mt-0.5" id="usg-kpi-count">—</div>
+        </div>
+        <div class="fin-kpi">
+          <div class="text-[10px] text-gray-400 uppercase">Кількість</div>
+          <div class="text-lg font-bold text-brand-dark mt-0.5" id="usg-kpi-qty">—</div>
+        </div>
+        <div class="fin-kpi">
+          <div class="text-[10px] text-gray-400 uppercase">Виручка</div>
+          <div class="text-lg font-bold text-emerald-600 mt-0.5" id="usg-kpi-rev">—</div>
+        </div>
+      </div>
+
+      <!-- Chart -->
+      <div class="fin-kpi">
+        <div class="flex items-center justify-between mb-2">
+          <div class="text-[11px] text-gray-400 uppercase tracking-wide">По днях</div>
+          <div class="flex gap-1" id="usage-metrics">
+            <button type="button" data-metric="count" class="usage-metric px-2 py-1 rounded-md text-[11px] font-medium bg-brand-gold text-brand-dark">Разів</button>
+            <button type="button" data-metric="qty" class="usage-metric px-2 py-1 rounded-md text-[11px] font-medium bg-gray-100 text-gray-700">К-сть</button>
+            <button type="button" data-metric="revenue" class="usage-metric px-2 py-1 rounded-md text-[11px] font-medium bg-gray-100 text-gray-700">Грн</button>
+          </div>
+        </div>
+        <div style="position: relative; height: 200px;">
+          <canvas id="usg-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- Top doctors -->
+      <div class="fin-kpi">
+        <div class="text-[11px] text-gray-400 uppercase tracking-wide mb-2">Топ лікарів</div>
+        <div id="usg-top-doctors" class="space-y-2"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Custom date sheet -->
+<div id="tg-sheet-backdrop" class="tg-mobile-sheet-backdrop" onclick="tgCloseAllSheets()"></div>
+<div id="usage-custom-sheet" class="tg-mobile-sheet">
+  <div class="tg-mobile-sheet-handle"></div>
+  <div class="px-4 py-3 border-b border-gray-100 text-sm font-semibold text-brand-dark">Свій період</div>
+  <div class="tg-mobile-sheet-body px-4 py-3 space-y-3">
+    <div class="grid grid-cols-2 gap-2">
+      <div><label class="fin-label">Від</label><input type="date" id="usg-date-start" class="fin-input"></div>
+      <div><label class="fin-label">До</label><input type="date" id="usg-date-end" class="fin-input"></div>
+    </div>
+    <button type="button" onclick="usageApplyCustom()"
+            class="w-full px-4 py-3 rounded-xl text-sm font-semibold bg-brand-gold text-brand-dark active:opacity-80">
+      Застосувати
+    </button>
+  </div>
+</div>
+
+{% include 'finance/_partials/mobile_toast.html' %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script>
+function tgOpenSheet(id) {
+  var s = document.getElementById(id), bd = document.getElementById('tg-sheet-backdrop');
+  if (!s || !bd) return; s.classList.add('open'); bd.classList.add('open');
+}
+function tgCloseAllSheets() {
+  document.querySelectorAll('.tg-mobile-sheet.open').forEach(function (s) { s.classList.remove('open'); });
+  var bd = document.getElementById('tg-sheet-backdrop'); if (bd) bd.classList.remove('open');
+}
+
+(function () {
+  const SERVICES = {{ services|safe|default:'[]' }};
+  const PRODUCTS = {{ products|safe|default:'[]' }};
+  const fmt = n => Number(n).toLocaleString('uk-UA', {minimumFractionDigits: 0, maximumFractionDigits: 2});
+
+  let currentKind = 'service';
+  let currentPreset = 'month';
+  let currentMetric = 'count';
+  let customStart = '', customEnd = '';
+  let chart = null;
+  let lastData = null;
+
+  function rebuildSelect() {
+    const sel = document.getElementById('usage-item');
+    const list = currentKind === 'service' ? SERVICES : PRODUCTS;
+    sel.innerHTML = '<option value="">— Оберіть —</option>' +
+      list.map(it => `<option value="${it.id}">${it.name}${it.sku ? ' · ' + it.sku : ''}</option>`).join('');
+  }
+
+  function loadData() {
+    const id = document.getElementById('usage-item').value;
+    if (!id) {
+      document.getElementById('usage-hint').classList.remove('hidden');
+      document.getElementById('usage-results').classList.add('hidden');
+      return;
+    }
+    let url = '{% url "analytics:usage_data" %}?kind=' + currentKind + '&id=' + id + '&preset=' + currentPreset;
+    if (currentPreset === 'custom') url += '&start=' + customStart + '&end=' + customEnd;
+    fetch(url).then(r => r.json()).then(d => {
+      if (d.error) {
+        document.getElementById('usage-hint').classList.remove('hidden');
+        document.getElementById('usage-hint').querySelector('div').textContent = d.error;
+        document.getElementById('usage-results').classList.add('hidden');
+        return;
+      }
+      lastData = d;
+      document.getElementById('usage-hint').classList.add('hidden');
+      document.getElementById('usage-results').classList.remove('hidden');
+
+      document.getElementById('usg-kpi-count').textContent = fmt(d.summary.count);
+      document.getElementById('usg-kpi-qty').textContent = fmt(d.summary.qty);
+      document.getElementById('usg-kpi-rev').textContent = fmt(d.summary.revenue) + ' ₴';
+
+      drawChart();
+      drawTopDoctors(d.top_doctors || []);
+    });
+  }
+
+  function drawChart() {
+    if (!lastData) return;
+    if (chart) chart.destroy();
+    const ctx = document.getElementById('usg-chart').getContext('2d');
+    const series = lastData.chart[currentMetric] || [];
+    const labels = lastData.chart.labels || [];
+    const colors = {count: 'rgba(222,170,1,0.7)', qty: 'rgba(13,148,136,0.7)', revenue: 'rgba(34,197,94,0.7)'};
+    const titles = {count: 'Разів', qty: 'Кількість', revenue: 'Виручка ₴'};
+    chart = new Chart(ctx, {
+      type: 'bar',
+      data: {labels: labels, datasets: [{label: titles[currentMetric], data: series, backgroundColor: colors[currentMetric], borderRadius: 3}]},
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {legend: {display: false}},
+        scales: {
+          x: {ticks: {font: {size: 10}, autoSkip: true, maxRotation: labels.length > 14 ? 60 : 0}},
+          y: {beginAtZero: true, ticks: {font: {size: 10}, callback: v => v >= 1000 ? (v/1000).toFixed(0) + 'k' : v}},
+        },
+      }
+    });
+  }
+
+  function drawTopDoctors(arr) {
+    const el = document.getElementById('usg-top-doctors');
+    if (!arr.length) { el.innerHTML = '<div class="text-xs text-gray-400 text-center py-2">Немає даних</div>'; return; }
+    el.innerHTML = arr.map(d =>
+      `<div class="flex items-center gap-3 py-1 border-b border-gray-50 last:border-0">
+        <div class="w-8 h-8 rounded-full bg-brand-gold/20 text-brand-dark flex items-center justify-center text-xs font-bold shrink-0">${(d.name[0] || '?').toUpperCase()}</div>
+        <div class="flex-1 min-w-0 text-sm text-brand-dark truncate">${d.name}</div>
+        <div class="text-xs text-gray-500 whitespace-nowrap">${d.cnt} · ${fmt(d.rev)} ₴</div>
+       </div>`
+    ).join('');
+  }
+
+  // Kind toggle
+  document.querySelectorAll('.usage-kind-btn').forEach(btn => {
+    btn.addEventListener('click', function () {
+      currentKind = this.id === 'kind-product' ? 'product' : 'service';
+      document.querySelectorAll('.usage-kind-btn').forEach(b => {
+        b.className = 'usage-kind-btn px-3 py-2 rounded-xl text-sm font-medium border border-gray-200 bg-white text-gray-700';
+      });
+      this.className = 'usage-kind-btn px-3 py-2 rounded-xl text-sm font-medium border border-brand-gold bg-brand-gold text-brand-dark';
+      rebuildSelect();
+      loadData();
+    });
+  });
+
+  // Item change
+  document.getElementById('usage-item').addEventListener('change', loadData);
+
+  // Preset buttons
+  document.querySelectorAll('.usage-preset[data-preset]').forEach(btn => {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.usage-preset').forEach(b => { b.className = 'usage-preset px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700'; });
+      this.className = 'usage-preset px-3 py-1.5 rounded-full text-xs font-medium bg-brand-gold text-brand-dark';
+      currentPreset = this.dataset.preset;
+      loadData();
+    });
+  });
+
+  // Metric toggle
+  document.querySelectorAll('.usage-metric').forEach(btn => {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.usage-metric').forEach(b => { b.className = 'usage-metric px-2 py-1 rounded-md text-[11px] font-medium bg-gray-100 text-gray-700'; });
+      this.className = 'usage-metric px-2 py-1 rounded-md text-[11px] font-medium bg-brand-gold text-brand-dark';
+      currentMetric = this.dataset.metric;
+      drawChart();
+    });
+  });
+
+  window.usageApplyCustom = function () {
+    customStart = document.getElementById('usg-date-start').value;
+    customEnd = document.getElementById('usg-date-end').value;
+    if (!customStart || !customEnd) { alert('Виберіть обидві дати'); return; }
+    document.querySelectorAll('.usage-preset').forEach(b => { b.className = 'usage-preset px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700'; });
+    currentPreset = 'custom';
+    tgCloseAllSheets();
+    loadData();
+  };
+
+  rebuildSelect();
+})();
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') tgCloseAllSheets(); });
+</script>
+{% endblock %}

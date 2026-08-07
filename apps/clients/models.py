@@ -239,7 +239,7 @@ class Prescription(models.Model):
 class PatientAnalysis(models.Model):
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='analyses', verbose_name='Пацієнт')
     title = models.CharField('Назва', max_length=200)
-    image = models.ImageField('Фото', upload_to=analysis_image_path)
+    image = models.FileField('Файл', upload_to=analysis_image_path)
     date = models.DateField('Дата')
     notes = models.TextField('Нотатки', blank=True)
     uploaded_by = models.ForeignKey(
@@ -260,9 +260,43 @@ class PatientAnalysis(models.Model):
     def __str__(self):
         return f"{self.title} — {self.patient.name} ({self.date:%d.%m.%Y})"
 
+    @property
+    def is_image(self):
+        if not self.image:
+            return False
+        import os
+        return os.path.splitext(self.image.name)[1].lower() in (
+            '.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.tiff', '.tif'
+        )
+
+    @property
+    def is_pdf(self):
+        if not self.image:
+            return False
+        import os
+        return os.path.splitext(self.image.name)[1].lower() == '.pdf'
+
+    @property
+    def file_icon(self):
+        if not self.image:
+            return '📎'
+        import os
+        ext = os.path.splitext(self.image.name)[1].lower()
+        if ext in ('.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'):
+            return '🖼'
+        if ext == '.pdf':
+            return '📄'
+        if ext in ('.doc', '.docx'):
+            return '📝'
+        if ext in ('.xls', '.xlsx'):
+            return '📊'
+        if ext in ('.mp4', '.mov', '.avi', '.mkv', '.webm', '.3gp'):
+            return '🎬'
+        return '📎'
+
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
-        if self.image:
+        if self.image and self.is_image:
             self._fix_orientation()
 
     def _fix_orientation(self):

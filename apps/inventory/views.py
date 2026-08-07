@@ -16,11 +16,17 @@ from django.urls import reverse_lazy, reverse
 from .forms import ProductForm, StockInForm, StockAdjustForm, ImportForm
 from .models import Category, Product, StockMovement, Unit
 from apps.finance.models import Supplier
+from apps.tg.utils import is_mobile
 
 
 class ProductListView(LoginRequiredMixin, ListView):
     model = Product
     template_name = 'inventory/list.html'
+
+    def get_template_names(self):
+        if is_mobile(self.request):
+            return ['inventory/list_mobile.html']
+        return [self.template_name]
     context_object_name = 'products'
     paginate_by = 50
 
@@ -148,6 +154,11 @@ class ProductDetailView(LoginRequiredMixin, DetailView):
     model = Product
     template_name = 'inventory/detail.html'
     context_object_name = 'product'
+
+    def get_template_names(self):
+        if is_mobile(self.request):
+            return ['inventory/detail_mobile.html']
+        return [self.template_name]
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
@@ -581,7 +592,8 @@ def reorder_view(request):
     for p in low:
         p.shortage = max(float(p.min_quantity) - float(p.quantity), 0)
 
-    return render(request, 'inventory/reorder.html', {
+    template = 'inventory/reorder_mobile.html' if is_mobile(request) else 'inventory/reorder.html'
+    return render(request, template, {
         'products': low,
         'count': len(low),
     })
@@ -1017,7 +1029,8 @@ def stocktake(request):
             messages.info(request, 'Розбіжностей не знайдено.')
         return redirect('inventory:list')
 
-    return render(request, 'inventory/stocktake.html', {
+    template = 'inventory/stocktake_mobile.html' if is_mobile(request) else 'inventory/stocktake.html'
+    return render(request, template, {
         'products': products,
     })
 

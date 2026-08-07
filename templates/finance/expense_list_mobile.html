@@ -1,0 +1,211 @@
+{% extends 'base.html' %}
+{% block title %}Витрати — Kizuna CRM{% endblock %}
+
+{% block extra_head %}
+<script>
+  document.documentElement.classList.add('has-mobile-fullscreen');
+  document.addEventListener('DOMContentLoaded', function () {
+    document.body.classList.add('has-mobile-fullscreen');
+  });
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+{% endblock %}
+
+{% block fab_url %}{% endblock %}
+
+{% block content %}
+<div class="tg-mobile-shell">
+
+  <!-- Header -->
+  <header class="tg-mobile-header shrink-0 bg-white border-b border-gray-100 flex items-center gap-2 px-3"
+          style="min-height: 56px;">
+    <h1 class="flex-1 font-semibold text-brand-dark text-base truncate">Витрати</h1>
+    <button type="button"
+            onclick="tgOpenSheet('fin-filter-sheet')"
+            class="tg-mobile-tap relative text-gray-500 active:text-brand-dark"
+            aria-label="Фільтри">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M3 4h18M6 12h12M10 20h4"/>
+      </svg>
+      {% if filter.category or filter.supplier or filter.method or filter.from or filter.to %}
+      <span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-brand-gold"></span>
+      {% endif %}
+    </button>
+  </header>
+
+  {% include 'finance/_partials/mobile_nav.html' with active='expenses' %}
+
+  <!-- Scrollable body -->
+  <div class="flex-1 overflow-y-auto" style="-webkit-overflow-scrolling: touch; background: #f7f7f8;">
+
+    <!-- KPI: total за фільтром -->
+    <div class="px-3 pt-3">
+      <div class="fin-kpi">
+        <div class="text-xs text-gray-400 uppercase tracking-wide mb-1">Всього за фільтром</div>
+        <div class="text-3xl font-bold text-brand-dark">{{ total|floatformat:2 }} <span class="text-lg text-gray-400 font-normal">₴</span></div>
+        <div class="text-xs text-gray-400 mt-1">{{ expenses|length }} операцій</div>
+      </div>
+    </div>
+
+    <!-- List -->
+    <div class="px-3 pt-3 pb-24 flex flex-col gap-2">
+      {% for e in expenses %}
+      <div class="bg-white rounded-2xl px-3 py-3 flex items-start gap-3 border border-gray-100 active:bg-gray-50 transition"
+           onclick="tgOpenSheet('exp-actions-{{ e.pk }}')">
+        <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center shrink-0 text-lg">
+          {{ e.category.icon|default:"💸" }}
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-baseline justify-between gap-2">
+            <div class="font-semibold text-brand-dark text-[15px] truncate">{{ e.category.name }}</div>
+            <div class="font-bold text-brand-dark text-[15px] whitespace-nowrap">−{{ e.amount|floatformat:2 }} ₴</div>
+          </div>
+          <div class="text-xs text-gray-500 truncate">{{ e.description|default:"—" }}</div>
+          <div class="flex items-center gap-2 text-[11px] text-gray-400 mt-1">
+            <span>{{ e.date|date:"d.m.Y" }}</span>
+            <span>·</span>
+            <span>
+              {% if e.payment_method == 'cash' %}💵 Готівка
+              {% elif e.payment_method == 'card' %}💳 Картка
+              {% else %}🏦 Переказ{% endif %}
+            </span>
+            {% if e.supplier %}
+            <span>·</span><span class="truncate">{{ e.supplier.name }}</span>
+            {% endif %}
+            {% if e.receipt_photo %}
+            <span>·</span>
+            <a href="{{ e.receipt_photo.url }}" target="_blank" rel="noopener"
+               onclick="event.stopPropagation();" class="text-brand-gold">📎</a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% empty %}
+      <div class="text-center text-sm text-gray-400 py-16">
+        Витрат немає.<br>
+        Натисни <span class="text-brand-gold font-medium">+</span> щоб додати.
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- FAB -->
+  <a href="{% url 'finance:expense_create' %}" class="fin-fab" aria-label="Додати витрату">
+    <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+    </svg>
+  </a>
+
+</div>
+
+<!-- Per-expense action sheets — рендеримо ПОЗА .tg-mobile-shell бо shell створює
+     stacking-context з z-index 50, що ловить вкладені sheet'и нижче backdrop'у. -->
+{% for e in expenses %}
+<div id="exp-actions-{{ e.pk }}" class="tg-mobile-sheet">
+  <div class="tg-mobile-sheet-handle"></div>
+  <div class="px-4 py-3 border-b border-gray-100 text-sm font-semibold text-brand-dark truncate">
+    {{ e.category.name }} · {{ e.amount|floatformat:2 }} ₴
+  </div>
+  <div class="tg-mobile-sheet-body py-2">
+    <a href="{% url 'finance:expense_edit' e.pk %}"
+       class="w-full flex items-center gap-3 px-5 py-3 active:bg-gray-100" style="min-height: 48px;">
+      <span class="text-xl">✏️</span>
+      <span class="text-sm text-brand-dark">Редагувати</span>
+    </a>
+    {% if e.receipt_photo %}
+    <a href="{{ e.receipt_photo.url }}" target="_blank" rel="noopener"
+       class="w-full flex items-center gap-3 px-5 py-3 active:bg-gray-100 border-t border-gray-100" style="min-height: 48px;">
+      <span class="text-xl">📎</span>
+      <span class="text-sm text-brand-dark">Фото чека</span>
+    </a>
+    {% endif %}
+    <form method="post" action="{% url 'finance:expense_delete' e.pk %}"
+          onsubmit="return confirm('Видалити витрату?');" class="border-t border-gray-100">
+      {% csrf_token %}
+      <button type="submit"
+              class="w-full flex items-center gap-3 px-5 py-3 active:bg-gray-100 text-left text-red-600"
+              style="min-height: 48px;">
+        <span class="text-xl">🗑</span>
+        <span class="text-sm">Видалити</span>
+      </button>
+    </form>
+  </div>
+</div>
+{% endfor %}
+
+<!-- Filter bottom sheet -->
+<div id="tg-sheet-backdrop" class="tg-mobile-sheet-backdrop" onclick="tgCloseAllSheets()"></div>
+<div id="fin-filter-sheet" class="tg-mobile-sheet">
+  <div class="tg-mobile-sheet-handle"></div>
+  <div class="px-4 py-3 border-b border-gray-100 text-sm font-semibold text-brand-dark">Фільтри</div>
+  <form method="get" class="tg-mobile-sheet-body px-4 py-3 space-y-3">
+    <div>
+      <label class="fin-label">Категорія</label>
+      <select name="category" class="fin-input">
+        <option value="">Всі</option>
+        {% for c in categories %}
+          <option value="{{ c.pk }}" {% if filter.category == c.pk|stringformat:"d" %}selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="fin-label">Постачальник</label>
+      <select name="supplier" class="fin-input">
+        <option value="">Всі</option>
+        {% for s in suppliers %}
+          <option value="{{ s.pk }}" {% if filter.supplier == s.pk|stringformat:"d" %}selected{% endif %}>{{ s.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="fin-label">Метод оплати</label>
+      <select name="method" class="fin-input">
+        <option value="">Всі</option>
+        <option value="cash" {% if filter.method == "cash" %}selected{% endif %}>💵 Готівка</option>
+        <option value="card" {% if filter.method == "card" %}selected{% endif %}>💳 Картка</option>
+        <option value="transfer" {% if filter.method == "transfer" %}selected{% endif %}>🏦 Переказ</option>
+      </select>
+    </div>
+    <div class="grid grid-cols-2 gap-2">
+      <div>
+        <label class="fin-label">Від</label>
+        <input type="date" name="from" value="{{ filter.from }}" class="fin-input">
+      </div>
+      <div>
+        <label class="fin-label">До</label>
+        <input type="date" name="to" value="{{ filter.to }}" class="fin-input">
+      </div>
+    </div>
+    <div class="pt-2 flex gap-2">
+      <a href="{% url 'finance:expenses' %}"
+         class="flex-1 text-center px-4 py-3 rounded-xl text-sm font-medium bg-gray-100 text-gray-600 active:bg-gray-200">
+        Скинути
+      </a>
+      <button type="submit"
+              class="flex-1 px-4 py-3 rounded-xl text-sm font-semibold bg-brand-gold text-brand-dark active:opacity-80">
+        Застосувати
+      </button>
+    </div>
+  </form>
+</div>
+
+{% include 'finance/_partials/mobile_toast.html' %}
+
+<script>
+function tgOpenSheet(id) {
+  var sheet = document.getElementById(id);
+  var bd = document.getElementById('tg-sheet-backdrop');
+  if (!sheet || !bd) return;
+  sheet.classList.add('open');
+  bd.classList.add('open');
+}
+function tgCloseAllSheets() {
+  document.querySelectorAll('.tg-mobile-sheet.open').forEach(function (s) { s.classList.remove('open'); });
+  var bd = document.getElementById('tg-sheet-backdrop');
+  if (bd) bd.classList.remove('open');
+}
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') tgCloseAllSheets();
+});
+</script>
+{% endblock %}

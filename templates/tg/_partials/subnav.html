@@ -1,0 +1,14 @@
+{% load static %}
+{# TG sub-nav strip: Чати / Розсилки. Очікує контекст `active`: chats | broadcasts #}
+<div class="flex items-center gap-1 mb-4 bg-gray-100 rounded-lg p-1 w-fit">
+  <a href="{% url 'tg:list' %}"
+     class="px-4 h-9 inline-flex items-center rounded-md text-sm font-medium transition
+            {% if active == 'chats' or not active %}bg-white text-brand-dark shadow-sm{% else %}text-gray-500 hover:text-brand-dark{% endif %}">
+    💬 Чати
+  </a>
+  <a href="{% url 'tg:broadcast_list' %}"
+     class="px-4 h-9 inline-flex items-center rounded-md text-sm font-medium transition
+            {% if active == 'broadcasts' %}bg-white text-brand-dark shadow-sm{% else %}text-gray-500 hover:text-brand-dark{% endif %}">
+    📢 Розсилки
+  </a>
+</div>

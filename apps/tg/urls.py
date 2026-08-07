@@ -15,6 +15,7 @@ urlpatterns = [
     path('<int:pk>/messages/', views.chat_messages, name='messages'),
     path('<int:pk>/send/', views.send_message, name='send'),
     path('<int:pk>/link/', views.link_client, name='link'),
+    path('<int:pk>/invite-register/', views.invite_register, name='invite_register'),
     path('chats/', views.chat_list_partial, name='list_partial'),
     path('search-clients/', views.search_clients, name='search_clients'),
     path('search-lead-chats/', views.search_lead_chats, name='search_lead_chats'),

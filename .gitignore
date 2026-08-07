@@ -34,3 +34,17 @@ Thumbs.db
 
 # Static (collected)
 staticfiles/
+
+# Дампи БД і бекапи файлів — НІКОЛИ в git (дані клієнтів + сміття)
+backups/
+*.sql
+*.sql.gz
+*.bak
+*.bak-*
+*.bak_*
+
+# Службове оточення ШІ-інструментів
+.claude/
+.claude-flow/
+.mcp.json
+ruvector.db

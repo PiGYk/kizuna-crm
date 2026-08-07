@@ -2,123 +2,322 @@
 {% block title %}{{ title }} — Kizuna CRM{% endblock %}
 
 {% block content %}
-<div class="max-w-lg">
-  <div class="flex items-center gap-3 mb-6">
-    <a href="{% url 'appointments:calendar' %}" class="text-gray-400 hover:text-gray-600">
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+<style>
+  /* Unified form input */
+  .af-input {
+    width: 100%;
+    border: 1px solid rgb(209 213 219);
+    border-radius: 0.5rem;
+    padding: 8px 12px;
+    font-size: 0.875rem;
+    background: white;
+    transition: border-color 100ms, box-shadow 100ms;
+  }
+  .af-input:focus {
+    outline: none;
+    border-color: #DEAA01;
+    box-shadow: 0 0 0 2px rgba(222,170,1,0.20);
+  }
+  .af-label {
+    display: block;
+    font-size: 0.75rem;
+    color: rgb(75 85 99);
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+  }
+
+  /* Section separator */
+  .af-row { padding: 0.75rem 0; }
+  .af-row + .af-row { border-top: 1px solid rgb(243 244 246); }
+
+  /* Chip group */
+  .af-chip-group { display: flex; flex-wrap: wrap; gap: 0.375rem; }
+  .af-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.375rem 0.75rem;
+    border-radius: 0.5rem;
+    border: 1px solid rgb(229 231 235);
+    background: white;
+    font-size: 0.8125rem;
+    color: rgb(75 85 99);
+    cursor: pointer;
+    transition: all 100ms;
+    user-select: none;
+  }
+  .af-chip:hover { border-color: rgb(209 213 219); background: rgb(249 250 251); }
+  .af-chip input { display: none; }
+  .af-chip:has(input:checked) {
+    background: #DEAA01;
+    border-color: #DEAA01;
+    color: #12100F;
+    font-weight: 600;
+  }
+  .af-chip-status-completed:has(input:checked) { background: #22c55e; border-color: #22c55e; color: white; }
+  .af-chip-status-confirmed:has(input:checked) { background: #3b82f6; border-color: #3b82f6; color: white; }
+  .af-chip-status-no_show:has(input:checked) { background: #ef4444; border-color: #ef4444; color: white; }
+  .af-chip-status-cancelled:has(input:checked) { background: #9ca3af; border-color: #9ca3af; color: white; }
+
+  /* Services chip */
+  .svc-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.5rem 0.25rem 0.75rem;
+    border-radius: 9999px;
+    background: rgba(222,170,1,0.12);
+    color: #12100F;
+    border: 1px solid rgba(222,170,1,0.30);
+    font-size: 0.8125rem;
+    font-weight: 500;
+  }
+  .svc-chip-x {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: rgba(0,0,0,0.40);
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .svc-chip-x:hover { background: rgba(0,0,0,0.10); color: rgb(185 28 28); }
+
+  /* Search-input dropdown — canonical for client/patient */
+  .srch-wrap { position: relative; }
+  .srch-drop {
+    position: absolute;
+    z-index: 30;
+    left: 0; right: 0;
+    margin-top: 0.25rem;
+    background: white;
+    border: 1px solid rgb(229 231 235);
+    border-radius: 0.5rem;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.10);
+    max-height: 18rem;
+    overflow-y: auto;
+  }
+  .srch-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 0.75rem;
+    cursor: pointer;
+    border-bottom: 1px solid rgb(243 244 246);
+  }
+  .srch-item:last-child { border-bottom: 0; }
+  .srch-item:hover { background: rgba(222,170,1,0.10); }
+
+  /* Selected entity card (after pick) */
+  .selected-card {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 0.75rem;
+    background: rgba(222,170,1,0.08);
+    border: 1px solid rgba(222,170,1,0.30);
+    border-radius: 0.5rem;
+  }
+  .selected-card-icon {
+    width: 2.25rem; height: 2.25rem;
+    border-radius: 50%;
+    background: rgba(222,170,1,0.20);
+    color: #12100F;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700;
+    font-size: 0.875rem;
+    flex-shrink: 0;
+  }
+  .selected-card-img {
+    width: 2.25rem; height: 2.25rem;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+  .selected-card-clear {
+    margin-left: auto;
+    color: rgb(156 163 175);
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 0.25rem;
+  }
+  .selected-card-clear:hover { color: rgb(185 28 28); background: rgba(0,0,0,0.04); }
+
+  /* Modal */
+  .qc-modal-bg {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 60;
+    display: none;
+    align-items: flex-start; justify-content: center;
+    padding: 2rem 1rem;
+    overflow-y: auto;
+  }
+  .qc-modal-bg.open { display: flex; }
+  .qc-modal {
+    background: white;
+    border-radius: 0.75rem;
+    width: 100%; max-width: 480px;
+    padding: 1.5rem;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.25);
+  }
+</style>
+
+<div class="max-w-3xl mx-auto">
+
+  {# ── Header ─────────────────────────────────────────────────────────── #}
+  <div class="flex items-start gap-3 mb-5">
+    <a href="{% url 'appointments:calendar' %}" class="text-gray-400 hover:text-gray-600 mt-2 shrink-0"
+       onclick="if(history.length>1){history.back();return false;}">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
       </svg>
     </a>
-    <h1 class="text-2xl font-bold text-brand-dark">{{ title }}</h1>
-  </div>
-
-  <div class="bg-white rounded-xl border border-gray-200 p-6">
-    <form method="post" class="space-y-4" id="appt-edit-form">
-      {% csrf_token %}
-
-      <!-- Дата + Час -->
-      <div class="grid grid-cols-2 gap-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Дата *</label>
-          {{ form.appt_date }}
-          {% if form.appt_date.errors %}<p class="text-red-500 text-xs mt-1">{{ form.appt_date.errors|join:", " }}</p>{% endif %}
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Час *</label>
-          {{ form.appt_time }}
-          {% if form.appt_time.errors %}<p class="text-red-500 text-xs mt-1">{{ form.appt_time.errors|join:", " }}</p>{% endif %}
-        </div>
-      </div>
-
-      <!-- Тривалість -->
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Тривалість</label>
-        {{ form.duration }}
-      </div>
-
-      <!-- Клієнт -->
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Клієнт *</label>
-        {{ form.client }}
-        {% if form.client.errors %}<p class="text-red-500 text-xs mt-1">{{ form.client.errors|join:", " }}</p>{% endif %}
-      </div>
-
-      <!-- Пацієнт — список динамічно оновлюється через HTMX при виборі клієнта -->
-      {# preset-patient-id — запам'ятовуємо поточний вибір для відновлення після HTMX-свопу #}
-      <input type="hidden" id="preset-patient-id" value="{{ form.instance.patient_id|default:'' }}">
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Пацієнт</label>
-        <select name="patient" id="id_patient"
-          class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
-          <option value="">— спочатку оберіть клієнта —</option>
-        </select>
-      </div>
-
-      <!-- Лікар -->
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Лікар</label>
-        {{ form.doctor }}
-      </div>
-
-      <!-- Послуги — картки -->
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Заплановані послуги</label>
-        {# Прихований select — лише для сабміту форми #}
-        <div class="hidden">{{ form.services }}</div>
-        <input type="text" id="services-search" placeholder="Пошук послуги..."
-          autocomplete="off"
-          class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-2
-                 focus:outline-none focus:ring-2 focus:ring-brand-gold">
-        {# Вибрані послуги — чіпи з × #}
-        <div id="services-chips" class="flex flex-wrap gap-2 mb-2"></div>
-        {# Результати пошуку #}
-        <div id="services-results" class="flex flex-wrap gap-2"></div>
-        <p id="services-empty" class="text-xs text-gray-400 mt-1 hidden">Нічого не знайдено</p>
-      </div>
-
-      <!-- Статус -->
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Статус</label>
-        {{ form.status }}
-      </div>
-
-      <!-- Нотатки -->
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Нотатки</label>
-        {{ form.notes }}
-      </div>
-
-    </form>
-
-    {% if appt %}
-    <form method="post" action="{% url 'appointments:delete' appt.pk %}" id="appt-delete-form">
-      {% csrf_token %}
-    </form>
-    {% endif %}
-
-    <div class="flex gap-3 pt-2">
-      <button type="submit" form="appt-edit-form"
-        class="bg-brand-gold text-brand-dark px-6 py-2.5 rounded-lg text-sm font-semibold hover:brightness-95">
-        Зберегти
-      </button>
+    <div class="flex-1 min-w-0">
+      <h1 class="text-2xl font-bold text-brand-dark">{{ title }}</h1>
       {% if appt %}
-      <button type="submit" form="appt-delete-form"
-        onclick="return confirm('Видалити запис?')"
-        class="px-4 py-2.5 border border-red-200 text-red-500 rounded-lg text-sm hover:bg-red-50">
-        Видалити
-      </button>
+      <p class="text-xs text-gray-400 mt-0.5">#{{ appt.pk }} · {{ appt.created_at|date:"d.m.Y H:i" }}</p>
       {% endif %}
+    </div>
+    <div class="flex items-center gap-2">
       <a href="{% url 'appointments:calendar' %}"
-        class="px-6 py-2.5 rounded-lg text-sm font-medium text-gray-700 border border-gray-300 hover:bg-gray-50">
+         class="hidden sm:inline-flex items-center px-4 h-10 rounded-lg text-sm font-medium border border-gray-300 text-gray-700 bg-white hover:bg-gray-50">
         Скасувати
       </a>
+      {% if appt %}
+      <form method="post" action="{% url 'appointments:delete' appt.pk %}"
+            onsubmit="return confirm('Видалити запис?');" class="inline">
+        {% csrf_token %}
+        <button type="submit"
+                class="inline-flex items-center gap-1.5 px-3 h-10 rounded-lg text-sm font-medium border border-red-200 text-red-600 hover:bg-red-50">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22"/></svg>
+          Видалити
+        </button>
+      </form>
+      {% endif %}
+      <button type="submit" form="appt-edit-form"
+              class="inline-flex items-center gap-1.5 bg-brand-gold text-brand-dark px-5 h-10 rounded-lg text-sm font-semibold hover:brightness-95">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+        Зберегти
+      </button>
     </div>
   </div>
 
+  {# ── Form body ─────────────────────────────────────────────────────── #}
+  <form method="post" id="appt-edit-form" class="bg-white rounded-xl border border-gray-200 px-5">
+    {% csrf_token %}
+
+    {# Hidden client/patient (заповнюються через JS) #}
+    <input type="hidden" name="client" id="hidden-client" value="{{ form.client.value|default_if_none:'' }}">
+    <input type="hidden" name="patient" id="hidden-patient" value="{{ form.patient.value|default_if_none:'' }}">
+
+    {# ── Time + duration ──────────────────────────────────────────── #}
+    <div class="af-row grid grid-cols-2 md:grid-cols-3 gap-3 items-end">
+      <div>
+        <label class="af-label">Дата *</label>
+        {{ form.appt_date }}
+        {% if form.appt_date.errors %}<p class="text-red-500 text-xs mt-1">{{ form.appt_date.errors|join:", " }}</p>{% endif %}
+      </div>
+      <div>
+        <label class="af-label">Час *</label>
+        {{ form.appt_time }}
+        {% if form.appt_time.errors %}<p class="text-red-500 text-xs mt-1">{{ form.appt_time.errors|join:", " }}</p>{% endif %}
+      </div>
+      <div class="col-span-2 md:col-span-1">
+        <label class="af-label">Тривалість, хв</label>
+        <div class="af-chip-group">
+          <label class="af-chip"><input type="radio" name="duration" value="15" {% if form.duration.value|stringformat:"s" == "15" %}checked{% endif %}>15</label>
+          <label class="af-chip"><input type="radio" name="duration" value="30" {% if not form.duration.value or form.duration.value|stringformat:"s" == "30" %}checked{% endif %}>30</label>
+          <label class="af-chip"><input type="radio" name="duration" value="45" {% if form.duration.value|stringformat:"s" == "45" %}checked{% endif %}>45</label>
+          <label class="af-chip"><input type="radio" name="duration" value="60" {% if form.duration.value|stringformat:"s" == "60" %}checked{% endif %}>60</label>
+          <label class="af-chip"><input type="radio" name="duration" value="90" {% if form.duration.value|stringformat:"s" == "90" %}checked{% endif %}>90</label>
+        </div>
+      </div>
+    </div>
+
+    {# ── Client / Patient — canonical search inputs ──────────────── #}
+    <div class="af-row">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+
+        {# Client search #}
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="af-label" style="margin-bottom:0;">👤 Клієнт *</label>
+            <button type="button" onclick="qcOpen()"
+                    class="text-[11px] text-brand-gold font-semibold hover:text-brand-dark">
+              + Новий
+            </button>
+          </div>
+          <div class="srch-wrap" id="client-search-wrap">
+            <input type="text" id="client-search-input" placeholder="Прізвище або телефон…"
+                   autocomplete="off"
+                   oninput="searchClientAppt(this.value)"
+                   class="af-input">
+            <div id="client-search-drop" class="srch-drop hidden"></div>
+          </div>
+          <div id="client-selected" class="hidden mt-2"></div>
+          {% if form.client.errors %}<p class="text-red-500 text-xs mt-1">{{ form.client.errors|join:", " }}</p>{% endif %}
+        </div>
+
+        {# Patient search #}
+        <div>
+          <label class="af-label">🐾 Пацієнт</label>
+          <div class="srch-wrap" id="patient-search-wrap">
+            <input type="text" id="patient-search-input" placeholder="Кличка або порода…"
+                   autocomplete="off"
+                   oninput="searchPatientAppt(this.value)"
+                   class="af-input">
+            <div id="patient-search-drop" class="srch-drop hidden"></div>
+          </div>
+          <div id="patient-selected" class="hidden mt-2"></div>
+          <p class="text-[11px] text-gray-400 mt-1">Якщо тваринку обрано — клієнт автозаповниться</p>
+        </div>
+      </div>
+    </div>
+
+    {# ── Doctor ────────────────────────────────────────────────── #}
+    <div class="af-row">
+      <label class="af-label">Лікар</label>
+      {{ form.doctor }}
+    </div>
+
+    {# ── Services ──────────────────────────────────────────────── #}
+    <div class="af-row">
+      <label class="af-label">Заплановані послуги</label>
+      <div class="hidden">{{ form.services }}</div>
+      <input type="text" id="services-search" placeholder="Пошук послуги…"
+             autocomplete="off" class="af-input mb-2">
+      <div id="services-chips" class="flex flex-wrap gap-2 mb-2"></div>
+      <div id="services-results" class="flex flex-wrap gap-1.5"></div>
+      <p id="services-empty" class="text-[11px] text-gray-400 mt-1 hidden">Нічого не знайдено</p>
+    </div>
+
+    {# ── Status ────────────────────────────────────────────────── #}
+    <div class="af-row">
+      <label class="af-label">Статус</label>
+      <div class="af-chip-group">
+        {% for val, label in form.status.field.choices %}
+        {% if val %}
+        <label class="af-chip af-chip-status-{{ val }}">
+          <input type="radio" name="status" value="{{ val }}"
+                 {% if form.status.value == val %}checked{% endif %}>
+          {{ label }}
+        </label>
+        {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+
+    {# ── Notes ─────────────────────────────────────────────────── #}
+    <div class="af-row">
+      <label class="af-label">Нотатки</label>
+      <textarea name="notes" rows="3" class="af-input" style="resize:vertical;">{{ form.notes.value|default_if_none:'' }}</textarea>
+    </div>
+
+  </form>
+
   {% if appt %}
-  <!-- Швидка зміна статусу -->
   <div class="mt-4 bg-white rounded-xl border border-gray-200 p-4">
-    <div class="text-sm font-medium text-gray-600 mb-3">Швидка зміна статусу</div>
+    <div class="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-3">Швидка зміна статусу</div>
     <div class="flex flex-wrap gap-2">
       {% for val, label in appt.Status.choices %}
       <form method="post" action="{% url 'appointments:status' appt.pk %}">
@@ -141,37 +340,122 @@
   {% endif %}
 </div>
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.min.css">
-<style>
-  .ts-wrapper.single .ts-control { padding: 6px 12px; border-radius: 8px; border-color: #d1d5db; font-size: 0.875rem; }
-  .ts-wrapper.single.focus .ts-control { border-color: #C8A84C; box-shadow: 0 0 0 2px rgba(200,168,76,.25); }
-  .ts-dropdown { border-radius: 8px; border-color: #d1d5db; box-shadow: 0 4px 12px rgba(0,0,0,.08); font-size: 0.875rem; }
-  .ts-dropdown .option.active { background: #C8A84C; }
-  .ts-dropdown .option:hover { background: #f5ead6; color: #1a1a1a; }
-</style>
-<script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+{# ── Quick-client modal ─────────────────────────────────────────────── #}
+<div id="qc-modal" class="qc-modal-bg" onclick="if(event.target===this)qcClose()">
+  <div class="qc-modal">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-bold text-brand-dark">Новий клієнт</h2>
+      <button type="button" onclick="qcClose()" class="text-gray-400 hover:text-gray-700">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <form id="quick-client-form" class="space-y-3" autocomplete="off">
+      {% csrf_token %}
+      <div>
+        <label class="af-label">Телефон *</label>
+        <input type="tel" name="phone" id="qc-phone" required
+               inputmode="tel" autocomplete="off"
+               placeholder="+380…"
+               pattern="[\d+ ()\-]+"
+               class="af-input">
+        <div id="qc-phone-msg" class="text-xs mt-1 hidden"></div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="af-label">Прізвище *</label>
+          <input type="text" name="last_name" required class="af-input">
+        </div>
+        <div>
+          <label class="af-label">Імʼя *</label>
+          <input type="text" name="first_name" required class="af-input">
+        </div>
+      </div>
+
+      <details>
+        <summary class="text-xs text-gray-500 cursor-pointer select-none">Email + знижка</summary>
+        <div class="grid grid-cols-2 gap-3 mt-2">
+          <input type="email" name="email" placeholder="email" class="af-input">
+          <div class="flex">
+            <input type="number" name="discount_percent" value="0" min="0" max="100" step="0.01" inputmode="decimal" class="af-input rounded-r-none">
+            <span class="px-3 py-2 bg-gray-50 border border-l-0 border-gray-300 rounded-r-lg text-sm text-gray-500">%</span>
+          </div>
+        </div>
+      </details>
+
+      <div class="border-t border-gray-100 pt-3">
+        <div class="text-xs font-semibold text-gray-600 mb-2">🐾 Тваринка <span class="font-normal text-gray-400">(опційно)</span></div>
+        <div class="grid grid-cols-2 gap-3 mb-2">
+          <input type="text" name="pet_name" placeholder="Кличка" class="af-input">
+          <select name="pet_species" class="af-input">
+            <option value="">— Вид —</option>
+            <option value="dog">🐶 Собака</option>
+            <option value="cat">🐱 Кіт</option>
+            <option value="rabbit">🐰 Кролик</option>
+            <option value="bird">🐦 Птах</option>
+            <option value="hamster">🐹 Хом'як</option>
+            <option value="guinea_pig">Морська свинка</option>
+            <option value="ferret">Тхір</option>
+            <option value="chinchilla">Шиншила</option>
+            <option value="rat">🐭 Щур / Миша</option>
+            <option value="turtle">🐢 Черепаха</option>
+            <option value="reptile">🦎 Ящ. / Змія</option>
+            <option value="fish">🐟 Риба</option>
+            <option value="hedgehog">🦔 Їжак</option>
+            <option value="other">Інше</option>
+          </select>
+        </div>
+        <details>
+          <summary class="text-xs text-gray-500 cursor-pointer select-none">Більше полів</summary>
+          <div class="grid grid-cols-2 gap-3 mt-2">
+            <input type="text" name="pet_breed" placeholder="Порода" class="af-input">
+            <select name="pet_sex" class="af-input">
+              <option value="unknown">Стать: невідомо</option>
+              <option value="male">♂ Самець</option>
+              <option value="female">♀ Самиця</option>
+            </select>
+            <input type="date" name="pet_date_of_birth" class="col-span-2 af-input">
+          </div>
+        </details>
+      </div>
+
+      <div class="flex items-center gap-2 pt-2">
+        <button type="button" onclick="qcClose()"
+                class="flex-1 h-10 rounded-lg text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50">
+          Скасувати
+        </button>
+        <button type="submit" id="qc-submit"
+                class="flex-1 h-10 rounded-lg text-sm font-semibold bg-brand-gold text-brand-dark hover:brightness-95">
+          Створити та обрати
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# Preserve initial client/patient for re-population on load #}
+<script id="initial-client-data" type="application/json">{
+  "client_id": "{{ form.client.value|default_if_none:'' }}",
+  "patient_id": "{{ form.patient.value|default_if_none:'' }}"
+}</script>
 
 <script>
-// ── Послуги: пошук + картки вибраних ────────────────────────────────────────
+// ── Services search + chips ────────────────────────────────────────────────
 (function () {
   const select  = document.getElementById('id_services');
-  const chips   = document.getElementById('services-chips');   // вибрані зверху
-  const results = document.getElementById('services-results'); // результати пошуку
+  const chips   = document.getElementById('services-chips');
+  const results = document.getElementById('services-results');
   const search  = document.getElementById('services-search');
   const empty   = document.getElementById('services-empty');
   if (!select || !chips) return;
 
-  const CHIP_CLS = 'inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border text-sm font-medium bg-brand-gold text-brand-dark border-brand-gold select-none';
-  const CARD_CLS = 'px-3 py-1.5 rounded-lg border text-sm font-medium bg-white text-gray-700 border-gray-300 hover:border-brand-gold transition-all select-none cursor-pointer';
-
-  // Повертає клас для кнопки-чіпа (вибраного)
   function makeChip(opt) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
+    const btn = document.createElement('span');
+    btn.className = 'svc-chip';
     btn.dataset.value = opt.value;
-    btn.className = CHIP_CLS;
-    btn.innerHTML = opt.text + ' <span class="opacity-60 text-base leading-none">×</span>';
-    btn.addEventListener('click', function () {
+    btn.innerHTML = '<span>' + opt.text + '</span><span class="svc-chip-x" title="Прибрати">×</span>';
+    btn.querySelector('.svc-chip-x').addEventListener('click', function () {
       opt.selected = false;
       btn.remove();
       renderResults(search.value);
@@ -179,25 +463,22 @@
     return btn;
   }
 
-  // Відрендерити вибрані чіпи при завантаженні
   Array.from(select.options).forEach(function (opt) {
     if (opt.selected) chips.appendChild(makeChip(opt));
   });
 
-  // Рендер результатів пошуку (не вибраних)
   function renderResults(q) {
     results.innerHTML = '';
     q = (q || '').toLowerCase().trim();
     if (!q) { empty.classList.add('hidden'); return; }
-
     let count = 0;
     Array.from(select.options).forEach(function (opt) {
-      if (opt.selected) return; // вже у чіпах
+      if (opt.selected) return;
       if (!opt.text.toLowerCase().includes(q)) return;
       count++;
       const card = document.createElement('button');
       card.type = 'button';
-      card.className = CARD_CLS;
+      card.className = 'px-3 py-1.5 rounded-lg border text-xs bg-white text-gray-700 border-gray-300 hover:border-brand-gold transition';
       card.textContent = opt.text;
       card.addEventListener('click', function () {
         opt.selected = true;
@@ -211,45 +492,315 @@
     });
     empty.classList.toggle('hidden', count > 0);
   }
-
   search.addEventListener('input', function () { renderResults(this.value); });
 })();
 
-// ── Tom Select на полі клієнта ──────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', function () {
-  const clientEl = document.getElementById('id_client');
-  if (!clientEl) return;
+// ── Client/Patient pickers — canonical search-input pattern ────────────────
 
-  const ts = new TomSelect(clientEl, {
-    placeholder: '— оберіть клієнта —',
-    allowEmptyOption: true,
-    maxOptions: 300,
-    searchField: ['text'],
-    render: {
-      no_results: function () {
-        return '<div class="no-results">Нічого не знайдено</div>';
-      },
-    },
-    onChange: function (value) {
-      // Тригеруємо HTMX вручну щоб завантажити пацієнтів
-      htmx.trigger(clientEl, 'change');
-    },
+const hiddenClient = document.getElementById('hidden-client');
+const hiddenPatient = document.getElementById('hidden-patient');
+
+function pickClient(id, label, phone) {
+  hiddenClient.value = id;
+  const wrap = document.getElementById('client-search-wrap');
+  const sel  = document.getElementById('client-selected');
+  wrap.classList.add('hidden');
+  sel.classList.remove('hidden');
+  const initial = (label || '?').trim()[0].toUpperCase();
+  sel.innerHTML = `
+    <div class="selected-card">
+      <div class="selected-card-icon">${initial}</div>
+      <div class="flex-1 min-w-0">
+        <div class="text-sm font-medium text-brand-dark truncate">${label}</div>
+        ${phone ? `<div class="text-xs text-gray-500 truncate">${phone}</div>` : ''}
+      </div>
+      <button type="button" class="selected-card-clear" onclick="clearClient()" title="Прибрати">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+  `;
+  // Patient search автоматично шукатиме серед пацієнтів цього клієнта (через hidden-client)
+}
+
+function clearClient() {
+  hiddenClient.value = '';
+  document.getElementById('client-search-wrap').classList.remove('hidden');
+  document.getElementById('client-selected').classList.add('hidden');
+  document.getElementById('client-search-input').value = '';
+  // Якщо вибраний пацієнт — теж прибираємо (бо він прив'язаний до клієнта)
+  clearPatient();
+}
+
+function pickPatient(pid, name, speciesEmoji, photo, ownerLabel, ownerPhone, clientId) {
+  hiddenPatient.value = pid;
+  // Якщо клієнт ще не обраний — обираємо його одночасно
+  if (!hiddenClient.value && clientId) {
+    pickClient(clientId, ownerLabel, ownerPhone);
+  }
+  const wrap = document.getElementById('patient-search-wrap');
+  const sel  = document.getElementById('patient-selected');
+  wrap.classList.add('hidden');
+  sel.classList.remove('hidden');
+  sel.innerHTML = `
+    <div class="selected-card">
+      ${photo
+        ? `<img src="${photo}" class="selected-card-img" alt="">`
+        : `<div class="selected-card-icon">${speciesEmoji || '🐾'}</div>`}
+      <div class="flex-1 min-w-0">
+        <div class="text-sm font-medium text-brand-dark truncate">${name}</div>
+        <div class="text-xs text-gray-500 truncate">${ownerLabel}</div>
+      </div>
+      <button type="button" class="selected-card-clear" onclick="clearPatient()" title="Прибрати">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+  `;
+}
+
+function clearPatient() {
+  hiddenPatient.value = '';
+  document.getElementById('patient-search-wrap').classList.remove('hidden');
+  document.getElementById('patient-selected').classList.add('hidden');
+  document.getElementById('patient-search-input').value = '';
+}
+
+// Client search
+let _clientTimer = null;
+function searchClientAppt(q) {
+  clearTimeout(_clientTimer);
+  const drop = document.getElementById('client-search-drop');
+  if (!q || q.length < 1) { drop.classList.add('hidden'); return; }
+  _clientTimer = setTimeout(function () {
+    fetch('{% url "appointments:client_search" %}?q=' + encodeURIComponent(q))
+      .then(r => r.json())
+      .then(d => {
+        if (!d.results.length) {
+          drop.innerHTML = '<div class="px-3 py-3 text-sm text-gray-400 text-center">Нічого не знайдено</div>';
+        } else {
+          drop.innerHTML = d.results.map(r => `
+            <div class="srch-item" data-cid="${r.id}" data-label="${r.label.replace(/"/g,'&quot;')}" data-phone="${r.phone || ''}">
+              <div class="selected-card-icon">${(r.label[0] || '?').toUpperCase()}</div>
+              <div class="flex-1 min-w-0">
+                <div class="text-sm font-medium text-brand-dark truncate">${r.label}</div>
+                <div class="text-xs text-gray-500 truncate">${r.phone || ''}${r.patient_count ? ' · 🐾 ' + r.patient_count : ''}</div>
+              </div>
+            </div>
+          `).join('');
+        }
+        drop.classList.remove('hidden');
+      });
+  }, 220);
+}
+
+// Patient search (звужується до клієнта якщо вже обраний)
+let _patientTimer = null;
+function searchPatientAppt(q) {
+  clearTimeout(_patientTimer);
+  const drop = document.getElementById('patient-search-drop');
+  if (!q || q.length < 1) { drop.classList.add('hidden'); return; }
+  _patientTimer = setTimeout(function () {
+    let url = '{% url "appointments:patient_search" %}?q=' + encodeURIComponent(q);
+    if (hiddenClient.value) url += '&client_id=' + hiddenClient.value;
+    fetch(url)
+      .then(r => r.json())
+      .then(d => {
+        if (!d.results.length) {
+          drop.innerHTML = '<div class="px-3 py-3 text-sm text-gray-400 text-center">Нічого не знайдено</div>';
+        } else {
+          drop.innerHTML = d.results.map(r => `
+            <div class="srch-item"
+                 data-pid="${r.id}" data-cid="${r.client_id}"
+                 data-name="${r.name.replace(/"/g,'&quot;')}"
+                 data-emoji="${r.species_emoji}"
+                 data-photo="${r.photo || ''}"
+                 data-owner="${r.client_label.replace(/"/g,'&quot;')}"
+                 data-ophone="${r.client_phone || ''}">
+              ${r.photo
+                ? `<img src="${r.photo}" class="selected-card-img" alt="">`
+                : `<div class="selected-card-icon">${r.species_emoji}</div>`}
+              <div class="flex-1 min-w-0">
+                <div class="text-sm font-medium text-brand-dark truncate">
+                  ${r.name} <span class="text-gray-400 font-normal text-xs">${r.species_label}${r.breed ? ', ' + r.breed : ''}</span>
+                </div>
+                <div class="text-xs text-gray-500 truncate">👤 ${r.client_label}${r.client_phone ? ' · ' + r.client_phone : ''}</div>
+              </div>
+            </div>
+          `).join('');
+        }
+        drop.classList.remove('hidden');
+      });
+  }, 220);
+}
+
+// Delegated mousedown handler — picks both
+document.addEventListener('mousedown', function (e) {
+  const clientItem = e.target.closest('#client-search-drop .srch-item');
+  if (clientItem) {
+    e.preventDefault();
+    pickClient(clientItem.dataset.cid, clientItem.dataset.label, clientItem.dataset.phone);
+    document.getElementById('client-search-drop').classList.add('hidden');
+    return;
+  }
+  const patientItem = e.target.closest('#patient-search-drop .srch-item');
+  if (patientItem) {
+    e.preventDefault();
+    pickPatient(
+      patientItem.dataset.pid,
+      patientItem.dataset.name,
+      patientItem.dataset.emoji,
+      patientItem.dataset.photo,
+      patientItem.dataset.owner,
+      patientItem.dataset.ophone,
+      patientItem.dataset.cid,
+    );
+    document.getElementById('patient-search-drop').classList.add('hidden');
+  }
+});
+
+// Close drops on outside click
+document.addEventListener('click', function (e) {
+  ['client-search-drop', 'patient-search-drop'].forEach(id => {
+    const drop = document.getElementById(id);
+    if (!drop) return;
+    if (!drop.parentElement.contains(e.target)) drop.classList.add('hidden');
+  });
+});
+
+// Pre-populated client/patient рендеряться через server-side block нижче (для edit form).
+
+{# Pre-render existing client/patient for edit form (через server-side context) #}
+{% if appt and appt.client %}
+document.addEventListener('DOMContentLoaded', function () {
+  pickClient({{ appt.client.pk }}, "{{ appt.client|escapejs }}", "{{ appt.client.phone|default:''|escapejs }}");
+  {% if appt.patient %}
+  setTimeout(function () {
+    pickPatient(
+      {{ appt.patient.pk }},
+      "{{ appt.patient.name|escapejs }}",
+      "{% if appt.patient.species == 'cat' %}🐱{% elif appt.patient.species == 'dog' %}🐶{% else %}🐾{% endif %}",
+      "{% if appt.patient.photo %}{{ appt.patient.photo.url }}{% endif %}",
+      "{{ appt.client|escapejs }}",
+      "{{ appt.client.phone|default:''|escapejs }}",
+      {{ appt.client.pk }}
+    );
+  }, 50);
+  {% endif %}
+});
+{% endif %}
+
+// ── Quick-client modal ─────────────────────────────────────────────────────
+function qcOpen() {
+  document.getElementById('qc-modal').classList.add('open');
+  setTimeout(() => document.getElementById('qc-phone').focus(), 100);
+}
+function qcClose() {
+  document.getElementById('qc-modal').classList.remove('open');
+}
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') qcClose();
+});
+
+(function () {
+  const form = document.getElementById('quick-client-form');
+  if (!form) return;
+  const phoneEl = document.getElementById('qc-phone');
+  const phoneMsg = document.getElementById('qc-phone-msg');
+  const submitBtn = document.getElementById('qc-submit');
+
+  phoneEl.addEventListener('input', function () {
+    const cleaned = this.value.replace(/[^\d+\s\-()]/g, '');
+    if (cleaned !== this.value) this.value = cleaned;
   });
 
-  // При редагуванні — відразу завантажити пацієнтів вибраного клієнта
-  if (clientEl.value) {
-    htmx.trigger(clientEl, 'change');
-  }
-});
+  let _lookupTimer = null;
+  let _existingClient = null;
+  phoneEl.addEventListener('input', function () {
+    clearTimeout(_lookupTimer);
+    _existingClient = null;
+    phoneMsg.classList.add('hidden');
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Створити та обрати';
 
-// ── Після HTMX-свопу: відновити вибраного пацієнта ─────────────────────────
-document.body.addEventListener('htmx:afterSwap', function (e) {
-  if (e.detail.target.id === 'id_patient') {
-    const presetId = document.getElementById('preset-patient-id').value;
-    if (presetId) {
-      document.getElementById('id_patient').value = presetId;
+    const digits = this.value.replace(/\D/g, '');
+    if (digits.length < 5) return;
+
+    _lookupTimer = setTimeout(function () {
+      fetch('{% url "appointments:client_by_phone" %}?phone=' + encodeURIComponent(phoneEl.value))
+        .then(r => r.json())
+        .then(d => {
+          if (d.exists && d.client) {
+            _existingClient = d.client;
+            phoneMsg.textContent = '⚠ Клієнт уже існує: ' + d.client.label;
+            phoneMsg.className = 'text-xs mt-1 text-amber-700';
+            phoneMsg.classList.remove('hidden');
+            submitBtn.textContent = 'Обрати існуючого';
+          }
+        });
+    }, 350);
+  });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+
+    if (_existingClient) {
+      pickClient(_existingClient.id, _existingClient.label.split(' · ')[0], _existingClient.label.split(' · ')[1] || '');
+      qcClose();
+      form.reset();
+      _existingClient = null;
+      return;
     }
+
+    const data = new FormData(form);
+    submitBtn.disabled = true;
+    submitBtn.textContent = '⏳ Створюю…';
+
+    fetch('{% url "appointments:quick_client" %}', {
+      method: 'POST',
+      body: data,
+      headers: {'X-Requested-With': 'XMLHttpRequest'},
+    })
+      .then(r => r.json().then(j => ({ok: r.ok, body: j})))
+      .then(({ok, body}) => {
+        if (!ok) {
+          showErrors(body.errors || {});
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Створити та обрати';
+          return;
+        }
+        // Парсимо label — формат "ПІП · phone"
+        const parts = body.client.label.split(' · ');
+        pickClient(body.client.id, parts[0], parts[1] || '');
+        if (body.patient) {
+          hiddenPatient.value = body.patient.id;
+          // Маленький delay щоб patient-options встиг завантажитись
+          setTimeout(() => {
+            const sel = document.getElementById('id_patient');
+            if (sel) sel.value = body.patient.id;
+          }, 400);
+        }
+        form.reset();
+        _existingClient = null;
+        qcClose();
+      })
+      .catch(err => {
+        alert('Помилка: ' + err);
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Створити та обрати';
+      });
+  });
+
+  function showErrors(errors) {
+    form.querySelectorAll('.qc-err').forEach(e => e.remove());
+    Object.entries(errors).forEach(([key, msgs]) => {
+      const fieldName = key.startsWith('client_') ? key.slice(7) : key;
+      const input = form.querySelector('[name="' + fieldName + '"]');
+      if (!input) return;
+      const err = document.createElement('div');
+      err.className = 'qc-err text-xs text-red-600 mt-1';
+      err.textContent = Array.isArray(msgs) ? msgs.join(', ') : String(msgs);
+      input.parentElement.appendChild(err);
+    });
   }
-});
+})();
 </script>
 {% endblock %}

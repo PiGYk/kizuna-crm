@@ -3,15 +3,36 @@
 {% block title %}Розклад на день — Kizuna CRM{% endblock %}
 
 {% block content %}
-<div class="max-w-2xl mx-auto">
+<div class="max-w-3xl mx-auto">
 
-  <!-- Заголовок + перехід на тижневий -->
-  <div class="flex items-center justify-between mb-4">
-    <h1 class="text-xl md:text-2xl font-bold text-brand-dark">Розклад дня</h1>
-    <a href="{% url 'appointments:calendar' %}?date={{ ref|date:'Y-m-d' }}"
-       class="hidden md:inline-block text-xs text-brand-gold hover:underline">
-      Тижневий вигляд →
-    </a>
+  {# ── Header ─────────────────────────────────────────────────────── #}
+  <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
+    <div>
+      <h1 class="text-2xl font-bold text-brand-dark">Розклад дня</h1>
+      <p class="text-xs text-gray-400 mt-0.5">
+        {% if ref == today %}Сьогодні · {% endif %}{{ ref|date:"l, d F Y" }} · {{ appts|length }} запис(ів)
+      </p>
+    </div>
+
+    <div class="hidden md:flex items-center gap-2">
+      {# View toggle: Тиждень / День #}
+      <div class="inline-flex bg-gray-100 rounded-lg p-1">
+        <a href="{% url 'appointments:calendar' %}?date={{ ref|date:'Y-m-d' }}"
+           class="px-3 h-8 inline-flex items-center rounded-md text-xs font-medium text-gray-500 hover:text-brand-dark transition">
+          Тиждень
+        </a>
+        <a href="{% url 'appointments:calendar_day' %}?date={{ ref|date:'Y-m-d' }}"
+           class="px-3 h-8 inline-flex items-center rounded-md text-xs font-medium bg-white text-brand-dark shadow-sm">
+          День
+        </a>
+      </div>
+
+      <a href="{% url 'appointments:create' %}?date={{ ref|date:'Y-m-d' }}&back={{ request.path }}%3Fdate%3D{{ ref|date:'Y-m-d' }}"
+         class="inline-flex items-center gap-1.5 bg-brand-gold text-brand-dark px-4 h-10 rounded-lg text-sm font-semibold hover:brightness-95 transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+        Записати
+      </a>
+    </div>
   </div>
 
   <!-- Навігація: вчора / сьогодні / завтра -->

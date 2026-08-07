@@ -2,19 +2,19 @@
 {% block title %}Розсилки — Kizuna CRM{% endblock %}
 {% block content %}
 
-<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4 mb-6">
-  <div class="min-w-0">
+<div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3 mb-4">
+  <div>
     <h1 class="text-2xl font-bold text-brand-dark">Розсилки</h1>
-    <p class="text-sm text-gray-500 mt-0.5">{{ chat_count }} підписників у боті</p>
+    <p class="text-xs text-gray-400 mt-0.5">{{ chat_count }} підписників у боті</p>
   </div>
   <a href="{% url 'tg:broadcast_create' %}"
-     class="inline-flex items-center justify-center gap-2 bg-brand-gold text-brand-dark font-medium px-4 py-2.5 rounded-xl hover:brightness-95 active:opacity-80 transition-all text-sm shrink-0 w-full md:w-auto">
-    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-    </svg>
+     class="inline-flex items-center gap-1.5 bg-brand-gold text-brand-dark px-4 h-10 rounded-lg text-sm font-semibold hover:brightness-95 transition">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
     Нова розсилка
   </a>
 </div>
+
+{% include 'tg/_partials/subnav.html' with active='broadcasts' %}
 
 {% if broadcasts %}
 {# Mobile: cards #}

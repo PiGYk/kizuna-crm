@@ -1,0 +1,375 @@
+{% load static %}
+{# Sidebar v2 — collapsible groups. Контекст: request, user, clinic, user_menu, inventory_*_count. #}
+{% with un=request.resolver_match.url_name an=request.resolver_match.app_name %}
+
+{# Визначаємо активну групу за app_name+url_name #}
+{% with is_clients=an %}{% endwith %}
+{% if an == 'clients' %}{% with active_group='clients' %}{% endwith %}
+{% elif an == 'inventory' %}{% with active_group='inventory' %}{% endwith %}
+{% elif an == 'finance' %}{% with active_group='finance' %}{% endwith %}
+{% elif an == 'analytics' %}{% with active_group='analytics' %}{% endwith %}
+{% elif an == 'accounts' and un != 'login' and un != 'logout' and un != 'register' %}{% with active_group='team' %}{% endwith %}
+{% elif an == 'clinic' %}{% with active_group='team' %}{% endwith %}
+{% endif %}
+
+<aside id="sidebar"
+       class="fixed inset-y-0 left-0 z-50 flex flex-col w-[85vw] max-w-[280px] md:w-64 md:max-w-none bg-brand-dark shrink-0 transform -translate-x-full transition-transform duration-200 md:relative md:translate-x-0 md:flex">
+
+  <!-- Logo -->
+  <div class="px-5 py-5 border-b border-white/10 shrink-0">
+    <a href="{% url 'dashboard' %}">
+      {% if clinic.logo %}
+        <img src="{{ clinic.logo.url }}" alt="{{ clinic.name }}" class="h-12 w-auto object-contain">
+      {% else %}
+        <img src="{% static 'img/logo.svg' %}" alt="{{ clinic.name }}" class="h-12 w-auto">
+      {% endif %}
+    </a>
+  </div>
+
+  <!-- Nav -->
+  <nav class="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto" id="sidebar-nav">
+
+    {# ── Дашборд (flat) ─────────────────────────────────────────────────── #}
+    <a href="{% url 'dashboard' %}" class="sb-item {% if un == 'dashboard' %}sb-active{% endif %}">
+      <svg class="sb-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+      Дашборд
+    </a>
+
+    {# ── Клієнти group ──────────────────────────────────────────────────── #}
+    <div class="sb-group" data-group="clients" {% if an == 'clients' %}data-active="true"{% endif %}>
+      <button type="button" class="sb-group-head">
+        <svg class="sb-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        <span class="flex-1 text-left">Клієнти</span>
+        <svg class="sb-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <div class="sb-group-body">
+        <a href="{% url 'clients:list' %}"
+           class="sb-sub {% if an == 'clients' and 'patient' not in un and 'visit' not in un and 'vaccine' not in un and 'hospitalization' not in un and 'analysis' not in un and 'weight' not in un and 'health_diary' not in un and un != 'patients_period' %}sb-sub-active{% endif %}">
+          Клієнти
+        </a>
+        <a href="{% url 'clients:patient_list' %}"
+           class="sb-sub {% if an == 'clients' and 'patient' in un or an == 'clients' and 'visit' in un or an == 'clients' and 'analysis' in un or an == 'clients' and 'weight' in un or an == 'clients' and un == 'patients_period' %}sb-sub-active{% endif %}">
+          Пацієнти
+        </a>
+        <a href="{% url 'clients:health_diary' %}"
+           class="sb-sub {% if un == 'health_diary' and an == 'clients' %}sb-sub-active{% endif %}">
+          Щоденник здоров'я
+        </a>
+        <a href="{% url 'clients:vaccines_overdue' %}"
+           class="sb-sub {% if 'vaccine' in un and an == 'clients' %}sb-sub-active{% endif %}">
+          Вакцини
+        </a>
+        <a href="{% url 'clients:hospitalization_list' %}"
+           class="sb-sub {% if 'hospitalization' in un and an == 'clients' %}sb-sub-active{% endif %}">
+          Стаціонар
+        </a>
+        <a href="{% url 'clients:visit_templates' %}"
+           class="sb-sub {% if an == 'clients' and 'visit_template' in un %}sb-sub-active{% endif %}">
+          Шаблони візиту
+        </a>
+      </div>
+    </div>
+
+    {# ── Розклад (flat) ─────────────────────────────────────────────────── #}
+    <a href="{% url 'appointments:calendar' %}" class="sb-item {% if an == 'appointments' %}sb-active{% endif %}">
+      <svg class="sb-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+      Розклад
+    </a>
+
+    {# ── Telegram (flat, gated) ─────────────────────────────────────────── #}
+    {% if user_menu.telegram or not request.organization %}
+      {% if request.user.is_superuser or not request.organization or request.organization.can_use_telegram %}
+      <a href="{% url 'tg:list' %}" class="sb-item {% if an == 'tg' and un != 'broadcast_list' and un != 'broadcast_create' and un != 'broadcast_detail' %}sb-active{% endif %}">
+        <svg class="sb-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+        Telegram
+      </a>
+      {% else %}
+      <div class="sb-item-disabled" title="Доступно з тарифу «Клініка»">
+        <svg class="sb-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+        Telegram
+        <span class="ml-auto text-[10px] bg-brand-gold/20 text-brand-gold px-1.5 py-0.5 rounded">Клініка</span>
+      </div>
+      {% endif %}
+    {% endif %}
+
+    {# ── Послуги (flat) ─────────────────────────────────────────────────── #}
+    <a href="{% url 'services:list' %}" class="sb-item {% if an == 'services' %}sb-active{% endif %}">
+      <svg class="sb-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+      Послуги
+    </a>
+
+    {# ── Склад group ────────────────────────────────────────────────────── #}
+    <div class="sb-group" data-group="inventory" {% if an == 'inventory' %}data-active="true"{% endif %}>
+      <button type="button" class="sb-group-head">
+        <svg class="sb-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+        <span class="flex-1 text-left">Склад</span>
+        {% if inventory_expired_count %}
+          <span class="bg-red-500 text-white text-[10px] rounded-full px-1.5 py-0.5 mr-1">{{ inventory_expired_count }}</span>
+        {% elif inventory_expiring_count %}
+          <span class="bg-yellow-400 text-brand-dark text-[10px] rounded-full px-1.5 py-0.5 mr-1">{{ inventory_expiring_count }}</span>
+        {% endif %}
+        <svg class="sb-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <div class="sb-group-body">
+        <a href="{% url 'inventory:list' %}" class="sb-sub {% if an == 'inventory' and un == 'list' or an == 'inventory' and un == 'detail' or an == 'inventory' and un == 'create' or an == 'inventory' and un == 'edit' %}sb-sub-active{% endif %}">Товари</a>
+        <a href="{% url 'inventory:reorder' %}" class="sb-sub {% if an == 'inventory' and 'reorder' in un %}sb-sub-active{% endif %}">Що замовити</a>
+        <a href="{% url 'inventory:supplier_list' %}" class="sb-sub {% if an == 'inventory' and 'supplier' in un %}sb-sub-active{% endif %}">Постачальники</a>
+        <a href="{% url 'inventory:stocktake' %}" class="sb-sub {% if an == 'inventory' and un == 'stocktake' %}sb-sub-active{% endif %}">Інвентаризація</a>
+        <a href="{% url 'inventory:movements' %}" class="sb-sub {% if an == 'inventory' and un == 'movements' %}sb-sub-active{% endif %}">Рухи складу</a>
+        <a href="{% url 'inventory:analytics' %}" class="sb-sub {% if an == 'inventory' and un == 'analytics' %}sb-sub-active{% endif %}">Аналітика складу</a>
+      </div>
+    </div>
+
+    {# ── Фінанси group ──────────────────────────────────────────────────── #}
+    {% if user_menu.finance or not request.organization %}
+    <div class="sb-group" data-group="finance" {% if an == 'finance' %}data-active="true"{% endif %}>
+      <button type="button" class="sb-group-head">
+        <svg class="sb-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <span class="flex-1 text-left">Фінанси</span>
+        <svg class="sb-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <div class="sb-group-body">
+        <a href="{% url 'finance:expenses' %}" class="sb-sub {% if an == 'finance' and 'expense' in un %}sb-sub-active{% endif %}">Витрати</a>
+        <a href="{% url 'finance:cash_operations' %}" class="sb-sub {% if an == 'finance' and 'cash' in un %}sb-sub-active{% endif %}">Каса</a>
+        <a href="{% url 'finance:report' %}" class="sb-sub {% if an == 'finance' and 'report' in un %}sb-sub-active{% endif %}">Звіт P&L</a>
+        <a href="{% url 'finance:settings' %}" class="sb-sub {% if an == 'finance' and 'settings' in un %}sb-sub-active{% endif %}">Налаштування</a>
+      </div>
+    </div>
+    {% endif %}
+
+    {# ── Рахунки (flat) ─────────────────────────────────────────────────── #}
+    <a href="{% url 'billing:list' %}" class="sb-item {% if an == 'billing' %}sb-active{% endif %}">
+      <svg class="sb-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/></svg>
+      Рахунки
+    </a>
+
+    {# ── Аналітика group ────────────────────────────────────────────────── #}
+    {% if user_menu.analytics or not request.organization %}
+    <div class="sb-group" data-group="analytics" {% if an == 'analytics' %}data-active="true"{% endif %}>
+      <button type="button" class="sb-group-head">
+        <svg class="sb-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        <span class="flex-1 text-left">Аналітика</span>
+        <svg class="sb-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <div class="sb-group-body">
+        <a href="{% url 'analytics:index' %}" class="sb-sub {% if an == 'analytics' and un == 'index' %}sb-sub-active{% endif %}">Огляд</a>
+        <a href="{% url 'analytics:services' %}" class="sb-sub {% if an == 'analytics' and un == 'services' %}sb-sub-active{% endif %}">Доходність послуг</a>
+        <a href="{% url 'analytics:profit' %}" class="sb-sub {% if an == 'analytics' and 'profit' in un %}sb-sub-active{% endif %}">Чистий прибуток</a>
+        <a href="{% url 'analytics:usage' %}" class="sb-sub {% if an == 'analytics' and 'usage' in un %}sb-sub-active{% endif %}">Використання</a>
+        <a href="{% url 'analytics:debtors' %}" class="sb-sub {% if an == 'analytics' and un == 'debtors' %}sb-sub-active{% endif %}">Боржники</a>
+        {% if user.role == 'admin' %}
+        <a href="{% url 'analytics:payroll' %}" class="sb-sub {% if an == 'analytics' and un == 'payroll' %}sb-sub-active{% endif %}">Зарплата</a>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    {# ── Команда group (admin only) ─────────────────────────────────────── #}
+    {% if user.is_admin %}
+    <div class="sb-group" data-group="team" {% if active_group == 'team' %}data-active="true"{% endif %}>
+      <button type="button" class="sb-group-head">
+        <svg class="sb-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+        <span class="flex-1 text-left">Команда</span>
+        <svg class="sb-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <div class="sb-group-body">
+        <a href="{% url 'accounts:users' %}" class="sb-sub {% if an == 'accounts' and 'user' in un %}sb-sub-active{% endif %}">Користувачі</a>
+        <a href="{% url 'accounts:shifts' %}" class="sb-sub {% if an == 'accounts' and 'shift' in un %}sb-sub-active{% endif %}">Зміни</a>
+        <a href="{% url 'accounts:payroll_list' %}" class="sb-sub {% if 'payroll' in un %}sb-sub-active{% endif %}">Зарплати</a>
+        <a href="{% url 'clinic:settings' %}" class="sb-sub {% if an == 'clinic' and un == 'settings' %}sb-sub-active{% endif %}">Налаштування клініки</a>
+      </div>
+    </div>
+    {% endif %}
+
+  </nav>
+
+  <!-- Bottom: trial + user + logout -->
+  <div class="px-4 py-4 border-t border-white/10 shrink-0">
+    {% if not user.is_superuser and request.organization %}
+      {% with days=request.organization.trial_days_left plan=request.organization.plan %}
+      <a href="{% url 'trial_expired' %}"
+         class="flex items-center justify-between w-full mb-3 px-3 py-2 rounded-lg
+                {% if days is not None and days <= 3 %}bg-red-500/20 hover:bg-red-500/30
+                {% elif days is not None and days <= 10 %}bg-brand-gold/15 hover:bg-brand-gold/25
+                {% else %}bg-white/5 hover:bg-white/10{% endif %}
+                transition-colors group">
+        <div>
+          <div class="text-xs font-semibold text-white/80 group-hover:text-white transition-colors">
+            {% if plan == 'start' %}Тариф: Старт
+            {% elif plan == 'clinic' %}Тариф: Клініка
+            {% elif plan == 'network' %}Тариф: Мережа
+            {% else %}Пробний період{% endif %}
+          </div>
+          <div class="text-xs mt-0.5
+                {% if days is not None and days <= 3 %}text-red-400
+                {% elif days is not None and days <= 10 %}text-brand-gold
+                {% else %}text-white/40{% endif %}">
+            {% if days is None %}Безстроково
+            {% elif days == 0 %}Закінчується сьогодні!
+            {% elif days == 1 %}Залишився 1 день
+            {% else %}Ще {{ days }} дн.{% endif %}
+          </div>
+        </div>
+        <svg class="w-4 h-4 text-white/30 group-hover:text-brand-gold transition-colors shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+      </a>
+      {% endwith %}
+    {% endif %}
+    <div class="text-xs text-white/60 mb-0.5">{{ user.get_full_name|default:user.username }}</div>
+    <div class="text-xs text-brand-gold mb-3">{{ user.get_role_display }}</div>
+    <a href="{% url 'carddav_setup' %}" class="block text-xs text-white/50 hover:text-brand-gold mb-2 transition-colors">📱 Контакти на телефон</a>
+    <a href="{% url 'accounts:logout' %}" class="text-xs text-white/50 hover:text-red-400 transition-colors">Вийти</a>
+  </div>
+</aside>
+
+{% endwith %}
+
+<style>
+  /* Sidebar v2 styles */
+  .sb-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+    flex-shrink: 0;
+  }
+
+  /* Flat item (top-level link) */
+  .sb-item, .sb-item-disabled {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 0.75rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: rgba(255,255,255,0.7);
+    transition: color 120ms, background 120ms;
+  }
+  .sb-item:hover {
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+  }
+  .sb-item.sb-active {
+    background: #DEAA01;
+    color: #12100F;
+    border-left: 2px solid rgba(255,255,255,0.6);
+  }
+  .sb-item-disabled {
+    color: rgba(255,255,255,0.25);
+    cursor: not-allowed;
+  }
+
+  /* Group header (collapsible) */
+  .sb-group { margin-top: 0.125rem; }
+  .sb-group-head {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 0.75rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: rgba(255,255,255,0.7);
+    transition: color 120ms, background 120ms;
+  }
+  .sb-group-head:hover {
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+  }
+  /* Активна група — шапка лишається у нейтральному стилі, але chevron rotate */
+  .sb-group[data-active="true"] .sb-group-head { color: #fff; }
+  .sb-chevron {
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+    transition: transform 180ms ease-out;
+    opacity: 0.5;
+  }
+  .sb-group[data-open="true"] .sb-chevron { transform: rotate(0deg); opacity: 0.8; }
+  .sb-group:not([data-open="true"]) .sb-chevron { transform: rotate(-90deg); }
+
+  /* Group body (підпункти) */
+  .sb-group-body {
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 220ms ease-out;
+    margin-left: 0.5rem;
+    padding-left: 1rem;
+    border-left: 1px solid rgba(255,255,255,0.08);
+  }
+  .sb-group[data-open="true"] .sb-group-body {
+    max-height: 500px;
+    margin-top: 0.125rem;
+    margin-bottom: 0.25rem;
+  }
+  .sb-sub {
+    display: block;
+    padding: 0.4rem 0.75rem;
+    border-radius: 0.375rem;
+    font-size: 0.8125rem;
+    color: rgba(255,255,255,0.55);
+    transition: color 120ms, background 120ms;
+  }
+  .sb-sub:hover {
+    background: rgba(255,255,255,0.06);
+    color: #fff;
+  }
+  .sb-sub.sb-sub-active {
+    color: #DEAA01;
+    font-weight: 600;
+    background: rgba(222,170,1,0.08);
+  }
+</style>
+
+<script>
+(function () {
+  // Sidebar v2: collapsible groups з persist у localStorage.
+  const STORAGE_KEY = 'kizuna_sb_open_groups';
+
+  function getOpenGroups() {
+    try {
+      return new Set(JSON.parse(localStorage.getItem(STORAGE_KEY)) || []);
+    } catch { return new Set(); }
+  }
+
+  function saveOpenGroups(set) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify([...set])); } catch {}
+  }
+
+  function initSidebar() {
+    const open = getOpenGroups();
+    document.querySelectorAll('.sb-group').forEach(g => {
+      const key = g.dataset.group;
+      // Активна група — завжди відкрита (override stored state)
+      if (g.dataset.active === 'true') {
+        g.dataset.open = 'true';
+        open.add(key);
+      } else if (open.has(key)) {
+        g.dataset.open = 'true';
+      } else {
+        g.dataset.open = 'false';
+      }
+
+      const head = g.querySelector('.sb-group-head');
+      if (head) {
+        head.addEventListener('click', function () {
+          const isOpen = g.dataset.open === 'true';
+          g.dataset.open = isOpen ? 'false' : 'true';
+          const openNow = getOpenGroups();
+          if (g.dataset.open === 'true') openNow.add(key);
+          else openNow.delete(key);
+          saveOpenGroups(openNow);
+        });
+      }
+    });
+    saveOpenGroups(open);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSidebar);
+  } else {
+    initSidebar();
+  }
+})();
+</script>

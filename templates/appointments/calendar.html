@@ -3,7 +3,7 @@
 {% block title %}Розклад — Kizuna CRM{% endblock %}
 
 {% block content %}
-<!-- Моб-редирект на денний вигляд (тижнева сітка непридатна для смартфонів) -->
+{# Mobile redirect — на смартфоні тижнева сітка нечитабельна #}
 <script>
   (function () {
     try {
@@ -16,282 +16,438 @@
   })();
 </script>
 
-<!-- Кнопка денного вигляду на моб (для випадку, коли JS-редирект не спрацював або вимкнено) -->
-<div class="md:hidden mb-4">
-  <a href="{% url 'appointments:calendar_day' %}?date={{ ref|date:'Y-m-d' }}"
-     class="block w-full bg-brand-gold text-brand-dark text-center py-3 rounded-lg font-semibold min-h-[44px]">
-    Денний вигляд
-  </a>
+<style>
+  /* Календар: абсолютне позиціонування подій */
+  .cal-shell { overflow-x: auto; }
+  .cal-grid {
+    display: grid;
+    grid-template-columns: 60px repeat(7, minmax(120px, 1fr));
+    min-width: 800px;
+    background: white;
+    border: 1px solid rgb(229 231 235);
+    border-radius: 0.75rem;
+    overflow: hidden;
+  }
+
+  /* Day header (sticky) */
+  .cal-dayhead {
+    padding: 0.75rem 0.5rem;
+    text-align: center;
+    border-bottom: 1px solid rgb(229 231 235);
+    border-left: 1px solid rgb(243 244 246);
+    background: rgb(249 250 251);
+    position: sticky; top: 0; z-index: 5;
+  }
+  .cal-dayhead-today { background: rgba(222, 170, 1, 0.08); }
+  .cal-dayhead-num { font-size: 1.25rem; font-weight: 700; color: #12100F; line-height: 1.2; }
+  .cal-dayhead-num.today { color: #DEAA01; }
+  .cal-dayhead-label { font-size: 0.6875rem; color: rgb(107 114 128); text-transform: uppercase; }
+  .cal-corner { background: rgb(249 250 251); border-bottom: 1px solid rgb(229 231 235); position: sticky; top: 0; left: 0; z-index: 6; }
+
+  /* Time axis */
+  .cal-timeaxis {
+    position: relative;
+    height: {{ cal_total_px }}px;
+    border-right: 1px solid rgb(229 231 235);
+    background: rgb(249 250 251);
+  }
+  .cal-hour-label {
+    position: absolute;
+    right: 6px;
+    font-size: 0.6875rem;
+    color: rgb(156 163 175);
+    transform: translateY(-50%);
+  }
+
+  /* Day column */
+  .cal-day {
+    position: relative;
+    height: {{ cal_total_px }}px;
+    border-left: 1px solid rgb(243 244 246);
+    background:
+      repeating-linear-gradient(
+        to bottom,
+        white 0,
+        white {{ cal_slot_px }}px,
+        rgb(249 250 251) {{ cal_slot_px }}px,
+        rgb(249 250 251) calc({{ cal_slot_px }}px + 1px)
+      );
+  }
+  .cal-day-today { background-color: rgba(222, 170, 1, 0.025); }
+
+  /* Hour gridlines (на кожні 2 слоти) */
+  .cal-hourline {
+    position: absolute;
+    left: 0; right: 0;
+    height: 1px;
+    background: rgb(229 231 235);
+    pointer-events: none;
+  }
+
+  /* Now line (тільки на сьогодні) */
+  .cal-now {
+    position: absolute;
+    left: 0; right: 0;
+    height: 2px;
+    background: #ef4444;
+    z-index: 8;
+    pointer-events: none;
+  }
+  .cal-now::before {
+    content: '';
+    position: absolute;
+    left: -5px;
+    top: -4px;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: #ef4444;
+  }
+
+  /* Appointment card */
+  .cal-evt {
+    position: absolute;
+    border-radius: 6px;
+    padding: 4px 6px;
+    font-size: 0.6875rem;
+    line-height: 1.2;
+    overflow: hidden;
+    cursor: grab;
+    transition: box-shadow 120ms, transform 120ms;
+    box-shadow: 0 1px 2px rgba(0,0,0,.04);
+  }
+  .cal-evt:hover { box-shadow: 0 3px 8px rgba(0,0,0,.12); z-index: 6; }
+  .cal-evt:active { cursor: grabbing; }
+  .cal-evt.is-dragging { opacity: 0.5; }
+
+  .cal-evt-scheduled { background: rgba(222,170,1,0.20); color: #4a3500; border-left: 3px solid #DEAA01; }
+  .cal-evt-confirmed { background: rgba(59,130,246,0.18); color: #1e40af; border-left: 3px solid #3b82f6; }
+  .cal-evt-completed { background: rgba(34,197,94,0.18); color: #166534; border-left: 3px solid #22c55e; }
+  .cal-evt-no_show   { background: rgba(239,68,68,0.16); color: #991b1b; border-left: 3px solid #ef4444; }
+  .cal-evt-cancelled { background: rgba(156,163,175,0.18); color: rgb(75 85 99); border-left: 3px solid #9ca3af; text-decoration: line-through; }
+
+  .cal-evt-title { font-weight: 600; }
+  .cal-evt-meta { font-size: 0.625rem; opacity: 0.8; }
+  .cal-evt-svc { font-weight: 500; opacity: 0.95; }
+
+  /* XS card (≤20хв = 16-21px): one-line, dense, no patient emoji */
+  .cal-evt-xs {
+    padding: 2px 5px;
+    font-size: 0.625rem;
+    line-height: 1.15;
+  }
+  .cal-evt-xs .cal-evt-title-inline { font-weight: 600; }
+  .cal-evt-xs .cal-evt-time { color: inherit; opacity: 0.7; margin-right: 2px; }
+  .cal-evt-xs .cal-evt-pet { opacity: 0.7; font-weight: 400; }
+  .cal-evt-xs .cal-evt-svc-inline { opacity: 0.9; font-weight: 500; }
+
+  /* Drop-zone highlight */
+  .cal-day.is-drag-over { background-color: rgba(222,170,1,0.10); }
+
+  /* Empty slot — кружок-плюс на ховер */
+  .cal-day .add-hint {
+    position: absolute;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: #DEAA01;
+    color: #12100F;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 100ms;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 2px 6px rgba(0,0,0,.15);
+  }
+  .cal-day:hover .add-hint { opacity: 0.9; }
+</style>
+
+{# ── Header ─────────────────────────────────────────────────────────── #}
+<div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+  <div>
+    <h1 class="text-2xl font-bold text-brand-dark">Розклад</h1>
+    <p class="text-xs text-gray-400 mt-0.5">{{ days.0|date:"d.m" }} — {{ days.6|date:"d.m.Y" }}{% if ref == today %} · Поточний тиждень{% endif %}</p>
+  </div>
+
+  <div class="flex items-center gap-2">
+    <div class="inline-flex bg-gray-100 rounded-lg p-1">
+      <a href="{% url 'appointments:calendar' %}?date={{ ref|date:'Y-m-d' }}"
+         class="px-3 h-8 inline-flex items-center rounded-md text-xs font-medium bg-white text-brand-dark shadow-sm">Тиждень</a>
+      <a href="{% url 'appointments:calendar_day' %}?date={{ ref|date:'Y-m-d' }}"
+         class="px-3 h-8 inline-flex items-center rounded-md text-xs font-medium text-gray-500 hover:text-brand-dark transition">День</a>
+    </div>
+    <a href="{% url 'appointments:create' %}?date={{ ref }}"
+       class="inline-flex items-center gap-1.5 bg-brand-gold text-brand-dark px-4 h-10 rounded-lg text-sm font-semibold hover:brightness-95 transition">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+      Записати
+    </a>
+  </div>
 </div>
 
-<div class="flex items-center justify-between mb-4">
-  <h1 class="text-2xl font-bold text-brand-dark">Розклад</h1>
-  <a href="{% url 'appointments:create' %}?date={{ ref }}"
-     class="bg-brand-gold text-brand-dark px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-95">
-    + Записати
+{# ── Week nav ────────────────────────────────────────────────────────── #}
+<div class="flex items-center gap-2 mb-3">
+  <a href="?date={{ prev_week }}"
+     class="w-10 h-10 inline-flex items-center justify-center rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition" title="Попередній тиждень">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
   </a>
+  <a href="?date={{ today }}"
+     class="px-4 h-10 inline-flex items-center text-sm font-medium border rounded-lg transition {% if ref == today %}bg-brand-dark text-white border-brand-dark{% else %}border-gray-300 text-gray-700 hover:bg-gray-50{% endif %}">
+    Сьогодні
+  </a>
+  <a href="?date={{ next_week }}"
+     class="w-10 h-10 inline-flex items-center justify-center rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition" title="Наступний тиждень">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+  </a>
+  <div class="ml-2 text-xs text-gray-500 hidden lg:block">
+    {{ days.0|date:"l, d F" }} — {{ days.6|date:"l, d F" }}
+  </div>
 </div>
 
-<!-- Навігація по тижнях -->
-<div class="flex items-center gap-3 mb-4">
-  <a href="?date={{ prev_week }}" class="p-2 rounded-lg border border-gray-300 hover:bg-gray-50">
-    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-  </a>
-  <a href="?date={{ today }}" class="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">Сьогодні</a>
-  <a href="?date={{ next_week }}" class="p-2 rounded-lg border border-gray-300 hover:bg-gray-50">
-    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-  </a>
-  <span class="text-sm text-gray-500">
-    {{ days.0|date:"d.m" }} — {{ days.6|date:"d.m.Y" }}
-  </span>
-</div>
+{# ── Calendar grid ───────────────────────────────────────────────────── #}
+<div class="cal-shell">
+  <div class="cal-grid">
+    {# Header row: corner + 7 days #}
+    <div class="cal-corner"></div>
+    {% for d in days %}
+    <div class="cal-dayhead {% if d == today %}cal-dayhead-today{% endif %}">
+      <div class="cal-dayhead-label">{{ d|date:"D" }}</div>
+      <div class="cal-dayhead-num {% if d == today %}today{% endif %}">{{ d|date:"d" }}</div>
+      <div class="cal-dayhead-label">{{ d|date:"M" }}</div>
+    </div>
+    {% endfor %}
 
-<!-- Сітка тижня -->
-<div class="bg-white rounded-xl border border-gray-200 overflow-x-auto">
-  <table class="w-full text-xs border-collapse" style="min-width:700px">
-    <thead>
-      <tr class="border-b border-gray-200">
-        <th class="w-14 px-2 py-2 text-gray-400 font-normal text-right"></th>
-        {% for day in days %}
-        <th class="px-2 py-2 text-center font-medium border-l border-gray-100
-          {% if day == today %}text-brand-gold{% else %}text-gray-600{% endif %}">
-          <div>{{ day|date:"D"|slice:":2" }}</div>
-          <div class="text-lg {% if day == today %}font-bold text-brand-gold{% endif %}">{{ day|date:"d" }}</div>
-        </th>
-        {% endfor %}
-      </tr>
-    </thead>
-    <tbody>
-      {% for slot in slots %}
-      <tr class="border-t border-gray-50 hover:bg-gray-50/50">
-        <td class="px-2 py-0 text-right text-gray-400 align-top pt-1" style="height:40px">
-          {% if slot.minute == 0 %}{{ slot|time:"H:i" }}{% endif %}
-        </td>
-        {% for day in days %}
-        <td class="border-l border-gray-100 align-top relative px-1 py-0.5 drop-zone"
-            data-date="{{ day|date:'Y-m-d' }}" data-time="{{ slot|time:'H:i' }}"
-            style="height:40px">
-          {# Записи що починаються в цей слот #}
-          {% for appt in appts_by_day|dict_get:day %}
-            {% with appt_time=appt.starts_at|localtime %}
-            {% if appt_time.hour == slot.hour and appt_time.minute == slot.minute %}
-            <div draggable="true"
-               data-appt-id="{{ appt.pk }}"
-               data-duration="{{ appt.duration }}"
-               data-day="{{ day|date:'Y-m-d' }}"
-               data-time="{{ appt_time|time:'H:i' }}"
-               class="appt-drag block relative z-10 rounded px-1.5 py-1 text-xs leading-tight mb-0.5 cursor-grab active:cursor-grabbing overflow-hidden
-               {% if appt.status == 'completed' %}bg-green-100 text-green-800
-               {% elif appt.status == 'cancelled' or appt.status == 'no_show' %}bg-gray-100 text-gray-400 line-through
-               {% elif appt.status == 'confirmed' %}bg-blue-100 text-blue-800
-               {% else %}bg-brand-gold/20 text-brand-dark{% endif %}"
-               style="min-height:{% widthratio appt.duration 30 40 %}px"
-               title="{{ appt.client }} — {{ appt.patient.name|default:'' }} ({{ appt.duration }} хв)&#10;Перетягніть для зміни часу">
-              <div class="flex items-start gap-1">
-                <a href="{% url 'appointments:edit' appt.pk %}" class="flex-1 min-w-0 block" onclick="if(_dragged)event.preventDefault()">
-                  <div class="font-semibold truncate">{{ appt.client.last_name }} {{ appt.client.first_name|slice:":1" }}.</div>
-                  {% if appt.patient %}<div class="truncate opacity-70">{{ appt.patient.name }}</div>{% endif %}
-                  {% with svcs=appt.services.all %}
-                    {% if svcs and appt.duration > 30 %}
-                      <div class="text-[10px] opacity-60 mt-0.5 leading-tight">
-                        {% for s in svcs %}{{ s.name }}{% if not forloop.last %} · {% endif %}{% endfor %}
-                      </div>
-                    {% endif %}
-                  {% endwith %}
-                </a>
-                {% if appt.status == 'scheduled' or appt.status == 'confirmed' %}
-                <div class="flex gap-1 shrink-0 mt-0.5">
-                  <form method="post" action="{% url 'appointments:status' appt.pk %}">
-                    {% csrf_token %}
-                    <button type="submit" name="status" value="completed" onclick="event.stopPropagation()"
-                      class="w-8 h-8 rounded bg-green-500 text-white flex items-center justify-center hover:bg-green-600 transition shadow-sm" title="Виконано">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
-                    </button>
-                  </form>
-                  <form method="post" action="{% url 'appointments:status' appt.pk %}">
-                    {% csrf_token %}
-                    <button type="submit" name="status" value="cancelled" onclick="event.stopPropagation()"
-                      class="w-8 h-8 rounded bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition shadow-sm" title="Скасовано">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>
-                    </button>
-                  </form>
-                </div>
-                {% endif %}
-              </div>
-            </div>
-            {% endif %}
-            {% endwith %}
-          {% endfor %}
-          {# Кнопка "+" — завжди видима з низькою прозорістю, на hover повна #}
-          <a href="{% url 'appointments:create' %}?date={{ day|date:'Y-m-d' }}&time={{ slot|time:'H:i' }}"
-             class="absolute inset-0 flex items-center justify-center opacity-30 hover:opacity-100 hover:bg-brand-gold/10 transition text-brand-gold font-bold text-base rounded">
-            +
-          </a>
-        </td>
-        {% endfor %}
-      </tr>
+    {# Time axis #}
+    <div class="cal-timeaxis">
+      {% for h in hour_labels %}
+      <div class="cal-hour-label" style="top: calc({{ forloop.counter0 }} * {{ cal_slot_px }}px * 2);">
+        {{ h }}:00
+      </div>
       {% endfor %}
-    </tbody>
-  </table>
+    </div>
+
+    {# Day columns — for each day all events absolutely positioned #}
+    {% for d in days %}
+    <div class="cal-day {% if d == today %}cal-day-today{% endif %}"
+         data-date="{{ d|date:'Y-m-d' }}"
+         {% if d == today %}data-today="true"{% endif %}>
+      {# Hour grid lines #}
+      {% for h in hour_labels %}
+      <div class="cal-hourline" style="top: calc({{ forloop.counter0 }} * {{ cal_slot_px }}px * 2);"></div>
+      {% endfor %}
+
+      {# Now line на сьогоднішньому стовпці #}
+      {% if d == today %}
+      <div class="cal-now" id="cal-now-line" style="top: 0;"></div>
+      {% endif %}
+
+      <div class="add-hint">+</div>
+
+      {# Events #}
+      {% for item in layout_by_day|dict_get:d %}
+        {% with a=item.appt svcs=item.appt.services.all %}
+        <a draggable="true"
+           href="{% url 'appointments:edit' a.pk %}"
+           class="cal-evt cal-evt-{{ a.status }} {% if item.dur_min < 25 %}cal-evt-xs{% endif %}"
+           data-appt-id="{{ a.pk }}"
+           data-date="{{ d|date:'Y-m-d' }}"
+           data-start-min="{{ item.start_min }}"
+           data-dur="{{ item.dur_min }}"
+           style="top: calc({{ item.start_min }} / 30 * {{ cal_slot_px }}px);
+                  height: calc({{ item.dur_min }} / 30 * {{ cal_slot_px }}px - 2px);
+                  left: calc({{ item.column }} * (100% / {{ item.cols }}) + 2px);
+                  width: calc((100% / {{ item.cols }}) - 4px);"
+           title="{{ a.starts_at|localtime|date:'H:i' }} · {{ a.client }}{% if a.patient %} / {{ a.patient.name }}{% endif %} ({{ a.duration }} хв) · {{ a.get_status_display }}{% if svcs %}&#10;Послуги: {% for s in svcs %}{{ s.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}">
+
+          {% if item.dur_min < 25 %}
+            {# Very small card: time + client first line, services on second if fit #}
+            <div class="cal-evt-title-inline truncate">
+              <span class="cal-evt-time">{{ a.starts_at|localtime|date:"H:i" }}</span>
+              {{ a.client.last_name }} {{ a.client.first_name|slice:":1" }}.
+              {% if a.patient %}<span class="cal-evt-pet">· {{ a.patient.name }}</span>{% endif %}
+              {% if svcs %}<span class="cal-evt-svc-inline">·
+                {% for s in svcs %}{{ s.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+              </span>{% endif %}
+            </div>
+          {% else %}
+            <div class="cal-evt-title truncate">
+              {{ a.starts_at|localtime|date:"H:i" }} · {{ a.client.last_name }} {{ a.client.first_name|slice:":1" }}.
+            </div>
+
+            {% if item.dur_min >= 45 %}
+              {# Tall card: separate lines #}
+              {% if a.patient %}
+              <div class="cal-evt-meta truncate">🐾 {{ a.patient.name }}</div>
+              {% endif %}
+              {% if svcs %}
+              <div class="cal-evt-meta cal-evt-svc truncate">
+                {% for s in svcs %}{{ s.name }}{% if not forloop.last %} · {% endif %}{% endfor %}
+              </div>
+              {% endif %}
+            {% else %}
+              {# 30-min card: combine patient + services into one truncated line #}
+              {% if a.patient or svcs %}
+              <div class="cal-evt-meta truncate">
+                {% if a.patient %}🐾 {{ a.patient.name }}{% if svcs %} · {% endif %}{% endif %}
+                {% if svcs %}<span class="cal-evt-svc">{% for s in svcs %}{{ s.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</span>{% endif %}
+              </div>
+              {% endif %}
+            {% endif %}
+          {% endif %}
+        </a>
+        {% endwith %}
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </div>
 </div>
 
 {% if not has_appointments %}
-<div class="flex flex-col items-center justify-center py-16 text-gray-400">
-  <svg class="w-12 h-12 mb-3 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-  </svg>
-  <p class="text-sm mt-2">Немає записів на цей тиждень</p>
-  <a href="{% url 'appointments:create' %}" class="mt-3 text-xs text-brand-gold hover:underline">+ Додати запис</a>
+<div class="bg-white rounded-xl border border-dashed border-gray-200 p-12 text-center mt-4">
+  <div class="text-gray-300 text-5xl mb-3">📅</div>
+  <p class="text-base text-brand-dark font-medium mb-1">Немає записів на цей тиждень</p>
+  <p class="text-sm text-gray-400 mb-3">Натисни на вільний слот або кнопку нижче</p>
+  <a href="{% url 'appointments:create' %}?date={{ ref }}" class="inline-block text-sm text-brand-gold hover:text-brand-dark font-medium">+ Створити запис</a>
 </div>
 {% endif %}
 
-<!-- Список на день (мобільна версія / доповнення) -->
-<div class="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-  {% for day in days %}
-    {% with day_appts=appts_by_day|dict_get:day %}
-    {% if day_appts %}
-    <div class="bg-white rounded-xl border {% if day == today %}border-brand-gold{% else %}border-gray-200{% endif %} p-4">
-      <div class="font-semibold text-sm text-brand-dark mb-2">
-        {{ day|date:"l, d.m" }}
-        {% if day == today %}<span class="text-xs text-brand-gold ml-1">сьогодні</span>{% endif %}
-      </div>
-      <div class="space-y-2">
-        {% for appt in day_appts %}
-        <div class="flex items-start gap-2 text-sm">
-          <span class="text-brand-gold font-semibold shrink-0 w-10">{{ appt.starts_at|localtime|date:"H:i" }}</span>
-          <div class="flex-1 min-w-0">
-            <div class="font-medium text-brand-dark truncate">
-              {{ appt.client.last_name }} {{ appt.client.first_name }}
-              {% if appt.patient %} / {{ appt.patient.name }}{% endif %}
-            </div>
-            {% if appt.services.exists %}
-            <div class="text-xs text-gray-400 truncate">
-              {% for s in appt.services.all %}{{ s.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
-            </div>
-            {% endif %}
-          </div>
-          <div class="flex items-center gap-1 shrink-0">
-            <span class="text-xs text-gray-400">{{ appt.duration }} хв</span>
-            <a href="{% url 'appointments:edit' appt.pk %}" class="text-gray-400 hover:text-brand-gold p-1">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-1.414.586H9v-2.414a2 2 0 01.586-1.414z"/></svg>
-            </a>
-          </div>
-        </div>
-        {% endfor %}
-      </div>
-    </div>
-    {% endif %}
-    {% endwith %}
-  {% endfor %}
+<div class="mt-3 flex flex-wrap gap-3 text-xs text-gray-500">
+  <div class="inline-flex items-center gap-1.5"><span class="inline-block w-2.5 h-2.5 rounded-sm" style="background:#DEAA01"></span>Заплановано</div>
+  <div class="inline-flex items-center gap-1.5"><span class="inline-block w-2.5 h-2.5 rounded-sm" style="background:#3b82f6"></span>Підтверджено</div>
+  <div class="inline-flex items-center gap-1.5"><span class="inline-block w-2.5 h-2.5 rounded-sm" style="background:#22c55e"></span>Виконано</div>
+  <div class="inline-flex items-center gap-1.5"><span class="inline-block w-2.5 h-2.5 rounded-sm" style="background:#ef4444"></span>Не зʼявився</div>
+  <div class="text-gray-400">· Перетягни картку → змінити час · Клік на порожній слот → новий запис</div>
 </div>
 
 <script>
-// ── Drag & Drop для записів ─────────────────────────────────────────────────
-let _dragged = false;
-let _dragId = null;
+(function () {
+  const SLOT_PX = {{ cal_slot_px }};
+  const START_HOUR = {{ cal_start_hour }};
+  const END_HOUR = {{ cal_end_hour }};
+  const SLOT_MIN = 30;
+  const CSRF = '{{ csrf_token }}';
 
-document.addEventListener('dragstart', function(e) {
-  const el = e.target.closest('.appt-drag');
-  if (!el) return;
-  _dragId = el.dataset.apptId;
-  _dragged = true;
-  el.style.opacity = '0.5';
-  e.dataTransfer.effectAllowed = 'move';
-  e.dataTransfer.setData('text/plain', _dragId);
-});
-
-document.addEventListener('dragend', function(e) {
-  const el = e.target.closest('.appt-drag');
-  if (el) el.style.opacity = '';
-  setTimeout(function() { _dragged = false; }, 100);
-});
-
-document.addEventListener('dragover', function(e) {
-  const zone = e.target.closest('.drop-zone');
-  if (zone) {
-    e.preventDefault();
-    zone.classList.add('bg-brand-gold/10');
+  // ── Current-time line ────────────────────────────────────────────────
+  function updateNowLine() {
+    const el = document.getElementById('cal-now-line');
+    if (!el) return;
+    const now = new Date();
+    const minSinceStart = (now.getHours() - START_HOUR) * 60 + now.getMinutes();
+    const max = (END_HOUR - START_HOUR) * 60;
+    if (minSinceStart < 0 || minSinceStart > max) { el.style.display = 'none'; return; }
+    el.style.display = 'block';
+    el.style.top = (minSinceStart / SLOT_MIN * SLOT_PX) + 'px';
   }
-});
+  updateNowLine();
+  setInterval(updateNowLine, 60000);
 
-document.addEventListener('dragleave', function(e) {
-  const zone = e.target.closest('.drop-zone');
-  if (zone) zone.classList.remove('bg-brand-gold/10');
-});
+  // ── Скрол до поточного часу при завантаженні (тільки якщо сьогодні в тижні) ──
+  (function autoscroll() {
+    const todayCol = document.querySelector('.cal-day[data-today="true"]');
+    if (!todayCol) return;
+    const nowMin = (new Date().getHours() - START_HOUR) * 60 + new Date().getMinutes();
+    if (nowMin < 0) return;
+    const offsetTop = nowMin / SLOT_MIN * SLOT_PX - 100;
+    if (offsetTop > 0) window.scrollTo({top: offsetTop, behavior: 'smooth'});
+  })();
 
-document.addEventListener('drop', function(e) {
-  e.preventDefault();
-  const zone = e.target.closest('.drop-zone');
-  if (!zone || !_dragId) return;
-  zone.classList.remove('bg-brand-gold/10');
-
-  const newDate = zone.dataset.date;
-  const newTime = zone.dataset.time;
-
-  fetch('/appointments/' + _dragId + '/move/', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-CSRFToken': document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '',
-    },
-    body: JSON.stringify({ date: newDate, time: newTime }),
-  })
-  .then(function(r) { return r.json(); })
-  .then(function(data) {
-    if (data.ok) {
-      location.reload();
-    } else {
-      alert('Помилка: ' + (data.error || 'щось пішло не так'));
-    }
-  })
-  .catch(function() {
-    alert('Помилка зв\'язку');
+  // ── Click-to-create на порожньому місці ──────────────────────────────
+  document.querySelectorAll('.cal-day').forEach(function (col) {
+    col.addEventListener('click', function (e) {
+      // якщо клік був по картці — пропускаємо
+      if (e.target.closest('.cal-evt')) return;
+      const rect = col.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      // snap до найближчих 30 хв
+      const slotIdx = Math.max(0, Math.floor(y / SLOT_PX));
+      const minutes = slotIdx * SLOT_MIN;
+      const h = START_HOUR + Math.floor(minutes / 60);
+      const m = minutes % 60;
+      if (h >= END_HOUR) return;
+      const time = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+      const date = col.dataset.date;
+      window.location.href = '{% url "appointments:create" %}?date=' + date + '&time=' + time;
+    });
   });
 
-  _dragId = null;
-});
+  // ── Hover-cursor показує "+" у позиції миші ──────────────────────────
+  document.querySelectorAll('.cal-day').forEach(function (col) {
+    const hint = col.querySelector('.add-hint');
+    if (!hint) return;
+    col.addEventListener('mousemove', function (e) {
+      if (e.target.closest('.cal-evt')) { hint.style.opacity = 0; return; }
+      const rect = col.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      hint.style.left = x + 'px';
+      hint.style.top = y + 'px';
+    });
+  });
 
-// ── Блокуємо слоти, що перекриваються довгими записами ────────────────────
-// Запис тривалістю 90 хв з 10:00 «фізично» лежить лише в td 10:00 і має min-height
-// що візуально розтягує його на 3 рядки. Але td 10:30 і 11:00 зберігають клікабельний
-// «+» і drop-zone. Цей скрипт обходить усі appt-drag і деактивує перекриті td.
-(function() {
-  const SLOT_MINUTES = 30;
+  // ── Drag & drop для переміщення записів ──────────────────────────────
+  let dragId = null;
+  let dragDur = 30;
 
-  function timeToMin(t) {
-    const [h, m] = t.split(':').map(Number);
-    return h * 60 + m;
-  }
+  document.querySelectorAll('.cal-evt').forEach(function (el) {
+    el.addEventListener('dragstart', function (e) {
+      dragId = el.dataset.apptId;
+      dragDur = parseInt(el.dataset.dur || '30', 10);
+      el.classList.add('is-dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', dragId);
+    });
+    el.addEventListener('dragend', function () {
+      el.classList.remove('is-dragging');
+    });
+    // не даємо click при drag
+    el.addEventListener('click', function (e) {
+      if (el.classList.contains('was-dragged')) {
+        e.preventDefault();
+        e.stopPropagation();
+        el.classList.remove('was-dragged');
+      }
+    });
+  });
 
-  document.querySelectorAll('.appt-drag').forEach(function(el) {
-    const dur = parseInt(el.dataset.duration || '30', 10);
-    const day = el.dataset.day;
-    const time = el.dataset.time;
-    if (!day || !time) return;
+  document.querySelectorAll('.cal-day').forEach(function (col) {
+    col.addEventListener('dragover', function (e) {
+      if (!dragId) return;
+      e.preventDefault();
+      col.classList.add('is-drag-over');
+    });
+    col.addEventListener('dragleave', function () {
+      col.classList.remove('is-drag-over');
+    });
+    col.addEventListener('drop', function (e) {
+      e.preventDefault();
+      col.classList.remove('is-drag-over');
+      if (!dragId) return;
 
-    const nSlots = Math.max(1, Math.ceil(dur / SLOT_MINUTES));
-    if (nSlots <= 1) return;
+      const rect = col.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      const slotIdx = Math.max(0, Math.floor(y / SLOT_PX));
+      const minutes = slotIdx * SLOT_MIN;
+      const h = START_HOUR + Math.floor(minutes / 60);
+      const m = minutes % 60;
+      if (h >= END_HOUR) { dragId = null; return; }
+      const time = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+      const date = col.dataset.date;
 
-    const startMin = timeToMin(time);
-    // Деактивуємо наступні nSlots-1 слотів того ж дня
-    for (let i = 1; i < nSlots; i++) {
-      const nextMin = startMin + i * SLOT_MINUTES;
-      const nh = Math.floor(nextMin / 60).toString().padStart(2, '0');
-      const nm = (nextMin % 60).toString().padStart(2, '0');
-      const nextTime = `${nh}:${nm}`;
-      const td = document.querySelector(`.drop-zone[data-date="${day}"][data-time="${nextTime}"]`);
-      if (!td) continue;
-      // Сховати «+» кнопку і прибрати drop-zone функціональність
-      td.classList.remove('drop-zone');
-      td.classList.add('blocked-slot');
-      const plusBtn = td.querySelector('a[href*="appointments/create"]');
-      if (plusBtn) plusBtn.style.display = 'none';
-      // Візуальна підказка — слабка штриховка
-      td.style.background = 'repeating-linear-gradient(45deg, rgba(222,170,1,0.04), rgba(222,170,1,0.04) 6px, transparent 6px, transparent 12px)';
-      td.style.cursor = 'not-allowed';
-      td.title = `Зайнято записом який починається о ${time} (${dur} хв)`;
-    }
+      fetch('/appointments/' + dragId + '/move/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': CSRF,
+        },
+        body: JSON.stringify({date: date, time: time}),
+      })
+      .then(r => r.json())
+      .then(d => {
+        if (d.ok) location.reload();
+        else alert('Помилка: ' + (d.error || 'не вдалось перенести'));
+      })
+      .catch(() => alert('Помилка зв\'язку'));
+
+      dragId = null;
+    });
   });
 })();
 </script>

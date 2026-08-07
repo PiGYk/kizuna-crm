@@ -2,94 +2,155 @@
 {% block title %}Каса — Kizuna CRM{% endblock %}
 
 {% block content %}
+<style>
+  details.actions-menu > summary { list-style: none; cursor: pointer; }
+  details.actions-menu > summary::-webkit-details-marker { display: none; }
+  details.actions-menu .menu-panel { position: absolute; right: 0; margin-top: 0.5rem; z-index: 30; min-width: 14rem; }
+
+  .pill { display: inline-flex; align-items: center; padding: 0.125rem 0.5rem; border-radius: 9999px; font-size: 0.6875rem; font-weight: 500; line-height: 1.3; }
+  .pill-green { background: rgb(220 252 231); color: rgb(22 101 52); }
+  .pill-blue  { background: rgb(219 234 254); color: rgb(30 64 175); }
+  .pill-yellow { background: rgb(254 249 195); color: rgb(133 77 14); }
+  .pill-red   { background: rgb(254 226 226); color: rgb(185 28 28); }
+
+  .row-actions { opacity: 0; transition: opacity 120ms; }
+  tr:hover .row-actions { opacity: 1; }
+</style>
+
+{# ── Header ──────────────────────────────────────────────────────────── #}
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-  <h1 class="text-2xl font-bold">Каса</h1>
-  <div class="flex gap-2">
-    <a href="{% url 'finance:expenses' %}" class="px-4 py-2 rounded-lg text-sm font-medium bg-white border border-gray-200 hover:bg-gray-50">Витрати</a>
-    <a href="{% url 'finance:cash_operation_create' %}" class="px-4 py-2 rounded-lg text-sm font-medium bg-brand-gold text-brand-dark hover:opacity-90">+ Операція</a>
+  <div>
+    <h1 class="text-2xl font-bold text-brand-dark">Каса</h1>
+    <p class="text-xs text-gray-400 mt-0.5">{{ operations|length }} операцій · поточні залишки нижче</p>
+  </div>
+
+  <div class="flex items-center gap-2">
+    <details class="actions-menu relative">
+      <summary class="inline-flex items-center justify-center w-10 h-10 rounded-lg border border-gray-300 text-gray-600 bg-white hover:bg-gray-50 transition select-none" title="Більше дій">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+          <circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/>
+        </svg>
+      </summary>
+      <div class="menu-panel bg-white rounded-xl border border-gray-200 shadow-lg p-1.5">
+        <a href="{% url 'finance:settings' %}" class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-50">
+          <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M3 6h18M3 14h18M3 18h18"/></svg>
+          Початкові залишки
+        </a>
+      </div>
+    </details>
+
+    <a href="{% url 'finance:cash_operation_create' %}"
+       class="bg-brand-gold text-brand-dark px-4 h-10 inline-flex items-center gap-1.5 rounded-lg text-sm font-semibold hover:brightness-95 transition">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+      Операція
+    </a>
   </div>
 </div>
 
-<!-- Поточні залишки -->
-<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-  <div class="bg-white rounded-xl p-5 flex items-center gap-4 border border-gray-100 shadow-sm">
+<script>
+  document.addEventListener('click', function (e) {
+    document.querySelectorAll('details.actions-menu[open]').forEach(function (d) {
+      if (!d.contains(e.target)) d.removeAttribute('open');
+    });
+  });
+</script>
+
+{# ── Balances ───────────────────────────────────────────────────────── #}
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
+  <div class="bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4">
     <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
       <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a5 5 0 00-10 0v2M5 9h14l1 11H4L5 9z"/>
       </svg>
     </div>
-    <div>
-      <p class="text-xs text-gray-400 uppercase tracking-wide font-medium mb-0.5">Готівка в касі</p>
-      <p class="text-2xl font-bold {% if cash_balance < 0 %}text-red-600{% else %}text-gray-900{% endif %}">
+    <div class="min-w-0">
+      <p class="text-[11px] text-gray-400 uppercase tracking-wide font-medium">Готівка в касі</p>
+      <p class="text-2xl font-bold tabular-nums mt-0.5 {% if cash_balance < 0 %}text-red-600{% else %}text-brand-dark{% endif %}">
         {{ cash_balance|floatformat:2 }} ₴
       </p>
     </div>
   </div>
-  <div class="bg-white rounded-xl p-5 flex items-center gap-4 border border-gray-100 shadow-sm">
+
+  <div class="bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4">
     <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
       <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
         <rect x="2" y="5" width="20" height="14" rx="2" stroke-linecap="round" stroke-linejoin="round"/>
         <path stroke-linecap="round" stroke-linejoin="round" d="M2 10h20"/>
       </svg>
     </div>
-    <div>
-      <p class="text-xs text-gray-400 uppercase tracking-wide font-medium mb-0.5">На картці</p>
-      <p class="text-2xl font-bold {% if card_balance < 0 %}text-red-600{% else %}text-gray-900{% endif %}">
+    <div class="min-w-0">
+      <p class="text-[11px] text-gray-400 uppercase tracking-wide font-medium">На картці</p>
+      <p class="text-2xl font-bold tabular-nums mt-0.5 {% if card_balance < 0 %}text-red-600{% else %}text-brand-dark{% endif %}">
         {{ card_balance|floatformat:2 }} ₴
       </p>
     </div>
   </div>
 </div>
 
-<form method="get" class="bg-white rounded-xl p-4 mb-4 flex flex-wrap gap-3 items-end">
-  <div>
-    <label class="block text-xs text-gray-500 mb-1">Від</label>
-    <input type="date" name="from" value="{{ filter.from }}" class="rounded-lg border-gray-300 text-sm px-3 py-2">
-  </div>
-  <div>
-    <label class="block text-xs text-gray-500 mb-1">До</label>
-    <input type="date" name="to" value="{{ filter.to }}" class="rounded-lg border-gray-300 text-sm px-3 py-2">
-  </div>
-  <button type="submit" class="px-4 py-2 rounded-lg text-sm font-medium bg-brand-dark text-white hover:opacity-90">Фільтр</button>
-</form>
+{# ── Filters ─────────────────────────────────────────────────────────── #}
+<div class="bg-white rounded-xl border border-gray-200 px-4 py-3 mb-4">
+  <form method="get" class="flex flex-wrap items-center gap-3">
+    <div class="flex items-center gap-2">
+      <span class="text-xs text-gray-400">Період:</span>
+      <input type="date" name="from" value="{{ filter.from }}"
+             class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+      <span class="text-gray-300 text-sm">—</span>
+      <input type="date" name="to" value="{{ filter.to }}"
+             class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+    </div>
+    <button type="submit" class="px-4 py-2 rounded-lg text-sm font-medium bg-brand-dark text-white hover:opacity-90">Застосувати</button>
+    {% if filter.from or filter.to %}
+      <a href="{% url 'finance:cash_operations' %}" class="text-xs text-brand-gold hover:text-brand-dark ml-auto">Скинути</a>
+    {% endif %}
+  </form>
+</div>
 
-<div class="bg-white rounded-xl overflow-hidden">
+{# ── Table ──────────────────────────────────────────────────────────── #}
+<div class="bg-white rounded-xl border border-gray-200 overflow-x-auto">
   <table class="w-full text-sm">
-    <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
+    <thead class="bg-gray-50 border-b border-gray-200">
       <tr>
-        <th class="px-4 py-3 text-left">Дата</th>
-        <th class="px-4 py-3 text-left">Тип</th>
-        <th class="px-4 py-3 text-left">Опис</th>
-        <th class="px-4 py-3 text-left">Хто</th>
-        <th class="px-4 py-3 text-right">Сума</th>
-        <th class="px-4 py-3 text-right">Дії</th>
+        <th class="px-4 py-3 text-left font-medium text-gray-500 text-xs uppercase tracking-wide">Дата</th>
+        <th class="px-4 py-3 text-left font-medium text-gray-500 text-xs uppercase tracking-wide">Тип</th>
+        <th class="px-4 py-3 text-left font-medium text-gray-500 text-xs uppercase tracking-wide">Опис</th>
+        <th class="px-4 py-3 text-left font-medium text-gray-500 text-xs uppercase tracking-wide hidden md:table-cell">Хто</th>
+        <th class="px-4 py-3 text-right font-medium text-gray-500 text-xs uppercase tracking-wide">Сума</th>
+        <th class="px-3 py-3 w-16"></th>
       </tr>
     </thead>
     <tbody class="divide-y divide-gray-100">
       {% for op in operations %}
-      <tr class="hover:bg-gray-50">
-        <td class="px-4 py-3 whitespace-nowrap">{{ op.date|date:"d.m.Y" }}</td>
+      <tr class="hover:bg-gray-50/70 transition-colors">
+        <td class="px-4 py-3 whitespace-nowrap text-gray-700 tabular-nums">{{ op.date|date:"d.m.Y" }}</td>
         <td class="px-4 py-3">
-          <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
-            {% if op.type == 'card_to_cash' %}bg-green-100 text-green-700
-            {% elif op.type == 'cash_to_card' %}bg-blue-100 text-blue-700
-            {% elif op.type == 'deposit' %}bg-yellow-100 text-yellow-700
-            {% else %}bg-red-100 text-red-700{% endif %}">
-            {{ op.get_type_display }}
-          </span>
+          {% if op.type == 'card_to_cash' %}<span class="pill pill-green">{{ op.get_type_display }}</span>
+          {% elif op.type == 'cash_to_card' %}<span class="pill pill-blue">{{ op.get_type_display }}</span>
+          {% elif op.type == 'deposit' %}<span class="pill pill-yellow">{{ op.get_type_display }}</span>
+          {% else %}<span class="pill pill-red">{{ op.get_type_display }}</span>{% endif %}
         </td>
-        <td class="px-4 py-3 text-gray-500">{{ op.description|default:"—" }}</td>
-        <td class="px-4 py-3 text-gray-500">{{ op.created_by.get_full_name|default:op.created_by.username }}</td>
-        <td class="px-4 py-3 text-right font-medium">{{ op.amount|floatformat:2 }} ₴</td>
-        <td class="px-4 py-3 text-right">
+        <td class="px-4 py-3 text-gray-500 max-w-xs truncate">{{ op.description|default:"—" }}</td>
+        <td class="px-4 py-3 text-gray-500 hidden md:table-cell">{{ op.created_by.get_full_name|default:op.created_by.username }}</td>
+        <td class="px-4 py-3 text-right font-semibold text-brand-dark tabular-nums whitespace-nowrap">{{ op.amount|floatformat:2 }} ₴</td>
+        <td class="px-3 py-3 text-right">
           <form method="post" action="{% url 'finance:cash_operation_delete' op.pk %}" class="inline" onsubmit="return confirm('Видалити операцію?')">
             {% csrf_token %}
-            <button class="text-red-500 hover:underline text-xs">вид.</button>
+            <button type="submit"
+                    class="row-actions w-8 h-8 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600 transition inline-flex items-center justify-center" title="Видалити">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3"/></svg>
+            </button>
           </form>
         </td>
       </tr>
       {% empty %}
-      <tr><td colspan="6" class="px-4 py-8 text-center text-gray-400">Операцій немає</td></tr>
+      <tr>
+        <td colspan="6" class="px-4 py-16 text-center">
+          <div class="text-gray-300 text-5xl mb-2">💵</div>
+          <div class="text-gray-500 text-sm font-medium mb-1">
+            {% if filter.from or filter.to %}За поточним фільтром операцій немає{% else %}Касових операцій ще немає{% endif %}
+          </div>
+          <a href="{% url 'finance:cash_operation_create' %}" class="inline-block mt-2 text-sm text-brand-gold hover:text-brand-dark font-medium">+ Додати першу операцію</a>
+        </td>
+      </tr>
       {% endfor %}
     </tbody>
   </table>

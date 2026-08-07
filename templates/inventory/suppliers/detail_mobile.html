@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+{% block title %}{{ supplier.name }} — Kizuna CRM{% endblock %}
+
+{% block extra_head %}
+<script>
+  document.documentElement.classList.add('has-mobile-fullscreen');
+  document.addEventListener('DOMContentLoaded', function () {
+    document.body.classList.add('has-mobile-fullscreen');
+  });
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+{% endblock %}
+
+{% block fab_url %}{% endblock %}
+
+{% block content %}
+<div class="tg-mobile-shell">
+
+  <header class="tg-mobile-header shrink-0 bg-white border-b border-gray-100 flex items-center gap-2 px-2"
+          style="min-height: 56px;">
+    <a href="{% url 'inventory:supplier_list' %}"
+       class="tg-mobile-tap text-brand-dark active:opacity-70" aria-label="Назад">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+      </svg>
+    </a>
+    <h1 class="flex-1 font-semibold text-brand-dark text-base truncate">{{ supplier.name }}</h1>
+    <a href="{% url 'inventory:supplier_edit' supplier.pk %}"
+       class="tg-mobile-tap text-brand-gold font-semibold text-[15px] px-2">
+      ✏️
+    </a>
+  </header>
+
+  <div class="flex-1 overflow-y-auto pb-32" style="-webkit-overflow-scrolling: touch; background: #f7f7f8;">
+
+    <!-- Contacts -->
+    <div class="px-3 pt-3">
+      <div class="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
+        {% if supplier.contact_person %}
+        <div class="flex items-center gap-3 px-4 py-3">
+          <span class="text-lg shrink-0">👤</span>
+          <div class="flex-1 min-w-0">
+            <div class="text-[11px] text-gray-400 uppercase">Контактна особа</div>
+            <div class="text-sm font-medium text-brand-dark truncate">{{ supplier.contact_person }}</div>
+          </div>
+        </div>
+        {% endif %}
+        {% if supplier.phone %}
+        <a href="tel:{{ supplier.phone }}" class="flex items-center gap-3 px-4 py-3 active:bg-gray-50">
+          <span class="text-lg shrink-0">📞</span>
+          <div class="flex-1 min-w-0">
+            <div class="text-[11px] text-gray-400 uppercase">Телефон</div>
+            <div class="text-sm font-medium text-brand-gold truncate">{{ supplier.phone }}</div>
+          </div>
+        </a>
+        {% endif %}
+        {% if supplier.email %}
+        <a href="mailto:{{ supplier.email }}" class="flex items-center gap-3 px-4 py-3 active:bg-gray-50">
+          <span class="text-lg shrink-0">✉️</span>
+          <div class="flex-1 min-w-0">
+            <div class="text-[11px] text-gray-400 uppercase">Email</div>
+            <div class="text-sm font-medium text-brand-gold truncate">{{ supplier.email }}</div>
+          </div>
+        </a>
+        {% endif %}
+        {% if supplier.notes %}
+        <div class="px-4 py-3">
+          <div class="text-[11px] text-gray-400 uppercase mb-1">Нотатки</div>
+          <div class="text-sm text-brand-dark whitespace-pre-line">{{ supplier.notes }}</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- 2 KPI: stats -->
+    <div class="px-3 pt-2 grid grid-cols-2 gap-2">
+      <div class="fin-kpi">
+        <div class="text-[10px] text-gray-400 uppercase">Закупки</div>
+        <div class="text-lg font-bold text-brand-dark mt-0.5">{{ stats.total_sum|floatformat:0|default:"0" }} ₴</div>
+        <div class="text-[10px] text-gray-400 mt-0.5">{{ stats.total_count|default:0 }} записів</div>
+      </div>
+      <div class="fin-kpi">
+        <div class="text-[10px] text-gray-400 uppercase">Витрати</div>
+        <div class="text-lg font-bold text-brand-dark mt-0.5">{{ expense_total|floatformat:0|default:"0" }} ₴</div>
+        <div class="text-[10px] text-gray-400 mt-0.5">{{ expenses|length }} записів</div>
+      </div>
+    </div>
+
+    <!-- Покупки (movements) -->
+    {% if movements %}
+    <div class="px-3 pt-3">
+      <div class="text-[11px] text-gray-400 uppercase tracking-wide px-2 mb-1">Закупки складу</div>
+      <div class="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
+        {% for m in movements|slice:":15" %}
+        <div class="px-3 py-2.5">
+          <div class="flex items-baseline justify-between gap-2">
+            <div class="text-sm text-brand-dark truncate">{{ m.product.name }}</div>
+            <div class="text-sm font-semibold text-brand-dark whitespace-nowrap">{{ m.price|floatformat:0|default:"—" }} ₴</div>
+          </div>
+          <div class="text-[11px] text-gray-400 mt-0.5">
+            {{ m.quantity|floatformat:"-3" }} {{ m.product.unit }} · {{ m.created_at|date:"d.m.Y" }}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Витрати -->
+    {% if expenses %}
+    <div class="px-3 pt-3">
+      <div class="text-[11px] text-gray-400 uppercase tracking-wide px-2 mb-1">Витрати (фінанси)</div>
+      <div class="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
+        {% for e in expenses|slice:":15" %}
+        <div class="px-3 py-2.5">
+          <div class="flex items-baseline justify-between gap-2">
+            <div class="text-sm text-brand-dark truncate">{{ e.category }}</div>
+            <div class="text-sm font-semibold text-brand-dark whitespace-nowrap">{{ e.amount|floatformat:0 }} ₴</div>
+          </div>
+          <div class="text-[11px] text-gray-400 mt-0.5 truncate">
+            {{ e.date|date:"d.m.Y" }}{% if e.description %} · {{ e.description }}{% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if not movements and not expenses %}
+    <div class="text-center text-sm text-gray-400 py-8">Поки немає записів закупок чи витрат</div>
+    {% endif %}
+  </div>
+
+  <!-- Sticky-bottom: tel/email/delete -->
+  <div class="shrink-0 border-t border-gray-200 bg-white px-3 py-2 flex items-center gap-2"
+       style="padding-bottom: max(8px, env(safe-area-inset-bottom));">
+    {% if supplier.phone %}
+    <a href="tel:{{ supplier.phone }}" class="flex-1 py-3 rounded-xl text-sm font-semibold bg-green-600 text-white text-center active:opacity-80">
+      📞 Дзвонити
+    </a>
+    {% endif %}
+    <form method="post" action="{% url 'inventory:supplier_delete' supplier.pk %}"
+          onsubmit="return confirm('Видалити постачальника?');">
+      {% csrf_token %}
+      <button type="submit" class="tg-mobile-tap text-red-400 active:opacity-70" aria-label="Видалити">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22"/>
+        </svg>
+      </button>
+    </form>
+  </div>
+
+</div>
+
+{% include 'finance/_partials/mobile_toast.html' %}
+{% endblock %}

@@ -20,6 +20,7 @@ from datetime import date, datetime, time as dt_time, timedelta
 
 from django.conf import settings
 from django.core.cache import cache
+from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -95,6 +96,91 @@ def _resolve_org(request):
     return org, None
 
 
+# ── Перевірка зайнятості (єдина правда: показ слотів == прийом заявки) ─────────
+#
+# Раніше показ слотів (slots_view) рахував зайнятість з урахуванням тривалості,
+# а створення запису (lead) перевіряло лише точний збіг starts_at. Через це
+# заявка на час, що частково накладається на існуючий запис (напр. 14:30 при
+# записі 14:00 на 90 хв), або заявка зі стейлого/гоночного слота — проскакувала
+# і створювала накладку. Тепер обидва шляхи використовують ОДИН інтервальний
+# перетин і однаковий статус-фільтр (блокує все, крім 'cancelled').
+
+def _blocking_appointments(org, d):
+    """Записи org на дату d, що блокують час (усі статуси крім скасованих).
+
+    Повертає список (starts_at, duration) — обидва aware/int.
+
+    ВАЖЛИВО: Appointment.objects — OrgManager (fail-closed). У анонімному
+    публічному API org-контекст не виставлений автоматично, тож БЕЗ
+    org_context() цей запит повернув би qs.none() і всі слоти вважались би
+    вільними (= накладки). Тому явно входимо в org_context(org).
+    """
+    from apps.clinic.tenant import org_context
+    with org_context(org):
+        return list(
+            Appointment.objects.filter(
+                organization=org,
+                starts_at__date=d,
+            ).exclude(status='cancelled').values_list('starts_at', 'duration')
+        )
+
+
+def _overlaps(new_start, new_duration, blocking, default_duration):
+    """True, якщо інтервал [new_start, new_start+new_duration) перетинає будь-який
+    із blocking-записів. Класичний перетин: A.start < B.end AND A.end > B.start.
+    Порівняння у aware-datetime (UTC), тому tz-зсуви не плутають.
+    """
+    new_end = new_start + timedelta(minutes=new_duration)
+    for ex_start, ex_dur in blocking:
+        ex_end = ex_start + timedelta(minutes=int(ex_dur or default_duration))
+        if ex_start < new_end and ex_end > new_start:
+            return True
+    return False
+
+
+def _org_schedule(org):
+    """Робочі параметри org з безпечними дефолтами."""
+    work_days = org.work_days if org.work_days else [0, 1, 4, 5, 6]
+    start_hour = org.work_start if org.work_start else dt_time(10, 0)
+    end_hour = org.work_end if org.work_end else dt_time(18, 0)
+    duration = org.slot_duration if org.slot_duration else 30
+    return work_days, start_hour, end_hour, duration
+
+
+def _free_slots(org, d, blocking=None):
+    """Список вільних слотів 'HH:MM' для дати d.
+
+    Повертає None, якщо день — вихідний (щоб caller віддав day_off).
+    Якщо blocking не передано — підвантажує сам.
+    """
+    if d < timezone.localdate():
+        return []
+
+    work_days, start_hour, end_hour, duration = _org_schedule(org)
+    if d.weekday() not in work_days:
+        return None  # day_off
+
+    if blocking is None:
+        blocking = _blocking_appointments(org, d)
+
+    free = []
+    t = datetime.combine(d, start_hour)
+    end_t = datetime.combine(d, end_hour)
+    while t < end_t:
+        slot_start = timezone.make_aware(t)
+        if not _overlaps(slot_start, duration, blocking, duration):
+            free.append(t.time().strftime('%H:%M'))
+        t += timedelta(minutes=duration)
+    return free
+
+
+def _slot_is_free(org, starts_at, duration):
+    """True, якщо запит [starts_at, +duration) не перетинає жоден активний запис."""
+    d = timezone.localtime(starts_at).date()
+    blocking = _blocking_appointments(org, d)
+    return not _overlaps(starts_at, duration, blocking, duration)
+
+
 # ── Вільні слоти ──────────────────────────────────────────────────────────────
 
 def slots_view(request):
@@ -119,47 +205,12 @@ def slots_view(request):
             request,
         )
 
-    if d < timezone.localdate():
-        return _cors(JsonResponse({'slots': [], 'date': d.isoformat()}), request)
-
-    work_days = org.work_days if org.work_days else [0, 1, 4, 5, 6]
-    if d.weekday() not in work_days:
+    free = _free_slots(org, d)
+    if free is None:
         return _cors(
             JsonResponse({'slots': [], 'date': d.isoformat(), 'day_off': True}),
             request,
         )
-
-    start_hour = org.work_start if org.work_start else dt_time(10, 0)
-    end_hour = org.work_end if org.work_end else dt_time(18, 0)
-    duration = org.slot_duration if org.slot_duration else 30
-
-    # Генеруємо слоти
-    slots = []
-    t = datetime.combine(d, start_hour)
-    end_t = datetime.combine(d, end_hour)
-    while t < end_t:
-        slots.append(t.time())
-        t += timedelta(minutes=duration)
-
-    # Зайняті слоти (включно з усіма проміжними при тривалості > slot_duration).
-    # Запис на 90 хв з 10:00 блокує 10:00, 10:30, 11:00.
-    # ВАЖЛИВО: фільтр по організації, щоб не палити чужі брони.
-    booked_appts = Appointment.objects.filter(
-        starts_at__date=d,
-        organization=org,
-    ).exclude(status='cancelled').values_list('starts_at', 'duration')
-
-    booked_times = set()
-    for starts_at, dur in booked_appts:
-        start_local = timezone.localtime(starts_at)
-        # Округлення вгору: 1-30 хв = 1 слот, 31-60 = 2, 61-90 = 3 ...
-        n_slots = max(1, (int(dur or duration) + duration - 1) // duration)
-        for i in range(n_slots):
-            slot_dt = start_local + timedelta(minutes=i * duration)
-            booked_times.add(slot_dt.time().replace(second=0, microsecond=0))
-
-    free = [s.strftime('%H:%M') for s in slots
-            if s.replace(second=0, microsecond=0) not in booked_times]
 
     return _cors(JsonResponse({'slots': free, 'date': d.isoformat()}), request)
 
@@ -248,7 +299,17 @@ def lead_view(request):
     except ValueError:
         pass
 
-    lead = LeadRequest.objects.create(
+    # Якщо вказані і дата, і час — час МУСИТЬ бути вільним. Перевірка + створення
+    # запису відбуваються в одній транзакції з блокуванням рядків дня, щоб два
+    # одночасні сабміти на той самий слот не створили накладку (закриває гонку).
+    booking_dt = None
+    slot_duration = org.slot_duration if org.slot_duration else 30
+    if preferred_date and preferred_time:
+        booking_dt = timezone.make_aware(
+            datetime.combine(preferred_date, preferred_time)
+        )
+
+    lead_payload = dict(
         name=name,
         phone=phone,
         pet_name=(data.get('pet_name') or '').strip(),
@@ -261,7 +322,48 @@ def lead_view(request):
         source=(data.get('source') or 'website').strip()[:100],
     )
 
-    _create_crm_objects(lead, org)
+    class _SlotTaken(Exception):
+        pass
+
+    # org_context — ОБОВ'ЯЗКОВО: усі менеджери (Appointment/Client/Patient) —
+    # OrgManager/RelatedOrgManager (fail-closed). Без виставленого org-контексту
+    # SELECT'и повертають qs.none() → перевірка зайнятості нічого не бачить
+    # (накладки) і get_or_create клієнта плодить дублі. Виставляємо явно.
+    from apps.clinic.tenant import org_context
+    try:
+        with org_context(org), transaction.atomic():
+            if booking_dt is not None:
+                # Серіалізуємо одночасні сабміти: блокуємо рядки записів цього дня.
+                lock_date = timezone.localtime(booking_dt).date()
+                list(
+                    Appointment.objects.select_for_update()
+                    .filter(organization=org, starts_at__date=lock_date)
+                    .exclude(status='cancelled')
+                    .values_list('pk', flat=True)
+                )
+                if not _slot_is_free(org, booking_dt, slot_duration):
+                    raise _SlotTaken()
+
+            lead = LeadRequest.objects.create(**lead_payload)
+            _create_crm_objects(lead, org, booking_dt, slot_duration)
+    except _SlotTaken:
+        # Жорсткий блок: запис не створено, лід не збережено. Віддаємо свіжі
+        # вільні слоти, щоб людина одразу обрала інший час.
+        fresh = _free_slots(org, preferred_date)
+        return _cors(
+            JsonResponse(
+                {
+                    'ok': False,
+                    'slot_taken': True,
+                    'error': 'Цей час щойно зайняли. Оберіть інший вільний час.',
+                    'slots': fresh or [],
+                    'date': preferred_date.isoformat(),
+                },
+                status=409,
+            ),
+            request,
+        )
+
     _notify_staff(lead, org)
 
     return _cors(JsonResponse({'ok': True, 'id': lead.pk}), request)
@@ -284,59 +386,56 @@ def _map_species(pet_type: str) -> str:
 
 # ── Автоматичне створення Client / Patient / Appointment ─────────────────────
 
-def _create_crm_objects(lead: LeadRequest, org) -> None:
+def _create_crm_objects(lead: LeadRequest, org, booking_dt=None, slot_duration=30) -> None:
     """
     При отриманні заявки з сайту автоматично:
       1. Знаходить або створює Client (за телефоном + org)
       2. Знаходить або створює Patient (за кличкою + client), якщо кличка є
-      3. Створює Appointment, якщо вказані дата та час
+      3. Створює Appointment, якщо переданий booking_dt (вже перевірений
+         на вільність під блокуванням у lead_view)
+
+    Викликається всередині transaction.atomic() у lead_view. Помилки
+    створення Client/Patient логуються, але не валять заявку.
     """
     try:
-        import datetime as dt_module
-        from django.utils import timezone as tz
         from apps.clients.models import Client, Patient
 
-        # ── 1. Client ──
-        name_parts = lead.name.strip().split(None, 1)
-        first_name = name_parts[0]
-        last_name  = name_parts[1] if len(name_parts) > 1 else ''
+        # Savepoint: збій тут не отруює зовнішню транзакцію lead_view —
+        # заявка (LeadRequest) усе одно збережеться.
+        with transaction.atomic():
+            # ── 1. Client ──
+            name_parts = lead.name.strip().split(None, 1)
+            first_name = name_parts[0]
+            last_name  = name_parts[1] if len(name_parts) > 1 else ''
 
-        client, _ = Client.objects.get_or_create(
-            phone=lead.phone[:20],
-            organization=org,
-            defaults={
-                'first_name': first_name,
-                'last_name':  last_name,
-            },
-        )
-
-        # ── 2. Patient ──
-        patient = None
-        if lead.pet_name:
-            patient, _ = Patient.objects.get_or_create(
-                client=client,
-                name=lead.pet_name,
-                defaults={'species': _map_species(lead.pet_type)},
+            client, _ = Client.objects.get_or_create(
+                phone=lead.phone[:20],
+                organization=org,
+                defaults={
+                    'first_name': first_name,
+                    'last_name':  last_name,
+                },
             )
 
-        # ── 3. Appointment ──
-        if lead.preferred_date and lead.preferred_time:
-            naive_dt = dt_module.datetime.combine(lead.preferred_date, lead.preferred_time)
-            starts_at = tz.make_aware(naive_dt)
+            # ── 2. Patient ──
+            patient = None
+            if lead.pet_name:
+                patient, _ = Patient.objects.get_or_create(
+                    client=client,
+                    name=lead.pet_name,
+                    defaults={'species': _map_species(lead.pet_type)},
+                )
 
-            # Перевірка вільного слота — якщо зайнято, лід зберігаємо без appointment
-            # (адмін потім розбереться через CRM)
-            slot_taken = Appointment.objects.filter(
-                organization=org,
-                starts_at=starts_at,
-                status__in=['scheduled', 'confirmed'],
-            ).exists()
-            if not slot_taken:
+            # ── 3. Appointment ──
+            # Слот уже перевірений на вільність під select_for_update у lead_view,
+            # тож тут просто створюємо запис із тривалістю слота клініки.
+            if booking_dt is not None:
                 notes = f'Заявка з сайту. Причина: {lead.service_note}' if lead.service_note else 'Заявка з сайту'
                 Appointment.objects.create(
                     client=client,
                     patient=patient,
-                    starts_at=starts_at,
+                    starts_at=booking_dt,
+                    duration=slot_duration,
                     organization=org,
                     notes=notes,
                 )
@@ -376,7 +475,13 @@ def _notify_staff(lead: LeadRequest, org) -> None:
 
         text = '\n'.join(lines)
 
-        chats = TelegramChat.objects.filter(organization=org, receive_leads=True)
+        # TelegramChat теж org-scoped (fail-closed) — без org_context запит
+        # повернув би qs.none() і ніхто б не отримав сповіщення.
+        from apps.clinic.tenant import org_context
+        with org_context(org):
+            chats = list(
+                TelegramChat.objects.filter(organization=org, receive_leads=True)
+            )
 
         notified = set()
         for chat in chats:

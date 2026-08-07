@@ -55,10 +55,13 @@
           {% with day_key=day|date:"Y-m-d" %}
           {% with day_shifts=shifts_by_date|get_item:day_key %}
             {% for shift in day_shifts %}
-            <div class="text-xs px-1.5 py-0.5 rounded bg-brand-gold/10 text-brand-dark truncate"
+            <div class="flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded bg-brand-gold/10 text-brand-dark group"
                  title="{{ shift.user.get_full_name }}{% if shift.start_time %} {{ shift.start_time|time:'H:i' }}–{{ shift.end_time|time:'H:i' }}{% endif %}">
-              {{ shift.user.first_name|default:shift.user.username }}
-              {% if shift.start_time %}<span class="text-gray-400">{{ shift.start_time|time:"H:i" }}</span>{% endif %}
+              <span class="truncate flex-1">{{ shift.user.first_name|default:shift.user.username }}
+              {% if shift.start_time %}<span class="text-gray-400">{{ shift.start_time|time:"H:i" }}</span>{% endif %}</span>
+              <button type="button" onclick="deleteShift({{ shift.pk }}, this)"
+                class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition ml-0.5 flex-shrink-0 leading-none"
+                title="Видалити зміну">&times;</button>
             </div>
             {% endfor %}
           {% endwith %}
@@ -116,6 +119,20 @@ function openShiftModal(dateStr) {
 }
 function closeShiftModal() {
   document.getElementById('shift-modal').classList.add('hidden');
+}
+function getCsrfToken() {
+  return document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('csrftoken='))?.split('=')[1] || '';
+}
+function deleteShift(shiftId, btn) {
+  if (!confirm('Видалити зміну?')) return;
+  fetch('/shifts/' + shiftId + '/delete/', {
+    method: 'POST',
+    headers: {'X-CSRFToken': getCsrfToken()},
+  }).then(r => {
+    if (r.ok) {
+      btn.closest('div[class*="bg-brand-gold"]').remove();
+    }
+  });
 }
 </script>
 {% endblock %}

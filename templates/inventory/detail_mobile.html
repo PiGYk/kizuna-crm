@@ -1,0 +1,275 @@
+{% extends 'base.html' %}
+{% load l10n %}
+{% block title %}{{ product.name }} — Склад{% endblock %}
+
+{% block extra_head %}
+<script>
+  document.documentElement.classList.add('has-mobile-fullscreen');
+  document.addEventListener('DOMContentLoaded', function () {
+    document.body.classList.add('has-mobile-fullscreen');
+  });
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+{% endblock %}
+
+{% block fab_url %}{% endblock %}
+
+{% block content %}
+<div class="tg-mobile-shell">
+
+  <header class="tg-mobile-header shrink-0 bg-white border-b border-gray-100 flex items-center gap-2 px-2"
+          style="min-height: 56px;">
+    <a href="{% url 'inventory:list' %}"
+       class="tg-mobile-tap text-brand-dark active:opacity-70" aria-label="Назад">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+      </svg>
+    </a>
+    <h1 class="flex-1 font-semibold text-brand-dark text-base truncate">{{ product.name }}</h1>
+    <button type="button" onclick="tgOpenSheet('inv-detail-menu')"
+            class="tg-mobile-tap text-gray-500 active:text-brand-dark" aria-label="Меню">
+      <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+        <circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/>
+      </svg>
+    </button>
+  </header>
+
+  <div class="flex-1 overflow-y-auto pb-32" style="-webkit-overflow-scrolling: touch; background: #f7f7f8;">
+
+    <!-- Hero card -->
+    <div class="px-3 pt-3">
+      <div class="fin-kpi">
+        <div class="text-[11px] text-gray-400 uppercase tracking-wide">Залишок</div>
+        <div class="text-3xl font-bold mt-0.5 {% if product.is_out_of_stock %}text-red-600{% elif product.is_low_stock %}text-yellow-600{% else %}text-brand-dark{% endif %}">
+          {{ product.quantity|floatformat:"-3" }} <span class="text-base text-gray-400 font-normal">{{ product.unit }}</span>
+        </div>
+        {% if product.min_quantity > 0 %}
+        <div class="text-[11px] text-gray-400 mt-1">мін. {{ product.min_quantity|floatformat:"-3" }} {{ product.unit }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- 2 KPI: ціни -->
+    <div class="px-3 pt-2 grid grid-cols-2 gap-2">
+      <div class="fin-kpi">
+        <div class="text-[10px] text-gray-400 uppercase">Вхідна</div>
+        <div class="text-lg font-bold text-brand-dark mt-0.5">{{ product.buy_price|floatformat:2 }} ₴</div>
+      </div>
+      <div class="fin-kpi">
+        <div class="text-[10px] text-gray-400 uppercase">Продаж</div>
+        <div class="text-lg font-bold text-brand-gold mt-0.5">{{ product.sell_price|floatformat:2 }} ₴</div>
+      </div>
+    </div>
+
+    <!-- Meta -->
+    <div class="px-3 pt-2">
+      <div class="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
+        {% if product.sku %}
+        <div class="flex items-center gap-3 px-4 py-3">
+          <span class="text-[11px] text-gray-400 uppercase w-24 shrink-0">SKU</span>
+          <span class="text-sm font-mono text-brand-dark flex-1">{{ product.sku }}</span>
+        </div>
+        {% endif %}
+        {% if product.category %}
+        <div class="flex items-center gap-3 px-4 py-3">
+          <span class="text-[11px] text-gray-400 uppercase w-24 shrink-0">Категорія</span>
+          <span class="text-sm text-brand-dark flex-1">{{ product.category.name }}</span>
+        </div>
+        {% endif %}
+        {% if product.expiry_date %}
+        <div class="flex items-center gap-3 px-4 py-3">
+          <span class="text-[11px] text-gray-400 uppercase w-24 shrink-0">Термін</span>
+          <span class="text-sm flex-1 {% if product.is_expired %}text-red-600 font-semibold{% elif product.is_expiring_soon %}text-yellow-600{% else %}text-brand-dark{% endif %}">
+            {{ product.expiry_date|date:"d.m.Y" }}
+            {% if product.is_expired %}· прострочено
+            {% elif product.is_expiring_soon %}· скоро{% endif %}
+          </span>
+        </div>
+        {% endif %}
+        {% if product.notes %}
+        <div class="px-4 py-3">
+          <div class="text-[11px] text-gray-400 uppercase mb-1">Нотатки</div>
+          <div class="text-sm text-brand-dark whitespace-pre-line">{{ product.notes }}</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Recent movements -->
+    {% if movements %}
+    <div class="px-3 pt-3">
+      <div class="text-[11px] text-gray-400 uppercase tracking-wide px-2 mb-1">Останні рухи</div>
+      <div class="bg-white rounded-2xl border border-gray-100 divide-y divide-gray-50">
+        {% for m in movements|slice:":5" %}
+        <div class="flex items-center gap-3 px-3 py-2.5">
+          <div class="w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-base
+            {% if m.type == 'in' %}bg-green-100 text-green-700
+            {% elif m.type == 'out' %}bg-red-100 text-red-700
+            {% else %}bg-blue-100 text-blue-700{% endif %}">
+            {% if m.type == 'in' %}↓{% elif m.type == 'out' %}↑{% else %}=
+            {% endif %}
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="text-sm text-brand-dark">
+              {{ m.get_type_display }} · <strong>{{ m.quantity|floatformat:"-3" }}</strong>
+            </div>
+            <div class="text-[11px] text-gray-400 truncate">
+              {{ m.created_at|date:"d.m H:i" }}
+              {% if m.created_by %} · {{ m.created_by.get_full_name|default:m.created_by.username }}{% endif %}
+              {% if m.reason %} · {{ m.reason }}{% endif %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Sticky-bottom actions -->
+  <div class="shrink-0 border-t border-gray-200 bg-white px-3 py-2 grid grid-cols-3 gap-2"
+       style="padding-bottom: max(8px, env(safe-area-inset-bottom));">
+    <button type="button" onclick="tgOpenSheet('inv-in-sheet')"
+            class="py-3 rounded-xl text-sm font-semibold bg-green-600 text-white active:opacity-80">
+      📥 Прихід
+    </button>
+    <button type="button" onclick="tgOpenSheet('inv-writeoff-sheet')"
+            class="py-3 rounded-xl text-sm font-semibold bg-red-500 text-white active:opacity-80">
+      ➖ Списати
+    </button>
+    <button type="button" onclick="tgOpenSheet('inv-adjust-sheet')"
+            class="py-3 rounded-xl text-sm font-semibold bg-blue-500 text-white active:opacity-80">
+      ⚖ Корекція
+    </button>
+  </div>
+
+</div>
+
+<div id="tg-sheet-backdrop" class="tg-mobile-sheet-backdrop" onclick="tgCloseAllSheets()"></div>
+
+<!-- ⋮ menu -->
+<div id="inv-detail-menu" class="tg-mobile-sheet">
+  <div class="tg-mobile-sheet-handle"></div>
+  <div class="tg-mobile-sheet-body py-2">
+    <a href="{% url 'inventory:edit' product.pk %}" class="flex items-center gap-3 px-5 py-3 active:bg-gray-100" style="min-height: 48px;">
+      <span class="text-xl">✏️</span><span class="text-sm">Редагувати товар</span>
+    </a>
+    <form method="post" action="{% url 'inventory:delete' product.pk %}"
+          onsubmit="return confirm('Видалити «{{ product.name }}»? Усі рухи зникнуть.');" class="border-t border-gray-100">
+      {% csrf_token %}
+      <button type="submit" class="w-full flex items-center gap-3 px-5 py-3 text-left text-red-600 active:bg-gray-100" style="min-height: 48px;">
+        <span class="text-xl">🗑</span><span class="text-sm">Видалити товар</span>
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- Stock In sheet -->
+<div id="inv-in-sheet" class="tg-mobile-sheet" style="max-height: 90vh;">
+  <div class="tg-mobile-sheet-handle"></div>
+  <div class="px-4 py-3 border-b border-gray-100 text-sm font-semibold text-brand-dark">📥 Прихід товару</div>
+  <form method="post" action="{% url 'inventory:stock_in' product.pk %}" class="tg-mobile-sheet-body px-4 py-3 space-y-3">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{% url 'inventory:detail' product.pk %}">
+    <div class="bg-gray-50 rounded-lg px-3 py-2 text-xs text-gray-500">
+      Поточний залишок: <strong class="text-brand-dark">{{ product.quantity|floatformat:"-3" }} {{ product.unit }}</strong>
+    </div>
+    <div>
+      <label class="fin-label">Кількість *</label>
+      <input type="number" name="quantity" required inputmode="decimal" step="any" min="0" class="fin-input">
+    </div>
+    <div>
+      <label class="fin-label">Ціна за од. (необов'язково — оновить вхідну ціну)</label>
+      <input type="number" name="price" inputmode="decimal" step="0.01" min="0"
+             value="{% localize off %}{{ product.buy_price }}{% endlocalize %}" class="fin-input">
+    </div>
+    <div>
+      <label class="fin-label">Постачальник</label>
+      <select name="supplier" class="fin-input">
+        <option value="">— не вказано —</option>
+        {% for s in in_form.supplier.field.queryset %}
+        <option value="{{ s.pk }}">{{ s.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label class="fin-label">Нотатки</label>
+      <input type="text" name="reason" class="fin-input">
+    </div>
+    <button type="submit" class="w-full py-3 rounded-xl text-sm font-semibold bg-green-600 text-white active:opacity-80">
+      Зберегти прихід
+    </button>
+  </form>
+</div>
+
+<!-- Adjust sheet -->
+<div id="inv-adjust-sheet" class="tg-mobile-sheet">
+  <div class="tg-mobile-sheet-handle"></div>
+  <div class="px-4 py-3 border-b border-gray-100 text-sm font-semibold text-brand-dark">⚖ Коригування залишку</div>
+  <form method="post" action="{% url 'inventory:stock_adjust' product.pk %}" class="tg-mobile-sheet-body px-4 py-3 space-y-3">
+    {% csrf_token %}
+    <div class="bg-gray-50 rounded-lg px-3 py-2 text-xs text-gray-500">
+      Поточний залишок: <strong class="text-brand-dark">{{ product.quantity|floatformat:"-3" }} {{ product.unit }}</strong>
+    </div>
+    <div>
+      <label class="fin-label">Новий залишок *</label>
+      <input type="number" name="quantity" required inputmode="decimal" step="any" min="0"
+             value="{% localize off %}{{ product.quantity }}{% endlocalize %}" class="fin-input">
+    </div>
+    <div>
+      <label class="fin-label">Причина</label>
+      <input type="text" name="reason" placeholder="напр. перерахунок" class="fin-input">
+    </div>
+    <button type="submit" class="w-full py-3 rounded-xl text-sm font-semibold bg-blue-500 text-white active:opacity-80">
+      Зберегти корекцію
+    </button>
+  </form>
+</div>
+
+<!-- Writeoff sheet -->
+<div id="inv-writeoff-sheet" class="tg-mobile-sheet">
+  <div class="tg-mobile-sheet-handle"></div>
+  <div class="px-4 py-3 border-b border-gray-100 text-sm font-semibold text-brand-dark">➖ Списати товар</div>
+  <form method="post" action="{% url 'inventory:writeoff' product.pk %}" class="tg-mobile-sheet-body px-4 py-3 space-y-3">
+    {% csrf_token %}
+    <div class="bg-gray-50 rounded-lg px-3 py-2 text-xs text-gray-500">
+      Поточний залишок: <strong class="text-brand-dark">{{ product.quantity|floatformat:"-3" }} {{ product.unit }}</strong>
+    </div>
+    <div>
+      <label class="fin-label">Кількість *</label>
+      <input type="number" name="quantity" required inputmode="decimal" step="any" min="0" class="fin-input">
+    </div>
+    <div>
+      <label class="fin-label">Причина</label>
+      <select name="reason" class="fin-input">
+        <option value="expired">Прострочений</option>
+        <option value="damaged">Бій / пошкодження</option>
+        <option value="internal">Внутрішнє використання</option>
+        <option value="return">Повернення постачальнику</option>
+        <option value="other">Інше</option>
+      </select>
+    </div>
+    <div>
+      <label class="fin-label">Додаткова нотатка</label>
+      <input type="text" name="note" class="fin-input">
+    </div>
+    <button type="submit" class="w-full py-3 rounded-xl text-sm font-semibold bg-red-500 text-white active:opacity-80">
+      Списати
+    </button>
+  </form>
+</div>
+
+{% include 'finance/_partials/mobile_toast.html' %}
+
+<script>
+function tgOpenSheet(id) {
+  var s = document.getElementById(id), bd = document.getElementById('tg-sheet-backdrop');
+  if (!s || !bd) return; s.classList.add('open'); bd.classList.add('open');
+}
+function tgCloseAllSheets() {
+  document.querySelectorAll('.tg-mobile-sheet.open').forEach(function (s) { s.classList.remove('open'); });
+  var bd = document.getElementById('tg-sheet-backdrop'); if (bd) bd.classList.remove('open');
+}
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') tgCloseAllSheets(); });
+</script>
+{% endblock %}

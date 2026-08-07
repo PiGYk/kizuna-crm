@@ -1,71 +1,163 @@
 {% extends "base.html" %}
-{% block title %}Звіт P&L — Kizuna CRM{% endblock %}
+{% block title %}P&L звіт — Kizuna CRM{% endblock %}
 
 {% block content %}
+<style>
+  details.actions-menu > summary { list-style: none; cursor: pointer; }
+  details.actions-menu > summary::-webkit-details-marker { display: none; }
+  details.actions-menu .menu-panel { position: absolute; right: 0; margin-top: 0.5rem; z-index: 30; min-width: 14rem; }
+
+  .chip { display: inline-flex; align-items: center; padding: 0.375rem 0.875rem; border-radius: 9999px; font-size: 0.8125rem; font-weight: 500; border: 1px solid; transition: all 120ms; cursor: pointer; }
+  .chip-inactive { border-color: rgb(229 231 235); color: rgb(75 85 99); background: white; }
+  .chip-inactive:hover { background: rgb(249 250 251); border-color: rgb(209 213 219); }
+  .chip-active { background: #12100F; color: white; border-color: #12100F; }
+
+  .kpi { background: white; border: 1px solid rgb(229 231 235); border-radius: 0.75rem; padding: 1.25rem; }
+  .kpi-label { font-size: 0.6875rem; color: rgb(156 163 175); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 500; }
+  .kpi-value { font-size: 1.5rem; font-weight: 700; margin-top: 0.25rem; font-variant-numeric: tabular-nums; }
+  .kpi-detail { font-size: 0.6875rem; color: rgb(156 163 175); margin-top: 0.375rem; }
+
+  .bar-row { display: grid; grid-template-columns: 1fr auto; gap: 0.75rem; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid rgb(243 244 246); }
+  .bar-row:last-child { border-bottom: none; }
+  .bar-label { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+  .bar-label .name { font-size: 0.875rem; color: rgb(55 65 81); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-label .cnt { font-size: 0.75rem; color: rgb(156 163 175); flex-shrink: 0; }
+  .bar-bar-wrap { position: relative; height: 4px; background: rgb(243 244 246); border-radius: 9999px; margin-top: 0.25rem; overflow: hidden; }
+  .bar-bar { position: absolute; left: 0; top: 0; height: 100%; background: #f59e0b; border-radius: 9999px; }
+  .bar-amount { font-size: 0.875rem; font-weight: 600; color: rgb(31 41 55); font-variant-numeric: tabular-nums; white-space: nowrap; }
+</style>
+
+{# ── Header ──────────────────────────────────────────────────────────── #}
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-  <h1 class="text-2xl font-bold">Прибутки та збитки</h1>
-  <div class="flex gap-2">
-    <a href="{% url 'finance:expenses' %}" class="px-4 py-2 rounded-lg text-sm font-medium bg-white border border-gray-200 hover:bg-gray-50">Витрати</a>
-    <a href="{% url 'finance:cash_operations' %}" class="px-4 py-2 rounded-lg text-sm font-medium bg-white border border-gray-200 hover:bg-gray-50">Каса</a>
+  <div>
+    <h1 class="text-2xl font-bold text-brand-dark">Прибутки та збитки</h1>
+    <p class="text-xs text-gray-400 mt-0.5" id="period-label">обраний період · оновлюється автоматично</p>
+  </div>
+
+  <div class="flex items-center gap-2">
+    <button type="button" id="refresh-btn"
+       class="inline-flex items-center justify-center w-10 h-10 rounded-lg border border-gray-300 text-gray-600 bg-white hover:bg-gray-50 transition" title="Оновити">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+    </button>
+
+    <a href="{% url 'finance:expenses' %}"
+       class="bg-brand-dark text-white px-4 h-10 inline-flex items-center gap-1.5 rounded-lg text-sm font-semibold hover:opacity-90 transition">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+      До витрат
+    </a>
   </div>
 </div>
 
-<!-- Пресети -->
-<div class="flex flex-wrap gap-2 mb-4" id="presets">
-  <button data-preset="today" class="preset-btn px-4 py-2 rounded-lg text-sm font-medium bg-white border border-gray-200 hover:bg-gray-50">Сьогодні</button>
-  <button data-preset="week" class="preset-btn px-4 py-2 rounded-lg text-sm font-medium bg-white border border-gray-200 hover:bg-gray-50">7 днів</button>
-  <button data-preset="month" class="preset-btn px-4 py-2 rounded-lg text-sm font-medium bg-brand-gold text-brand-dark">Місяць</button>
-  <button data-preset="year" class="preset-btn px-4 py-2 rounded-lg text-sm font-medium bg-white border border-gray-200 hover:bg-gray-50">Рік</button>
-  <div class="flex gap-2 items-center ml-2">
-    <input type="date" id="date-start" class="rounded-lg border-gray-300 text-sm px-3 py-2">
-    <span class="text-gray-400">—</span>
-    <input type="date" id="date-end" class="rounded-lg border-gray-300 text-sm px-3 py-2">
-    <button data-preset="custom" class="preset-btn px-4 py-2 rounded-lg text-sm font-medium bg-white border border-gray-200 hover:bg-gray-50">Довільно</button>
-  </div>
-</div>
+{# ── Period presets ─────────────────────────────────────────────────── #}
+<div class="bg-white rounded-xl border border-gray-200 px-4 py-3 mb-5">
+  <div class="flex flex-wrap items-center gap-2" id="presets">
+    <span class="text-xs text-gray-400 mr-1">Період:</span>
+    <button data-preset="today" class="preset-btn chip chip-inactive">Сьогодні</button>
+    <button data-preset="week" class="preset-btn chip chip-inactive">7 днів</button>
+    <button data-preset="month" class="preset-btn chip chip-active">Місяць</button>
+    <button data-preset="year" class="preset-btn chip chip-inactive">Рік</button>
 
-<!-- KPI -->
-<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-  <div class="bg-white rounded-xl p-5">
-    <div class="text-sm text-gray-400">Дохід</div>
-    <div class="text-2xl font-bold text-green-600 mt-1" id="kpi-income">—</div>
-    <div class="text-xs text-gray-400 mt-1"><span id="kpi-income-cash">0</span> готівка · <span id="kpi-income-card">0</span> картка</div>
-  </div>
-  <div class="bg-white rounded-xl p-5">
-    <div class="text-sm text-gray-400">Витрати</div>
-    <div class="text-2xl font-bold text-red-500 mt-1" id="kpi-expenses">—</div>
-    <div class="text-xs text-gray-400 mt-1"><span id="kpi-exp-cash">0</span> гот. · <span id="kpi-exp-card">0</span> карт. · <span id="kpi-exp-transfer">0</span> пер.</div>
-  </div>
-  <div class="bg-white rounded-xl p-5">
-    <div class="text-sm text-gray-400">Чистий прибуток</div>
-    <div class="text-2xl font-bold mt-1" id="kpi-profit">—</div>
-  </div>
-  <div class="bg-white rounded-xl p-5">
-    <div class="text-sm text-gray-400">Рух між касами</div>
-    <div class="text-xs mt-2 space-y-1">
-      <div>Картка → Готівка: <strong id="kpi-c2c">0</strong> ₴</div>
-      <div>Готівка → Картка: <strong id="kpi-c2k">0</strong> ₴</div>
-      <div>Внесення: <strong id="kpi-dep">0</strong> ₴</div>
-      <div>Вилучення: <strong id="kpi-wd">0</strong> ₴</div>
+    <div class="flex items-center gap-2 ml-3 pl-3 border-l border-gray-200">
+      <input type="date" id="date-start"
+             class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+      <span class="text-gray-300 text-sm">—</span>
+      <input type="date" id="date-end"
+             class="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+      <button data-preset="custom" class="preset-btn chip chip-inactive">Застосувати</button>
     </div>
   </div>
 </div>
 
-<!-- Графік -->
-<div class="bg-white rounded-xl p-5 mb-6">
-  <h2 class="text-sm font-semibold text-gray-500 mb-4">Доходи vs Витрати по днях</h2>
-  <canvas id="chart" height="100"></canvas>
+{# ── KPI ─────────────────────────────────────────────────────────────── #}
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+  <div class="kpi">
+    <div class="kpi-label">Дохід</div>
+    <div class="kpi-value text-green-600" id="kpi-income">—</div>
+    <div class="kpi-detail">
+      <span id="kpi-income-cash">0</span> готівка · <span id="kpi-income-card">0</span> картка
+    </div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Витрати</div>
+    <div class="kpi-value text-red-500" id="kpi-expenses">—</div>
+    <div class="kpi-detail">
+      <span id="kpi-exp-cash">0</span> гот. · <span id="kpi-exp-card">0</span> карт. · <span id="kpi-exp-transfer">0</span> пер.
+    </div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Чистий прибуток</div>
+    <div class="kpi-value text-brand-dark" id="kpi-profit">—</div>
+    <div class="kpi-detail" id="kpi-margin">маржа —</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Рух між касами</div>
+    <div class="text-[11px] mt-1 space-y-0.5 text-gray-600">
+      <div class="flex justify-between gap-2"><span>Карт→Гот</span><strong id="kpi-c2c" class="text-brand-dark tabular-nums">0 ₴</strong></div>
+      <div class="flex justify-between gap-2"><span>Гот→Карт</span><strong id="kpi-c2k" class="text-brand-dark tabular-nums">0 ₴</strong></div>
+      <div class="flex justify-between gap-2"><span>Внесення</span><strong id="kpi-dep" class="text-brand-dark tabular-nums">0 ₴</strong></div>
+      <div class="flex justify-between gap-2"><span>Вилучення</span><strong id="kpi-wd" class="text-brand-dark tabular-nums">0 ₴</strong></div>
+    </div>
+  </div>
 </div>
 
-<!-- Таблиці -->
-<div class="grid md:grid-cols-2 gap-6">
-  <div class="bg-white rounded-xl p-5">
-    <h2 class="text-sm font-semibold text-gray-500 mb-3">По категоріях витрат</h2>
-    <div id="by-category" class="space-y-2 text-sm"></div>
+{# ── Прибуток з продажу (Revenue − COGS − Revenue × 0.05) ────────────── #}
+<div class="bg-white rounded-xl border border-gray-200 p-5 mb-5">
+  <div class="flex items-start justify-between gap-4 mb-4">
+    <div>
+      <h2 class="text-base font-semibold text-brand-dark">Прибуток з продажу</h2>
+      <p class="text-xs text-gray-400 mt-0.5">Виручка від оплачених чеків мінус собівартість товарів та компонентів послуг, мінус 5% від виручки на неврахованих розхідників.</p>
+    </div>
+    <div class="text-right shrink-0">
+      <div class="text-[11px] text-gray-400 uppercase tracking-wide">Результат</div>
+      <div class="text-3xl font-bold tabular-nums mt-0.5" id="gp-result">—</div>
+      <div class="text-xs mt-1" id="gp-margin">маржа —</div>
+    </div>
   </div>
-  <div class="bg-white rounded-xl p-5">
-    <h2 class="text-sm font-semibold text-gray-500 mb-3">По постачальниках</h2>
-    <div id="by-supplier" class="space-y-2 text-sm"></div>
+
+  <div class="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr_auto_1fr] gap-3 text-sm items-stretch">
+    <div class="bg-green-50 rounded-lg p-3">
+      <div class="text-[11px] text-gray-500 uppercase tracking-wide">Виручка</div>
+      <div class="font-semibold text-green-700 tabular-nums mt-0.5 text-base" id="gp-revenue">—</div>
+      <div class="text-[10px] text-gray-400 mt-0.5">оплачені чеки за період</div>
+    </div>
+    <div class="hidden md:flex items-center justify-center text-3xl text-gray-300 font-light px-1">−</div>
+    <div class="bg-orange-50 rounded-lg p-3">
+      <div class="text-[11px] text-gray-500 uppercase tracking-wide">Собівартість</div>
+      <div class="font-semibold text-orange-700 tabular-nums mt-0.5 text-base" id="gp-cogs">—</div>
+      <div class="text-[10px] text-gray-400 mt-0.5">
+        товари: <span id="gp-cogs-prod" class="tabular-nums">0</span> ·
+        послуги: <span id="gp-cogs-serv" class="tabular-nums">0</span>
+      </div>
+    </div>
+    <div class="hidden md:flex items-center justify-center text-3xl text-gray-300 font-light px-1">−</div>
+    <div class="bg-amber-50 rounded-lg p-3">
+      <div class="text-[11px] text-gray-500 uppercase tracking-wide">−5% виручки (розхідники)</div>
+      <div class="font-semibold text-amber-700 tabular-nums mt-0.5 text-base" id="gp-overhead">—</div>
+      <div class="text-[10px] text-gray-400 mt-0.5">рукавички, шприци, серветки тощо</div>
+    </div>
+  </div>
+</div>
+
+{# ── Chart ──────────────────────────────────────────────────────────── #}
+<div class="bg-white rounded-xl border border-gray-200 p-5 mb-5">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-sm font-semibold text-brand-dark">Доходи vs Витрати по днях</h2>
+    <span class="text-xs text-gray-400" id="chart-range">—</span>
+  </div>
+  <div class="relative w-full" style="height: 280px;">
+    <canvas id="chart"></canvas>
+  </div>
+</div>
+
+{# ── Breakdown tables ───────────────────────────────────────────────── #}
+<div class="grid md:grid-cols-2 gap-5">
+  <div class="bg-white rounded-xl border border-gray-200 p-5">
+    <h2 class="text-sm font-semibold text-brand-dark mb-3">Витрати по категоріях</h2>
+    <div id="by-category" class="space-y-1"></div>
+  </div>
+  <div class="bg-white rounded-xl border border-gray-200 p-5">
+    <h2 class="text-sm font-semibold text-brand-dark mb-3">Топ-10 постачальників</h2>
+    <div id="by-supplier" class="space-y-1"></div>
   </div>
 </div>
 {% endblock %}
@@ -75,8 +167,16 @@
 <script>
 (function(){
   const fmt = n => Number(n).toLocaleString('uk-UA', {minimumFractionDigits:2, maximumFractionDigits:2});
+  const fmt0 = n => Number(n).toLocaleString('uk-UA', {maximumFractionDigits:0});
   let chart = null;
   let preset = 'month';
+
+  function setActive(btn) {
+    document.querySelectorAll('.preset-btn').forEach(b => {
+      b.classList.remove('chip-active'); b.classList.add('chip-inactive');
+    });
+    btn.classList.remove('chip-inactive'); btn.classList.add('chip-active');
+  }
 
   function load() {
     let url = '{% url "finance:report_data" %}?preset=' + preset;
@@ -85,23 +185,65 @@
       url += '&end=' + document.getElementById('date-end').value;
     }
     fetch(url).then(r=>r.json()).then(d => {
+      // KPI
       document.getElementById('kpi-income').textContent = fmt(d.income.total) + ' ₴';
-      document.getElementById('kpi-income-cash').textContent = fmt(d.income.cash);
-      document.getElementById('kpi-income-card').textContent = fmt(d.income.card);
+      document.getElementById('kpi-income-cash').textContent = fmt0(d.income.cash);
+      document.getElementById('kpi-income-card').textContent = fmt0(d.income.card);
 
       document.getElementById('kpi-expenses').textContent = fmt(d.expenses.total) + ' ₴';
-      document.getElementById('kpi-exp-cash').textContent = fmt(d.expenses.cash);
-      document.getElementById('kpi-exp-card').textContent = fmt(d.expenses.card);
-      document.getElementById('kpi-exp-transfer').textContent = fmt(d.expenses.transfer);
+      document.getElementById('kpi-exp-cash').textContent = fmt0(d.expenses.cash);
+      document.getElementById('kpi-exp-card').textContent = fmt0(d.expenses.card);
+      document.getElementById('kpi-exp-transfer').textContent = fmt0(d.expenses.transfer);
 
       const profitEl = document.getElementById('kpi-profit');
       profitEl.textContent = fmt(d.profit) + ' ₴';
-      profitEl.className = 'text-2xl font-bold mt-1 ' + (d.profit >= 0 ? 'text-green-600' : 'text-red-500');
+      profitEl.classList.remove('text-green-600', 'text-red-500', 'text-brand-dark');
+      profitEl.classList.add(d.profit > 0 ? 'text-green-600' : (d.profit < 0 ? 'text-red-500' : 'text-brand-dark'));
 
-      document.getElementById('kpi-c2c').textContent = fmt(d.cash_register.card_to_cash);
-      document.getElementById('kpi-c2k').textContent = fmt(d.cash_register.cash_to_card);
-      document.getElementById('kpi-dep').textContent = fmt(d.cash_register.deposits);
-      document.getElementById('kpi-wd').textContent = fmt(d.cash_register.withdrawals);
+      const marginEl = document.getElementById('kpi-margin');
+      if (d.income.total > 0) {
+        const m = (d.profit / d.income.total) * 100;
+        marginEl.textContent = 'маржа ' + m.toFixed(1) + '%';
+      } else {
+        marginEl.textContent = 'маржа —';
+      }
+
+      document.getElementById('kpi-c2c').textContent = fmt0(d.cash_register.card_to_cash) + ' ₴';
+      document.getElementById('kpi-c2k').textContent = fmt0(d.cash_register.cash_to_card) + ' ₴';
+      document.getElementById('kpi-dep').textContent = fmt0(d.cash_register.deposits) + ' ₴';
+      document.getElementById('kpi-wd').textContent = fmt0(d.cash_register.withdrawals) + ' ₴';
+
+      // Прибуток з продажу
+      if (d.cogs && typeof d.gross_profit === 'number') {
+        document.getElementById('gp-revenue').textContent = fmt(d.income.total) + ' ₴';
+        document.getElementById('gp-cogs').textContent = fmt(d.cogs.total) + ' ₴';
+        document.getElementById('gp-cogs-prod').textContent = fmt0(d.cogs.products) + ' ₴';
+        document.getElementById('gp-cogs-serv').textContent = fmt0(d.cogs.services) + ' ₴';
+        document.getElementById('gp-overhead').textContent = fmt(d.cogs.overhead) + ' ₴';
+
+        const gpEl = document.getElementById('gp-result');
+        gpEl.textContent = fmt(d.gross_profit) + ' ₴';
+        gpEl.classList.remove('text-green-600', 'text-red-500', 'text-brand-dark');
+        gpEl.classList.add(d.gross_profit > 0 ? 'text-green-600' : (d.gross_profit < 0 ? 'text-red-500' : 'text-brand-dark'));
+
+        const gpMarginEl = document.getElementById('gp-margin');
+        if (d.income.total > 0) {
+          const gm = (d.gross_profit / d.income.total) * 100;
+          gpMarginEl.textContent = 'маржа ' + gm.toFixed(1) + '%';
+          gpMarginEl.className = 'text-xs mt-1 ' + (gm > 0 ? 'text-green-600' : (gm < 0 ? 'text-red-500' : 'text-gray-400'));
+        } else {
+          gpMarginEl.textContent = 'маржа —';
+          gpMarginEl.className = 'text-xs mt-1 text-gray-400';
+        }
+      }
+
+      // Period label
+      if (d.meta && d.meta.start && d.meta.end) {
+        const s = d.meta.start.split('-').reverse().join('.');
+        const e = d.meta.end.split('-').reverse().join('.');
+        document.getElementById('period-label').textContent = 'Період: ' + s + ' — ' + e;
+        document.getElementById('chart-range').textContent = s + ' — ' + e;
+      }
 
       // Chart
       if (chart) chart.destroy();
@@ -111,45 +253,75 @@
         data: {
           labels: d.daily.labels,
           datasets: [
-            {label:'Дохід', data:d.daily.income, backgroundColor:'rgba(34,197,94,0.6)', borderRadius:4},
-            {label:'Витрати', data:d.daily.expenses, backgroundColor:'rgba(239,68,68,0.5)', borderRadius:4},
+            {label:'Дохід', data:d.daily.income, backgroundColor:'rgba(34,197,94,0.7)', borderRadius:4, borderSkipped:false},
+            {label:'Витрати', data:d.daily.expenses, backgroundColor:'rgba(239,68,68,0.6)', borderRadius:4, borderSkipped:false},
           ]
         },
         options: {
           responsive: true,
-          plugins: {legend:{position:'top'}},
-          scales: {y:{beginAtZero:true, ticks:{callback:v=>fmt(v)}}},
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {position:'top', align:'end', labels:{boxWidth:12, font:{size:11}}},
+            tooltip: {callbacks:{label:(c)=> c.dataset.label + ': ' + fmt(c.raw) + ' ₴'}},
+          },
+          scales: {
+            x: {grid:{display:false}, ticks:{font:{size:10}}},
+            y: {beginAtZero:true, ticks:{callback:v=>fmt0(v), font:{size:10}}, grid:{color:'rgba(0,0,0,0.04)'}},
+          },
         }
       });
 
-      // By category
+      // Breakdown — by category
       const catEl = document.getElementById('by-category');
+      const catMax = d.by_category.length ? Math.max(...d.by_category.map(c=>c.total)) : 0;
       catEl.innerHTML = d.by_category.length
-        ? d.by_category.map(c =>
-          `<div class="flex justify-between"><span>${c.name} <span class="text-gray-400">(${c.cnt})</span></span><span class="font-medium">${fmt(c.total)} ₴</span></div>`
-        ).join('')
-        : '<p class="text-gray-400">Немає даних</p>';
+        ? d.by_category.map(c => {
+            const pct = catMax ? (c.total / catMax * 100) : 0;
+            return `
+              <div class="bar-row">
+                <div class="min-w-0">
+                  <div class="bar-label">
+                    <span class="name">${c.name || '—'}</span>
+                    <span class="cnt">(${c.cnt})</span>
+                  </div>
+                  <div class="bar-bar-wrap"><div class="bar-bar" style="width:${pct}%"></div></div>
+                </div>
+                <span class="bar-amount">${fmt(c.total)} ₴</span>
+              </div>`;
+          }).join('')
+        : '<p class="text-gray-400 text-sm text-center py-4">Немає даних</p>';
 
-      // By supplier
+      // Breakdown — by supplier
       const supEl = document.getElementById('by-supplier');
+      const supMax = d.by_supplier.length ? Math.max(...d.by_supplier.map(s=>s.total)) : 0;
       supEl.innerHTML = d.by_supplier.length
-        ? d.by_supplier.map(s =>
-          `<div class="flex justify-between"><span>${s.name} <span class="text-gray-400">(${s.cnt})</span></span><span class="font-medium">${fmt(s.total)} ₴</span></div>`
-        ).join('')
-        : '<p class="text-gray-400">Немає даних</p>';
+        ? d.by_supplier.map(s => {
+            const pct = supMax ? (s.total / supMax * 100) : 0;
+            return `
+              <div class="bar-row">
+                <div class="min-w-0">
+                  <div class="bar-label">
+                    <span class="name">${s.name || '—'}</span>
+                    <span class="cnt">(${s.cnt})</span>
+                  </div>
+                  <div class="bar-bar-wrap"><div class="bar-bar" style="width:${pct}%; background:#12100F"></div></div>
+                </div>
+                <span class="bar-amount">${fmt(s.total)} ₴</span>
+              </div>`;
+          }).join('')
+        : '<p class="text-gray-400 text-sm text-center py-4">Немає даних</p>';
     });
   }
 
   document.querySelectorAll('.preset-btn').forEach(btn => {
     btn.addEventListener('click', function() {
-      document.querySelectorAll('.preset-btn').forEach(b => {
-        b.className = 'preset-btn px-4 py-2 rounded-lg text-sm font-medium bg-white border border-gray-200 hover:bg-gray-50';
-      });
-      this.className = 'preset-btn px-4 py-2 rounded-lg text-sm font-medium bg-brand-gold text-brand-dark';
+      setActive(this);
       preset = this.dataset.preset;
       load();
     });
   });
+
+  document.getElementById('refresh-btn').addEventListener('click', load);
 
   load();
 })();

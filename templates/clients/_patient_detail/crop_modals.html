@@ -73,6 +73,28 @@
 let _aCropper = null;
 let _aCropFile = null;
 
+function handleAnalysisFile(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  const isImage = file.type.startsWith('image/');
+  if (isImage) {
+    openAnalysisCrop(input);
+  } else {
+    // Non-image: pass directly to form without cropping
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    document.getElementById('analysis-photo-hidden').files = dt.files;
+    const preview = document.getElementById('analysis-crop-preview');
+    const previewImg = document.getElementById('analysis-crop-preview-img');
+    const nameEl = document.getElementById('analysis-file-name');
+    const reedit = document.getElementById('analysis-crop-reedit');
+    previewImg.style.display = 'none';
+    if (nameEl) nameEl.textContent = '📎 ' + file.name;
+    if (reedit) reedit.classList.add('hidden');
+    preview.classList.remove('hidden');
+  }
+}
+
 function openAnalysisCrop(input) {
   const file = input.files && input.files[0];
   if (!file) return;
@@ -111,6 +133,11 @@ function applyAnalysisCrop() {
     const preview = document.getElementById('analysis-crop-preview');
     const previewImg = document.getElementById('analysis-crop-preview-img');
     previewImg.src = canvas.toDataURL('image/jpeg', 0.9);
+    previewImg.style.display = '';
+    const nameEl = document.getElementById('analysis-file-name');
+    const reedit = document.getElementById('analysis-crop-reedit');
+    if (nameEl) nameEl.textContent = '';
+    if (reedit) reedit.classList.remove('hidden');
     preview.classList.remove('hidden');
     closeAnalysisCrop();
   }, 'image/jpeg', 0.92);

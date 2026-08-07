@@ -101,6 +101,17 @@ def shift_toggle(request):
     return redirect(request.META.get('HTTP_REFERER', 'accounts:shifts'))
 
 
+
+@login_required
+@require_POST
+def shift_delete(request, pk):
+    from .models_payroll import Shift
+    shift = get_object_or_404(Shift, pk=pk, organization=request.organization)
+    shift.delete()
+    from django.http import JsonResponse
+    return JsonResponse({'ok': True})
+
+
 @admin_required
 def payroll_list(request):
     """Список розрахунків зарплат."""

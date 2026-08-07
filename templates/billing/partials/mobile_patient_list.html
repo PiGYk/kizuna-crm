@@ -1,0 +1,21 @@
+<div class="bg-white rounded-2xl border border-gray-100 p-3">
+  <div class="text-[11px] text-gray-400 uppercase tracking-wide mb-2">Пацієнт <span class="normal-case font-normal">(необов'язково)</span></div>
+  <div class="flex flex-col gap-1.5">
+    {% for patient in patients %}
+    <button type="button" id="patient-{{ patient.pk }}"
+      onclick="selectPatient({{ patient.pk }})"
+      class="patient-btn text-left px-3 py-2.5 rounded-xl border border-gray-200 active:border-brand-gold flex items-center gap-3"
+      style="min-height: 44px;">
+      <div class="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-base shrink-0">
+        {% if patient.species == 'cat' %}🐱{% elif patient.species == 'dog' %}🐶{% elif patient.species == 'bird' %}🐦{% elif patient.species == 'rabbit' %}🐰{% elif patient.species == 'reptile' %}🦎{% else %}🐾{% endif %}
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="font-medium text-brand-dark text-sm truncate">{{ patient.name }}</div>
+        <div class="text-[11px] text-gray-400">{{ patient.get_species_display }}{% if patient.breed %} · {{ patient.breed }}{% endif %}</div>
+      </div>
+    </button>
+    {% empty %}
+    <p class="text-sm text-gray-400 text-center py-3">У цього клієнта немає пацієнтів</p>
+    {% endfor %}
+  </div>
+</div>

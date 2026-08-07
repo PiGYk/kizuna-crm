@@ -1,0 +1,23 @@
+{# Sub-tabs стрічка для розділу Фінанси. Очікує контекст-перемінну `active`: expenses|cash|report|settings #}
+<nav class="fin-mobile-tabs shrink-0 border-b border-gray-100 bg-white overflow-x-auto">
+  <div class="flex items-center gap-1 px-2">
+    {% with active=active|default:"expenses" %}
+    <a href="{% url 'finance:expenses' %}"
+       class="fin-tab tg-mobile-tap px-3 text-sm whitespace-nowrap {% if active == 'expenses' %}fin-tab-active{% else %}text-gray-500{% endif %}">
+      Витрати
+    </a>
+    <a href="{% url 'finance:cash_operations' %}"
+       class="fin-tab tg-mobile-tap px-3 text-sm whitespace-nowrap {% if active == 'cash' %}fin-tab-active{% else %}text-gray-500{% endif %}">
+      Каса
+    </a>
+    <a href="{% url 'finance:report' %}"
+       class="fin-tab tg-mobile-tap px-3 text-sm whitespace-nowrap {% if active == 'report' %}fin-tab-active{% else %}text-gray-500{% endif %}">
+      Звіт
+    </a>
+    <a href="{% url 'finance:settings' %}"
+       class="fin-tab tg-mobile-tap px-3 text-sm whitespace-nowrap {% if active == 'settings' %}fin-tab-active{% else %}text-gray-500{% endif %}">
+      Налашт.
+    </a>
+    {% endwith %}
+  </div>
+</nav>

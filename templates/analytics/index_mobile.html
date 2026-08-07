@@ -1,0 +1,277 @@
+{% extends 'base.html' %}
+{% block title %}Аналітика — Kizuna CRM{% endblock %}
+
+{% block extra_head %}
+<script>
+  document.documentElement.classList.add('has-mobile-fullscreen');
+  document.addEventListener('DOMContentLoaded', function () {
+    document.body.classList.add('has-mobile-fullscreen');
+  });
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+{% endblock %}
+
+{% block fab_url %}{% endblock %}
+
+{% block content %}
+<div class="tg-mobile-shell">
+
+  <header class="tg-mobile-header shrink-0 bg-white border-b border-gray-100 flex items-center gap-2 px-3"
+          style="min-height: 56px;">
+    <h1 class="flex-1 font-semibold text-brand-dark text-base truncate">Огляд</h1>
+    <span id="an-period-label" class="text-xs text-gray-400 mr-1">Місяць</span>
+    <button type="button" onclick="tgOpenSheet('an-filter-sheet')"
+            class="tg-mobile-tap relative text-gray-500 active:text-brand-dark" aria-label="Фільтри">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M3 4h18M6 12h12M10 20h4"/>
+      </svg>
+    </button>
+  </header>
+
+  {% include 'analytics/_partials/mobile_nav.html' with active='index' %}
+
+  <div class="flex-1 overflow-y-auto pb-6" style="-webkit-overflow-scrolling: touch; background: #f7f7f8;">
+
+    <!-- Hero card: Виручка -->
+    <div class="px-3 pt-3">
+      <div class="fin-kpi bg-gradient-to-br from-brand-dark to-gray-800 text-white border-0">
+        <div class="text-[11px] text-white/60 uppercase tracking-wide">Виручка</div>
+        <div class="text-3xl font-bold mt-1" id="kpi-revenue">—</div>
+        <div class="text-[11px] text-white/50 mt-1">
+          <span id="kpi-count">0</span> чеків · сер. <span id="kpi-avg-check">0</span> ₴
+        </div>
+      </div>
+    </div>
+
+    <!-- KPI grid 2-col -->
+    <div class="px-3 pt-2 grid grid-cols-2 gap-2">
+      <div class="fin-kpi">
+        <div class="text-[10px] text-gray-400 uppercase">Сер. каса</div>
+        <div class="text-lg font-bold text-brand-dark mt-0.5" id="kpi-avg-daily">—</div>
+      </div>
+      <div class="fin-kpi">
+        <div class="text-[10px] text-gray-400 uppercase">Рекорд</div>
+        <div class="text-lg font-bold text-brand-dark mt-0.5" id="kpi-record">—</div>
+        <div class="text-[10px] text-gray-400 mt-0.5" id="kpi-record-date"></div>
+      </div>
+      <div class="fin-kpi">
+        <div class="text-[10px] text-gray-400 uppercase">Нові клієнти</div>
+        <div class="text-lg font-bold text-brand-dark mt-0.5" id="kpi-new-clients">—</div>
+      </div>
+      <div class="fin-kpi">
+        <div class="text-[10px] text-gray-400 uppercase">Готівка / Картка</div>
+        <div class="flex items-baseline gap-2 mt-0.5">
+          <span class="text-sm font-semibold text-brand-dark"><span id="kpi-cash">0</span>₴</span>
+          <span class="text-[10px] text-gray-400">/</span>
+          <span class="text-sm font-semibold text-brand-dark"><span id="kpi-card">0</span>₴</span>
+        </div>
+        <div class="text-[10px] text-gray-400 mt-0.5">
+          <span id="kpi-cash-cnt">0</span> + <span id="kpi-card-cnt">0</span> чеків
+        </div>
+      </div>
+    </div>
+
+    <!-- Line chart: Виручка по днях -->
+    <div class="px-3 pt-3">
+      <div class="fin-kpi">
+        <div class="text-[11px] text-gray-400 uppercase tracking-wide mb-2">Виручка по днях</div>
+        <div style="position: relative; height: 200px;">
+          <canvas id="an-chart-daily"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs row: Топ -->
+    <div class="px-3 pt-3">
+      <div class="fin-kpi">
+        <div class="flex items-center justify-between mb-2">
+          <div class="text-[11px] text-gray-400 uppercase tracking-wide">Топ-5</div>
+          <div class="flex gap-1 overflow-x-auto" style="-webkit-overflow-scrolling: touch;">
+            <button type="button" data-top="services" class="top-tab px-2 py-1 rounded-md text-[11px] font-medium bg-brand-gold text-brand-dark whitespace-nowrap">Послуги</button>
+            <button type="button" data-top="products" class="top-tab px-2 py-1 rounded-md text-[11px] font-medium bg-gray-100 text-gray-700 whitespace-nowrap">Товари</button>
+            <button type="button" data-top="doctors" class="top-tab px-2 py-1 rounded-md text-[11px] font-medium bg-gray-100 text-gray-700 whitespace-nowrap">Лікарі</button>
+            <button type="button" data-top="payments" class="top-tab px-2 py-1 rounded-md text-[11px] font-medium bg-gray-100 text-gray-700 whitespace-nowrap">Оплата</button>
+          </div>
+        </div>
+        <div id="top-list" class="space-y-1.5"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Filter sheet -->
+<div id="tg-sheet-backdrop" class="tg-mobile-sheet-backdrop" onclick="tgCloseAllSheets()"></div>
+<div id="an-filter-sheet" class="tg-mobile-sheet">
+  <div class="tg-mobile-sheet-handle"></div>
+  <div class="px-4 py-3 border-b border-gray-100 text-sm font-semibold text-brand-dark">Фільтри</div>
+  <div class="tg-mobile-sheet-body px-4 py-3 space-y-3">
+    <div>
+      <label class="fin-label">Період</label>
+      <div class="flex flex-wrap gap-2" id="an-presets">
+        {% for key, label in presets %}
+          {% if key != 'custom' %}
+          <button type="button" data-preset="{{ key }}"
+                  class="an-preset px-3 py-1.5 rounded-full text-xs font-medium {% if key == 'month' %}bg-brand-gold text-brand-dark{% else %}bg-gray-100 text-gray-700{% endif %}">
+            {{ label }}
+          </button>
+          {% endif %}
+        {% endfor %}
+        <button type="button" data-preset="custom" class="an-preset px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">Свій…</button>
+      </div>
+    </div>
+    <div class="grid grid-cols-2 gap-2">
+      <div><label class="fin-label">Від (custom)</label><input type="date" id="an-date-start" class="fin-input"></div>
+      <div><label class="fin-label">До (custom)</label><input type="date" id="an-date-end" class="fin-input"></div>
+    </div>
+    <div>
+      <label class="fin-label">Лікар</label>
+      <select id="an-doctor" class="fin-input">
+        <option value="">Усі</option>
+        {% for d in doctors %}
+        <option value="{{ d.pk }}">{{ d.get_full_name|default:d.username }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="button" onclick="anApply()"
+            class="w-full px-4 py-3 rounded-xl text-sm font-semibold bg-brand-gold text-brand-dark active:opacity-80">
+      Застосувати
+    </button>
+  </div>
+</div>
+
+{% include 'finance/_partials/mobile_toast.html' %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script>
+function tgOpenSheet(id) {
+  var s = document.getElementById(id), bd = document.getElementById('tg-sheet-backdrop');
+  if (!s || !bd) return; s.classList.add('open'); bd.classList.add('open');
+}
+function tgCloseAllSheets() {
+  document.querySelectorAll('.tg-mobile-sheet.open').forEach(function (s) { s.classList.remove('open'); });
+  var bd = document.getElementById('tg-sheet-backdrop'); if (bd) bd.classList.remove('open');
+}
+
+(function () {
+  const fmt = n => Number(n).toLocaleString('uk-UA', {minimumFractionDigits: 0, maximumFractionDigits: 2});
+  const labelMap = {today: 'Сьогодні', week: '7 днів', month: 'Місяць', year: 'Рік', custom: 'Свій'};
+  let preset = 'month';
+  let doctor = '';
+  let dailyChart = null;
+  let lastData = null;
+  let currentTop = 'services';
+
+  function load() {
+    let url = '{% url "analytics:data" %}?preset=' + preset;
+    if (preset === 'custom') {
+      url += '&start=' + document.getElementById('an-date-start').value + '&end=' + document.getElementById('an-date-end').value;
+    }
+    if (doctor) url += '&doctor=' + doctor;
+    fetch(url).then(r => r.json()).then(d => {
+      lastData = d;
+      document.getElementById('an-period-label').textContent = labelMap[preset] || preset;
+
+      document.getElementById('kpi-revenue').textContent = fmt(d.kpi.revenue) + ' ₴';
+      document.getElementById('kpi-count').textContent = d.kpi.count;
+      document.getElementById('kpi-avg-check').textContent = fmt(d.kpi.avg_check);
+      document.getElementById('kpi-avg-daily').textContent = fmt(d.kpi.avg_daily) + ' ₴';
+      document.getElementById('kpi-record').textContent = fmt(d.kpi.record_day_total) + ' ₴';
+      document.getElementById('kpi-record-date').textContent = d.kpi.record_day_date ? d.kpi.record_day_date.split('-').reverse().join('.') : '';
+      document.getElementById('kpi-new-clients').textContent = d.kpi.new_clients;
+      document.getElementById('kpi-cash').textContent = fmt(d.kpi.cash);
+      document.getElementById('kpi-card').textContent = fmt(d.kpi.card);
+      document.getElementById('kpi-cash-cnt').textContent = d.kpi.cash_cnt;
+      document.getElementById('kpi-card-cnt').textContent = d.kpi.card_cnt;
+
+      drawDaily(d.daily);
+      drawTop();
+    });
+  }
+
+  function drawDaily(daily) {
+    if (dailyChart) dailyChart.destroy();
+    const ctx = document.getElementById('an-chart-daily').getContext('2d');
+    dailyChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: daily.labels,
+        datasets: [{
+          label: 'Виручка',
+          data: daily.revenue,
+          borderColor: 'rgba(222,170,1,0.9)',
+          backgroundColor: 'rgba(222,170,1,0.15)',
+          borderWidth: 2,
+          fill: true,
+          pointRadius: daily.labels.length > 30 ? 0 : 2,
+          tension: 0.3,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {legend: {display: false}},
+        scales: {
+          x: {ticks: {font: {size: 10}, autoSkip: true, maxTicksLimit: 8}},
+          y: {beginAtZero: true, ticks: {font: {size: 10}, callback: v => v >= 1000 ? (v/1000).toFixed(0) + 'k' : v}},
+        },
+      }
+    });
+  }
+
+  function drawTop() {
+    if (!lastData) return;
+    const el = document.getElementById('top-list');
+    let arr = [];
+    if (currentTop === 'services') arr = (lastData.top_services || []).slice(0, 5);
+    else if (currentTop === 'products') arr = (lastData.top_products || []).slice(0, 5);
+    else if (currentTop === 'doctors') arr = (lastData.by_doctor || []).slice(0, 5);
+    else if (currentTop === 'payments') arr = (lastData.payment_methods || []).map(p => ({name: p.label, total: p.total, cnt: p.cnt}));
+
+    if (!arr.length) { el.innerHTML = '<div class="text-xs text-gray-400 text-center py-2">Немає даних</div>'; return; }
+
+    const maxTotal = Math.max(...arr.map(x => x.total)) || 1;
+    el.innerHTML = arr.map(x => `
+      <div>
+        <div class="flex items-baseline justify-between gap-2 mb-0.5">
+          <div class="text-sm text-brand-dark truncate flex-1">${x.name}</div>
+          <div class="text-sm font-semibold text-brand-dark whitespace-nowrap">${fmt(x.total)} ₴</div>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="flex-1 h-1 rounded-full bg-gray-100 overflow-hidden">
+            <div class="h-full bg-brand-gold" style="width: ${(x.total / maxTotal * 100).toFixed(1)}%;"></div>
+          </div>
+          <div class="text-[10px] text-gray-400 whitespace-nowrap">${x.cnt}×</div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // Preset buttons
+  document.querySelectorAll('.an-preset').forEach(b => {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('.an-preset').forEach(x => x.className = 'an-preset px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700');
+      this.className = 'an-preset px-3 py-1.5 rounded-full text-xs font-medium bg-brand-gold text-brand-dark';
+      preset = this.dataset.preset;
+    });
+  });
+
+  // Top tabs
+  document.querySelectorAll('.top-tab').forEach(b => {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('.top-tab').forEach(x => { x.className = 'top-tab px-2 py-1 rounded-md text-[11px] font-medium bg-gray-100 text-gray-700 whitespace-nowrap'; });
+      this.className = 'top-tab px-2 py-1 rounded-md text-[11px] font-medium bg-brand-gold text-brand-dark whitespace-nowrap';
+      currentTop = this.dataset.top;
+      drawTop();
+    });
+  });
+
+  window.anApply = function () {
+    doctor = document.getElementById('an-doctor').value;
+    tgCloseAllSheets();
+    load();
+  };
+
+  load();
+})();
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') tgCloseAllSheets(); });
+</script>
+{% endblock %}

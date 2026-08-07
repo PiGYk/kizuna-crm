@@ -1,0 +1,33 @@
+{# Sub-tabs стрічка для розділу Аналітика. Очікує контекст `active`: index|payroll|profit|services|usage|debtors #}
+<nav class="fin-mobile-tabs shrink-0 border-b border-gray-100 bg-white overflow-x-auto">
+  <div class="flex items-center gap-1 px-2">
+    {% with active=active|default:"index" %}
+    <a href="{% url 'analytics:index' %}"
+       class="fin-tab tg-mobile-tap px-3 text-sm whitespace-nowrap {% if active == 'index' %}fin-tab-active{% else %}text-gray-500{% endif %}">
+      Огляд
+    </a>
+    {% if user.role == 'admin' %}
+    <a href="{% url 'analytics:payroll' %}"
+       class="fin-tab tg-mobile-tap px-3 text-sm whitespace-nowrap {% if active == 'payroll' %}fin-tab-active{% else %}text-gray-500{% endif %}">
+      Зарплата
+    </a>
+    {% endif %}
+    <a href="{% url 'analytics:profit' %}"
+       class="fin-tab tg-mobile-tap px-3 text-sm whitespace-nowrap {% if active == 'profit' %}fin-tab-active{% else %}text-gray-500{% endif %}">
+      Прибуток
+    </a>
+    <a href="{% url 'analytics:services' %}"
+       class="fin-tab tg-mobile-tap px-3 text-sm whitespace-nowrap {% if active == 'services' %}fin-tab-active{% else %}text-gray-500{% endif %}">
+      Послуги
+    </a>
+    <a href="{% url 'analytics:usage' %}"
+       class="fin-tab tg-mobile-tap px-3 text-sm whitespace-nowrap {% if active == 'usage' %}fin-tab-active{% else %}text-gray-500{% endif %}">
+      Викор.
+    </a>
+    <a href="{% url 'analytics:debtors' %}"
+       class="fin-tab tg-mobile-tap px-3 text-sm whitespace-nowrap {% if active == 'debtors' %}fin-tab-active{% else %}text-gray-500{% endif %}">
+      Боржники
+    </a>
+    {% endwith %}
+  </div>
+</nav>

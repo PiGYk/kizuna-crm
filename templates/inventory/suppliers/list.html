@@ -2,40 +2,70 @@
 {% block title %}Постачальники — Kizuna CRM{% endblock %}
 
 {% block content %}
-<div class="flex items-center justify-between mb-6">
-  <h1 class="text-2xl font-bold">Постачальники</h1>
-  <div class="flex gap-2">
-    <a href="{% url 'inventory:list' %}" class="px-4 py-2 rounded-lg text-sm font-medium bg-white border border-gray-200 hover:bg-gray-50">Склад</a>
-    <a href="{% url 'finance:expenses' %}" class="px-4 py-2 rounded-lg text-sm font-medium bg-white border border-gray-200 hover:bg-gray-50">Витрати</a>
-    <a href="{% url 'inventory:supplier_create' %}" class="px-4 py-2 rounded-lg text-sm font-medium bg-brand-gold text-brand-dark hover:opacity-90">+ Постачальник</a>
+{# ── Header ─────────────────────────────────────────────────────────── #}
+<div class="flex items-center justify-between gap-3 mb-6">
+  <div>
+    <h1 class="text-2xl font-bold text-brand-dark">Постачальники</h1>
+    <p class="text-xs text-gray-400 mt-0.5">{{ suppliers|length }} активних</p>
   </div>
+  <a href="{% url 'inventory:supplier_create' %}"
+     class="inline-flex items-center gap-1.5 bg-brand-gold text-brand-dark px-4 h-10 rounded-lg text-sm font-semibold hover:brightness-95 transition">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+    Новий постачальник
+  </a>
 </div>
 
-<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+{% if suppliers %}
+<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
   {% for s in suppliers %}
-  <a href="{% url 'inventory:supplier_detail' s.pk %}" class="bg-white rounded-xl p-5 hover:shadow-md transition-shadow">
-    <h3 class="font-semibold text-lg mb-1">{{ s.name }}</h3>
-    {% if s.contact_person %}<p class="text-sm text-gray-500">{{ s.contact_person }}</p>{% endif %}
-    {% if s.phone %}<p class="text-sm text-gray-500">{{ s.phone }}</p>{% endif %}
-    <div class="mt-3 pt-3 border-t border-gray-100 space-y-1 text-sm">
-      <div class="flex justify-between">
-        <span class="text-gray-400">Закупок</span>
-        <span class="font-medium">{{ s.total_purchases|default:0 }} шт. / {{ s.total_sum|floatformat:2|default:"0.00" }} &#8372;</span>
+  <a href="{% url 'inventory:supplier_detail' s.pk %}"
+     class="bg-white rounded-xl border border-gray-200 p-4 hover:border-brand-gold/50 hover:shadow-md transition-all">
+    <div class="flex items-start gap-3 mb-3">
+      <div class="w-11 h-11 rounded-full bg-brand-gold/20 text-brand-dark flex items-center justify-center shrink-0 font-bold text-base">
+        {{ s.name|slice:":1"|upper }}
       </div>
-      <div class="flex justify-between">
-        <span class="text-gray-400">Витрат</span>
-        <span class="font-medium">{{ s.expense_count|default:0 }} шт. / {{ s.total_expenses|floatformat:2|default:"0.00" }} &#8372;</span>
+      <div class="flex-1 min-w-0">
+        <div class="font-semibold text-brand-dark text-[15px] truncate">{{ s.name }}</div>
+        {% if s.contact_person %}
+        <div class="text-xs text-gray-500 truncate">{{ s.contact_person }}</div>
+        {% endif %}
+        {% if s.phone %}
+        <div class="text-xs text-gray-400 truncate">{{ s.phone }}</div>
+        {% endif %}
       </div>
-      {% if s.last_purchase %}
-      <div class="flex justify-between">
-        <span class="text-gray-400">Остання закупка</span>
-        <span class="text-gray-600">{{ s.last_purchase|date:"d.m.Y" }}</span>
-      </div>
-      {% endif %}
     </div>
+    <div class="border-t border-gray-100 pt-3 grid grid-cols-2 gap-2 text-xs">
+      <div>
+        <div class="text-gray-400">Закупки</div>
+        <div class="font-semibold text-brand-dark mt-0.5">
+          {{ s.total_sum|floatformat:0|default:"0" }} <span class="text-gray-400 font-normal">₴</span>
+        </div>
+        <div class="text-[10px] text-gray-400">{{ s.total_purchases|default:0 }} записів</div>
+      </div>
+      <div>
+        <div class="text-gray-400">Витрати</div>
+        <div class="font-semibold text-brand-dark mt-0.5">
+          {{ s.total_expenses|floatformat:0|default:"0" }} <span class="text-gray-400 font-normal">₴</span>
+        </div>
+        <div class="text-[10px] text-gray-400">{{ s.expense_count|default:0 }} записів</div>
+      </div>
+    </div>
+    {% if s.last_purchase %}
+    <div class="mt-2 pt-2 border-t border-gray-50 text-[11px] text-gray-400">
+      Остання закупка: {{ s.last_purchase|date:"d.m.Y" }}
+    </div>
+    {% endif %}
   </a>
-  {% empty %}
-  <p class="text-gray-400 col-span-full text-center py-8">Постачальників ще немає</p>
   {% endfor %}
 </div>
+{% else %}
+<div class="bg-white rounded-xl border border-dashed border-gray-200 p-16 text-center">
+  <div class="text-gray-300 text-6xl mb-3">🏭</div>
+  <p class="text-lg text-brand-dark font-medium mb-1">Постачальників ще немає</p>
+  <p class="text-sm text-gray-400 mb-4">Додайте першого постачальника щоб відстежувати закупки</p>
+  <a href="{% url 'inventory:supplier_create' %}" class="inline-block text-sm text-brand-gold hover:text-brand-dark font-medium">
+    + Створити першого
+  </a>
+</div>
+{% endif %}
 {% endblock %}
