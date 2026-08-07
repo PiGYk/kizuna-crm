@@ -106,6 +106,10 @@
         <div>
           <label class="block text-xs text-gray-500 mb-1">Веб-сайт</label>
           {{ form.website }}
+          <a href="{% url 'clinic:booking_widget' %}"
+             class="inline-block mt-1.5 text-xs text-brand-gold hover:underline font-medium">
+            Форма запису на сайт →
+          </a>
         </div>
         <div>
           <label class="block text-xs text-gray-500 mb-1">Символ валюти</label>

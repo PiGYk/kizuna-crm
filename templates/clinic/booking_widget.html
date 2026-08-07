@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+
+{% block title %}Форма запису на сайт — {{ org.short_name|default:org.name }}{% endblock %}
+
+{% block content %}
+<div class="flex items-center gap-3 mb-6">
+  <a href="{% url 'clinic:settings' %}" class="text-gray-400 hover:text-gray-600">
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+  </a>
+  <h1 class="text-2xl font-bold text-brand-dark">Форма запису на сайт</h1>
+</div>
+
+<p class="text-sm text-gray-500 mb-6 max-w-2xl">
+  Готова форма запису, яку можна поставити на сайт клініки. Заявки з неї приходять
+  сюди ж, у розділ записів — так само, як створені вручну.
+</p>
+
+{% if not website_set %}
+<div class="mb-6 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-800">
+  <strong>Спершу вкажіть адресу сайту.</strong>
+  У <a href="{% url 'clinic:settings' %}" class="underline font-medium">налаштуваннях клініки</a>
+  заповніть поле «Веб-сайт / домен» — саме за ним система впізнає ваш сайт і дозволить
+  йому надсилати заявки. Без цього форма на сайті не працюватиме.
+</div>
+{% endif %}
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+  <!-- Код для вставки -->
+  <div class="bg-white rounded-2xl border border-gray-200 p-6">
+    <h2 class="text-base font-semibold text-brand-dark mb-1">Код для вставки</h2>
+    <p class="text-sm text-gray-500 mb-4">
+      Скопіюйте і вставте у html-код сторінки — там, де має з'явитися форма.
+      Підійде будь-який сайт: WordPress, Wix, Tilda, саморобний.
+    </p>
+
+    <div class="relative">
+      <pre id="snippet-box" class="bg-gray-900 text-gray-100 rounded-xl p-4 text-xs leading-relaxed overflow-x-auto whitespace-pre-wrap break-all">{{ snippet }}</pre>
+      {# На вузькому екрані кнопка стоїть під кодом: абсолютна позиція накривала текст. #}
+      <button type="button" id="copy-btn"
+        class="mt-2 w-full sm:w-auto sm:mt-0 sm:absolute sm:top-3 sm:right-3 px-3 py-1.5 bg-brand-gold text-brand-dark rounded-lg text-xs font-semibold hover:brightness-95 transition-all">
+        Скопіювати
+      </button>
+    </div>
+
+    <div class="mt-5 pt-5 border-t border-gray-100">
+      <h3 class="text-sm font-semibold text-brand-dark mb-2">Як це працює</h3>
+      <ul class="text-sm text-gray-600 space-y-1.5 list-disc pl-5">
+        <li>Клієнт заповнює форму на вашому сайті й обирає вільний час.</li>
+        <li>Зайняті години форма не показує — бере їх із вашого розкладу.</li>
+        <li>Заявка одразу з'являється у записах, а співробітники отримують сповіщення.</li>
+        <li>Кольори форми підлаштовуються під ваш фірмовий колір із налаштувань.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Живий прев'ю -->
+  <div class="bg-white rounded-2xl border border-gray-200 p-6">
+    <h2 class="text-base font-semibold text-brand-dark mb-1">Як це виглядатиме</h2>
+    <p class="text-sm text-gray-500 mb-4">
+      Це справжня форма — така сама, як буде на сайті. Заявку з неї краще не надсилати,
+      щоб не створити тестовий запис.
+    </p>
+    <div class="bg-gray-50 rounded-xl p-4">
+      <div id="{{ mount_id }}"></div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ widget_src }}" async></script>
+<script>
+  document.getElementById('copy-btn').addEventListener('click', function () {
+    var text = document.getElementById('snippet-box').textContent;
+    var btn = this;
+    function done() {
+      btn.textContent = 'Скопійовано ✓';
+      setTimeout(function () { btn.textContent = 'Скопіювати'; }, 2000);
+    }
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(done);
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); done(); } catch (e) {}
+      document.body.removeChild(ta);
+    }
+  });
+</script>
+{% endblock %}

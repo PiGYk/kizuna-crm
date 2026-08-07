@@ -21,6 +21,36 @@ from .models import Organization
 from .wayforpay import PLANS, WAYFORPAY_URL, accept_response, build_payment_fields, verify_callback
 
 
+class BookingWidgetView(AdminRequiredMixin, View):
+    """Сторінка «Форма запису на сайт» — готовий код, який клініка вставляє собі.
+
+    Показує сам сніпет, живий прев'ю і попереджає, якщо в профілі не заповнене
+    поле «Веб-сайт»: без нього браузер заблокує запити з сайту клініки (CORS
+    whitelist будується саме з цього поля).
+    """
+
+    def get(self, request):
+        from apps.appointments.widget import MOUNT_ID
+
+        org = request.organization
+        if org is None:
+            messages.error(request, 'Організацію не визначено.')
+            return redirect('clinic:settings')
+
+        base = request.build_absolute_uri('/').rstrip('/')
+        snippet = (
+            f'<div id="{MOUNT_ID}"></div>\n'
+            f'<script src="{base}/api/public/widget.js?org={org.slug}" async></script>'
+        )
+        return render(request, 'clinic/booking_widget.html', {
+            'org': org,
+            'snippet': snippet,
+            'widget_src': f'{base}/api/public/widget.js?org={org.slug}',
+            'mount_id': MOUNT_ID,
+            'website_set': bool((org.website or '').strip()),
+        })
+
+
 class ClinicSettingsView(AdminRequiredMixin, View):
     def _ctx(self, request, form):
         from apps.accounts.models import User

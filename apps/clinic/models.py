@@ -199,6 +199,14 @@ class Organization(models.Model):
         if not self.slug:
             self.slug = slugify(self.name)
         super().save(*args, **kwargs)
+        # Публічне API тримає CORS-whitelist сайтів клінік у кеші. Скидаємо тут,
+        # а не у формі, щоб зміна поля «Веб-сайт» діяла одразу незалежно від того,
+        # звідки її зберегли (налаштування, адмінка, скрипт).
+        try:
+            from django.core.cache import cache
+            cache.delete('public_api:org_site_origins')
+        except Exception:
+            pass
 
 
 class PaymentTransaction(models.Model):

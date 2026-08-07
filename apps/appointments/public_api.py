@@ -9,13 +9,15 @@ Endpoints:
   * Параметр `org` (slug організації) — ОБОВ'ЯЗКОВИЙ. Без нього 400.
     Анонімні ендпоінти не повинні «вгадувати» першу-ліпшу активну org —
     це призводило до cross-tenant витоків і записів не в ту клініку.
-  * CORS — whitelist через settings.PUBLIC_API_ALLOWED_ORIGINS (за замовч.
-    лише https://kizuna.com.ua). Origin не з whitelist → відсутні CORS
-    headers, браузер заблокує крос-доменний fetch.
+  * CORS — whitelist: settings.PUBLIC_API_ALLOWED_ORIGINS + сайти клінік із
+    поля «Веб-сайт» їхніх профілів (щоб кожна клініка вішала форму на свій
+    домен без правки конфігу). Origin не з whitelist → відсутні CORS headers,
+    браузер заблокує крос-доменний fetch.
   * Rate limit на lead: 5 запитів/хв з IP через Django cache.
 """
 import json
 import logging
+import re
 from datetime import date, datetime, time as dt_time, timedelta
 
 from django.conf import settings
@@ -33,13 +35,70 @@ logger = logging.getLogger(__name__)
 
 # ── CORS whitelist ───────────────────────────────────────────────────────────
 
+_ORIGINS_CACHE_KEY = 'public_api:org_site_origins'
+_ORIGINS_CACHE_TTL = 300  # 5 хв — поле «Веб-сайт» міняють рідко
+
+
+def _website_to_origins(raw):
+    """'kizuna.com.ua' / 'https://kizuna.com.ua/' / 'www.kizuna.com.ua' →
+    {'https://kizuna.com.ua', 'https://www.kizuna.com.ua'}.
+
+    Клініка вписує домен як їй зручно, а браузер шле рівно той origin, з якого
+    відкрита сторінка — тому дозволяємо обидва варіанти (з www і без).
+    Тільки https: форма збирає персональні дані, по http її пускати не можна.
+    """
+    value = (raw or '').strip()
+    if not value:
+        return set()
+    value = re.sub(r'^https?://', '', value, flags=re.IGNORECASE).strip().strip('/')
+    host = value.split('/')[0].split('?')[0].split(':')[0].strip().lower()
+    # Проста валідація домену — щоб сміття з поля не потрапило у whitelist.
+    if not re.fullmatch(r'[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9-]+)*\.[a-z]{2,}', host or ''):
+        return set()
+    bare = host[4:] if host.startswith('www.') else host
+    return {f'https://{bare}', f'https://www.{bare}'}
+
+
+def _org_site_origins():
+    """Сайти самих клінік із поля «Веб-сайт» в налаштуваннях організації.
+
+    Завдяки цьому нова клініка вішає форму запису на СВІЙ сайт самостійно —
+    без правки конфігу сервера. Результат кешуємо: ендпоінт публічний і
+    смикається на кожен запит форми.
+    """
+    cached = cache.get(_ORIGINS_CACHE_KEY)
+    if cached is not None:
+        return cached
+
+    from apps.clinic.models import Organization
+    origins = set()
+    try:
+        websites = (
+            Organization.objects
+            .filter(is_active=True)
+            .exclude(website='')
+            .values_list('website', flat=True)
+        )
+        for raw in websites:
+            origins |= _website_to_origins(raw)
+    except Exception:  # БД недоступна — не валимо публічний ендпоінт
+        logger.warning('CORS: не вдалось прочитати сайти організацій', exc_info=True)
+        return list(())
+
+    result = sorted(origins)
+    cache.set(_ORIGINS_CACHE_KEY, result, _ORIGINS_CACHE_TTL)
+    return result
+
+
 def _allowed_origins():
-    """Список дозволених origin'ів для CORS. Fallback — лише kizuna.com.ua."""
-    return getattr(
+    """Дозволені origin'и: явний список у налаштуваннях + сайти клінік з їхніх
+    профілів. Whitelist, не '*' — чужий origin не отримає CORS-хедерів."""
+    configured = getattr(
         settings,
         'PUBLIC_API_ALLOWED_ORIGINS',
         ['https://kizuna.com.ua'],
     )
+    return list(configured) + _org_site_origins()
 
 
 def _cors(response, request):
