@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from celery.schedules import crontab
 from decouple import config
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -179,9 +180,22 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': 60 * 60 * 24,  # раз на добу
         'options': {'expires': 3600},
     },
+    # Звіт по зверненнях і лідах — двічі на день, у обід і ввечері.
+    'send-lead-report': {
+        'task': 'apps.tg.lead_report_tasks.send_lead_report',
+        'schedule': crontab(hour='12,19', minute=0),
+        'options': {'expires': 3600},
+    },
 }
 
 TELEGRAM_BOT_TOKEN = config('TELEGRAM_BOT_TOKEN', default='')
+
+# Автодіалог з незареєстрованими в Telegram.
+# Детермінований сценарій працює завжди; LLM-шар (жива відповідь на вільний
+# текст) вмикається лише коли є і прапорець, і ключ — інакше тихо відкат.
+TG_AUTODIALOG_LLM = config('TG_AUTODIALOG_LLM', default=False, cast=bool)
+TG_AUTODIALOG_MODEL = config('TG_AUTODIALOG_MODEL', default='claude-haiku-4-5')
+ANTHROPIC_API_KEY = config('ANTHROPIC_API_KEY', default='')
 
 CHECKBOX_API_URL = config('CHECKBOX_API_URL', default='https://api.checkbox.in.ua/api/v1')
 CHECKBOX_LICENSE_KEY = config('CHECKBOX_LICENSE_KEY', default='')

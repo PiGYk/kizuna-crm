@@ -745,8 +745,20 @@ def _handle_command(chat, text, from_user):
             )
             return msg, _remove_keyboard()
 
-    # Меню доступне лише верифікованим
+    # Меню доступне лише верифікованим. Незнайомця далі веде автодіалог: сам
+    # пропонує запис, проводить анкету і показує вільний час — щоб звернення
+    # не висіло без відповіді, поки хтось із персоналу його помітить.
     if not is_verified:
+        from . import autodialog
+        if autodialog.should_engage(chat, text):
+            return autodialog.engage(chat, text)
+        # Відмовився, але потім передумав і написав «записатись» — пропонуємо знову.
+        if (
+            autodialog.get_stage(chat) == autodialog.STAGE_DECLINED
+            and autodialog.wants_booking(text)
+        ):
+            autodialog.set_stage(chat, '')
+            return autodialog.engage(chat, text)
         return None
 
     if text == '🐾 Мої тварини':
@@ -1565,6 +1577,23 @@ def _handle_callback(callback, org=None):
             pass
         return
 
+    # ── Автодіалог з незареєстрованими (пропозиція запису) ────────────────
+    if action in ('ad_book', 'ad_wait'):
+        from . import autodialog
+        try:
+            chat = TelegramChat.objects.get(tg_user_id=tg_user_id, organization=org)
+        except TelegramChat.DoesNotExist:
+            return
+        result = autodialog.handle_callback(chat, action)
+        if result:
+            reply_text, markup = result
+            _send_tg(tg_user_id, reply_text, markup, org=org)
+            TelegramMessage.objects.create(
+                chat=chat, direction=TelegramMessage.Direction.OUT,
+                text=reply_text, is_read=True,
+            )
+        return
+
     # ── Онбординг (запуск з інвайту, фінал-вибір виду тварини, скасування) ─
     if action == 'onb_start':
         try:
@@ -1608,6 +1637,18 @@ def _handle_callback(callback, org=None):
             chat=chat, direction=TelegramMessage.Direction.OUT,
             text=reply_text, is_read=True,
         )
+        # Прийшов з автодіалогу («так, записати») — не кидаємо на «адміністратор
+        # звʼяжеться», а одразу ведемо у вибір лікаря й часу. Це і є «бот сам
+        # записує»: людина не виходить з розмови, поки не отримає час.
+        from . import autodialog
+        if autodialog.get_stage(chat) == autodialog.STAGE_BOOKING:
+            chat.refresh_from_db()
+            book_text, book_markup = _cmd_book_appointment(chat)
+            _send_tg(tg_user_id, book_text, book_markup, org=org)
+            TelegramMessage.objects.create(
+                chat=chat, direction=TelegramMessage.Direction.OUT,
+                text=book_text, is_read=True,
+            )
         return
 
     # ── Booking flow (окремий блок, не потребує chat.client для першого кроку) ─

@@ -41,6 +41,14 @@ class TelegramChat(models.Model):
         default=dict, blank=True,
         help_text='Тимчасовий state-machine для реєстрації через бота: {"step": "...", "data": {...}}',
     )
+    autodialog_state = models.JSONField(
+        'Стан автодіалогу',
+        default=dict, blank=True,
+        help_text=(
+            'Автодіалог з незареєстрованими: {"stage": "offered|declined|booking|done", '
+            '"data": {...}}. Окремо від onboarding_state, бо той перезаписується цілком.'
+        ),
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     last_message_at = models.DateTimeField(null=True, blank=True)
 
