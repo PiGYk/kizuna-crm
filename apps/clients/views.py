@@ -812,19 +812,32 @@ def document_upload(request, patient_pk):
     patient = get_object_or_404(
         Patient, pk=patient_pk, client__organization=request.organization
     )
+    # ?visit=<pk> — прийшли з картки прийому: знімок/УЗД чіпляємо саме до нього
+    # і туди ж вертаємось (прохання Ірпеня 10.08).
+    visit = None
+    visit_pk = request.GET.get('visit') or request.POST.get('visit')
+    if visit_pk:
+        visit = Visit.objects.filter(pk=visit_pk, patient=patient).first()
+
     if request.method == 'POST':
         form = PatientDocumentForm(request.POST, request.FILES)
         if form.is_valid():
             doc = form.save(commit=False)
             doc.patient = patient
+            doc.visit = visit
             doc.uploaded_by = request.user
             doc.save()
             messages.success(request, 'Документ завантажено.')
+            if visit:
+                return redirect('clients:visit_edit', pk=visit.pk)
             return redirect('clients:patient_detail', pk=patient_pk)
     else:
-        form = PatientDocumentForm()
+        initial = {}
+        if visit:
+            initial['date'] = timezone.localtime(visit.date).date()
+        form = PatientDocumentForm(initial=initial)
     return render(request, 'clients/document_form.html', {
-        'form': form, 'patient': patient,
+        'form': form, 'patient': patient, 'visit': visit,
     })
 
 
@@ -836,10 +849,13 @@ def document_delete(request, pk):
         PatientDocument, pk=pk, patient__client__organization=request.organization
     )
     patient_pk = doc.patient_id
+    visit_pk = doc.visit_id  # запам'ятати ДО видалення, щоб знати куди вертатись
     if request.method == 'POST':
         doc.file.delete(save=False)
         doc.delete()
         messages.success(request, 'Документ видалено.')
+    if visit_pk:
+        return redirect('clients:visit_edit', pk=visit_pk)
     return redirect('clients:patient_detail', pk=patient_pk)
 
 

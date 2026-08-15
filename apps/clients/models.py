@@ -321,6 +321,13 @@ def patient_document_path(instance, filename):
 class PatientDocument(models.Model):
     """Документ пацієнта (PDF, відео, інші файли)."""
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='documents', verbose_name='Пацієнт')
+    # Прив'язка до конкретного прийому — щоб знімок чи УЗД лежали не просто
+    # в картці тварини, а в тому візиті, де їх зробили (прохання Ірпеня 10.08).
+    # Порожнє — документ загальний по тварині, як було досі.
+    visit = models.ForeignKey(
+        'Visit', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='documents', verbose_name='Візит',
+    )
     title = models.CharField('Назва', max_length=200)
     file = models.FileField('Файл', upload_to=patient_document_path)
     date = models.DateField('Дата')

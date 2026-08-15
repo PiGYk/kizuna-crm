@@ -9,14 +9,21 @@
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
     </a>
     <div>
-      <h1 class="text-2xl font-bold text-gray-900">Завантажити документ</h1>
-      <p class="text-sm text-gray-500">{{ patient.name }} · {{ patient.client.full_name }}</p>
+      <h1 class="text-2xl font-bold text-gray-900">
+        {% if visit %}Знімок до прийому{% else %}Завантажити документ{% endif %}
+      </h1>
+      <p class="text-sm text-gray-500">
+        {{ patient.name }} · {{ patient.client.full_name }}
+        {% if visit %} · прийом {{ visit.date|date:"d.m.Y" }}{% endif %}
+      </p>
     </div>
   </div>
 
   <div class="bg-white rounded-xl border border-gray-200 p-6">
     <form method="post" enctype="multipart/form-data" class="space-y-4">
       {% csrf_token %}
+      {# візит несемо через POST — щоб прив'язка не загубилась при помилці форми #}
+      {% if visit %}<input type="hidden" name="visit" value="{{ visit.pk }}">{% endif %}
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Назва *</label>
         {{ form.title }}
@@ -40,7 +47,7 @@
           class="bg-brand-gold text-brand-dark px-6 py-2.5 rounded-lg text-sm font-medium hover:brightness-95 transition-colors">
           Завантажити
         </button>
-        <a href="{% url 'clients:patient_detail' patient.pk %}"
+        <a href="{% if visit %}{% url 'clients:visit_edit' visit.pk %}{% else %}{% url 'clients:patient_detail' patient.pk %}{% endif %}"
           class="px-6 py-2.5 rounded-lg text-sm font-medium text-gray-700 border border-gray-300 hover:bg-gray-50">
           Скасувати
         </a>
