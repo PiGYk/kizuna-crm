@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block title %}Завантажити послуги — Kizuna CRM{% endblock %}
+
+{% block content %}
+<div class="max-w-lg">
+  <div class="flex items-center gap-3 mb-6">
+    <a href="{% url 'services:list' %}" class="text-gray-400 hover:text-gray-600">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+    </a>
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Завантажити послуги</h1>
+      <p class="text-sm text-gray-500">Прайс таблицею — створить нові й поправить ціни наявним</p>
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl border border-gray-200 p-6">
+    <form method="post" enctype="multipart/form-data" class="space-y-4">
+      {% csrf_token %}
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Файл CSV або Excel *</label>
+        <input type="file" name="file" accept=".csv,.xlsx,.xls" required
+               class="w-full text-sm border border-gray-300 rounded-lg px-3 py-2.5">
+      </div>
+
+      <div class="bg-gray-50 border border-gray-100 rounded-lg p-4 text-sm text-gray-600 space-y-1">
+        <div class="font-medium text-gray-700">Які колонки потрібні</div>
+        <div><span class="font-medium">Назва</span> — обов'язкова</div>
+        <div><span class="font-medium">Ціна</span>, <span class="font-medium">Категорія</span>, <span class="font-medium">Опис</span> — за бажанням</div>
+        <div class="pt-1 text-xs text-gray-500">
+          Заголовки розпізнаються по-людськи: «Послуга», «Вартість», «Група» теж підійдуть.
+          Ціна може бути з пробілами і комою — «1 200,50» прочитається правильно.
+        </div>
+      </div>
+
+      <div class="bg-brand-gold/5 border border-brand-gold/20 rounded-lg p-4 text-sm text-gray-700">
+        <div class="font-medium mb-1">Як воно поводиться</div>
+        <div>Послуги з новою назвою — <span class="font-medium">створяться</span>.</div>
+        <div>Назва, яка вже є — <span class="font-medium">оновиться</span> (ціна, категорія, опис).</div>
+        <div class="text-xs text-gray-500 mt-1">Нічого не видаляється. Перед застосуванням покажемо список.</div>
+      </div>
+
+      <div class="flex gap-3 pt-2">
+        <button type="submit"
+          class="bg-brand-gold text-brand-dark px-6 py-2.5 rounded-lg text-sm font-medium hover:brightness-95 transition-colors">
+          Далі — подивитись, що зміниться
+        </button>
+        <a href="{% url 'services:import_template' %}"
+          class="px-6 py-2.5 rounded-lg text-sm font-medium text-gray-700 border border-gray-300 hover:bg-gray-50">
+          Завантажити зразок
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

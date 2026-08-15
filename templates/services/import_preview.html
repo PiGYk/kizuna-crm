@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+
+{% block title %}Що зміниться — Kizuna CRM{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl">
+  <div class="flex items-center gap-3 mb-6">
+    <a href="{% url 'services:import' %}" class="text-gray-400 hover:text-gray-600">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+    </a>
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900">Перевірте, що зміниться</h1>
+      <p class="text-sm text-gray-500">{{ filename }} · нічого ще не збережено</p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-3 gap-3 mb-5">
+    <div class="bg-white rounded-xl border border-gray-200 p-4">
+      <div class="text-2xl font-bold text-brand-dark">{{ to_create|length }}</div>
+      <div class="text-xs text-gray-500 mt-0.5">створити</div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 p-4">
+      <div class="text-2xl font-bold text-brand-dark">{{ to_update|length }}</div>
+      <div class="text-xs text-gray-500 mt-0.5">оновити</div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 p-4">
+      <div class="text-2xl font-bold text-gray-400">{{ skipped }}</div>
+      <div class="text-xs text-gray-500 mt-0.5">пропущено (без назви)</div>
+    </div>
+  </div>
+
+  {% if to_update %}
+  <div class="bg-white rounded-xl border border-gray-200 mb-4 overflow-hidden">
+    <div class="px-4 py-3 border-b border-gray-100 text-sm font-semibold text-gray-700">
+      Оновляться ({{ to_update|length }})
+    </div>
+    <div class="max-h-72 overflow-y-auto divide-y divide-gray-50">
+      {% for i in to_update %}
+      <div class="px-4 py-2.5 flex items-center gap-3 text-sm">
+        <div class="flex-1 min-w-0 truncate text-gray-800">{{ i.name }}</div>
+        {% if i.price %}
+        <div class="shrink-0 text-xs">
+          <span class="text-gray-400 line-through">{{ i.old_price }}</span>
+          <span class="text-brand-dark font-medium ml-1">{{ i.price }} ₴</span>
+        </div>
+        {% else %}
+        <div class="shrink-0 text-xs text-gray-400">ціна без змін</div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if to_create %}
+  <div class="bg-white rounded-xl border border-gray-200 mb-4 overflow-hidden">
+    <div class="px-4 py-3 border-b border-gray-100 text-sm font-semibold text-gray-700">
+      Створяться ({{ to_create|length }})
+    </div>
+    <div class="max-h-72 overflow-y-auto divide-y divide-gray-50">
+      {% for i in to_create %}
+      <div class="px-4 py-2.5 flex items-center gap-3 text-sm">
+        <div class="flex-1 min-w-0 truncate text-gray-800">{{ i.name }}</div>
+        {% if i.category %}<div class="shrink-0 text-xs text-gray-400">{{ i.category }}</div>{% endif %}
+        <div class="shrink-0 text-xs text-brand-dark font-medium">{{ i.price|default:"0" }} ₴</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if not to_create and not to_update %}
+  <div class="bg-white rounded-xl border border-gray-200 p-6 text-sm text-gray-500">
+    У файлі не знайшлось жодного рядка з назвою послуги.
+  </div>
+  {% endif %}
+
+  <form method="post" action="{% url 'services:import_execute' %}" class="flex gap-3">
+    {% csrf_token %}
+    <button type="submit" {% if not to_create and not to_update %}disabled{% endif %}
+      class="bg-brand-gold text-brand-dark px-6 py-2.5 rounded-lg text-sm font-medium hover:brightness-95 transition-colors disabled:opacity-40">
+      Застосувати
+    </button>
+    <a href="{% url 'services:import' %}"
+      class="px-6 py-2.5 rounded-lg text-sm font-medium text-gray-700 border border-gray-300 hover:bg-gray-50">
+      Скасувати
+    </a>
+  </form>
+</div>
+{% endblock %}

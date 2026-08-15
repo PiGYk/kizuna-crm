@@ -6,12 +6,18 @@
 {% block fab_label %}Нова послуга{% endblock %}
 
 {% block content %}
-<div class="flex items-center justify-between mb-6">
+<div class="flex items-center justify-between mb-6 gap-2">
   <h1 class="text-2xl font-bold text-brand-dark">Послуги</h1>
-  <a href="{% url 'services:create' %}"
-     class="bg-brand-gold text-brand-dark px-4 py-2 rounded-lg text-base md:text-sm font-medium hover:brightness-95 transition-all min-h-[44px] inline-flex items-center">
-    + Додати
-  </a>
+  <div class="flex items-center gap-2 shrink-0">
+    <a href="{% url 'services:import' %}"
+       class="px-4 py-2 rounded-lg text-base md:text-sm font-medium text-gray-700 border border-gray-300 hover:bg-gray-50 transition-all min-h-[44px] inline-flex items-center">
+      Завантажити списком
+    </a>
+    <a href="{% url 'services:create' %}"
+       class="bg-brand-gold text-brand-dark px-4 py-2 rounded-lg text-base md:text-sm font-medium hover:brightness-95 transition-all min-h-[44px] inline-flex items-center">
+      + Додати
+    </a>
+  </div>
 </div>
 
 <form method="get" class="mb-3 flex gap-2">
