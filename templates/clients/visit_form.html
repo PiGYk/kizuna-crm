@@ -49,7 +49,10 @@
     </div>
   </div>
 
-  <div class="bg-white rounded-xl border border-gray-200 p-6">
+  {# Дві колонки на широкому екрані: прийом ліворуч, аналізи тварини праворуч —
+     щоб не гортати картку туди-сюди (прохання Ірпеня 10.08). #}
+  <div class="grid grid-cols-1 xl:grid-cols-3 gap-4 items-start">
+  <div class="xl:col-span-2 bg-white rounded-xl border border-gray-200 p-6">
     <form method="post" id="visit-form" class="space-y-4">
       {% csrf_token %}
 
@@ -165,6 +168,43 @@
       </div>
       <div class="h-20 md:hidden"></div>
     </form>
+  </div>
+
+  {# ── Аналізи тварини — поруч із прийомом ─────────────────────────── #}
+  <aside class="bg-white rounded-xl border border-gray-200 p-4">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-sm font-semibold text-gray-700">🔬 Аналізи тварини</h2>
+      <a href="{% url 'clients:analysis_create' patient.pk %}"
+         class="text-xs font-semibold text-brand-gold hover:text-brand-dark">+ Додати</a>
+    </div>
+
+    {% if side_analyses %}
+    <div class="space-y-2">
+      {% for a in side_analyses %}
+      <a href="{{ a.image.url }}" target="_blank" rel="noopener"
+         class="flex gap-3 items-center p-2 rounded-lg border border-gray-100 hover:border-brand-gold hover:bg-brand-gold/5 transition">
+        {% if a.is_image %}
+          <img src="{{ a.image.url }}" alt="" loading="lazy"
+               class="w-12 h-12 rounded object-cover bg-gray-50 shrink-0">
+        {% else %}
+          <div class="w-12 h-12 rounded bg-gray-50 flex items-center justify-center text-lg shrink-0">
+            {% if a.is_pdf %}📄{% else %}📎{% endif %}
+          </div>
+        {% endif %}
+        <div class="min-w-0 flex-1">
+          <div class="text-sm text-gray-800 truncate" title="{{ a.title }}">{{ a.title }}</div>
+          <div class="text-[11px] text-gray-400">{{ a.date|date:"d.m.Y" }}</div>
+          {% if a.notes %}<div class="text-[11px] text-gray-400 truncate" title="{{ a.notes }}">{{ a.notes }}</div>{% endif %}
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+    <a href="{% url 'clients:patient_detail' patient.pk %}"
+       class="block mt-3 text-xs text-gray-400 hover:text-brand-dark">Усі аналізи в картці тварини →</a>
+    {% else %}
+    <p class="text-xs text-gray-400">Аналізів ще немає.</p>
+    {% endif %}
+  </aside>
   </div>
 </div>
 

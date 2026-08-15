@@ -231,7 +231,23 @@ def visit_create(request, patient_pk):
         visit.save()
         messages.success(request, 'Візит додано')
         return redirect('clients:patient_detail', pk=patient.pk)
-    return render(request, 'clients/visit_form.html', {'form': form, 'patient': patient})
+    return render(request, 'clients/visit_form.html', {
+        'form': form, 'patient': patient,
+        'side_analyses': _recent_analyses(patient),
+    })
+
+
+def _recent_analyses(patient, limit=8):
+    """Останні аналізи тварини — щоб лікар бачив їх ПОРУЧ під час прийому.
+
+    Прохання Ірпеня 10.08: «аналізи є внизу списком, а коли дивишся прийом і
+    призначення — краще, щоб це було в одному місці».
+    """
+    return list(
+        PatientAnalysis.objects
+        .filter(patient=patient)
+        .order_by('-date', '-id')[:limit]
+    )
 
 
 @login_required
@@ -266,7 +282,10 @@ def visit_update(request, pk):
         form.save()
         messages.success(request, 'Збережено')
         return redirect('clients:patient_detail', pk=visit.patient.pk)
-    return render(request, 'clients/visit_form.html', {'form': form, 'patient': visit.patient, 'visit': visit})
+    return render(request, 'clients/visit_form.html', {
+        'form': form, 'patient': visit.patient, 'visit': visit,
+        'side_analyses': _recent_analyses(visit.patient),
+    })
 
 
 @login_required
