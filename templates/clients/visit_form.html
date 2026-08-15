@@ -141,9 +141,11 @@
               <div class="px-2 py-1.5">
                 <div class="text-xs font-medium text-gray-700 truncate" title="{{ d.title }}">{{ d.title }}</div>
                 {% if d.notes %}<div class="text-[11px] text-gray-400 truncate" title="{{ d.notes }}">{{ d.notes }}</div>{% endif %}
+                {# тап-таргет: на телефоні 11px-текст пальцем не влучити #}
                 <button type="button"
                         onclick="deleteDoc({{ d.pk }}, '{{ d.title|escapejs }}')"
-                        class="mt-0.5 text-[11px] text-red-500 hover:text-red-700">Видалити</button>
+                        class="mt-0.5 -mx-1 px-1 py-1.5 text-xs text-red-500 hover:text-red-700"
+                        style="min-height:32px;">Видалити</button>
               </div>
             </div>
             {% endfor %}
