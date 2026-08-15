@@ -21,6 +21,22 @@ while _t <= _end:
     _t = dt.time()
 
 
+class ClientSelectWithPhone(forms.Select):
+    """Select клієнта, що несе його телефон у data-phone кожної опції.
+
+    Потрібно мобільній картці запису: під полем клієнта показується
+    клікабельний номер, і він міняється разом з вибором — без запиту на сервер.
+    """
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex, attrs)
+        client = getattr(value, 'instance', None)
+        phone = getattr(client, 'phone', '') if client is not None else ''
+        if phone:
+            option['attrs']['data-phone'] = phone
+        return option
+
+
 class AppointmentForm(forms.ModelForm):
     appt_date = forms.DateField(
         label='Дата',
@@ -39,6 +55,7 @@ class AppointmentForm(forms.ModelForm):
                   'duration', 'services', 'notes', 'status')
         widgets = {
             'notes': forms.Textarea(attrs={'rows': 2, 'class': FIELD}),
+            'client': ClientSelectWithPhone(),
         }
 
     def __init__(self, *args, org=None, **kwargs):
