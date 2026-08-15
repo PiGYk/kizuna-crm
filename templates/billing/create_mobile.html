@@ -165,5 +165,17 @@ function clearSelection() {
   document.getElementById('selected-card').classList.add('hidden');
   document.getElementById('patient-section').classList.add('hidden');
 }
+
+{% if preselect_patient %}
+// Прийшли з картки тварини (?patient=…) — підставляємо її одразу.
+document.addEventListener('DOMContentLoaded', function () {
+  selectPatientDirect(
+    {{ preselect_patient.pk }},
+    {{ preselect_patient.client.pk }},
+    '{{ preselect_patient.name|escapejs }}',
+    '{{ preselect_patient.client|escapejs }}'
+  );
+});
+{% endif %}
 </script>
 {% endblock %}

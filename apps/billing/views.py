@@ -237,8 +237,24 @@ def invoice_create(request):
         cmap = {c.pk: c for c in Client.objects.filter(pk__in=recent_client_ids)}
         recent_clients = [cmap[pk] for pk in recent_client_ids if pk in cmap]
 
+    # Кнопка «Новий чек» у картці тварини веде сюди з ?patient=<id>.
+    # Раніше параметр ігнорувався і тварину доводилось шукати руками —
+    # тепер вона одразу підставлена (скарга персоналу 26.07).
+    preselect_patient = None
+    patient_pk = request.GET.get('patient')
+    if patient_pk:
+        preselect_patient = (
+            Patient.objects
+            .select_related('client')
+            .filter(pk=patient_pk, client__organization=request.organization)
+            .first()
+        )
+
     template = 'billing/create_mobile.html' if is_mobile(request) else 'billing/create.html'
-    return render(request, template, {'recent_clients': recent_clients})
+    return render(request, template, {
+        'recent_clients': recent_clients,
+        'preselect_patient': preselect_patient,
+    })
 
 
 # ── HTMX: пошук клієнтів при створенні рахунку ──────────────────────────────

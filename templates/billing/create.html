@@ -273,6 +273,19 @@ async function quickCreateClient() {
     btn.textContent = 'Створити і обрати';
   }
 }
+
+{% if preselect_patient %}
+// Прийшли з картки тварини (?patient=…) — підставляємо її одразу,
+// щоб не шукати руками те, що вже відомо.
+document.addEventListener('DOMContentLoaded', function () {
+  selectPatientDirect(
+    {{ preselect_patient.pk }},
+    {{ preselect_patient.client.pk }},
+    '{{ preselect_patient.name|escapejs }}',
+    '{{ preselect_patient.client|escapejs }}'
+  );
+});
+{% endif %}
 </script>
 {% endblock %}
 </content>

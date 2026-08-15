@@ -84,15 +84,25 @@ class AppointmentForm(forms.ModelForm):
         self.fields['notes'].required = False
         self.fields['services'].required = False
 
-        # Тільки лікарі/адміни поточної організації у виборі лікаря
+        # Виконавець запису — БУДЬ-ЯКИЙ активний співробітник організації,
+        # не лише лікарі й адміни: процедуру може вести асистент (прохання
+        # Ірпеня 10.08). Лікарі показуються першими, далі решта за прізвищем.
         from django.contrib.auth import get_user_model
+        from django.db.models import Case, When, IntegerField as _IntField
         from apps.clients.models import Client, Patient
         from apps.services.models import Service
         User = get_user_model()
+        self.fields['doctor'].label = 'Виконавець'
         if org is not None:
             self.fields['doctor'].queryset = User.objects.filter(
-                organization=org, role__in=['admin', 'doctor'], is_active=True,
-            ).order_by('last_name', 'first_name')
+                organization=org, is_active=True,
+            ).annotate(
+                _role_rank=Case(
+                    When(role='doctor', then=0),
+                    default=1,
+                    output_field=_IntField(),
+                )
+            ).order_by('_role_rank', 'last_name', 'first_name')
             self.fields['client'].queryset = Client.objects.filter(
                 organization=org,
             ).order_by('last_name', 'first_name')

@@ -18,6 +18,10 @@ class Appointment(models.Model):
         MIN_60  = 60,  '1 год'
         MIN_90  = 90,  '1.5 год'
         MIN_120 = 120, '2 год'
+        MIN_150 = 150, '2.5 год'
+        MIN_180 = 180, '3 год'
+        MIN_240 = 240, '4 год'
+        MIN_300 = 300, '5 год'
 
     client = models.ForeignKey(
         'clients.Client', on_delete=models.CASCADE,
