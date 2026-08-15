@@ -26,6 +26,11 @@ class PatientListView(LoginRequiredMixin, ListView):
         qs = Patient.objects.select_related('client', 'assigned_doctor')
         if self.request.organization:
             qs = qs.filter(client__organization=self.request.organization)
+        # Soft-delete: за замовч ховаємо архівованих; ?archived=1 показує лише архів.
+        # Без цього «Видалити» архівувало тварину, а вона лишалась у списку —
+        # персонал читав це як «видалення не працює» (скарга 26.07).
+        archived_view = self.request.GET.get('archived') == '1'
+        qs = qs.filter(is_archived=archived_view)
         q = self.request.GET.get('q', '').strip()
         if q:
             qs = qs.filter(
@@ -49,6 +54,7 @@ class PatientListView(LoginRequiredMixin, ListView):
         ctx['q'] = self.request.GET.get('q', '')
         ctx['sort'] = self.request.GET.get('sort', '')
         ctx['species'] = self.request.GET.get('species', '')
+        ctx['archived'] = self.request.GET.get('archived') == '1'
         return ctx
 
 

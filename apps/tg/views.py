@@ -802,7 +802,7 @@ def _handle_command(chat, text, from_user):
 
 def _pet_picker(chat, action):
     """Якщо одна тварина — одразу відповідь. Якщо кілька — inline вибір."""
-    patients = list(chat.client.patients.all())
+    patients = list(chat.client.patients.filter(is_archived=False))
     if not patients:
         return 'У вас поки немає зареєстрованих тварин 🐾', _main_menu_keyboard()
     if len(patients) == 1:
@@ -927,7 +927,7 @@ def _cmd_send_invoice_pdf(chat, invoice_id):
 
 
 def _cmd_my_pets(chat):
-    patients = chat.client.patients.all()
+    patients = chat.client.patients.filter(is_archived=False)
     if not patients.exists():
         return 'У вас поки немає зареєстрованих тварин 🐾', _main_menu_keyboard()
 

@@ -174,7 +174,7 @@ def render_kpi_clients_total(request, config):
 )
 def render_kpi_patients_total(request, config):
     from apps.clients.models import Patient
-    cnt = Patient.objects.count()
+    cnt = Patient.objects.filter(is_archived=False).count()
     return _render_kpi('Пацієнтів', cnt, '🐾', color='brand-gold')
 
 

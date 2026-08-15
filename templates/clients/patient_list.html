@@ -37,12 +37,18 @@
 
 <div class="flex gap-1 mb-5">
   <a href="{% url 'clients:patient_list' %}"
-     class="px-4 py-2 rounded-lg text-sm font-medium border transition-colors bg-brand-gold text-brand-dark border-brand-gold">
+     class="px-4 py-2 rounded-lg text-sm font-medium border transition-colors
+       {% if not archived %}bg-brand-gold text-brand-dark border-brand-gold{% else %}border-gray-200 text-gray-500 hover:border-gray-300{% endif %}">
     Всі пацієнти
   </a>
   <a href="{% url 'clients:patients_period' %}"
      class="px-4 py-2 rounded-lg text-sm font-medium border transition-colors border-gray-200 text-gray-500 hover:border-gray-300">
     За період
+  </a>
+  <a href="{% url 'clients:patient_list' %}?archived=1"
+     class="px-4 py-2 rounded-lg text-sm font-medium border transition-colors
+       {% if archived %}bg-brand-gold text-brand-dark border-brand-gold{% else %}border-gray-200 text-gray-500 hover:border-gray-300{% endif %}">
+    Архів
   </a>
 </div>
 

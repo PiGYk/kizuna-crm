@@ -322,6 +322,7 @@ def patient_options(request):
         patients = Patient.objects.filter(
             client_id=client_id,
             client__organization=request.organization,
+            is_archived=False,
         )
     return render(request, 'appointments/partials/patient_options.html', {'patients': patients})
 

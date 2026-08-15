@@ -286,6 +286,7 @@ def patient_search(request):
             Q(name__icontains=q) |
             Q(breed__icontains=q),
             client__organization=request.organization,
+            is_archived=False,
         )[:10]
     mobile = request.GET.get('mobile') == '1' or is_mobile(request)
     template = 'billing/partials/mobile_patient_search_results.html' if mobile else 'billing/partials/patient_search_results.html'
@@ -297,7 +298,7 @@ def patient_search(request):
 @login_required
 def patient_list(request, client_id):
     client = get_object_or_404(Client, pk=client_id)
-    patients = client.patients.all()
+    patients = client.patients.filter(is_archived=False)
     mobile = request.GET.get('mobile') == '1' or is_mobile(request)
     template = 'billing/partials/mobile_patient_list.html' if mobile else 'billing/partials/patient_list.html'
     return render(request, template, {'client': client, 'patients': patients})
