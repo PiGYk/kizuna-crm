@@ -67,8 +67,7 @@
       </div>
       <div class="mt-3">
         <label class="fin-label">Тривалість</label>
-        {# Варіанти з моделі (Appointment.Duration), не вписані руками —
-           раніше список обривався на 90 хв і хірургію не було як записати. #}
+        {# Варіанти з моделі Appointment.Duration — раніше обривалось на 90 хв і хірургію не було як записати #}
         <div class="grid grid-cols-5 gap-1.5" id="duration-chips">
           {% for val, label in form.duration.field.choices %}
           <button type="button" data-dur="{{ val }}"
