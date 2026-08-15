@@ -36,6 +36,7 @@ urlpatterns = [
     path('patients/<int:patient_pk>/quick-visit/', views.quick_visit, name='quick_visit'),
     path('patients/<int:pk>/photo-upload/', views.patient_photo_upload, name='patient_photo_upload'),
     path('breeds/', views.breed_suggestions, name='breed_suggestions'),
+    path('diagnoses/', views.diagnosis_suggestions, name='diagnosis_suggestions'),
     path('patients/<int:patient_pk>/weight-alert/', views.weight_alert_check, name='weight_alert'),
     path('visits/<int:visit_pk>/prescriptions/create/', views.prescription_create, name='prescription_create'),
     path('prescriptions/<int:pk>/delete/', views.prescription_delete, name='prescription_delete'),

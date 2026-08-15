@@ -687,6 +687,44 @@ def patient_photo_upload(request, pk):
     return redirect('clients:patient_detail', pk=pk)
 
 
+# ── Diagnosis suggestions JSON ──────────────────────────────────────────
+@login_required
+def diagnosis_suggestions(request):
+    """Підказки діагнозів — з того, що вже писали в цій клініці.
+
+    Прохання Ірпеня 10.08: «Діагноз — чи можна зробити випадаючий список?».
+    Окремий довідник ніхто б не заповнював, тому список збирається сам з
+    історії візитів: що частіше писали, те вище. Поле Quill зберігає HTML,
+    тому теги знімаємо; беремо лише короткі записи — довгий опис це вже не
+    діагноз, а текст прийому.
+    """
+    import re
+    from collections import Counter
+
+    q = request.GET.get('q', '').strip().lower()
+    raw = (
+        Visit.objects
+        .filter(patient__client__organization=request.organization)
+        .exclude(diagnosis='')
+        .order_by('-date')
+        .values_list('diagnosis', flat=True)[:2000]
+    )
+
+    counter = Counter()
+    for html in raw:
+        text = re.sub(r'<[^>]+>', ' ', html or '')
+        text = re.sub(r'&nbsp;?', ' ', text)
+        for part in re.split(r'[\n;]+', text):
+            name = ' '.join(part.split()).strip(' .,•-')
+            if 3 <= len(name) <= 120:
+                counter[name] += 1
+
+    items = [n for n, _ in counter.most_common(400)]
+    if q:
+        items = [n for n in items if q in n.lower()]
+    return JsonResponse({'results': items[:25]})
+
+
 # ── Breed suggestions JSON ──────────────────────────────────────────────
 @login_required
 def breed_suggestions(request):
