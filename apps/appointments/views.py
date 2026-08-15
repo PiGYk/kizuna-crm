@@ -238,6 +238,20 @@ def appointment_create(request):
     default_doc = org.get_default_doctor(request.user) if org else request.user
     initial.setdefault('doctor', default_doc)
 
+    # ?repeat=<pk> — кнопка «Наступний запис» у картці попереднього.
+    # Тягнемо клієнта, тварину, виконавця, послуги й тривалість; дату НЕ
+    # вгадуємо — її обирає людина. Прохання Ірпеня 10.08.
+    repeat_pk = request.GET.get('repeat')
+    if repeat_pk:
+        prev = Appointment.objects.filter(pk=repeat_pk, organization=org).first()
+        if prev:
+            initial['client'] = prev.client_id
+            initial['patient'] = prev.patient_id
+            initial['duration'] = prev.duration
+            if prev.doctor_id:
+                initial['doctor'] = prev.doctor_id
+            initial['services'] = list(prev.services.values_list('pk', flat=True))
+
     form = AppointmentForm(request.POST or None, initial=initial, org=org)
     if request.method == 'POST' and form.is_valid():
         appt = form.save(commit=False)
