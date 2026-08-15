@@ -394,6 +394,37 @@ class Vaccine(models.Model):
         from datetime import date
         return self.next_date and self.next_date < date.today()
 
+    # Скільки днів до кінця дії планувати повторне щеплення
+    REVACCINATION_LEAD_DAYS = 14
+
+    @staticmethod
+    def _plus_one_year(d):
+        """Та сама дата наступного року (29 лютого → 28 лютого)."""
+        try:
+            return d.replace(year=d.year + 1)
+        except ValueError:
+            return d.replace(year=d.year + 1, day=28)
+
+    def save(self, *args, **kwargs):
+        """Автодати щеплення, якщо їх не заповнили руками.
+
+        «Діє до» — рівно рік від щеплення (термін захисту).
+        «Наступне» — на два тижні раніше, щоб тварину привели ДО того, як
+        захист скінчиться. Заповнене руками не чіпаємо. Прохання Ірпеня 10.08.
+        """
+        if self.date:
+            if not self.valid_until:
+                self.valid_until = self._plus_one_year(self.date)
+            if not self.next_date:
+                from datetime import timedelta
+                # рахуємо саме від «діє до» — якщо лікар поставив свій термін
+                # дії, повторне щеплення має триматись за нього, а не за дату
+                # попереднього уколу
+                self.next_date = (
+                    self.valid_until - timedelta(days=self.REVACCINATION_LEAD_DAYS)
+                )
+        super().save(*args, **kwargs)
+
 
 class Hospitalization(models.Model):
     class Status(models.TextChoices):

@@ -91,5 +91,45 @@ document.addEventListener('DOMContentLoaded', function() {
     nameInput.setAttribute('placeholder', 'Вакцина для ' + species + ' — введіть назву або виберіть');
   }
 });
+
+// Автодати щеплення (прохання Ірпеня 10.08).
+// «Діє до» — рівно рік від дати щеплення, «Наступне» — на 2 тижні раніше,
+// щоб тварину привели ДО кінця захисту. Виправлене руками не перезаписуємо.
+document.addEventListener('DOMContentLoaded', function () {
+  const dateEl = document.getElementById('id_date');
+  const nextEl = document.getElementById('id_next_date');
+  const untilEl = document.getElementById('id_valid_until');
+  if (!dateEl || !nextEl || !untilEl) return;
+
+  const LEAD_DAYS = 14;
+
+  function plusOneYear(d) {
+    const r = new Date(d.getTime());
+    const day = r.getDate();
+    r.setFullYear(r.getFullYear() + 1);
+    if (r.getDate() !== day) r.setDate(0);  // 29 лютого → 28 лютого
+    return r;
+  }
+  const fmt = d => d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0');
+
+  // поле, яке людина виправила руками, більше не автозаповнюємо
+  [nextEl, untilEl].forEach(el => {
+    if (el.value) el.dataset.touched = '1';
+    el.addEventListener('input', () => { el.dataset.touched = '1'; });
+  });
+
+  dateEl.addEventListener('change', function () {
+    if (!dateEl.value) return;
+    const base = new Date(dateEl.value + 'T00:00:00');
+    if (isNaN(base)) return;
+    const until = plusOneYear(base);
+    const next = new Date(until.getTime());
+    next.setDate(next.getDate() - LEAD_DAYS);
+    if (!untilEl.dataset.touched) untilEl.value = fmt(until);
+    if (!nextEl.dataset.touched) nextEl.value = fmt(next);
+  });
+});
 </script>
 {% endblock %}
