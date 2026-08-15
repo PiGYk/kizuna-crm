@@ -223,13 +223,15 @@
         {% if form.appt_time.errors %}<p class="text-red-500 text-xs mt-1">{{ form.appt_time.errors|join:", " }}</p>{% endif %}
       </div>
       <div class="col-span-2 md:col-span-1">
-        <label class="af-label">Тривалість, хв</label>
+        <label class="af-label">Тривалість</label>
+        {# Варіанти беруться з моделі (Appointment.Duration) — доданий там варіант
+           з'являється тут сам, без правки шаблону. Раніше вони були вписані
+           руками і обривались на 90 хв, попри ширший список у моделі. #}
         <div class="af-chip-group">
-          <label class="af-chip"><input type="radio" name="duration" value="15" {% if form.duration.value|stringformat:"s" == "15" %}checked{% endif %}>15</label>
-          <label class="af-chip"><input type="radio" name="duration" value="30" {% if not form.duration.value or form.duration.value|stringformat:"s" == "30" %}checked{% endif %}>30</label>
-          <label class="af-chip"><input type="radio" name="duration" value="45" {% if form.duration.value|stringformat:"s" == "45" %}checked{% endif %}>45</label>
-          <label class="af-chip"><input type="radio" name="duration" value="60" {% if form.duration.value|stringformat:"s" == "60" %}checked{% endif %}>60</label>
-          <label class="af-chip"><input type="radio" name="duration" value="90" {% if form.duration.value|stringformat:"s" == "90" %}checked{% endif %}>90</label>
+          {% for val, label in form.duration.field.choices %}
+          <label class="af-chip"><input type="radio" name="duration" value="{{ val }}"
+            {% if form.duration.value|stringformat:"s" == val|stringformat:"s" %}checked{% elif not form.duration.value and val == 30 %}checked{% endif %}>{{ label }}</label>
+          {% endfor %}
         </div>
       </div>
     </div>
@@ -276,7 +278,8 @@
 
     {# ── Doctor ────────────────────────────────────────────────── #}
     <div class="af-row">
-      <label class="af-label">Лікар</label>
+      {# підпис із форми ('Виконавець'), а не вписаний руками #}
+      <label class="af-label">{{ form.doctor.label }}</label>
       {{ form.doctor }}
     </div>
 
@@ -514,6 +517,9 @@ function pickClient(id, label, phone) {
         <div class="text-sm font-medium text-brand-dark truncate">${label}</div>
         ${phone ? `<div class="text-xs text-gray-500 truncate">${phone}</div>` : ''}
       </div>
+      <a href="/clients/${id}/" target="_blank" rel="noopener"
+         class="shrink-0 text-xs text-brand-gold hover:text-brand-dark font-medium px-2 py-1"
+         title="Відкрити картку власника у новій вкладці">Картка</a>
       <button type="button" class="selected-card-clear" onclick="clearClient()" title="Прибрати">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
       </button>
@@ -550,6 +556,9 @@ function pickPatient(pid, name, speciesEmoji, photo, ownerLabel, ownerPhone, cli
         <div class="text-sm font-medium text-brand-dark truncate">${name}</div>
         <div class="text-xs text-gray-500 truncate">${ownerLabel}</div>
       </div>
+      <a href="/clients/patients/${pid}/" target="_blank" rel="noopener"
+         class="shrink-0 text-xs text-brand-gold hover:text-brand-dark font-medium px-2 py-1"
+         title="Відкрити картку тварини у новій вкладці">Картка</a>
       <button type="button" class="selected-card-clear" onclick="clearPatient()" title="Прибрати">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
       </button>

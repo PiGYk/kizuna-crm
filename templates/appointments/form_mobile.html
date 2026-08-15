@@ -66,14 +66,14 @@
         </div>
       </div>
       <div class="mt-3">
-        <label class="fin-label">Тривалість, хв</label>
+        <label class="fin-label">Тривалість</label>
+        {# Варіанти з моделі (Appointment.Duration), не вписані руками —
+           раніше список обривався на 90 хв і хірургію не було як записати. #}
         <div class="grid grid-cols-5 gap-1.5" id="duration-chips">
-          {% for v in "15,30,45,60,90"|cut:" "|stringformat:"s"|slice:":" %}{% endfor %}
-          <button type="button" data-dur="15" class="dur-chip px-2 py-2 rounded-lg text-xs font-medium bg-gray-100 text-gray-700">15</button>
-          <button type="button" data-dur="30" class="dur-chip px-2 py-2 rounded-lg text-xs font-medium bg-gray-100 text-gray-700">30</button>
-          <button type="button" data-dur="45" class="dur-chip px-2 py-2 rounded-lg text-xs font-medium bg-gray-100 text-gray-700">45</button>
-          <button type="button" data-dur="60" class="dur-chip px-2 py-2 rounded-lg text-xs font-medium bg-gray-100 text-gray-700">60</button>
-          <button type="button" data-dur="90" class="dur-chip px-2 py-2 rounded-lg text-xs font-medium bg-gray-100 text-gray-700">90</button>
+          {% for val, label in form.duration.field.choices %}
+          <button type="button" data-dur="{{ val }}"
+                  class="dur-chip px-2 py-2 rounded-lg text-xs font-medium bg-gray-100 text-gray-700">{{ label }}</button>
+          {% endfor %}
         </div>
         <div class="hidden">{{ form.duration }}</div>
       </div>
@@ -117,6 +117,17 @@
         <span class="ml-auto text-[11px] text-gray-600">подзвонити</span>
       </a>
 
+      <!-- Перехід у картки прямо із запису (прохання персоналу 26.07).
+           Нова вкладка — щоб незбережений запис не згорів. -->
+      <div id="card-links" class="mt-2 flex gap-2 hidden">
+        <a id="link-client-card" href="" target="_blank" rel="noopener"
+           class="flex-1 text-center text-xs font-medium text-brand-dark bg-gray-100 active:bg-gray-200 rounded-xl px-3 hidden"
+           style="min-height:40px; line-height:40px;">Картка власника</a>
+        <a id="link-patient-card" href="" target="_blank" rel="noopener"
+           class="flex-1 text-center text-xs font-medium text-brand-dark bg-gray-100 active:bg-gray-200 rounded-xl px-3 hidden"
+           style="min-height:40px; line-height:40px;">Картка тварини</a>
+      </div>
+
       <input type="hidden" id="preset-patient-id" value="{{ form.patient.value|default_if_none:''|default:'' }}">
       <div class="mt-3">
         <label class="fin-label">Пацієнт</label>
@@ -128,7 +139,7 @@
 
     <!-- Лікар -->
     <div class="bg-white rounded-2xl border border-gray-100 p-3">
-      <label class="fin-label">Лікар</label>
+      <label class="fin-label">{{ form.doctor.label }}</label>
       {{ form.doctor }}
     </div>
 
@@ -379,7 +390,26 @@ function rememberClientPhone(id, phone) {
   if (id && phone) CLIENT_PHONES[String(id)] = phone;
 }
 
+function renderCardLinks() {
+  // Посилання на картки власника і тварини — оновлюються разом з вибором.
+  const box = document.getElementById('card-links');
+  if (!box) return;
+  const clientId = (document.getElementById('id_client') || {}).value || '';
+  const patientEl = document.getElementById('preset-patient-id');
+  const patientId = patientEl ? (patientEl.value || '') : '';
+
+  const cl = document.getElementById('link-client-card');
+  const pl = document.getElementById('link-patient-card');
+  if (clientId) { cl.href = '/clients/' + clientId + '/'; cl.classList.remove('hidden'); }
+  else { cl.classList.add('hidden'); }
+  if (patientId) { pl.href = '/clients/patients/' + patientId + '/'; pl.classList.remove('hidden'); }
+  else { pl.classList.add('hidden'); }
+
+  box.classList.toggle('hidden', !clientId && !patientId);
+}
+
 function renderClientPhone() {
+  renderCardLinks();
   const sel = document.getElementById('id_client');
   const line = document.getElementById('client-phone-line');
   const txt = document.getElementById('client-phone-text');
@@ -480,6 +510,7 @@ document.addEventListener('mousedown', function (e) {
   }
   renderClientPhone();
   document.getElementById('preset-patient-id').value = pid;
+  renderCardLinks();  // тварина щойно обрана — оновити посилання на її картку
   htmx.trigger(document.getElementById('id_client'), 'change');
   document.getElementById('patient-search-input').value = '';
   document.getElementById('patient-search-drop').classList.add('hidden');
