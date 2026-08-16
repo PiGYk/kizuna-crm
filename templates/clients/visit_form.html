@@ -55,6 +55,27 @@
     <form method="post" id="visit-form" class="space-y-4">
       {% csrf_token %}
 
+      {% if appointment %}
+      {# Прийом проводиться за записом календаря — зв'язок їде прихованим полем #}
+      <input type="hidden" name="appointment" value="{{ appointment.pk }}">
+      <div class="mb-4 flex items-start gap-2 rounded-xl border border-green-200 bg-green-50 px-4 py-3">
+        <svg class="w-4 h-4 text-green-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+        </svg>
+        <div class="text-sm text-green-900">
+          Прийом за записом на {{ appointment.starts_at|date:"d.m.Y, H:i" }}{% if appointment.doctor %} · {{ appointment.doctor.get_full_name|default:appointment.doctor.username }}{% endif %}
+          {% if not visit %}
+          <div class="text-xs text-green-700 mt-0.5">Після збереження запис у календарі стане «Виконано».</div>
+          {% endif %}
+          {% if appointment.services.exists %}
+          <div class="text-xs text-green-700 mt-1">
+            Заплановані послуги: {% for s in appointment.services.all %}{{ s.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+
       <div class="mb-4 bg-brand-gold/5 border border-brand-gold/20 rounded-xl p-4">
         <label class="text-xs text-gray-500 block mb-1">📋 Використати шаблон</label>
         <div class="flex gap-2">

@@ -284,8 +284,31 @@ def appointment_edit(request, pk):
         return redirect(f"/appointments/?date={form.instance.starts_at.date().isoformat()}")
     template = 'appointments/form_mobile.html' if is_mobile(request) else 'appointments/form.html'
     return render(request, template, {
-        'form': form, 'appt': appt, 'title': 'Редагувати запис'
+        'form': form, 'appt': appt, 'title': 'Редагувати запис',
+        'appt_visit': appt.visits.first(),
     })
+
+
+# ── Запис → прийом ──────────────────────────────────────────────────────────
+
+@login_required
+def appointment_visit(request, pk):
+    """Провести прийом за записом.
+
+    Головна дорога «календар → картка тварини»: до 16.08 її не існувало взагалі,
+    тому 8 із 10 наданих послуг не лишали протоколу. Якщо прийом за цим записом
+    вже проведено — просто відкриваємо його, другого не плодимо.
+    """
+    from django.urls import reverse
+    appt = get_object_or_404(Appointment, pk=pk, organization=request.organization)
+    existing = appt.visits.first()
+    if existing:
+        return redirect('clients:visit_edit', pk=existing.pk)
+    if not appt.patient_id:
+        messages.error(request, 'У записі не вказана тварина — нема на кого заводити прийом.')
+        return redirect('appointments:edit', pk=appt.pk)
+    url = reverse('clients:visit_create', args=[appt.patient_id])
+    return redirect(f"{url}?appointment={appt.pk}")
 
 
 # ── Змінити статус (HTMX кнопка) ────────────────────────────────────────────

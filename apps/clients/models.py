@@ -174,6 +174,14 @@ class Visit(models.Model):
     notes = models.TextField('Нотатки', blank=True)
     follow_up_date = models.DateField('Контрольний візит', null=True, blank=True,
         help_text='Дата повторного огляду')
+    appointment = models.ForeignKey(
+        'appointments.Appointment',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='visits',
+        verbose_name='Запис у календарі',
+        help_text='З якого запису календаря проведено цей прийом',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     objects = RelatedOrgManager('patient__client__organization')

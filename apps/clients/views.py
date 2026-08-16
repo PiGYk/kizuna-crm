@@ -219,21 +219,59 @@ class PatientDetailView(LoginRequiredMixin, DetailView):
         return ctx
 
 
+def _appointment_from_request(request, patient):
+    """Запис календаря, з якого проводять прийом (?appointment=N або hidden-поле).
+
+    Беремо тільки запис своєї клініки і саме цієї тварини — щоб параметром в
+    адресі не можна було підчепити чужий запис.
+    """
+    from apps.appointments.models import Appointment
+    raw = request.POST.get('appointment') or request.GET.get('appointment')
+    if not raw:
+        return None
+    try:
+        appt_id = int(raw)
+    except (TypeError, ValueError):
+        return None
+    return Appointment.objects.filter(
+        pk=appt_id, patient_id=patient.pk, organization=request.organization
+    ).first()
+
+
 @login_required
 def visit_create(request, patient_pk):
     patient = get_object_or_404(Patient, pk=patient_pk)
     org = request.organization
     default_doc = org.get_default_doctor(request.user) if org else request.user
-    form = VisitForm(request.POST or None, initial={'doctor': default_doc}, org=org)
+    appt = _appointment_from_request(request, patient)
+
+    initial = {'doctor': default_doc}
+    if appt:
+        # Лікаря і час беремо із запису — щоб лікарю лишилось тільки написати текст.
+        if appt.doctor_id:
+            initial['doctor'] = appt.doctor
+        initial['date'] = timezone.localtime(appt.starts_at).strftime('%Y-%m-%dT%H:%M')
+
+    form = VisitForm(request.POST or None, initial=initial, org=org)
     if request.method == 'POST' and form.is_valid():
         visit = form.save(commit=False)
         visit.patient = patient
+        if appt:
+            visit.appointment = appt
         visit.save()
-        messages.success(request, 'Візит додано')
+        if appt and appt.status != appt.Status.COMPLETED:
+            # Автозакриття: 98% минулих записів висіли «заплановано», бо статус
+            # ніхто не веде руками. Провів прийом — запис закрито.
+            appt.status = appt.Status.COMPLETED
+            appt.save(update_fields=['status'])
+            messages.success(request, 'Прийом збережено, запис у календарі закрито.')
+        else:
+            messages.success(request, 'Візит додано')
         return redirect('clients:patient_detail', pk=patient.pk)
     return render(request, 'clients/visit_form.html', {
         'form': form, 'patient': patient,
         'side_analyses': _recent_analyses(patient),
+        'appointment': appt,
     })
 
 
@@ -285,6 +323,7 @@ def visit_update(request, pk):
     return render(request, 'clients/visit_form.html', {
         'form': form, 'patient': visit.patient, 'visit': visit,
         'side_analyses': _recent_analyses(visit.patient),
+        'appointment': visit.appointment,
     })
 
 

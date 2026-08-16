@@ -307,6 +307,30 @@
         {% endfor %}
       </div>
       {% if appt %}
+      {# Головна дорога «календар → протокол прийому» (16.08): раніше її не було зовсім #}
+      <div class="mt-3">
+        {% if appt_visit %}
+        <a href="{% url 'clients:visit_edit' appt_visit.pk %}"
+           class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold
+                  bg-green-500 text-white hover:brightness-95 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+          </svg>
+          Відкрити прийом
+        </a>
+        <span class="text-[11px] text-gray-400 ml-2">прийом за цим записом уже заведено {{ appt_visit.date|date:"d.m.Y H:i" }}</span>
+        {% elif appt.patient_id %}
+        <a href="{% url 'appointments:visit' appt.pk %}"
+           class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold
+                  bg-brand-gold text-brand-dark hover:brightness-95 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+          Провести прийом
+        </a>
+        <span class="text-[11px] text-gray-400 ml-2">відкриє прийом у картці тварини і закриє цей запис</span>
+        {% endif %}
+      </div>
       {# «Наступний запис» зі статусу (Ірпінь 10.08); нова вкладка — щоб незбережений статус не згорів #}
       <div class="mt-3">
         <a href="{% url 'appointments:create' %}?repeat={{ appt.pk }}"
