@@ -61,7 +61,7 @@
               {% if shift.start_time %}<span class="text-gray-400">{{ shift.start_time|time:"H:i" }}</span>{% endif %}</span>
               {% if user.is_admin %}
               {# opacity-0 лише на ПК: на телефоні наведення немає, кнопка мусить бути видима завжди #}
-              <button type="button" onclick="deleteShift({{ shift.pk }}, this)"
+              <button type="button" onclick="deleteShift({{ shift.pk }}, this, '{{ shift.user.get_full_name|default:shift.user.username|escapejs }}', '{{ day|date:"j E" }}')"
                 class="opacity-100 md:opacity-0 md:group-hover:opacity-100 text-gray-400 hover:text-red-500 transition ml-0.5 flex-shrink-0 leading-none px-1 -mr-1"
                 title="Видалити зміну">&times;</button>
               {% endif %}
@@ -128,8 +128,13 @@ function closeShiftModal() {
 function getCsrfToken() {
   return document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('csrftoken='))?.split('=')[1] || '';
 }
-function deleteShift(shiftId, btn) {
-  if (!confirm('Видалити зміну?')) return;
+function deleteShift(shiftId, btn, who, when) {
+  // На телефоні комірка дня вузька і ім'я обрізається до літери — питаємо повністю,
+  // щоб не стерти чужу зміну наосліп.
+  var q = 'Видалити зміну';
+  if (who) q += ': ' + who;
+  if (when) q += ' (' + when + ')';
+  if (!confirm(q + '?')) return;
   fetch('/shifts/' + shiftId + '/delete/', {
     method: 'POST',
     headers: {'X-CSRFToken': getCsrfToken()},
