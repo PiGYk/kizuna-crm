@@ -30,6 +30,25 @@
   </div>
 </div>
 
+{% if today_appointment %}
+{# Мʼяка підказка про сьогоднішній запис: нагадує завести протокол, нічого не блокує #}
+{% if today_appointment_visit %}
+<div class="mb-4 flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-sm text-green-800">
+  <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+  <span class="flex-1">Прийом за записом на {{ today_appointment.starts_at|date:"H:i" }} проведено.</span>
+  <a href="{% url 'clients:visit_edit' today_appointment_visit.pk %}" target="_blank" rel="noopener"
+     class="shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium border border-green-300 hover:bg-green-100 transition">Відкрити прийом</a>
+</div>
+{% else %}
+<div class="mb-4 flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm text-blue-800">
+  <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+  <span class="flex-1">У {{ invoice.patient.name }} сьогодні є запис на {{ today_appointment.starts_at|date:"H:i" }} — прийом ще не проведено.</span>
+  <a href="{% url 'appointments:visit' today_appointment.pk %}" target="_blank" rel="noopener"
+     class="shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium bg-brand-gold text-brand-dark hover:brightness-95 transition">Провести прийом</a>
+</div>
+{% endif %}
+{% endif %}
+
 {% if invoice.fiscal_status == 'pending' %}
 <div class="mb-4 flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
   <svg class="w-5 h-5 shrink-0 animate-spin" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 0 0 4.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 0 1-15.357-2m15.357 2H15"/></svg>

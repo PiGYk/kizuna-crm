@@ -306,6 +306,31 @@ def patient_list(request, client_id):
 
 # ── редагування рахунку (основна сторінка checkout) ─────────────────────────
 
+def _today_appointment(invoice):
+    """Запис календаря на сьогодні для тварини цього чека — для мʼякої підказки.
+
+    Саме підказка, не гейт: 85% чеків узагалі не мають запису (люди приходять
+    з вулиці, беруть корм), тому заборона «чек лише після закритого запису»
+    зупинила б чотири чеки з пʼяти.
+    """
+    if not invoice.patient_id:
+        return None
+    from apps.appointments.models import Appointment
+    from django.utils import timezone
+    return (
+        Appointment.objects
+        .filter(
+            patient_id=invoice.patient_id,
+            organization_id=invoice.organization_id,
+            starts_at__date=timezone.localdate(),
+        )
+        .exclude(status__in=[Appointment.Status.CANCELLED, Appointment.Status.NO_SHOW])
+        .prefetch_related('visits')
+        .order_by('starts_at')
+        .first()
+    )
+
+
 @login_required
 def invoice_edit(request, pk):
     invoice = get_object_or_404(Invoice, pk=pk)
@@ -318,6 +343,9 @@ def invoice_edit(request, pk):
     ctx = _lines_context(invoice)
     ctx['services'] = services
     ctx['products'] = products
+    appt = _today_appointment(invoice)
+    ctx['today_appointment'] = appt
+    ctx['today_appointment_visit'] = appt.visits.first() if appt else None
     template = 'billing/edit_mobile.html' if is_mobile(request) else 'billing/edit.html'
     return render(request, template, ctx)
 

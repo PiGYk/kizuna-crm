@@ -39,6 +39,23 @@
     </form>
   </header>
 
+  <!-- Мʼяка підказка про сьогоднішній запис: нагадує про протокол, нічого не блокує -->
+  {% if today_appointment %}
+  {% if today_appointment_visit %}
+  <div class="shrink-0 bg-green-50 border-b border-green-200 px-3 py-2.5 flex items-center gap-2">
+    <span class="text-xs text-green-800 flex-1">Прийом за записом на {{ today_appointment.starts_at|date:"H:i" }} проведено.</span>
+    <a href="{% url 'clients:visit_edit' today_appointment_visit.pk %}"
+       class="shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium border border-green-300 text-green-800 active:bg-green-100">Відкрити</a>
+  </div>
+  {% else %}
+  <div class="shrink-0 bg-blue-50 border-b border-blue-200 px-3 py-2.5 flex items-center gap-2">
+    <span class="text-xs text-blue-800 flex-1">Сьогодні є запис на {{ today_appointment.starts_at|date:"H:i" }} — прийом ще не проведено.</span>
+    <a href="{% url 'appointments:visit' today_appointment.pk %}"
+       class="shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium bg-brand-gold text-brand-dark active:opacity-80">Провести прийом</a>
+  </div>
+  {% endif %}
+  {% endif %}
+
   <!-- Pending fiscal banner -->
   {% if invoice.fiscal_status == 'pending' %}
   <div class="shrink-0 bg-amber-50 border-b border-amber-200 px-3 py-2.5">
