@@ -245,7 +245,12 @@ def visit_create(request, patient_pk):
     default_doc = org.get_default_doctor(request.user) if org else request.user
     appt = _appointment_from_request(request, patient)
 
-    initial = {'doctor': default_doc}
+    # Дата обовʼязкова, а підставлялась порожньою — кожен прийом починався з
+    # ручного набору дати й часу. Тепер за замовчуванням «зараз».
+    initial = {
+        'doctor': default_doc,
+        'date': timezone.localtime().strftime('%Y-%m-%dT%H:%M'),
+    }
     if appt:
         # Лікаря і час беремо із запису — щоб лікарю лишилось тільки написати текст.
         if appt.doctor_id:
