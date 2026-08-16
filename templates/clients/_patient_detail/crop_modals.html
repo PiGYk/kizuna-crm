@@ -7,6 +7,29 @@
   .patient-section > div { margin-bottom: 0; }
   .patient-section .section-content { padding-bottom: 12px; }
 }
+
+/* Згортання робить CSS, а не скрипт: інакше телефон малює повні 5 екранів
+   і схлопує їх після завантаження — екран стрибає під пальцем (CLS 0.39). */
+@media (max-width: 767px),
+       (max-height: 500px) and (max-width: 1024px),
+       (max-height: 500px) and (pointer: coarse) {
+  .kz-m-hide { display: none !important; }
+}
+/* Телефон, покладений набік: ширина 844 — це за міркою Tailwind уже «ПК»,
+   тому клікабельність шапки візиту й стрілку повертаємо руками. */
+@media (max-height: 500px) and (max-width: 1024px),
+       (max-height: 500px) and (pointer: coarse) {
+  button[data-visit] { pointer-events: auto !important; }
+  .visit-arrow { display: block !important; }
+  /* рахунки теж мають бути рядком, а не 15 картками на 2200px */
+  #invoices-mobile { display: block !important; }
+  #invoices-desktop { display: none !important; }
+  .visit-preview { display: block !important; }
+  .visit-preview.kz-m-hide { display: none !important; }
+}
+@media (min-width: 768px) {
+  .visit-preview { display: none !important; }
+}
 </style>
 
 {# ── Analysis crop modal ──────────────────────────────────────────────────── #}
@@ -155,7 +178,10 @@ function applyAnalysisCrop() {
 // ── Section toggles + compare ───────────────────────────────────────────────
 // На телефоні розділи згорнуті за замовчуванням — інакше картка це 6+ екранів
 // прокрутки. Що лікар розгорнув — памʼятається до наступного разу (localStorage).
-const KZ_MOBILE = () => window.matchMedia('(max-width: 767px)').matches;
+// «Телефон» — це вузький екран АБО телефон, покладений набік (низький екран + палець)
+const KZ_MOBILE = () => window.matchMedia('(max-width: 767px)').matches
+  || window.matchMedia('(max-height: 500px) and (max-width: 1024px)').matches
+  || window.matchMedia('(max-height: 500px) and (pointer: coarse)').matches;
 const KZ_KEY = 'kz-patient-sections';
 
 function kzSectionState() {
@@ -170,19 +196,24 @@ function kzSaveSection(name, open) {
     localStorage.setItem(KZ_KEY, JSON.stringify(st));
   } catch (e) { /* приватний режим — просто не памʼятаємо */ }
 }
-// Стрілка «⌄» = закрито (можна розгорнути), «˄» = розгорнуто
+// Стрілка «⌄» = закрито (можна розгорнути), «˄» = розгорнуто.
+// Два класи: `hidden` тримає стан на ПК, `kz-m-hide` — на телефоні (він же
+// стоїть у розмітці з сервера, тому згорнуте видно ще до запуску скрипта).
 function kzSetSection(btn, open) {
   const content = btn.nextElementSibling;
   const arrow = btn.querySelector('.section-arrow');
   if (!content) return;
   content.classList.toggle('hidden', !open);
+  content.classList.toggle('kz-m-hide', !open);
   if (arrow) arrow.classList.toggle('rotate-180', open);
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
 
 function toggleSection(btn) {
   const content = btn.nextElementSibling;
   if (!content) return;
-  const open = content.classList.contains('hidden');
+  // питаємо не клас, а справжню видимість — на телефоні ховає CSS
+  const open = getComputedStyle(content).display === 'none';
   kzSetSection(btn, open);
   if (KZ_MOBILE()) kzSaveSection(btn.dataset.section, open);
 }
@@ -214,35 +245,30 @@ function toggleVisit(btn) {
   const preview = card.querySelector('.visit-preview');
   const arrow = btn.querySelector('.visit-arrow');
   if (!body) return;
-  const willOpen = body.classList.contains('hidden');
-  body.classList.toggle('hidden', !willOpen);
-  if (preview) preview.classList.toggle('hidden', willOpen);
+  const willOpen = getComputedStyle(body).display === 'none';
+  body.classList.toggle('kz-m-hide', !willOpen);
+  if (preview) preview.classList.toggle('kz-m-hide', willOpen);
   if (arrow) arrow.classList.toggle('rotate-180', willOpen);
+  btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
 }
 
+// Що згорнуте на старті — вирішує сервер і CSS (див. <style> вище), тому екран
+// не перебудовується після завантаження. Скрипт лише відновлює вибір користувача.
 document.addEventListener('DOMContentLoaded', function() {
-  if (!KZ_MOBILE()) {
-    // ПК нічого не згортаємо — лише узгоджуємо стрілку з тим, що видно
-    document.querySelectorAll('button[data-section]').forEach(function(btn) {
-      const c = btn.nextElementSibling, a = btn.querySelector('.section-arrow');
-      if (c && a) a.classList.toggle('rotate-180', !c.classList.contains('hidden'));
-    });
-    return;
-  }
-  const st = kzSectionState();
+  const mobile = KZ_MOBILE();
+  const st = mobile ? kzSectionState() : {};
   document.querySelectorAll('button[data-section]').forEach(function(btn) {
-    kzSetSection(btn, st[btn.dataset.section] === true);
-  });
-  // Останній візит лишається розкритим — саме його дивляться найчастіше
-  document.querySelectorAll('.visit-card').forEach(function(card, i) {
-    const body = card.querySelector('.visit-body');
-    const preview = card.querySelector('.visit-preview');
-    const arrow = card.querySelector('.visit-arrow');
-    if (!body) return;
-    const open = i === 0;
-    body.classList.toggle('hidden', !open);
-    if (preview) preview.classList.toggle('hidden', open);
-    if (arrow) arrow.classList.toggle('rotate-180', open);
+    const content = btn.nextElementSibling;
+    if (!content) return;
+    if (mobile) {
+      if (st[btn.dataset.section] === true) kzSetSection(btn, true);
+      else btn.setAttribute('aria-expanded', 'false');
+    } else {
+      const open = getComputedStyle(content).display !== 'none';
+      const a = btn.querySelector('.section-arrow');
+      if (a) a.classList.toggle('rotate-180', open);
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
   });
 });
 
