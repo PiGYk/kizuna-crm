@@ -64,7 +64,7 @@
       <div class="flex items-center justify-between mb-3">
         <span></span>
         <button onclick="document.getElementById('vaccine-form').classList.toggle('hidden')"
-                class="text-xs text-brand-gold hover:text-brand-dark font-medium">+ Додати</button>
+                class="inline-flex items-center min-h-[44px] px-2 -mr-2 text-xs text-brand-gold hover:text-brand-dark font-medium md:min-h-0 md:px-0 md:mr-0">+ Додати</button>
       </div>
 
       <div id="vaccine-form" class="hidden mb-4 pb-4 border-b border-gray-100">
@@ -99,7 +99,7 @@
             </div>
           </div>
           <button type="submit"
-            class="mt-3 w-full bg-brand-gold text-brand-dark py-2 rounded-lg text-sm font-semibold hover:brightness-95">
+            class="mt-3 w-full min-h-[44px] bg-brand-gold text-brand-dark py-2 rounded-lg text-sm font-semibold hover:brightness-95">
             Зберегти
           </button>
         </form>
@@ -120,7 +120,7 @@
                 {% endif %}
               </div>
             </div>
-            <a href="{% url 'clients:vaccine_edit' v.pk %}" class="text-xs text-gray-400 hover:text-brand-gold shrink-0 ml-2">ред.</a>
+            <a href="{% url 'clients:vaccine_edit' v.pk %}" class="inline-flex items-center justify-end min-h-[44px] min-w-[44px] -my-3 md:my-0 md:min-h-0 md:min-w-0 text-xs text-gray-400 hover:text-brand-gold shrink-0 ml-2">ред.</a>
           </div>
           {% endfor %}
         </div>
@@ -143,7 +143,7 @@
       <div class="flex items-center justify-between mb-3">
         <span></span>
         <button onclick="document.getElementById('weight-form').classList.toggle('hidden')"
-                class="text-xs text-brand-gold hover:text-brand-dark font-medium">+ Записати</button>
+                class="inline-flex items-center min-h-[44px] px-2 -mr-2 text-xs text-brand-gold hover:text-brand-dark font-medium md:min-h-0 md:px-0 md:mr-0">+ Записати</button>
       </div>
       <div id="weight-alert" class="hidden mb-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700"></div>
 
@@ -162,9 +162,11 @@
           {% for w in weights reversed %}
           <div class="flex items-center justify-between text-xs text-gray-500 group">
             <span>{{ w.date|date:"d.m.Y" }} — <span class="font-medium text-brand-dark">{{ w.weight }} кг</span>{% if w.notes %} · {{ w.notes }}{% endif %}</span>
-            <form method="post" action="{% url 'clients:weight_delete' w.pk %}" class="opacity-0 group-hover:opacity-100">
+            <form method="post" action="{% url 'clients:weight_delete' w.pk %}" class="opacity-100 md:opacity-0 md:group-hover:opacity-100 shrink-0"
+                  onsubmit="return confirm('Видалити зважування {{ w.date|date:"d.m.Y" }} — {{ w.weight }} кг?')">
               {% csrf_token %}
-              <button type="submit" class="text-red-400 hover:text-red-600 px-1">✕</button>
+              <button type="submit" aria-label="Видалити зважування"
+                class="w-11 h-11 -my-3 md:w-auto md:h-auto md:my-0 flex items-center justify-center text-red-400 hover:text-red-600 md:px-1">✕</button>
             </form>
           </div>
           {% endfor %}
@@ -193,7 +195,7 @@
             </div>
           </div>
           <button type="submit"
-            class="mt-3 w-full bg-brand-gold text-brand-dark py-2 rounded-lg text-sm font-semibold hover:brightness-95">
+            class="mt-3 w-full min-h-[44px] bg-brand-gold text-brand-dark py-2 rounded-lg text-sm font-semibold hover:brightness-95">
             Зберегти
           </button>
         </form>
@@ -215,7 +217,7 @@
       <div class="flex items-center justify-between mb-3">
         <span></span>
         <button onclick="document.getElementById('analysis-form').classList.toggle('hidden')"
-                class="text-xs text-brand-gold hover:text-brand-dark font-medium">+ Додати</button>
+                class="inline-flex items-center min-h-[44px] px-2 -mr-2 text-xs text-brand-gold hover:text-brand-dark font-medium md:min-h-0 md:px-0 md:mr-0">+ Додати</button>
       </div>
 
       <div id="analysis-form" class="hidden mb-4 pb-4 border-b border-gray-100">
@@ -248,7 +250,7 @@
             </div>
           </div>
           <button type="submit"
-            class="mt-3 w-full bg-brand-gold text-brand-dark py-2 rounded-lg text-sm font-semibold hover:brightness-95">
+            class="mt-3 w-full min-h-[44px] bg-brand-gold text-brand-dark py-2 rounded-lg text-sm font-semibold hover:brightness-95">
             Зберегти
           </button>
         </form>
@@ -273,23 +275,23 @@
               <div class="text-xs font-medium text-brand-dark truncate">{{ a.title }}</div>
               <div class="text-xs text-gray-400">{{ a.date|date:"d.m.Y" }}</div>
             </div>
-            <div class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+            <div class="absolute top-1 right-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex gap-1">
               {% if patient.client.tg_chats.exists %}
               <form method="post" action="{% url 'tg:send_analysis_photo' a.pk %}" class="inline"
                     onsubmit="var b=this.querySelector('button');b.disabled=true;b.textContent='⏳';">
                 {% csrf_token %}
                 <button type="submit"
-                        class="bg-white/90 text-blue-400 hover:text-blue-600 rounded px-1.5 py-0.5 text-xs font-medium shadow-sm"
+                        class="w-10 h-10 md:w-auto md:h-auto flex items-center justify-center bg-white/90 text-blue-400 hover:text-blue-600 rounded md:px-1.5 md:py-0.5 text-xs font-medium shadow-sm"
                         title="Відправити в Telegram">
                   TG
                 </button>
               </form>
               {% endif %}
               <form method="post" action="{% url 'clients:analysis_delete' a.pk %}"
-                    onsubmit="return confirm('Видалити аналіз?')">
+                    onsubmit="return confirm('Видалити аналіз «{{ a.title }}»?')">
                 {% csrf_token %}
-                <button type="submit"
-                        class="bg-white/90 text-red-400 hover:text-red-600 rounded px-1.5 py-0.5 text-xs font-medium shadow-sm">
+                <button type="submit" aria-label="Видалити аналіз"
+                        class="w-10 h-10 md:w-auto md:h-auto flex items-center justify-center bg-white/90 text-red-400 hover:text-red-600 rounded md:px-1.5 md:py-0.5 text-xs font-medium shadow-sm">
                   ✕
                 </button>
               </form>
@@ -302,7 +304,7 @@
       {% endif %}
 
       {% if analyses|length >= 2 %}
-      <button type="button" onclick="toggleCompare()" class="text-xs text-brand-gold hover:text-brand-dark font-medium mt-2">🔍 Порівняти</button>
+      <button type="button" onclick="toggleCompare()" class="inline-flex items-center min-h-[44px] px-2 -ml-2 mt-1 text-xs text-brand-gold hover:text-brand-dark font-medium md:min-h-0 md:px-0 md:ml-0 md:mt-2">🔍 Порівняти</button>
       <div id="compare-panel" class="hidden mt-2 grid grid-cols-2 gap-2 bg-gray-50 rounded-xl p-3">
         <div>
           <select id="compare-left" class="w-full text-xs border border-gray-200 rounded-lg px-2 py-1 mb-2" onchange="loadCompareImg('left')">
@@ -349,16 +351,16 @@
               <a href="{{ doc.file.url }}" target="_blank" class="text-sm text-brand-dark hover:text-brand-gold font-medium truncate block">{{ doc.title }}</a>
               <div class="text-xs text-gray-400">{{ doc.date|date:"d.m.Y" }}</div>
             </div>
-            <form method="post" action="{% url 'clients:document_delete' doc.pk %}" class="opacity-0 group-hover:opacity-100"
-                  onsubmit="return confirm('Видалити документ?')">
+            <form method="post" action="{% url 'clients:document_delete' doc.pk %}" class="opacity-100 md:opacity-0 md:group-hover:opacity-100 shrink-0"
+                  onsubmit="return confirm('Видалити документ «{{ doc.title }}»?')">
               {% csrf_token %}
-              <button class="text-gray-300 hover:text-red-400 p-1"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+              <button aria-label="Видалити документ" class="w-11 h-11 -my-2 md:w-auto md:h-auto md:my-0 flex items-center justify-center text-gray-300 hover:text-red-400 md:p-1"><svg class="w-4 h-4 md:w-3.5 md:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
             </form>
           </div>
           {% empty %}
           <div class="text-xs text-gray-300 py-2">Немає документів</div>
           {% endfor %}
-          <a href="{% url 'clients:document_upload' patient.pk %}" class="text-xs text-brand-gold hover:text-brand-dark font-medium mt-2 inline-block">+ Завантажити документ</a>
+          <a href="{% url 'clients:document_upload' patient.pk %}" class="inline-flex items-center min-h-[44px] px-2 -ml-2 mt-1 text-xs text-brand-gold hover:text-brand-dark font-medium md:min-h-0 md:px-0 md:ml-0 md:mt-2">+ Завантажити документ</a>
         </div>
       </div>
     </div>
@@ -378,14 +380,14 @@
           {% for u in ultrasounds %}
           <div class="flex items-center gap-2 py-1.5 text-sm {% if not forloop.last %}border-b border-gray-50{% endif %}">
             <span class="text-gray-500 flex-1">{{ u.date|date:"d.m.Y" }}{% if u.conclusion %} — {{ u.conclusion|truncatechars:60 }}{% endif %}</span>
-            <a href="{% url 'clients:ultrasound_pdf' u.pk %}" target="_blank" class="text-xs text-brand-gold hover:text-brand-dark">PDF</a>
+            <a href="{% url 'clients:ultrasound_pdf' u.pk %}" target="_blank" class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] -my-2 md:my-0 md:min-h-0 md:min-w-0 text-xs text-brand-gold hover:text-brand-dark">PDF</a>
             {% if patient.client.tg_chats.exists %}
             <form method="post" action="{% url 'tg:send_ultrasound_pdf' u.pk %}" class="inline">
               {% csrf_token %}
-              <button type="submit" class="text-xs text-blue-500 hover:text-blue-700">TG</button>
+              <button type="submit" class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] -my-2 md:my-0 md:min-h-0 md:min-w-0 text-xs text-blue-500 hover:text-blue-700">TG</button>
             </form>
             {% endif %}
-            <a href="{% url 'clients:ultrasound_edit' u.pk %}" class="text-xs text-gray-400 hover:text-brand-gold">Ред.</a>
+            <a href="{% url 'clients:ultrasound_edit' u.pk %}" class="inline-flex items-center justify-center min-h-[44px] min-w-[44px] -my-2 md:my-0 md:min-h-0 md:min-w-0 text-xs text-gray-400 hover:text-brand-gold">Ред.</a>
           </div>
           {% endfor %}
         </div>
@@ -420,7 +422,7 @@
             <span class="text-xs font-medium {% if hc.status == 'ok' %}text-green-600{% elif hc.status == 'concern' %}text-red-500{% else %}text-yellow-600{% endif %}">{{ hc.get_status_display }}</span>
           </div>
           {% endfor %}
-          <a href="{% url 'clients:health_diary' %}?patient={{ patient.pk }}" class="text-xs text-brand-gold hover:text-brand-dark mt-2 inline-block">Всі опитування →</a>
+          <a href="{% url 'clients:health_diary' %}?patient={{ patient.pk }}" class="inline-flex items-center min-h-[44px] px-2 -ml-2 mt-1 text-xs text-brand-gold hover:text-brand-dark md:min-h-0 md:px-0 md:ml-0 md:mt-2">Всі опитування →</a>
         </div>
       </div>
     </div>
@@ -435,11 +437,11 @@
       <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide">Історія маніпуляцій</h2>
       <div class="flex items-center gap-3">
         <button type="button" onclick="document.getElementById('quick-visit-modal').classList.remove('hidden')"
-          class="text-xs text-gray-400 hover:text-brand-gold font-medium">
+          class="inline-flex items-center min-h-[44px] px-1 text-xs text-gray-400 hover:text-brand-gold font-medium md:min-h-0 md:px-0">
           ⚡ Швидкий візит
         </button>
         <a href="{% url 'clients:visit_create' patient.pk %}"
-           class="text-sm text-brand-gold hover:text-brand-dark font-medium">+ Візит</a>
+           class="inline-flex items-center min-h-[44px] px-2 -mr-2 text-sm text-brand-gold hover:text-brand-dark font-medium md:min-h-0 md:px-0 md:mr-0">+ Візит</a>
       </div>
     </div>
 
@@ -463,23 +465,53 @@
             {% endif %}
           </div>
           <div class="flex items-center gap-3 shrink-0">
-            <form method="post" action="{% url 'clients:visit_duplicate' visit.pk %}">
-              {% csrf_token %}
-              <button type="submit" class="text-sm md:text-xs text-gray-400 hover:text-brand-gold font-medium py-1" title="Скопіювати маніпуляцію">
-                Копія
-              </button>
-            </form>
-            <a href="{% url 'clients:visit_edit' visit.pk %}"
-               class="text-sm md:text-xs text-gray-400 hover:text-brand-gold font-medium py-1">Ред.</a>
-            <a href="{% url 'clients:visit_pdf' visit.pk %}" target="_blank"
-               class="text-sm md:text-xs text-gray-400 hover:text-brand-gold font-medium py-1">PDF</a>
-            {% if patient.client.tg_chats.exists %}
-            <form method="post" action="{% url 'tg:send_visit_pdf' visit.pk %}" class="inline"
-                  onsubmit="var b=this.querySelector('button');b.disabled=true;b.textContent='⏳ TG';">
-              {% csrf_token %}
-              <button type="submit" class="text-sm md:text-xs text-blue-400 hover:text-blue-600 font-medium py-1" title="Відправити в Telegram">TG</button>
-            </form>
-            {% endif %}
+            {# Телефон: усі дії в меню — дрібні кнопки пальцем не натиснути #}
+            <details class="relative md:hidden">
+              <summary aria-label="Дії з візитом"
+                class="list-none w-11 h-11 -mr-2 flex items-center justify-center rounded-lg text-gray-400 hover:text-brand-gold cursor-pointer select-none">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h.01M12 12h.01M19 12h.01"/></svg>
+              </summary>
+              <div class="absolute right-0 mt-1 w-56 bg-white border border-gray-200 rounded-xl shadow-lg z-30 overflow-hidden">
+                <a href="{% url 'clients:visit_edit' visit.pk %}"
+                   class="block px-4 py-3 text-sm text-brand-dark hover:bg-gray-50">Редагувати</a>
+                <a href="{% url 'clients:visit_pdf' visit.pk %}" target="_blank"
+                   class="block px-4 py-3 text-sm text-brand-dark border-t border-gray-100 hover:bg-gray-50">PDF</a>
+                <a href="{% url 'clients:prescription_create' visit.pk %}"
+                   class="block px-4 py-3 text-sm text-brand-dark border-t border-gray-100 hover:bg-gray-50">Додати призначення</a>
+                <form method="post" action="{% url 'clients:visit_duplicate' visit.pk %}" class="border-t border-gray-100">
+                  {% csrf_token %}
+                  <button type="submit" class="block w-full text-left px-4 py-3 text-sm text-brand-dark hover:bg-gray-50">Зробити копію</button>
+                </form>
+                {% if patient.client.tg_chats.exists %}
+                <form method="post" action="{% url 'tg:send_visit_pdf' visit.pk %}" class="border-t border-gray-100"
+                      onsubmit="var b=this.querySelector('button');b.disabled=true;b.textContent='⏳ Надсилаю…';">
+                  {% csrf_token %}
+                  <button type="submit" class="block w-full text-left px-4 py-3 text-sm text-blue-600 hover:bg-blue-50">Надіслати в Telegram</button>
+                </form>
+                {% endif %}
+              </div>
+            </details>
+
+            {# Десктоп: звичний рядок кнопок #}
+            <div class="hidden md:flex items-center gap-3">
+              <form method="post" action="{% url 'clients:visit_duplicate' visit.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="text-xs text-gray-400 hover:text-brand-gold font-medium py-1" title="Скопіювати маніпуляцію">
+                  Копія
+                </button>
+              </form>
+              <a href="{% url 'clients:visit_edit' visit.pk %}"
+                 class="text-xs text-gray-400 hover:text-brand-gold font-medium py-1">Ред.</a>
+              <a href="{% url 'clients:visit_pdf' visit.pk %}" target="_blank"
+                 class="text-xs text-gray-400 hover:text-brand-gold font-medium py-1">PDF</a>
+              {% if patient.client.tg_chats.exists %}
+              <form method="post" action="{% url 'tg:send_visit_pdf' visit.pk %}" class="inline"
+                    onsubmit="var b=this.querySelector('button');b.disabled=true;b.textContent='⏳ TG';">
+                {% csrf_token %}
+                <button type="submit" class="text-xs text-blue-400 hover:text-blue-600 font-medium py-1" title="Відправити в Telegram">TG</button>
+              </form>
+              {% endif %}
+            </div>
           </div>
         </div>
         <div class="ml-4 space-y-2 text-sm">
@@ -515,7 +547,8 @@
             {% endfor %}
           </div>
           {% endif %}
-          <a href="{% url 'clients:prescription_create' visit.pk %}" class="text-xs text-gray-400 hover:text-brand-gold mt-1 inline-block">+ Призначення</a>
+          {# на телефоні ця дія живе в меню «⋯» — тут лишається тільки для ПК #}
+          <a href="{% url 'clients:prescription_create' visit.pk %}" class="hidden md:inline-block text-xs text-gray-400 hover:text-brand-gold mt-1">+ Призначення</a>
         </div>
       </div>
       {% endfor %}
@@ -535,7 +568,8 @@
           </div>
           <div class="flex items-center gap-3 shrink-0">
             <span class="font-bold text-brand-gold text-base md:text-sm">{{ inv.total }} ₴</span>
-            <a href="{% url 'billing:detail' inv.pk %}" class="text-sm md:text-xs text-gray-400 hover:text-brand-gold font-medium py-1">Відкрити</a>
+            <a href="{% url 'billing:detail' inv.pk %}"
+               class="inline-flex items-center min-h-[44px] px-2 -mr-2 text-sm text-gray-400 hover:text-brand-gold font-medium md:min-h-0 md:px-0 md:mr-0 md:py-1 md:text-xs">Відкрити</a>
           </div>
         </div>
         {% with lines=inv.lines.all %}

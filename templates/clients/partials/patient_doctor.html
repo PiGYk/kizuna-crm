@@ -1,28 +1,31 @@
 <div id="patient-doctor-block">
-  {% if patient.assigned_doctor %}
-    <div class="flex justify-between items-center">
-      <dt class="text-gray-500">Лікар</dt>
-      <dd class="flex items-center gap-2">
-        {{ patient.assigned_doctor.get_full_name|default:patient.assigned_doctor.username }}
+  <div class="flex justify-between items-center gap-2">
+    <dt class="text-gray-500 shrink-0">Лікар</dt>
+    <dd class="flex items-center gap-1 min-w-0">
+      {% if patient.assigned_doctor %}
+        <span class="truncate text-right">{{ patient.assigned_doctor.get_full_name|default:patient.assigned_doctor.username }}</span>
         <button type="button" onclick="document.getElementById('doctor-edit-form').classList.toggle('hidden')"
-          class="text-xs text-gray-300 hover:text-brand-gold transition-colors">змін.</button>
-      </dd>
-    </div>
-  {% else %}
-    <div class="flex justify-between items-center">
-      <dt class="text-gray-500">Лікар</dt>
-      <dd class="text-gray-300 text-xs italic">не призначено</dd>
-    </div>
-  {% endif %}
+          aria-label="Змінити лікаря"
+          class="w-11 h-11 -my-3 -mr-2 md:w-auto md:h-auto md:my-0 md:mr-0 flex items-center justify-center shrink-0 text-gray-300 hover:text-brand-gold transition-colors">
+          <svg class="w-4 h-4 md:w-3.5 md:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+        </button>
+      {% else %}
+        <button type="button" onclick="document.getElementById('doctor-edit-form').classList.toggle('hidden')"
+          class="inline-flex items-center min-h-[44px] px-2 -my-3 -mr-2 md:min-h-0 md:my-0 md:px-0 md:mr-0 text-xs text-brand-gold hover:text-brand-dark font-medium shrink-0">
+          Призначити
+        </button>
+      {% endif %}
+    </dd>
+  </div>
 
   <form id="doctor-edit-form"
         hx-post="{% url 'clients:patient_set_doctor' patient.pk %}"
         hx-target="#patient-doctor-block"
         hx-swap="outerHTML"
-        class="{% if patient.assigned_doctor %}hidden {% endif %}mt-2 flex gap-2">
+        class="hidden mt-2 flex gap-2">
     {% csrf_token %}
     <select name="assigned_doctor"
-      class="flex-1 border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+      class="flex-1 min-w-0 min-h-[44px] md:min-h-0 border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
       <option value="">— без лікаря —</option>
       {% for doc in doctors %}
         <option value="{{ doc.pk }}" {% if doc == patient.assigned_doctor %}selected{% endif %}>
@@ -31,6 +34,6 @@
       {% endfor %}
     </select>
     <button type="submit"
-      class="bg-brand-gold text-brand-dark px-3 py-1 rounded-lg text-sm font-medium hover:brightness-95">OK</button>
+      class="min-h-[44px] md:min-h-0 bg-brand-gold text-brand-dark px-4 py-1 rounded-lg text-sm font-medium hover:brightness-95 shrink-0">OK</button>
   </form>
 </div>

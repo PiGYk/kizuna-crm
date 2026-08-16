@@ -17,7 +17,7 @@
     {# Моб: тільки + Чек видимо, решта в dropdown #}
     <div class="flex items-center gap-2 shrink-0 md:hidden">
       <a href="{% url 'billing:create' %}?patient={{ patient.pk }}"
-         class="bg-brand-gold text-brand-dark px-3 py-2 rounded-lg text-sm font-semibold hover:brightness-95">
+         class="inline-flex items-center min-h-[44px] bg-brand-gold text-brand-dark px-4 rounded-lg text-sm font-semibold hover:brightness-95">
         + Чек
       </a>
       <details class="relative">
@@ -45,8 +45,8 @@
       </details>
     </div>
 
-    {# Десктоп: повний рядок кнопок #}
-    <div class="hidden md:flex gap-2 flex-wrap shrink-0">
+    {# Десктоп: повний рядок кнопок; на вузькому екрані переносяться, а не вилазять за край #}
+    <div class="hidden md:flex gap-2 flex-wrap justify-end items-center min-w-0">
       <a href="{% url 'billing:create' %}?patient={{ patient.pk }}"
          class="bg-brand-gold text-brand-dark px-3 py-1.5 rounded-lg text-xs font-semibold hover:brightness-95">
         + Чек
