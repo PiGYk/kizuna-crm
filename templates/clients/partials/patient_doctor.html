@@ -6,12 +6,12 @@
         <span class="truncate text-right">{{ patient.assigned_doctor.get_full_name|default:patient.assigned_doctor.username }}</span>
         <button type="button" onclick="document.getElementById('doctor-edit-form').classList.toggle('hidden')"
           aria-label="Змінити лікаря"
-          class="w-11 h-11 -my-3 -mr-2 md:w-auto md:h-auto md:my-0 md:mr-0 flex items-center justify-center shrink-0 text-gray-300 hover:text-brand-gold transition-colors">
+          class="w-11 h-11 -my-3 -mr-2 md:w-6 md:h-6 md:my-0 md:mr-0 flex items-center justify-center shrink-0 text-gray-300 hover:text-brand-gold transition-colors">
           <svg class="w-4 h-4 md:w-3.5 md:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
         </button>
       {% else %}
         <button type="button" onclick="document.getElementById('doctor-edit-form').classList.toggle('hidden')"
-          class="inline-flex items-center min-h-[44px] px-2 -my-3 -mr-2 md:min-h-0 md:my-0 md:px-0 md:mr-0 text-xs text-brand-gold hover:text-brand-dark font-medium shrink-0">
+          class="inline-flex items-center min-h-[44px] px-2 -my-3 -mr-2 md:min-h-[24px] md:my-0 md:px-0 md:mr-0 text-xs text-brand-gold hover:text-brand-dark font-medium shrink-0">
           Призначити
         </button>
       {% endif %}

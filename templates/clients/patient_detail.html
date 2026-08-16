@@ -166,7 +166,7 @@
                   onsubmit="return confirm('Видалити зважування {{ w.date|date:"d.m.Y" }} — {{ w.weight }} кг?')">
               {% csrf_token %}
               <button type="submit" aria-label="Видалити зважування"
-                class="w-11 h-11 -my-3 md:w-auto md:h-auto md:my-0 flex items-center justify-center text-red-400 hover:text-red-600 md:px-1">✕</button>
+                class="w-11 h-11 -my-3 md:w-7 md:h-7 md:my-0 flex items-center justify-center text-red-400 hover:text-red-600">✕</button>
             </form>
           </div>
           {% endfor %}
@@ -272,18 +272,18 @@
             </a>
             {% endif %}
             {# дії — під мініатюрою, щоб не закривати саме зображення аналізу #}
-            <div class="px-2 py-1.5 flex items-end justify-between gap-1">
+            <div class="px-2 py-1.5 flex flex-col md:flex-row md:items-end md:justify-between gap-1">
               <div class="min-w-0">
                 <div class="text-xs font-medium text-brand-dark truncate">{{ a.title }}</div>
                 <div class="text-xs text-gray-400">{{ a.date|date:"d.m.Y" }}</div>
               </div>
-              <div class="flex items-center shrink-0 -my-1.5 -mr-1">
+              <div class="flex items-center justify-end shrink-0 -mb-1.5 -mr-1 md:my-0">
                 {% if patient.client.tg_chats.exists %}
                 <form method="post" action="{% url 'tg:send_analysis_photo' a.pk %}"
                       onsubmit="var b=this.querySelector('button');b.disabled=true;b.textContent='⏳';">
                   {% csrf_token %}
                   <button type="submit"
-                          class="w-10 h-11 md:w-7 md:h-7 flex items-center justify-center text-blue-400 hover:text-blue-600 text-xs font-medium"
+                          class="w-11 h-11 md:w-7 md:h-7 flex items-center justify-center text-blue-400 hover:text-blue-600 text-xs font-medium"
                           title="Відправити в Telegram">
                     TG
                   </button>
@@ -293,7 +293,7 @@
                       onsubmit="return confirm('Видалити аналіз «{{ a.title }}»?')">
                   {% csrf_token %}
                   <button type="submit" aria-label="Видалити аналіз"
-                          class="w-9 h-11 md:w-7 md:h-7 flex items-center justify-center text-red-400 hover:text-red-600 text-xs font-medium">
+                          class="w-11 h-11 md:w-7 md:h-7 flex items-center justify-center text-red-400 hover:text-red-600 text-xs font-medium">
                     ✕
                   </button>
                 </form>
