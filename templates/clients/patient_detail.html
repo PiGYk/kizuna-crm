@@ -271,30 +271,33 @@
               <span class="text-4xl">{{ a.file_icon }}</span>
             </a>
             {% endif %}
-            <div class="px-2 py-1.5">
-              <div class="text-xs font-medium text-brand-dark truncate">{{ a.title }}</div>
-              <div class="text-xs text-gray-400">{{ a.date|date:"d.m.Y" }}</div>
-            </div>
-            <div class="absolute top-1 right-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex gap-1">
-              {% if patient.client.tg_chats.exists %}
-              <form method="post" action="{% url 'tg:send_analysis_photo' a.pk %}" class="inline"
-                    onsubmit="var b=this.querySelector('button');b.disabled=true;b.textContent='⏳';">
-                {% csrf_token %}
-                <button type="submit"
-                        class="w-10 h-10 md:w-auto md:h-auto flex items-center justify-center bg-white/90 text-blue-400 hover:text-blue-600 rounded md:px-1.5 md:py-0.5 text-xs font-medium shadow-sm"
-                        title="Відправити в Telegram">
-                  TG
-                </button>
-              </form>
-              {% endif %}
-              <form method="post" action="{% url 'clients:analysis_delete' a.pk %}"
-                    onsubmit="return confirm('Видалити аналіз «{{ a.title }}»?')">
-                {% csrf_token %}
-                <button type="submit" aria-label="Видалити аналіз"
-                        class="w-10 h-10 md:w-auto md:h-auto flex items-center justify-center bg-white/90 text-red-400 hover:text-red-600 rounded md:px-1.5 md:py-0.5 text-xs font-medium shadow-sm">
-                  ✕
-                </button>
-              </form>
+            {# дії — під мініатюрою, щоб не закривати саме зображення аналізу #}
+            <div class="px-2 py-1.5 flex items-end justify-between gap-1">
+              <div class="min-w-0">
+                <div class="text-xs font-medium text-brand-dark truncate">{{ a.title }}</div>
+                <div class="text-xs text-gray-400">{{ a.date|date:"d.m.Y" }}</div>
+              </div>
+              <div class="flex items-center shrink-0 -my-1.5 -mr-1">
+                {% if patient.client.tg_chats.exists %}
+                <form method="post" action="{% url 'tg:send_analysis_photo' a.pk %}"
+                      onsubmit="var b=this.querySelector('button');b.disabled=true;b.textContent='⏳';">
+                  {% csrf_token %}
+                  <button type="submit"
+                          class="w-10 h-11 md:w-7 md:h-7 flex items-center justify-center text-blue-400 hover:text-blue-600 text-xs font-medium"
+                          title="Відправити в Telegram">
+                    TG
+                  </button>
+                </form>
+                {% endif %}
+                <form method="post" action="{% url 'clients:analysis_delete' a.pk %}"
+                      onsubmit="return confirm('Видалити аналіз «{{ a.title }}»?')">
+                  {% csrf_token %}
+                  <button type="submit" aria-label="Видалити аналіз"
+                          class="w-9 h-11 md:w-7 md:h-7 flex items-center justify-center text-red-400 hover:text-red-600 text-xs font-medium">
+                    ✕
+                  </button>
+                </form>
+              </div>
             </div>
           </div>
           {% endfor %}
@@ -437,11 +440,11 @@
       <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide">Історія маніпуляцій</h2>
       <div class="flex items-center gap-3">
         <button type="button" onclick="document.getElementById('quick-visit-modal').classList.remove('hidden')"
-          class="inline-flex items-center min-h-[44px] px-1 text-xs text-gray-400 hover:text-brand-gold font-medium md:min-h-0 md:px-0">
+          class="inline-flex items-center whitespace-nowrap min-h-[44px] px-1 text-xs text-gray-400 hover:text-brand-gold font-medium md:min-h-0 md:px-0">
           ⚡ Швидкий візит
         </button>
         <a href="{% url 'clients:visit_create' patient.pk %}"
-           class="inline-flex items-center min-h-[44px] px-2 -mr-2 text-sm text-brand-gold hover:text-brand-dark font-medium md:min-h-0 md:px-0 md:mr-0">+ Візит</a>
+           class="inline-flex items-center whitespace-nowrap min-h-[44px] px-2 -mr-2 text-sm text-brand-gold hover:text-brand-dark font-medium md:min-h-0 md:px-0 md:mr-0">+ Візит</a>
       </div>
     </div>
 
