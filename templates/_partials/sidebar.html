@@ -76,6 +76,14 @@
       Розклад
     </a>
 
+    {# ── Графік роботи (flat) ───────────────────────────────────────────── #}
+    {% if user_menu.shifts or not request.organization %}
+    <a href="{% url 'accounts:shifts' %}" class="sb-item {% if an == 'accounts' and 'shift' in un %}sb-active{% endif %}">
+      <svg class="sb-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      Графік роботи
+    </a>
+    {% endif %}
+
     {# ── Telegram (flat, gated) ─────────────────────────────────────────── #}
     {% if user_menu.telegram or not request.organization %}
       {% if request.user.is_superuser or not request.organization or request.organization.can_use_telegram %}
@@ -174,7 +182,6 @@
       </button>
       <div class="sb-group-body">
         <a href="{% url 'accounts:users' %}" class="sb-sub {% if an == 'accounts' and 'user' in un %}sb-sub-active{% endif %}">Користувачі</a>
-        <a href="{% url 'accounts:shifts' %}" class="sb-sub {% if an == 'accounts' and 'shift' in un %}sb-sub-active{% endif %}">Зміни</a>
         <a href="{% url 'accounts:payroll_list' %}" class="sb-sub {% if 'payroll' in un %}sb-sub-active{% endif %}">Зарплати</a>
         <a href="{% url 'clinic:settings' %}" class="sb-sub {% if an == 'clinic' and un == 'settings' %}sb-sub-active{% endif %}">Налаштування клініки</a>
       </div>

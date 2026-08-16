@@ -163,14 +163,15 @@ class Organization(models.Model):
         ('revenue',    'Доходність'),
         ('finance',    'Фінанси'),
         ('billing',    'Рахунки (всі)'),
+        ('shifts',     'Графік роботи'),
     ]
     ROLES_WITH_MENU = [
         ('doctor',    'Лікар'),
         ('assistant', 'Асистент'),
     ]
     DEFAULT_MENU_CONFIG = {
-        'doctor':    {'telegram': False, 'broadcast': False, 'analytics': False, 'debtors': False, 'revenue': False, 'finance': False, 'billing': True},
-        'assistant': {'telegram': True,  'broadcast': False, 'analytics': False, 'debtors': False, 'revenue': False, 'finance': True,  'billing': True},
+        'doctor':    {'telegram': False, 'broadcast': False, 'analytics': False, 'debtors': False, 'revenue': False, 'finance': False, 'billing': True,  'shifts': True},
+        'assistant': {'telegram': True,  'broadcast': False, 'analytics': False, 'debtors': False, 'revenue': False, 'finance': True,  'billing': True,  'shifts': True},
     }
     role_menu_config = models.JSONField(
         'Доступ до меню по ролях',
@@ -179,8 +180,14 @@ class Organization(models.Model):
     )
 
     def get_menu_config(self):
-        """Повертає конфіг з fallback на дефолти."""
-        cfg = self.DEFAULT_MENU_CONFIG.copy()
+        """Повертає конфіг з fallback на дефолти.
+
+        Копія має бути глибокою: .copy() віддає ті самі вкладені словники, і
+        нижній update() правив би DEFAULT_MENU_CONFIG самого класу — тобто
+        налаштування однієї клініки протікали б у дефолти всіх інших до
+        перезапуску процесу.
+        """
+        cfg = {role: items.copy() for role, items in self.DEFAULT_MENU_CONFIG.items()}
         saved = self.role_menu_config or {}
         for role in cfg:
             if role in saved:

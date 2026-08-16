@@ -8,12 +8,12 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from .mixins import admin_required
+from .mixins import admin_required, menu_required
 
 
-@login_required
+@menu_required('shifts')
 def shift_list(request):
-    """Розклад змін — календарний вигляд за місяць."""
+    """Графік роботи — календарний вигляд за місяць."""
     from .models_payroll import Shift
     from .models import User
 
@@ -63,7 +63,7 @@ def shift_list(request):
     })
 
 
-@login_required
+@admin_required
 @require_POST
 def shift_toggle(request):
     """HTMX: додати/видалити зміну на конкретну дату для працівника."""
@@ -102,7 +102,7 @@ def shift_toggle(request):
 
 
 
-@login_required
+@admin_required
 @require_POST
 def shift_delete(request, pk):
     from .models_payroll import Shift
