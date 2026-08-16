@@ -1,9 +1,36 @@
 {% extends 'base.html' %}
+{% load clinic_html %}
 
 {% block title %}{{ patient.name }} — Kizuna CRM{% endblock %}
 
 {% block content %}
 {% include 'clients/_patient_detail/header.html' %}
+
+{# Телефон: рядок підсумків — головне видно без прокрутки, дотик веде у розділ #}
+<div class="grid grid-cols-3 gap-2 mb-4 md:hidden">
+  <button type="button" onclick="openSection('weight')"
+          class="min-h-[44px] bg-white border border-gray-200 rounded-xl px-2 py-2 text-left">
+    <div class="text-[10px] uppercase tracking-wide text-gray-400">Вага</div>
+    {% if weights %}{% with last=weights|last %}
+    <div class="text-sm font-bold text-brand-dark leading-tight">{{ last.weight }} <span class="text-xs font-normal text-gray-400">кг</span></div>
+    <div class="text-[10px] text-gray-400">{{ last.date|date:"d.m.y" }}</div>
+    {% endwith %}{% else %}
+    <div class="text-sm font-bold text-gray-300 leading-tight">—</div>
+    {% endif %}
+  </button>
+  <button type="button" onclick="scrollToHistory()"
+          class="min-h-[44px] bg-white border border-gray-200 rounded-xl px-2 py-2 text-left">
+    <div class="text-[10px] uppercase tracking-wide text-gray-400">Візити</div>
+    <div class="text-sm font-bold text-brand-dark leading-tight">{{ visits|length }}</div>
+    {% if visits %}<div class="text-[10px] text-gray-400">{{ visits.0.date|date:"d.m.y" }}</div>{% endif %}
+  </button>
+  <button type="button" onclick="scrollToInvoices()"
+          class="min-h-[44px] bg-white border border-gray-200 rounded-xl px-2 py-2 text-left">
+    <div class="text-[10px] uppercase tracking-wide text-gray-400">Рахунки</div>
+    <div class="text-sm font-bold text-brand-dark leading-tight">{{ invoices_total|floatformat:0 }} <span class="text-xs font-normal text-gray-400">₴</span></div>
+    <div class="text-[10px] text-gray-400">{{ invoices|length }} шт</div>
+  </button>
+</div>
 
 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
 
@@ -52,9 +79,9 @@
     </div>
 
     <!-- Вакцини -->
-    <div class="bg-white rounded-xl border border-gray-200 p-5">
+    <div class="patient-section bg-white rounded-xl border border-gray-200 p-5">
       <div class="mb-4">
-        <button type="button" onclick="toggleSection(this)" class="w-full flex items-center justify-between text-left py-3 min-h-[44px]">
+        <button type="button" onclick="toggleSection(this)" data-section="vaccines" class="w-full flex items-center justify-between text-left py-3 min-h-[44px]">
           <h3 class="text-sm font-semibold text-gray-700">💉 Вакцини <span class="text-xs text-gray-400 font-normal ml-1">({{ vaccines|length }})</span></h3>
           <span class="w-11 h-11 -mr-2 flex items-center justify-center shrink-0">
             <svg class="w-5 h-5 text-gray-400 transition-transform section-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
@@ -131,10 +158,13 @@
       </div>{# /collapsible вакцини #}
     </div>
     <!-- Вага -->
-    <div class="bg-white rounded-xl border border-gray-200 p-5">
+    <div class="patient-section bg-white rounded-xl border border-gray-200 p-5">
       <div class="mb-4">
-        <button type="button" onclick="toggleSection(this)" class="w-full flex items-center justify-between text-left py-3 min-h-[44px]">
-          <h3 class="text-sm font-semibold text-gray-700">⚖️ Вага <span class="text-xs text-gray-400 font-normal ml-1">({{ weights|length }})</span></h3>
+        <button type="button" onclick="toggleSection(this)" data-section="weight" class="w-full flex items-center justify-between text-left py-3 min-h-[44px]">
+          <h3 class="text-sm font-semibold text-gray-700">⚖️ Вага
+            {% if weights %}{% with last=weights|last %}<span class="text-xs text-gray-400 font-normal ml-1">{{ last.weight }} кг · {{ last.date|date:"d.m.y" }}</span>{% endwith %}
+            {% else %}<span class="text-xs text-gray-400 font-normal ml-1">(0)</span>{% endif %}
+          </h3>
           <span class="w-11 h-11 -mr-2 flex items-center justify-center shrink-0">
             <svg class="w-5 h-5 text-gray-400 transition-transform section-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
           </span>
@@ -205,9 +235,9 @@
     </div>
 
     <!-- Аналізи -->
-    <div class="bg-white rounded-xl border border-gray-200 p-5">
+    <div class="patient-section bg-white rounded-xl border border-gray-200 p-5">
       <div class="mb-4">
-        <button type="button" onclick="toggleSection(this)" class="w-full flex items-center justify-between text-left py-3 min-h-[44px]">
+        <button type="button" onclick="toggleSection(this)" data-section="analyses" class="w-full flex items-center justify-between text-left py-3 min-h-[44px]">
           <h3 class="text-sm font-semibold text-gray-700">🔬 Аналізи <span class="text-xs text-gray-400 font-normal ml-1">({{ analyses|length }})</span></h3>
           <span class="w-11 h-11 -mr-2 flex items-center justify-center shrink-0">
             <svg class="w-5 h-5 text-gray-400 transition-transform section-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
@@ -335,9 +365,9 @@
     </div>
 
     <!-- Документи -->
-    <div class="bg-white rounded-xl border border-gray-200 p-5">
+    <div class="patient-section bg-white rounded-xl border border-gray-200 p-5">
       <div class="mb-4">
-        <button type="button" onclick="toggleSection(this)" class="w-full flex items-center justify-between text-left py-3 min-h-[44px]">
+        <button type="button" onclick="toggleSection(this)" data-section="documents" class="w-full flex items-center justify-between text-left py-3 min-h-[44px]">
           <h3 class="text-sm font-semibold text-gray-700">📎 Документи <span class="text-xs text-gray-400 font-normal ml-1">({{ patient.documents.count }})</span></h3>
           <span class="w-11 h-11 -mr-2 flex items-center justify-center shrink-0">
             <svg class="w-5 h-5 text-gray-400 transition-transform section-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
@@ -371,9 +401,9 @@
     <!-- Протоколи УЗД -->
     {% with ultrasounds=patient.ultrasounds.all|slice:":5" %}
     {% if ultrasounds %}
-    <div class="bg-white rounded-xl border border-gray-200 p-5">
+    <div class="patient-section bg-white rounded-xl border border-gray-200 p-5">
       <div class="mb-4">
-        <button type="button" onclick="toggleSection(this)" class="w-full flex items-center justify-between text-left py-3 min-h-[44px]">
+        <button type="button" onclick="toggleSection(this)" data-section="ultrasounds" class="w-full flex items-center justify-between text-left py-3 min-h-[44px]">
           <h3 class="text-sm font-semibold text-gray-700">📋 Протоколи УЗД <span class="text-xs text-gray-400 font-normal ml-1">({{ patient.ultrasounds.count }})</span></h3>
           <span class="w-11 h-11 -mr-2 flex items-center justify-center shrink-0">
             <svg class="w-5 h-5 text-gray-400 transition-transform section-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
@@ -402,9 +432,9 @@
     <!-- Опитування здоров'я -->
     {% with health_checks=patient.health_checks.all|slice:":5" %}
     {% if health_checks %}
-    <div class="bg-white rounded-xl border border-gray-200 p-5">
+    <div class="patient-section bg-white rounded-xl border border-gray-200 p-5">
       <div class="mb-4">
-        <button type="button" onclick="toggleSection(this)" class="w-full flex items-center justify-between text-left py-3 min-h-[44px]">
+        <button type="button" onclick="toggleSection(this)" data-section="health" class="w-full flex items-center justify-between text-left py-3 min-h-[44px]">
           <h3 class="text-sm font-semibold text-gray-700">🩺 Опитування здоров'я <span class="text-xs text-gray-400 font-normal ml-1">({{ patient.health_checks.count }})</span></h3>
           <span class="w-11 h-11 -mr-2 flex items-center justify-center shrink-0">
             <svg class="w-5 h-5 text-gray-400 transition-transform section-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
@@ -435,7 +465,7 @@
   </div>
 
   <!-- Права колонка: повна хронологія маніпуляцій -->
-  <div class="md:col-span-2">
+  <div class="md:col-span-2" id="history-block">
     <div class="flex items-center justify-between mb-3">
       <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide">Історія маніпуляцій</h2>
       <div class="flex items-center gap-3">
@@ -454,19 +484,56 @@
       {# Об'єднуємо та сортуємо в шаблоні за датою (через тег) #}
       {# Спочатку рахунки — вгорі, бо include billing #}
 
+      {# Телефон: рахунки згорнуті в один рядок-підсумок замість трьох екранів карток #}
+      {% if invoices %}
+      <div id="invoices-mobile" class="bg-white rounded-xl border border-gray-200 px-3 md:hidden">
+        <button type="button" onclick="toggleSection(this)" data-section="invoices"
+                class="w-full flex items-center justify-between text-left py-3 min-h-[44px]">
+          <h3 class="text-sm font-semibold text-gray-700">💵 Рахунки
+            <span class="text-xs text-gray-400 font-normal ml-1">{{ invoices|length }} · {{ invoices_total|floatformat:0 }} ₴</span>
+          </h3>
+          <span class="w-11 h-11 -mr-2 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-gray-400 transition-transform section-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </span>
+        </button>
+        <div class="section-content pb-2">
+          {% for inv in invoices|dictsortreversed:"created_at" %}
+          <a href="{% url 'billing:detail' inv.pk %}"
+             class="flex items-center gap-2 min-h-[44px] py-1 border-t border-gray-50 text-sm">
+            <span class="text-gray-500 shrink-0">{{ inv.created_at|date:"d.m.y" }}</span>
+            <span class="flex-1 min-w-0 truncate text-xs text-gray-400">
+              {% for line in inv.lines.all %}{{ line.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+            </span>
+            <span class="font-semibold text-brand-gold shrink-0">{{ inv.total }} ₴</span>
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
       {% for visit in visits %}
-      <div class="bg-white rounded-xl border border-gray-200 p-5">
+      <div class="visit-card bg-white rounded-xl border border-gray-200 p-3 md:p-5">
         <div class="flex items-start justify-between mb-2">
-          <div>
+          {# Телефон: шапка — кнопка, розкриває текст візиту. ПК: просто заголовок #}
+          <button type="button" onclick="toggleVisit(this)" data-visit="{{ visit.pk }}"
+                  class="flex-1 min-w-0 text-left min-h-[44px] py-1 md:min-h-0 md:py-0 md:pointer-events-none">
             <div class="flex items-center gap-2">
-              <span class="inline-block w-2 h-2 rounded-full bg-brand-gold"></span>
+              <span class="inline-block w-2 h-2 rounded-full bg-brand-gold shrink-0"></span>
               <span class="font-semibold text-brand-dark text-sm">{{ visit.date|date:"d.m.Y H:i" }}</span>
               <span class="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">Візит</span>
+              <svg class="visit-arrow w-4 h-4 text-gray-300 transition-transform md:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
             </div>
             {% if visit.doctor %}
               <div class="text-xs text-gray-400 ml-4">{{ visit.doctor.get_full_name|default:visit.doctor.username }}</div>
             {% endif %}
-          </div>
+            {# згорнутий вигляд: суть візиту одним рядком #}
+            <div class="visit-preview hidden ml-4 mt-0.5 text-xs text-gray-500 truncate">
+              {% if visit.diagnosis %}{{ visit.diagnosis|striptags|truncatechars:70 }}
+              {% elif visit.complaint %}{{ visit.complaint|striptags|truncatechars:70 }}
+              {% elif visit.treatment %}{{ visit.treatment|striptags|truncatechars:70 }}
+              {% else %}—{% endif %}
+            </div>
+          </button>
           <div class="flex items-center gap-3 shrink-0">
             {# Телефон: усі дії в меню — дрібні кнопки пальцем не натиснути #}
             <details class="relative md:hidden">
@@ -517,27 +584,27 @@
             </div>
           </div>
         </div>
-        <div class="ml-4 space-y-2 text-sm">
+        <div class="visit-body ml-4 space-y-2 text-sm">
           {% if visit.complaint %}
           <div>
             <span class="text-xs font-semibold text-gray-400 uppercase">Скарги:</span>
-            <div class="text-gray-700 mt-0.5 visit-html">{{ visit.complaint|linebreaksbr }}</div>
+            <div class="text-gray-700 mt-0.5 visit-html">{{ visit.complaint|rich }}</div>
           </div>
           {% endif %}
           {% if visit.diagnosis %}
           <div>
             <span class="text-xs font-semibold text-gray-400 uppercase">Діагноз:</span>
-            <div class="text-gray-700 mt-0.5 visit-html">{{ visit.diagnosis|linebreaksbr }}</div>
+            <div class="text-gray-700 mt-0.5 visit-html">{{ visit.diagnosis|rich }}</div>
           </div>
           {% endif %}
           {% if visit.treatment %}
           <div>
             <span class="text-xs font-semibold text-gray-400 uppercase">Лікування:</span>
-            <div class="text-gray-700 mt-0.5 visit-html">{{ visit.treatment|linebreaksbr }}</div>
+            <div class="text-gray-700 mt-0.5 visit-html">{{ visit.treatment|rich }}</div>
           </div>
           {% endif %}
           {% if visit.notes %}
-          <div class="pt-1 border-t border-gray-50 text-xs text-gray-500 visit-html">{{ visit.notes|linebreaksbr }}</div>
+          <div class="pt-1 border-t border-gray-50 text-xs text-gray-500 visit-html">{{ visit.notes|rich }}</div>
           {% endif %}
           {% if visit.prescriptions.exists %}
           <div class="mt-3 border-t border-gray-100 pt-3">
@@ -556,6 +623,8 @@
       </div>
       {% endfor %}
 
+      {# ПК: рахунки картками як раніше — на телефоні їх замінює рядок-підсумок вище #}
+      <div class="hidden md:block space-y-3">
       {% for inv in invoices %}
       <div class="bg-white rounded-xl border border-gray-200 p-5">
         <div class="flex items-start justify-between">
@@ -588,6 +657,7 @@
         {% endwith %}
       </div>
       {% endfor %}
+      </div>{# /рахунки ПК #}
 
     </div>
     {% else %}

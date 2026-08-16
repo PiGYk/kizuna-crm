@@ -1,5 +1,14 @@
 {# Crop modals (analysis + photo) + supporting JS. Потребує CropperJS глобально. #}
 
+<style>
+/* Телефон: згорнутий розділ має бути рядком, а не порожньою коробкою */
+@media (max-width: 767px) {
+  .patient-section { padding: 0 12px; }
+  .patient-section > div { margin-bottom: 0; }
+  .patient-section .section-content { padding-bottom: 12px; }
+}
+</style>
+
 {# ── Analysis crop modal ──────────────────────────────────────────────────── #}
 <div id="analysis-crop-modal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-center justify-center p-4">
   <div class="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[85vh] overflow-y-auto p-4">
@@ -144,12 +153,98 @@ function applyAnalysisCrop() {
 }
 
 // ── Section toggles + compare ───────────────────────────────────────────────
-function toggleSection(btn) {
+// На телефоні розділи згорнуті за замовчуванням — інакше картка це 6+ екранів
+// прокрутки. Що лікар розгорнув — памʼятається до наступного разу (localStorage).
+const KZ_MOBILE = () => window.matchMedia('(max-width: 767px)').matches;
+const KZ_KEY = 'kz-patient-sections';
+
+function kzSectionState() {
+  try { return JSON.parse(localStorage.getItem(KZ_KEY)) || {}; }
+  catch (e) { return {}; }
+}
+function kzSaveSection(name, open) {
+  if (!name) return;
+  try {
+    const st = kzSectionState();
+    st[name] = open;
+    localStorage.setItem(KZ_KEY, JSON.stringify(st));
+  } catch (e) { /* приватний режим — просто не памʼятаємо */ }
+}
+// Стрілка «⌄» = закрито (можна розгорнути), «˄» = розгорнуто
+function kzSetSection(btn, open) {
   const content = btn.nextElementSibling;
   const arrow = btn.querySelector('.section-arrow');
-  content.classList.toggle('hidden');
-  arrow.classList.toggle('rotate-180');
+  if (!content) return;
+  content.classList.toggle('hidden', !open);
+  if (arrow) arrow.classList.toggle('rotate-180', open);
 }
+
+function toggleSection(btn) {
+  const content = btn.nextElementSibling;
+  if (!content) return;
+  const open = content.classList.contains('hidden');
+  kzSetSection(btn, open);
+  if (KZ_MOBILE()) kzSaveSection(btn.dataset.section, open);
+}
+
+// Плитка підсумків → розгорнути потрібний розділ і підвести до нього екран
+function openSection(name) {
+  const btn = document.querySelector('button[data-section="' + name + '"]');
+  if (!btn) return;
+  const content = btn.nextElementSibling;
+  if (content && content.classList.contains('hidden')) toggleSection(btn);
+  btn.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function scrollToHistory() {
+  const el = document.getElementById('history-block');
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function scrollToInvoices() {
+  const el = document.getElementById('invoices-mobile');
+  if (!el) return scrollToHistory();
+  openSection('invoices');
+}
+
+// Візит на телефоні: рядок «дата + діагноз», текст розкривається дотиком.
+function toggleVisit(btn) {
+  if (!KZ_MOBILE()) return;
+  const card = btn.closest('.visit-card');
+  if (!card) return;
+  const body = card.querySelector('.visit-body');
+  const preview = card.querySelector('.visit-preview');
+  const arrow = btn.querySelector('.visit-arrow');
+  if (!body) return;
+  const willOpen = body.classList.contains('hidden');
+  body.classList.toggle('hidden', !willOpen);
+  if (preview) preview.classList.toggle('hidden', willOpen);
+  if (arrow) arrow.classList.toggle('rotate-180', willOpen);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  if (!KZ_MOBILE()) {
+    // ПК нічого не згортаємо — лише узгоджуємо стрілку з тим, що видно
+    document.querySelectorAll('button[data-section]').forEach(function(btn) {
+      const c = btn.nextElementSibling, a = btn.querySelector('.section-arrow');
+      if (c && a) a.classList.toggle('rotate-180', !c.classList.contains('hidden'));
+    });
+    return;
+  }
+  const st = kzSectionState();
+  document.querySelectorAll('button[data-section]').forEach(function(btn) {
+    kzSetSection(btn, st[btn.dataset.section] === true);
+  });
+  // Останній візит лишається розкритим — саме його дивляться найчастіше
+  document.querySelectorAll('.visit-card').forEach(function(card, i) {
+    const body = card.querySelector('.visit-body');
+    const preview = card.querySelector('.visit-preview');
+    const arrow = card.querySelector('.visit-arrow');
+    if (!body) return;
+    const open = i === 0;
+    body.classList.toggle('hidden', !open);
+    if (preview) preview.classList.toggle('hidden', open);
+    if (arrow) arrow.classList.toggle('rotate-180', open);
+  });
+});
 
 function toggleCompare() {
   document.getElementById('compare-panel').classList.toggle('hidden');

@@ -197,6 +197,9 @@ class PatientDetailView(LoginRequiredMixin, DetailView):
             .all()
         )
         ctx['analyses'] = self.object.analyses.all()
+        # Підсумок рахунків — на телефоні перелік згорнутий у рядок «N · сума ₴»
+        ctx['invoices'] = list(ctx['invoices'])
+        ctx['invoices_total'] = sum((inv.total or 0) for inv in ctx['invoices'])
         # Optional related: можуть не існувати на старих моделях
         for attr in ('ultrasounds', 'health_checks', 'documents', 'hospitalizations'):
             if hasattr(self.object, attr):
