@@ -165,6 +165,15 @@ function loadCompareImg(side) {
 let _photoCropper = null;
 let _photoFile = null;
 
+// Меню під фото: обидва пункти ведуть у той самий вибір файлу, різниця лише в обрізці.
+function pickPhoto(skipCrop) {
+  const flag = document.getElementById('skip-crop');
+  if (flag) flag.checked = !!skipCrop;
+  const menu = document.getElementById('photo-menu');
+  if (menu) menu.open = false;
+  document.getElementById('photo-file-picker').click();
+}
+
 // Default behaviour: якщо skip-crop увімкнено — постимо форму напряму (Pillow стиснее на бекенді).
 function onPhotoPicked(input) {
   if (!input.files || !input.files[0]) return;

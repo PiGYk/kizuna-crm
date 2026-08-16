@@ -14,31 +14,35 @@
     <div class="bg-white rounded-xl border border-gray-200 p-5">
       <form method="post" action="{% url 'clients:patient_photo_upload' patient.pk %}" enctype="multipart/form-data" id="photo-form">
         {% csrf_token %}
-        <div class="cursor-pointer group relative block mb-4" onclick="document.getElementById('photo-file-picker').click()">
-          {% if patient.photo %}
-          <img src="{{ patient.photo.url }}" alt="{{ patient.name }}" class="w-full aspect-square object-cover rounded-xl" id="photo-current">
-          {% else %}
-          <div class="w-full aspect-square bg-gray-100 rounded-xl flex items-center justify-center text-4xl" id="photo-current">
-            {% if patient.species == 'cat' %}🐱{% elif patient.species == 'dog' %}🐶{% elif patient.species == 'rabbit' %}🐰{% elif patient.species == 'bird' %}🐦{% elif patient.species == 'hamster' %}🐹{% elif patient.species == 'guinea_pig' %}🐹{% elif patient.species == 'turtle' %}🐢{% elif patient.species == 'fish' %}🐟{% elif patient.species == 'hedgehog' %}🦔{% elif patient.species == 'rat' %}🐭{% elif patient.species == 'ferret' %}🦡{% elif patient.species == 'chinchilla' %}🐿{% elif patient.species == 'reptile' %}🦎{% else %}🐾{% endif %}
-          </div>
-          {% endif %}
-          <div class="absolute inset-0 bg-black/40 rounded-xl opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
-            <span class="text-white text-sm font-medium">📷 Змінити фото</span>
-          </div>
-        </div>
         <input type="file" name="photo" accept="image/*" id="photo-file-picker" class="hidden" onchange="onPhotoPicked(this)">
-        <label class="flex items-center gap-2 text-xs text-gray-500 mb-2 select-none cursor-pointer">
-          <input type="checkbox" id="skip-crop" class="rounded border-gray-300 text-brand-gold focus:ring-brand-gold" checked>
-          <span>Завантажити без обрізки (рекомендовано на моб.)</span>
-        </label>
+        {# службовий прапорець обрізки: керується меню під фото, користувачу не показується #}
+        <input type="checkbox" id="skip-crop" class="hidden" checked>
       </form>
-      <dl class="space-y-2 text-sm">
-        <div class="flex justify-between"><dt class="text-gray-500">Стать</dt><dd>{{ patient.get_sex_display }}</dd></div>
-        <div class="flex justify-between"><dt class="text-gray-500">Вік</dt><dd>{{ patient.age_display }}</dd></div>
-        <div class="flex justify-between"><dt class="text-gray-500">Кастр./стерил.</dt><dd>{% if patient.is_neutered %}Так{% else %}Ні{% endif %}</dd></div>
-        {% if patient.color %}<div class="flex justify-between"><dt class="text-gray-500">Масть</dt><dd>{{ patient.color }}</dd></div>{% endif %}
-        {% include 'clients/partials/patient_doctor.html' %}
-      </dl>
+      <div class="flex items-start gap-4 md:block">
+        <details id="photo-menu" class="relative shrink-0 md:mb-4">
+          <summary class="list-none cursor-pointer group relative block">
+            {% if patient.photo %}
+            <img src="{{ patient.photo.url }}" alt="{{ patient.name }}" class="w-20 h-20 md:w-full md:h-auto md:aspect-square object-cover rounded-full md:rounded-xl" id="photo-current">
+            {% else %}
+            <div class="w-20 h-20 md:w-full md:h-auto md:aspect-square bg-gray-100 rounded-full md:rounded-xl flex items-center justify-center text-3xl md:text-4xl" id="photo-current">
+              {% if patient.species == 'cat' %}🐱{% elif patient.species == 'dog' %}🐶{% elif patient.species == 'rabbit' %}🐰{% elif patient.species == 'bird' %}🐦{% elif patient.species == 'hamster' %}🐹{% elif patient.species == 'guinea_pig' %}🐹{% elif patient.species == 'turtle' %}🐢{% elif patient.species == 'fish' %}🐟{% elif patient.species == 'hedgehog' %}🦔{% elif patient.species == 'rat' %}🐭{% elif patient.species == 'ferret' %}🦡{% elif patient.species == 'chinchilla' %}🐿{% elif patient.species == 'reptile' %}🦎{% else %}🐾{% endif %}
+            </div>
+            {% endif %}
+            <span class="absolute inset-0 bg-black/40 rounded-full md:rounded-xl opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs md:text-sm font-medium">📷</span>
+          </summary>
+          <div class="absolute left-0 mt-2 w-56 bg-white border border-gray-200 rounded-xl shadow-lg z-30 overflow-hidden">
+            <button type="button" onclick="pickPhoto(true)" class="block w-full text-left px-4 py-3 text-sm text-brand-dark hover:bg-gray-50">Завантажити фото</button>
+            <button type="button" onclick="pickPhoto(false)" class="block w-full text-left px-4 py-3 text-sm text-brand-dark border-t border-gray-100 hover:bg-gray-50">Обрізати і завантажити</button>
+          </div>
+        </details>
+        <dl class="flex-1 min-w-0 space-y-2 text-sm">
+          <div class="flex justify-between"><dt class="text-gray-500">Стать</dt><dd>{{ patient.get_sex_display }}</dd></div>
+          <div class="flex justify-between"><dt class="text-gray-500">Вік</dt><dd>{{ patient.age_display }}</dd></div>
+          <div class="flex justify-between"><dt class="text-gray-500">Кастр./стерил.</dt><dd>{% if patient.is_neutered %}Так{% else %}Ні{% endif %}</dd></div>
+          {% if patient.color %}<div class="flex justify-between"><dt class="text-gray-500">Масть</dt><dd>{{ patient.color }}</dd></div>{% endif %}
+          {% include 'clients/partials/patient_doctor.html' %}
+        </dl>
+      </div>
       {% if patient.notes %}
       <div class="mt-4 pt-4 border-t border-gray-100">
         <p class="text-xs text-gray-500 mb-1">Нотатки</p>
