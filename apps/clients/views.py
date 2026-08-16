@@ -918,6 +918,18 @@ def document_delete(request, pk):
 
 
 # ── Шаблони візитів — API для JS ────────────────────────────────────────
+def _plain_to_html(text):
+    """Рядки з textarea → абзаци для редактора прийому.
+
+    Якщо текст уже з розміткою (наш стартовий набір) — лишаємо як є.
+    """
+    from django.utils.html import escape
+    text = (text or '').strip()
+    if not text or '<' in text:
+        return text
+    return ''.join(f'<p>{escape(line.strip())}</p>' for line in text.splitlines())
+
+
 @login_required
 def visit_templates_json(request):
     """JSON список шаблонів візитів."""
@@ -953,6 +965,10 @@ def visit_template_manage(request):
             if form.is_valid():
                 t = form.save(commit=False)
                 t.organization = org
+                # Текст із форми йде звичайними рядками, а в прийом його вставляє
+                # редактор розмітки — без обгортки всі рядки злипаються в один.
+                for field in ('complaint', 'diagnosis', 'treatment', 'notes'):
+                    setattr(t, field, _plain_to_html(getattr(t, field, '')))
                 t.save()
                 messages.success(request, f'Шаблон «{t.name}» створено.')
         elif action == 'delete':

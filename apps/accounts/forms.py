@@ -109,6 +109,15 @@ class ClinicRegistrationForm(forms.Form):
         )
         user.set_password(cd['password1'])
         user.save()
+        # Нова клініка отримує готові шаблони протоколу прийому: порожній
+        # список ніхто не наповнює — за вісім місяців роботи не зʼявилось
+        # жодного запису.
+        try:
+            from apps.clients.visit_template_seed import seed_visit_templates
+            seed_visit_templates(org)
+        except Exception:  # шаблони не критичні — реєстрацію не валимо
+            import logging
+            logging.getLogger(__name__).exception('seed_visit_templates failed')
         return user
 
 
