@@ -78,6 +78,12 @@
 
     <!-- Page content -->
     <main class="flex-1 overflow-y-auto p-4 md:p-6 pb-20 md:pb-6 bg-gray-50">
+      {% if clinic.slug == 'demo' %}
+      <div style="position:sticky;top:-16px;z-index:50;margin:-16px -16px 16px;background:linear-gradient(135deg,#DEAA01,#f5c518);padding:14px 18px;display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;box-shadow:0 3px 14px rgba(0,0,0,.18);">
+        <span style="color:#12100F;font-weight:700;font-size:15px;">Ви дивитесь демо. Дані тут спільні й щоночі оновлюються.</span>
+        <a href="https://product.kizuna.com.ua/" style="background:#12100F;color:#fff;padding:11px 26px;border-radius:10px;font-weight:800;font-size:15px;text-decoration:none;white-space:nowrap;">Завести СВОЮ клініку →</a>
+      </div>
+      {% endif %}
       {% if messages %}
         {% for message in messages %}
           <div class="mb-4 px-4 py-3 rounded-lg text-sm
