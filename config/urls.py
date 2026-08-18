@@ -132,13 +132,24 @@ def legal_terms(request):
 
 
 def landing(request):
+    # Розділення хостів (2026-08-18): product.kizuna.com.ua — маркетинговий лендінг,
+    # crm.kizuna.com.ua — робочий вхід у CRM (лендінг звідти прибрано).
+    host = request.get_host().split(':')[0].lower()
+    is_landing_host = host.startswith('product.')
+
     if request.user.is_authenticated:
         org = getattr(request.user, 'organization', None)
-        # Якщо тріал прострочений — показуємо лендінг (щоб юзер міг переглянути тарифи)
+        # Прострочений тріал — показуємо лендінг з тарифами (будь-який хост)
         if org is not None and org.is_trial_expired:
             return render(request, 'landing.html')
+        # На маркетинговому хості авторизований теж бачить лендінг; на CRM — у кабінет
+        if is_landing_host:
+            return render(request, 'landing.html')
         return redirect('dashboard')
-    return render(request, 'landing.html')
+    # Незалогінений: лендінг лише на product; на crm — робочий вхід
+    if is_landing_host:
+        return render(request, 'landing.html')
+    return redirect('/login/')
 
 
 superadmin_urls = ([
