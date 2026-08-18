@@ -219,6 +219,12 @@
     <a href="{% url 'inventory:supplier_list' %}" class="flex items-center gap-3 px-5 py-3 active:bg-gray-100 border-t border-gray-100" style="min-height: 48px;">
       <span class="text-xl">🏭</span><span class="text-sm">Постачальники</span>
     </a>
+    <a href="{% url 'inventory:export_page' %}" class="flex items-center gap-3 px-5 py-3 active:bg-gray-100 border-t-8 border-gray-50" style="min-height: 48px;">
+      <span class="text-xl">📤</span><span class="text-sm">Експорт — вивантажити таблицю</span>
+    </a>
+    <a href="{% url 'inventory:import' %}" class="flex items-center gap-3 px-5 py-3 active:bg-gray-100 border-t border-gray-100" style="min-height: 48px;">
+      <span class="text-xl">📥</span><span class="text-sm">Імпорт CSV/XLSX</span>
+    </a>
   </div>
 </div>
 
