@@ -206,197 +206,224 @@
 </section>
 
 
-<!-- ═══════════════════ БОЛІ ═══════════════════ -->
-<section id="pain" class="py-20 px-6 bg-brand-cream">
-  <div class="max-w-6xl mx-auto">
-    <div class="text-center mb-14">
-      <h2 class="text-3xl lg:text-4xl font-extrabold text-brand-dark mb-4">
-        Впізнаєте себе?
-      </h2>
-      <p class="text-gray-500 text-lg max-w-2xl mx-auto">
-        Більшість ветеринарних клінік в Україні досі ведуть облік у блокноті або Excel. Kizuna CRM вирішує саме ці болі.
-      </p>
+{# ═══════════════ БІЛЬ → ЖИВА СИСТЕМА (двосторонній блок) ═══════════════ #}
+{# Живі шматки інтерфейсу CRM, зібрані розміткою (не скріншоти й не гіфки):    #}
+{# чіткі на будь-якому екрані, легкі, не старіють при зміні системи.           #}
+<style>
+.kz-live{background:#fff;padding:72px 24px}
+.kz-live .kz-head{max-width:900px;margin:0 auto 56px;text-align:center}
+.kz-live .kz-head h2{font-size:34px;font-weight:800;color:#12100F;margin:0 0 12px;line-height:1.2}
+.kz-live .kz-head p{font-size:17px;color:#6b6560;margin:0;line-height:1.6}
+.kz-row{max-width:1120px;margin:0 auto 64px;display:flex;gap:48px;align-items:center}
+.kz-row.rev .kz-txt{order:2}
+.kz-txt{flex:1 1 0;min-width:0}
+.kz-vis{flex:1 1 0;min-width:0}
+.kz-pain{display:inline-flex;align-items:center;gap:8px;background:#fdf1f1;color:#b04141;font-size:13px;font-weight:700;padding:6px 14px;border-radius:999px;margin-bottom:14px}
+.kz-txt h3{font-size:25px;font-weight:800;color:#12100F;margin:0 0 12px;line-height:1.25}
+.kz-txt p{font-size:16px;color:#6b6560;line-height:1.65;margin:0 0 16px}
+.kz-fix{display:flex;align-items:flex-start;gap:10px;font-size:16px;color:#12100F;font-weight:600;line-height:1.5}
+.kz-fix span{color:#DEAA01;font-weight:800}
+/* вікно інтерфейсу */
+.kz-win{background:#fff;border:1px solid #e8e4df;border-radius:14px;box-shadow:0 16px 40px rgba(18,16,15,.12);overflow:hidden}
+.kz-bar{background:#12100F;padding:10px 14px;display:flex;align-items:center;gap:7px}
+.kz-dot{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.2)}
+.kz-bar b{color:#fff;font-size:12.5px;font-weight:600;margin-left:6px;letter-spacing:.2px}
+.kz-body{padding:16px;background:#faf9f7}
+.kz-line{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #eeeae5;border-radius:10px;padding:11px 13px;margin-bottom:8px;font-size:14px;color:#12100F;
+  opacity:0;transform:translateY(8px)}
+.kz-in .kz-line{animation:kzIn .5s ease forwards}
+.kz-in .kz-line:nth-child(1){animation-delay:.05s}
+.kz-in .kz-line:nth-child(2){animation-delay:.35s}
+.kz-in .kz-line:nth-child(3){animation-delay:.65s}
+.kz-in .kz-line:nth-child(4){animation-delay:.95s}
+@keyframes kzIn{to{opacity:1;transform:none}}
+.kz-line .kz-ava{width:30px;height:30px;border-radius:8px;background:#fdf6e0;display:flex;align-items:center;justify-content:center;font-size:15px;flex:none}
+.kz-line .kz-grow{flex:1;min-width:0}
+.kz-line .kz-sub{display:block;color:#9b948d;font-size:12.5px;margin-top:2px}
+.kz-tag{font-size:11.5px;font-weight:700;padding:4px 9px;border-radius:999px;white-space:nowrap;flex:none}
+.kz-tag.ok{background:#e8f6ec;color:#2f7d46}
+.kz-tag.wait{background:#e9f0fb;color:#33608f}
+.kz-tag.warn{background:#fdf0e5;color:#a45b21}
+.kz-tag.gold{background:#fdf6e0;color:#8a6c00}
+.kz-total{display:flex;justify-content:space-between;align-items:center;padding:13px;background:#12100F;border-radius:10px;color:#fff;font-weight:700;font-size:15px;margin-top:4px}
+.kz-total b{color:#DEAA01;font-size:17px}
+.kz-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.kz-stat{background:#fff;border:1px solid #eeeae5;border-radius:10px;padding:12px}
+.kz-stat i{display:block;font-style:normal;font-size:11.5px;color:#9b948d;text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px}
+.kz-stat b{font-size:20px;color:#12100F}
+.kz-stat b.gold{color:#DEAA01}
+/* чат */
+.kz-msg{max-width:82%;padding:9px 13px;border-radius:14px;font-size:13.5px;line-height:1.45;margin-bottom:8px;opacity:0;transform:translateY(8px)}
+.kz-in .kz-msg{animation:kzIn .5s ease forwards}
+.kz-in .kz-msg:nth-child(1){animation-delay:.1s}
+.kz-in .kz-msg:nth-child(2){animation-delay:.5s}
+.kz-in .kz-msg:nth-child(3){animation-delay:.9s}
+.kz-msg.them{background:#fff;border:1px solid #eeeae5;color:#12100F}
+.kz-msg.us{background:#DEAA01;color:#12100F;margin-left:auto;font-weight:600}
+@media (max-width:900px){
+  .kz-live{padding:56px 18px}
+  .kz-live .kz-head h2{font-size:27px}
+  .kz-row{flex-direction:column;gap:26px;margin-bottom:52px}
+  .kz-row.rev .kz-txt{order:0}
+  .kz-txt h3{font-size:22px}
+}
+</style>
+
+<section id="pain" class="kz-live">
+  <div class="kz-head">
+    <h2>Впізнаєте себе?</h2>
+    <p>Спершу — як воно зазвичай буває. Поруч — як те саме виглядає в системі. Це не скріншоти з реклами, а справжні екрани.</p>
+  </div>
+
+  {# 1. Картка клієнта #}
+  <div class="kz-row">
+    <div class="kz-txt">
+      <div class="kz-pain">📓 Паперові журнали</div>
+      <h3>«Де картка цього клієнта?»</h3>
+      <p>Записи в телефоні, зошит на стійці, Excel на флешці. Клієнт дзвонить — ви шукаєте п'ять хвилин і все одно перепитуєте, як звати кота.</p>
+      <div class="kz-fix"><span>→</span><div>Картка клієнта і всіх його тварин — в одному місці, з історією візитів</div></div>
     </div>
-
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-
-      <div class="pain-card bg-white rounded-2xl p-6 border border-red-100">
-        <div class="text-3xl mb-4">📓</div>
-        <h3 class="font-bold text-brand-dark mb-2">«Де картка цього клієнта?»</h3>
-        <p class="text-gray-500 text-sm leading-relaxed">Паперові журнали, записи в телефоні, Excel-таблиці на флешці. Клієнт дзвонить — ви шукаєте 5 хвилин.</p>
-        <div class="mt-4 pt-4 border-t border-gray-100 text-xs font-semibold text-brand-gold">→ Картка клієнта та всіх його тварин — в одному місці</div>
+    <div class="kz-vis">
+      <div class="kz-win">
+        <div class="kz-bar"><i class="kz-dot"></i><i class="kz-dot"></i><i class="kz-dot"></i><b>Картка клієнта</b></div>
+        <div class="kz-body">
+          <div class="kz-line"><i class="kz-ava">👩</i><div class="kz-grow"><b>Дяченко Ірина</b><span class="kz-sub">+38 067 445 21 09 · з нами 2 роки</span></div></div>
+          <div class="kz-line"><i class="kz-ava">🐱</i><div class="kz-grow">Барсик <span class="kz-sub">Кіт · 4 роки · стерилізований</span></div><span class="kz-tag ok">вакцина є</span></div>
+          <div class="kz-line"><i class="kz-ava">🐶</i><div class="kz-grow">Лунтик <span class="kz-sub">Пес · 2 роки · алергія на курку</span></div><span class="kz-tag warn">щеплення за 12 дн</span></div>
+          <div class="kz-line"><i class="kz-ava">📋</i><div class="kz-grow">Останній візит <span class="kz-sub">12.08 · огляд, чистка вух</span></div></div>
+        </div>
       </div>
+    </div>
+  </div>
 
-      <div class="pain-card bg-white rounded-2xl p-6 border border-red-100">
-        <div class="text-3xl mb-4">📅</div>
-        <h3 class="font-bold text-brand-dark mb-2">Записи в чатах і на папірці</h3>
-        <p class="text-gray-500 text-sm leading-relaxed">Розклад в Telegram-чаті, у Viber і ще в блокноті. Накладки, забуті прийоми, лікар не знає хто прийде.</p>
-        <div class="mt-4 pt-4 border-t border-gray-100 text-xs font-semibold text-brand-gold">→ Єдиний розклад для всіх лікарів з нагадуваннями</div>
+  {# 2. Розклад #}
+  <div class="kz-row rev">
+    <div class="kz-txt">
+      <div class="kz-pain">📅 Записи в чатах і на папірці</div>
+      <h3>Розклад живе в трьох місцях одночасно</h3>
+      <p>Щось у Telegram, щось у Viber, решта в блокноті. Два клієнти на одну годину, забутий прийом, лікар зранку не знає, хто до нього прийде.</p>
+      <div class="kz-fix"><span>→</span><div>Один розклад на всіх лікарів, клієнту автоматично йде нагадування</div></div>
+    </div>
+    <div class="kz-vis">
+      <div class="kz-win">
+        <div class="kz-bar"><i class="kz-dot"></i><i class="kz-dot"></i><i class="kz-dot"></i><b>Розклад · сьогодні</b></div>
+        <div class="kz-body">
+          <div class="kz-line"><i class="kz-ava">09:30</i><div class="kz-grow">Волощук Василь <span class="kz-sub">Кеді (кіт) · Олена Кравченко</span></div><span class="kz-tag ok">підтверджено</span></div>
+          <div class="kz-line"><i class="kz-ava">10:00</i><div class="kz-grow">Гнатенко Денис <span class="kz-sub">Барні (собака) · Максим Тимченко</span></div><span class="kz-tag wait">заплановано</span></div>
+          <div class="kz-line"><i class="kz-ava">11:00</i><div class="kz-grow">Дяченко Ірина <span class="kz-sub">Барсик (кіт) · Наталія Бондаренко</span></div><span class="kz-tag wait">заплановано</span></div>
+          <div class="kz-line"><i class="kz-ava">＋</i><div class="kz-grow"><b>Новий запис — 12:30</b><span class="kz-sub">нагадування клієнту піде за добу</span></div><span class="kz-tag gold">додано</span></div>
+        </div>
       </div>
+    </div>
+  </div>
 
-      <div class="pain-card bg-white rounded-2xl p-6 border border-red-100">
-        <div class="text-3xl mb-4">🧾</div>
-        <h3 class="font-bold text-brand-dark mb-2">РРО і фіскалізація — головний біль</h3>
-        <p class="text-gray-500 text-sm leading-relaxed">Окремий касовий апарат, ручне введення, роздруківка чеків. Час та помилки при кожній оплаті.</p>
-        <div class="mt-4 pt-4 border-t border-gray-100 text-xs font-semibold text-brand-gold">→ Фіскальний чек через Checkbox одним кліком</div>
+  {# 3. Рахунок і чек #}
+  <div class="kz-row">
+    <div class="kz-txt">
+      <div class="kz-pain">🧾 РРО і фіскалізація</div>
+      <h3>Каса окремо, програма окремо, нерви окремо</h3>
+      <p>Окремий касовий апарат, ручне введення сум, роздруківка чеків. Кожна оплата — це час і шанс помилитись у цифрі.</p>
+      <div class="kz-fix"><span>→</span><div>Рахунок і фіскальний чек одним кліком, товар списується зі складу сам</div></div>
+    </div>
+    <div class="kz-vis">
+      <div class="kz-win">
+        <div class="kz-bar"><i class="kz-dot"></i><i class="kz-dot"></i><i class="kz-dot"></i><b>Рахунок №1802</b></div>
+        <div class="kz-body">
+          <div class="kz-line"><div class="kz-grow">Первинний огляд <span class="kz-sub">Наталія Бондаренко</span></div><b>350 ₴</b></div>
+          <div class="kz-line"><div class="kz-grow">Вакцинація комплексна <span class="kz-sub">Нобівак DHPPi · 1 шт зі складу</span></div><b>640 ₴</b></div>
+          <div class="kz-line"><div class="kz-grow">Обробка від паразитів <span class="kz-sub">Мілпразон · 1 таб зі складу</span></div><b>180 ₴</b></div>
+          <div class="kz-total"><span>До сплати</span><b>1 170 ₴</b></div>
+          <div class="kz-line" style="margin-top:8px"><i class="kz-ava">🧾</i><div class="kz-grow">Фіскальний чек Checkbox <span class="kz-sub">надіслано клієнту в Telegram</span></div><span class="kz-tag ok">проведено</span></div>
+        </div>
       </div>
+    </div>
+  </div>
 
-      <div class="pain-card bg-white rounded-2xl p-6 border border-red-100">
-        <div class="text-3xl mb-4">💊</div>
-        <h3 class="font-bold text-brand-dark mb-2">Склад «на окомір»</h3>
-        <p class="text-gray-500 text-sm leading-relaxed">Медикаменти закінчились раптово, надлишки списані, розхід ніхто не рахував. Гроші просто тануть.</p>
-        <div class="mt-4 pt-4 border-t border-gray-100 text-xs font-semibold text-brand-gold">→ Склад з автосписанням та сигналом при низьких залишках</div>
+  {# 4. Склад #}
+  <div class="kz-row rev">
+    <div class="kz-txt">
+      <div class="kz-pain">💊 Склад «на окомір»</div>
+      <h3>Препарат закінчився посеред прийому</h3>
+      <p>Ніхто не рахує розхід, надлишки списують заднім числом, а потрібної ампули немає саме тоді, коли вона потрібна. Гроші тануть непомітно.</p>
+      <div class="kz-fix"><span>→</span><div>Залишки рахуються самі, система сигналить, коли час замовляти</div></div>
+    </div>
+    <div class="kz-vis">
+      <div class="kz-win">
+        <div class="kz-bar"><i class="kz-dot"></i><i class="kz-dot"></i><i class="kz-dot"></i><b>Склад · залишки</b></div>
+        <div class="kz-body">
+          <div class="kz-line"><i class="kz-ava">💉</i><div class="kz-grow">Нобівак Рабієс <span class="kz-sub">списано 3 за тиждень</span></div><span class="kz-tag warn">лишилось 2</span></div>
+          <div class="kz-line"><i class="kz-ava">💊</i><div class="kz-grow">Телазол 100 мг <span class="kz-sub">мінімум 5 · треба замовити</span></div><span class="kz-tag warn">2 шт</span></div>
+          <div class="kz-line"><i class="kz-ava">🧴</i><div class="kz-grow">Ізофлуран 250 мл <span class="kz-sub">вистачить на ~3 тижні</span></div><span class="kz-tag ok">3 шт</span></div>
+          <div class="kz-line"><i class="kz-ava">📦</i><div class="kz-grow"><b>Що замовити</b><span class="kz-sub">список формується сам за розходом</span></div><span class="kz-tag gold">2 позиції</span></div>
+        </div>
       </div>
+    </div>
+  </div>
 
-      <div class="pain-card bg-white rounded-2xl p-6 border border-red-100">
-        <div class="text-3xl mb-4">💬</div>
-        <h3 class="font-bold text-brand-dark mb-2">Клієнти пишуть у 5 місць</h3>
-        <p class="text-gray-500 text-sm leading-relaxed">Viber, Instagram, Telegram, телефон. Відповіді губляться, клієнт нагадує двічі, адміністратор розривається.</p>
-        <div class="mt-4 pt-4 border-t border-gray-100 text-xs font-semibold text-brand-gold">→ Telegram-бот: клієнт сам дивиться записи, аналізи, рахунки</div>
+  {# 5. Telegram #}
+  <div class="kz-row">
+    <div class="kz-txt">
+      <div class="kz-pain">💬 Клієнти пишуть у 5 місць</div>
+      <h3>Viber, Instagram, Telegram і дзвінки одночасно</h3>
+      <p>Питання губляться між застосунками, клієнт нагадує двічі, адміністратор переписує те саме вручну по колу.</p>
+      <div class="kz-fix"><span>→</span><div>Свій Telegram-бот: клієнт сам бачить записи, аналізи й рахунки</div></div>
+    </div>
+    <div class="kz-vis">
+      <div class="kz-win">
+        <div class="kz-bar"><i class="kz-dot"></i><i class="kz-dot"></i><i class="kz-dot"></i><b>Telegram-бот клініки</b></div>
+        <div class="kz-body">
+          <div class="kz-msg them">Доброго дня! Коли нам на повторний огляд?</div>
+          <div class="kz-msg us">Барсик записаний на 21.08 об 11:00 до Наталії Бондаренко 🐱</div>
+          <div class="kz-msg them">Дякую! А результат аналізу вже готовий?</div>
+          <div class="kz-line" style="margin-top:10px"><i class="kz-ava">📎</i><div class="kz-grow">Аналіз крові · 18.08 <span class="kz-sub">клієнт відкриває сам, без дзвінка</span></div><span class="kz-tag ok">надіслано</span></div>
+        </div>
       </div>
+    </div>
+  </div>
 
-      <div class="pain-card bg-white rounded-2xl p-6 border border-red-100">
-        <div class="text-3xl mb-4">📊</div>
-        <h3 class="font-bold text-brand-dark mb-2">«Ми взагалі в плюсі?»</h3>
-        <p class="text-gray-500 text-sm leading-relaxed">Виручка не рахується, витрати на папері, фінансового звіту не існує. Рішення приймаються наосліп.</p>
-        <div class="mt-4 pt-4 border-t border-gray-100 text-xs font-semibold text-brand-gold">→ Аналітика виручки, топ-послуги, фінансові звіти</div>
+  {# 6. Аналітика #}
+  <div class="kz-row rev">
+    <div class="kz-txt">
+      <div class="kz-pain">📊 «Ми взагалі в плюсі?»</div>
+      <h3>Виторг у голові, витрати на папері</h3>
+      <p>Скільки сьогодні в касі, скільки на карті, що з витратами за місяць — відповідь завжди приблизна. Рішення приймаються наосліп.</p>
+      <div class="kz-fix"><span>→</span><div>Каса, витрати й прибуток рахуються самі — цифри видно щодня</div></div>
+    </div>
+    <div class="kz-vis">
+      <div class="kz-win">
+        <div class="kz-bar"><i class="kz-dot"></i><i class="kz-dot"></i><i class="kz-dot"></i><b>Аналітика · серпень</b></div>
+        <div class="kz-body">
+          <div class="kz-stats" style="margin-bottom:8px">
+            <div class="kz-stat"><i>Виторг сьогодні</i><b class="gold">21 640 ₴</b></div>
+            <div class="kz-stat"><i>Готівка в касі</i><b>8 420 ₴</b></div>
+            <div class="kz-stat"><i>На картку</i><b>13 220 ₴</b></div>
+            <div class="kz-stat"><i>Витрати за місяць</i><b>46 180 ₴</b></div>
+          </div>
+          <div class="kz-line"><i class="kz-ava">📈</i><div class="kz-grow">Топ-послуга місяця <span class="kz-sub">вакцинація · 84 прийоми</span></div><span class="kz-tag ok">+18%</span></div>
+          <div class="kz-total"><span>Чистий прибуток</span><b>+112 350 ₴</b></div>
+        </div>
       </div>
-
     </div>
   </div>
 </section>
 
+<script>
+(function(){
+  // анімація стартує, коли блок реально потрапив на екран
+  var rows = document.querySelectorAll('.kz-live .kz-win');
+  if (!('IntersectionObserver' in window)) {
+    rows.forEach(function(r){ r.classList.add('kz-in'); });
+    return;
+  }
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if (e.isIntersecting) { e.target.classList.add('kz-in'); io.unobserve(e.target); }
+    });
+  }, {threshold: 0.25});
+  rows.forEach(function(r){ io.observe(r); });
+})();
+</script>
 
-<!-- ═══════════════════ МОЖЛИВОСТІ ═══════════════════ -->
-<section id="features" class="py-20 px-6 bg-white">
-  <div class="max-w-6xl mx-auto">
-    <div class="text-center mb-14">
-      <h2 class="text-3xl lg:text-4xl font-extrabold text-brand-dark mb-4">
-        Все що потрібно клініці — в одній системі
-      </h2>
-      <p class="text-gray-500 text-lg">Жодних зайвих модулів — тільки те, що реально використовують ветклініки</p>
-    </div>
-
-    <!-- Feature 1: Клієнти + скрін -->
-    <div class="flex flex-col lg:flex-row items-center gap-12 mb-24">
-      <div class="lg:w-1/2">
-        <div class="screen-frame screen-shadow">
-          <picture>
-            <source srcset="{% static 'landing/clients.webp' %}" type="image/webp">
-            <img src="{% static 'landing/clients.png' %}" alt="База клієнтів та тварин у ветеринарній CRM" class="w-full" width="1280" height="577" loading="lazy">
-          </picture>
-        </div>
-      </div>
-      <div class="lg:w-1/2">
-        <div class="inline-flex items-center gap-2 bg-blue-50 text-blue-700 text-xs font-semibold px-3 py-1 rounded-full mb-4">🐾 Клієнти та тварини</div>
-        <h3 class="text-2xl font-extrabold text-brand-dark mb-4">Повна карточка клієнта та його улюбленців</h3>
-        <p class="text-gray-500 mb-6 leading-relaxed">Вся історія прийомів, аналізи, вакцинації, призначення — в одному профілі. Щоб лікар бачив усе ще до того, як клієнт зайшов.</p>
-        <ul class="space-y-3 text-sm">
-          <li class="flex items-start gap-3"><span class="text-brand-gold font-bold mt-0.5">✓</span><span>Необмежена кількість тварин на клієнта</span></li>
-          <li class="flex items-start gap-3"><span class="text-brand-gold font-bold mt-0.5">✓</span><span>Завантаження аналізів та фото</span></li>
-          <li class="flex items-start gap-3"><span class="text-brand-gold font-bold mt-0.5">✓</span><span>Пошук по імені, телефону, породі</span></li>
-          <li class="flex items-start gap-3"><span class="text-brand-gold font-bold mt-0.5">✓</span><span>Журнал всіх прийомів з діагнозами</span></li>
-        </ul>
-      </div>
-    </div>
-
-    <!-- Feature 2: Розклад + скрін -->
-    <div class="flex flex-col lg:flex-row-reverse items-center gap-12 mb-24">
-      <div class="lg:w-1/2">
-        <div class="screen-frame screen-shadow">
-          <picture>
-            <source srcset="{% static 'landing/appointments.webp' %}" type="image/webp">
-            <img src="{% static 'landing/appointments.png' %}" alt="Розклад прийомів ветеринарної клініки" class="w-full" width="1280" height="577" loading="lazy">
-          </picture>
-        </div>
-      </div>
-      <div class="lg:w-1/2">
-        <div class="inline-flex items-center gap-2 bg-green-50 text-green-700 text-xs font-semibold px-3 py-1 rounded-full mb-4">📅 Розклад</div>
-        <h3 class="text-2xl font-extrabold text-brand-dark mb-4">Розклад для всіх лікарів в одному вікні</h3>
-        <p class="text-gray-500 mb-6 leading-relaxed">Адміністратор бачить хто і коли прийде, може перенести запис і не допустити накладки. Більше ніяких «я не знав».</p>
-        <ul class="space-y-3 text-sm">
-          <li class="flex items-start gap-3"><span class="text-brand-gold font-bold mt-0.5">✓</span><span>Кольорове маркування по лікарях</span></li>
-          <li class="flex items-start gap-3"><span class="text-brand-gold font-bold mt-0.5">✓</span><span>Статуси: підтверджено, відмінено, виконано</span></li>
-          <li class="flex items-start gap-3"><span class="text-brand-gold font-bold mt-0.5">✓</span><span>Перегляд по дню, тижню, місяцю</span></li>
-          <li class="flex items-start gap-3"><span class="text-brand-gold font-bold mt-0.5">✓</span><span>Швидке створення запису прямо з картки</span></li>
-        </ul>
-      </div>
-    </div>
-
-    <!-- Feature 3: Білінг + скрін -->
-    <div class="flex flex-col lg:flex-row items-center gap-12 mb-24">
-      <div class="lg:w-1/2">
-        <div class="screen-frame screen-shadow">
-          <picture>
-            <source srcset="{% static 'landing/billing.webp' %}" type="image/webp">
-            <img src="{% static 'landing/billing.png' %}" alt="Рахунки та фіскалізація у ветеринарній CRM" class="w-full" width="1280" height="577" loading="lazy">
-          </picture>
-        </div>
-      </div>
-      <div class="lg:w-1/2">
-        <div class="inline-flex items-center gap-2 bg-yellow-50 text-yellow-700 text-xs font-semibold px-3 py-1 rounded-full mb-4">🧾 Білінг та РРО</div>
-        <h3 class="text-2xl font-extrabold text-brand-dark mb-4">Рахунки + фіскальний чек одним кліком</h3>
-        <p class="text-gray-500 mb-6 leading-relaxed">Виставляєте рахунок, клієнт оплачує — чек автоматично реєструється через Checkbox. PDF рахунку відправляється в Telegram.</p>
-        <ul class="space-y-3 text-sm">
-          <li class="flex items-start gap-3"><span class="text-brand-gold font-bold mt-0.5">✓</span><span>Інтеграція з Checkbox (РРО) — без окремого апарата</span></li>
-          <li class="flex items-start gap-3"><span class="text-brand-gold font-bold mt-0.5">✓</span><span>PDF-рахунок у Telegram клієнту</span></li>
-          <li class="flex items-start gap-3"><span class="text-brand-gold font-bold mt-0.5">✓</span><span>Знижки по позиції та на весь рахунок</span></li>
-          <li class="flex items-start gap-3"><span class="text-brand-gold font-bold mt-0.5">✓</span><span>Готівка та картка</span></li>
-        </ul>
-      </div>
-    </div>
-
-    <!-- Feature 4: Telegram + скрін -->
-    <div class="flex flex-col lg:flex-row-reverse items-center gap-12 mb-24">
-      <div class="lg:w-1/2">
-        <div class="screen-frame screen-shadow">
-          <picture>
-            <source srcset="{% static 'landing/telegram.webp' %}" type="image/webp">
-            <img src="{% static 'landing/telegram.png' %}" alt="Telegram бот для ветеринарної клініки" class="w-full" width="1280" height="577" loading="lazy">
-          </picture>
-        </div>
-      </div>
-      <div class="lg:w-1/2">
-        <div class="inline-flex items-center gap-2 bg-sky-50 text-sky-700 text-xs font-semibold px-3 py-1 rounded-full mb-4">✈️ Telegram-бот</div>
-        <h3 class="text-2xl font-extrabold text-brand-dark mb-4">Клієнт сам отримує все через Telegram</h3>
-        <p class="text-gray-500 mb-6 leading-relaxed">Власний бот клініки відповідає клієнтам 24/7. Аналізи, записи, рахунки — без дзвінків адміністратору.</p>
-        <ul class="space-y-3 text-sm">
-          <li class="flex items-start gap-3"><span class="text-brand-gold font-bold mt-0.5">✓</span><span>Перегляд своїх тварин та прийомів</span></li>
-          <li class="flex items-start gap-3"><span class="text-brand-gold font-bold mt-0.5">✓</span><span>Отримання аналізів та протоколів PDF</span></li>
-          <li class="flex items-start gap-3"><span class="text-brand-gold font-bold mt-0.5">✓</span><span>Чат з адміністратором напряму в CRM</span></li>
-          <li class="flex items-start gap-3"><span class="text-brand-gold font-bold mt-0.5">✓</span><span>Кожна клініка — свій бот зі своїм токеном</span></li>
-        </ul>
-      </div>
-    </div>
-
-    <!-- Feature 5: Склад + Аналітика — два у ряд -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-      <div class="bg-brand-cream rounded-2xl p-6">
-        <div class="screen-frame screen-shadow mb-5">
-          <picture>
-            <source srcset="{% static 'landing/inventory.webp' %}" type="image/webp">
-            <img src="{% static 'landing/inventory.png' %}" alt="Склад медикаментів ветеринарної клініки" class="w-full" width="1280" height="577" loading="lazy">
-          </picture>
-        </div>
-        <div class="inline-flex items-center gap-2 bg-purple-50 text-purple-700 text-xs font-semibold px-3 py-1 rounded-full mb-3">💊 Склад</div>
-        <h3 class="text-xl font-extrabold text-brand-dark mb-2">Склад медикаментів і товарів</h3>
-        <p class="text-gray-500 text-sm leading-relaxed">Автосписання при продажу, сигнал при низьких залишках, нульовий залишок відразу помітний.</p>
-      </div>
-      <div class="bg-brand-cream rounded-2xl p-6">
-        <div class="screen-frame screen-shadow mb-5">
-          <picture>
-            <source srcset="{% static 'landing/analytics.webp' %}" type="image/webp">
-            <img src="{% static 'landing/analytics.png' %}" alt="Аналітика ветеринарної клініки" class="w-full" width="1280" height="577" loading="lazy">
-          </picture>
-        </div>
-        <div class="inline-flex items-center gap-2 bg-rose-50 text-rose-700 text-xs font-semibold px-3 py-1 rounded-full mb-3">📊 Аналітика</div>
-        <h3 class="text-xl font-extrabold text-brand-dark mb-2">Фінансова аналітика і звіти</h3>
-        <p class="text-gray-500 text-sm leading-relaxed">Виручка за день/тиждень/місяць, топ-послуги, динаміка клієнтів. Приймайте рішення на основі цифр.</p>
-      </div>
-    </div>
-
-  </div>
-</section>
 
 
 <!-- ═══════════════════ СКРІНИ-ГАЛЕРЕЯ ═══════════════════ -->
