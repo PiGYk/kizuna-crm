@@ -154,7 +154,7 @@
              class="px-8 py-3.5 gradient-gold text-brand-dark rounded-xl font-bold text-base hover:brightness-95 transition-all shadow-lg shadow-brand-gold/20">
             Спробувати 30 днів безкоштовно →
           </a>
-          <a href="/login/?demo=1"
+          <a href="#" data-demo-open
              onclick="gtag('event','open_demo',{event_category:'cta',event_label:'hero'})"
              class="px-8 py-3.5 bg-white/10 border border-white/20 text-white rounded-xl font-medium text-base hover:bg-white/15 transition-all">
             Зайти в демо
@@ -892,5 +892,52 @@
 }
 </script>
 
+
+<!-- ═══════════════ ДЕМО-попап (вхід без пароля) ═══════════════ -->
+<div id="demo-modal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.72);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#1a1715;border:1px solid rgba(255,255,255,.12);border-radius:20px;max-width:420px;width:100%;padding:32px;box-shadow:0 24px 60px rgba(0,0,0,.55);">
+    <h3 style="color:#fff;font-size:24px;font-weight:800;margin:0 0 8px;">Демо без реєстрації</h3>
+    <p style="color:rgba(255,255,255,.6);font-size:15px;margin:0 0 20px;line-height:1.5;">Лишіть номер — і ми одразу відкриємо готову демо-клініку з даними. Встановлювати нічого не треба.</p>
+    <form id="demo-form" autocomplete="on">
+      <input id="demo-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+380 XX XXX XX XX"
+        style="width:100%;box-sizing:border-box;padding:14px 16px;border-radius:12px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);color:#fff;font-size:16px;outline:none;">
+      <p id="demo-error" style="color:#ff6b6b;font-size:13px;margin:8px 2px 0;min-height:18px;"></p>
+      <button type="submit" id="demo-submit"
+        style="width:100%;margin-top:12px;padding:14px;border:none;border-radius:12px;background:linear-gradient(135deg,#DEAA01,#f5c518);color:#12100F;font-weight:700;font-size:16px;cursor:pointer;">Відкрити демо →</button>
+    </form>
+    <button type="button" id="demo-close" style="width:100%;margin-top:10px;padding:8px;background:none;border:none;color:rgba(255,255,255,.4);font-size:13px;cursor:pointer;">Закрити</button>
+  </div>
+</div>
+<script>
+(function(){
+  function getCookie(n){var m=document.cookie.match("(^|;)\\s*"+n+"\\s*=\\s*([^;]+)");return m?m.pop():"";}
+  var modal=document.getElementById("demo-modal"),form=document.getElementById("demo-form"),
+      phone=document.getElementById("demo-phone"),err=document.getElementById("demo-error"),
+      submit=document.getElementById("demo-submit");
+  function openM(){modal.style.display="flex";setTimeout(function(){phone.focus();},60);}
+  function closeM(){modal.style.display="none";err.textContent="";}
+  document.querySelectorAll("[data-demo-open]").forEach(function(b){b.addEventListener("click",function(e){e.preventDefault();openM();});});
+  document.getElementById("demo-close").addEventListener("click",closeM);
+  modal.addEventListener("click",function(e){if(e.target===modal)closeM();});
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")closeM();});
+  var re=/^(\+380\d{9}|0\d{9})$/;
+  form.addEventListener("submit",function(e){
+    e.preventDefault();
+    var v=phone.value.replace(/[\s\-()]/g,"");
+    if(!re.test(v)){err.textContent="Вкажіть номер: +380XXXXXXXXX або 0XXXXXXXXX";return;}
+    err.textContent="";submit.disabled=true;submit.textContent="Відкриваємо…";
+    var body=new URLSearchParams();body.append("phone",v);
+    fetch("/demo/start/"+location.search,{method:"POST",credentials:"same-origin",
+      headers:{"X-CSRFToken":getCookie("csrftoken"),"Content-Type":"application/x-www-form-urlencoded"},
+      body:body.toString()})
+    .then(function(r){return r.json().catch(function(){return {ok:false,error:"Помилка сервера"};});})
+    .then(function(d){
+      if(d.ok&&d.redirect){location.href=d.redirect;}
+      else{err.textContent=d.error||"Не вдалося. Спробуйте ще раз.";submit.disabled=false;submit.textContent="Відкрити демо →";}
+    })
+    .catch(function(){err.textContent="Немає зв’язку. Спробуйте ще раз.";submit.disabled=false;submit.textContent="Відкрити демо →";});
+  });
+})();
+</script>
 </body>
 </html>

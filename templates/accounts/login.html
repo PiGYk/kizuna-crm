@@ -55,22 +55,7 @@
         <a href="{% url 'accounts:register' %}" class="text-brand-gold hover:underline font-medium">Зареєструватись</a>
       </p>
 
-      {# Кнопка «Зайти в демо» з лендингу веде сюди з ?demo=1 і підставляє демо-доступ. #}
-      <div id="demo-hint" class="hidden mt-5 rounded-xl bg-brand-cream border border-brand-gold/30 px-4 py-3 text-center">
-        <p class="text-xs text-gray-600">Демо-клініка з готовими даними. Доступ уже підставлено —
-          просто натисніть «Увійти».</p>
-      </div>
-      <script>
-        (function () {
-          if (new URLSearchParams(location.search).get('demo') !== '1') return;
-          var u = document.querySelector('input[name="username"]');
-          var p = document.querySelector('input[name="password"]');
-          if (u) { u.value = 'demo'; }
-          if (p) { p.value = 'demo12345'; }
-          var hint = document.getElementById('demo-hint');
-          if (hint) { hint.classList.remove('hidden'); }
-        })();
-      </script>
+      
     </div>
   </div>
 

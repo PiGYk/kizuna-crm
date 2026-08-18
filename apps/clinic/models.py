@@ -251,3 +251,25 @@ class PaymentTransaction(models.Model):
 
     def __str__(self):
         return f'{self.order_ref} ({self.status})'
+
+
+class DemoLead(models.Model):
+    """Заявка на демо з лендінгу: людина лишила номер -> потрапила в демо.
+    Скіф забирає нові (notified=False), шле Олегу і ставить задачу в планьорку."""
+    phone = models.CharField(max_length=20, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    ip = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True, default='')
+    utm_source = models.CharField(max_length=120, blank=True, default='')
+    utm_medium = models.CharField(max_length=120, blank=True, default='')
+    utm_campaign = models.CharField(max_length=120, blank=True, default='')
+    referer = models.CharField(max_length=500, blank=True, default='')
+    visit_count = models.PositiveIntegerField(default=1)
+    notified = models.BooleanField(default=False, db_index=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['-created_at'])]
+
+    def __str__(self):
+        return f'{self.phone} ({self.created_at:%Y-%m-%d %H:%M})'

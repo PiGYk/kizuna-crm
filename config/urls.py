@@ -6,8 +6,10 @@ from django.http import HttpResponse
 from django.utils import timezone
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
+from django.views.decorators.csrf import ensure_csrf_cookie
 
 from apps.clinic.media_serve import serve_media
+from apps.clinic.demo_views import demo_start
 from apps.clinic.views import (
     superadmin_dashboard,
     superadmin_toggle_active,
@@ -143,6 +145,7 @@ def legal_terms(request):
     return render(request, 'legal/terms.html')
 
 
+@ensure_csrf_cookie
 def landing(request):
     # Розділення хостів (2026-08-18): product.kizuna.com.ua — маркетинговий лендінг,
     # crm.kizuna.com.ua — робочий вхід у CRM (лендінг звідти прибрано).
@@ -182,6 +185,7 @@ urlpatterns = [
     path('offer/', legal_offer, name='legal_offer'),
     path('terms/', legal_terms, name='legal_terms'),
     path('', landing, name='landing'),
+    path('demo/start/', demo_start, name='demo_start'),
     # Back-compat: name='dashboard' використовується у багатьох шаблонах
     # ({% url 'dashboard' %}). Залишаємо короткий alias на головну view нового
     # dashboard_builder, а під /dashboards/ — повний include з усіма під-URL.
