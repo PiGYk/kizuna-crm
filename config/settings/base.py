@@ -58,6 +58,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django_htmx.middleware.HtmxMiddleware',
     'config.middleware.TenantMiddleware',
+    'apps.clinic.demo_guard.DemoProfanityMiddleware',
     # django-axes — має бути ОСТАННІМ
     'axes.middleware.AxesMiddleware',
 ]
