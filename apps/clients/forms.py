@@ -1,3 +1,5 @@
+import re
+
 from django import forms
 from django.contrib.auth import get_user_model
 from .models import (
@@ -40,9 +42,34 @@ class ClientForm(forms.ModelForm):
             'notes': forms.Textarea(attrs={'rows': 3}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, org=None, **kwargs):
+        self._org = org
+        # Виставляється у clean(), якщо телефон уже є в базі — шаблон показує кнопку
+        # «Все одно створити».
+        self.phone_duplicate = None
         super().__init__(*args, **kwargs)
         _apply_field_class(self)
+
+    def clean(self):
+        cleaned = super().clean()
+        self.phone_duplicate = None
+        # Користувач уже підтвердив, що заводить окрему картку — не заважаємо.
+        if self.data.get('confirm_duplicate'):
+            return cleaned
+        org = self._org
+        phone = cleaned.get('phone')
+        if org and phone:
+            digits = re.sub(r'\D', '', phone)
+            if digits:
+                # Порівнюємо за останніми 9 цифрами — без коду країни, найнадійніше.
+                tail = digits[-9:]
+                dup = Client.objects.filter(
+                    organization=org, phone__regex=fr'.*{tail}$',
+                ).exclude(pk=self.instance.pk or 0).first()
+                if dup:
+                    self.phone_duplicate = dup
+                    self.add_error('phone', f'Клієнт із цим номером уже є: {dup}. Перевірте нижче.')
+        return cleaned
 
 
 class PatientForm(forms.ModelForm):

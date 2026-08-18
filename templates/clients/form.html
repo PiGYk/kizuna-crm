@@ -46,6 +46,19 @@
         {{ form.discount_percent }}
         {% if form.discount_percent.errors %}<p class="text-red-500 text-xs mt-1">{{ form.discount_percent.errors|join:", " }}</p>{% endif %}
       </div>
+      {% if form.phone_duplicate %}
+      <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
+        <p class="text-sm text-amber-900 mb-2">
+          Клієнт із цим номером уже є:
+          <a href="{% url 'clients:detail' form.phone_duplicate.pk %}" class="font-medium underline" target="_blank">{{ form.phone_duplicate }}</a>.
+          Можливо, це той самий клієнт.
+        </p>
+        <button type="submit" name="confirm_duplicate" value="1"
+          class="min-h-[44px] bg-amber-500 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:brightness-95 transition-all">
+          Все одно створити окрему картку
+        </button>
+      </div>
+      {% endif %}
       <div class="md:static fixed bottom-16 left-0 right-0 bg-white border-t border-gray-200 p-4 z-30
                   md:bg-transparent md:border-0 md:p-0 md:pt-2 flex gap-3">
         <button type="submit"

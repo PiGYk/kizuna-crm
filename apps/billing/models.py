@@ -87,14 +87,29 @@ class Invoice(models.Model):
     def __str__(self):
         return f'Рахунок #{self.pk} — {self.client}'
 
+    def _norm_discount(self):
+        """Знижка не може бути відʼємною, а відсоткова — понад 100%.
+        Без цього 380% давало відʼємний total і псувало суму чека."""
+        if self.discount is None:
+            self.discount = Decimal('0')
+        elif self.discount < 0:
+            self.discount = Decimal('0')
+        elif self.discount_type == self.DiscountType.PERCENT and self.discount > 100:
+            self.discount = Decimal('100')
+
     def calc_total(self):
         from django.db.models import Sum
         subtotal = self.lines.aggregate(t=Sum('total'))['t'] or Decimal('0')
+        self._norm_discount()
         if self.discount_type == self.DiscountType.PERCENT:
             discount_amt = subtotal * self.discount / Decimal('100')
         else:
-            discount_amt = self.discount
+            discount_amt = min(self.discount, subtotal)
         return max(subtotal - discount_amt, Decimal('0'))
+
+    def save(self, *args, **kwargs):
+        self._norm_discount()
+        super().save(*args, **kwargs)
 
     def save_total(self):
         self.total = self.calc_total()
@@ -136,8 +151,18 @@ class InvoiceLine(models.Model):
     def __str__(self):
         return f'{self.name} ({self.quantity})'
 
+    def _norm_discount(self):
+        """Та сама стеля, що й для рахунку: 0..100% для відсотка, не мінус для суми."""
+        if self.discount is None:
+            self.discount = Decimal('0')
+        elif self.discount < 0:
+            self.discount = Decimal('0')
+        elif self.discount_type == Invoice.DiscountType.PERCENT and self.discount > 100:
+            self.discount = Decimal('100')
+
     def calc_total(self):
         base = self.quantity * self.unit_price
+        self._norm_discount()
         if self.discount_type == Invoice.DiscountType.PERCENT:
             return base * (1 - self.discount / Decimal('100'))
         return max(base - self.discount, Decimal('0'))

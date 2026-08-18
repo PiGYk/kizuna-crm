@@ -29,6 +29,16 @@
     </div>
   </div>
 
+  {% if comp_missing %}
+  <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 text-sm text-amber-900">
+    <div class="font-medium mb-1">Ці товари не знайдено на складі — списання для них пропущено:</div>
+    <div class="text-xs space-y-0.5">
+      {% for m in comp_missing %}<div>• {{ m }}</div>{% endfor %}
+    </div>
+    <div class="text-xs text-amber-700 mt-1">Назва товару має збігатися зі складом. Решта рядків застосується як звичайно.</div>
+  </div>
+  {% endif %}
+
   {% if to_update %}
   <div class="bg-white rounded-xl border border-gray-200 mb-4 overflow-hidden">
     <div class="px-4 py-3 border-b border-gray-100 text-sm font-semibold text-gray-700">
@@ -37,7 +47,10 @@
     <div class="max-h-72 overflow-y-auto divide-y divide-gray-50">
       {% for i in to_update %}
       <div class="px-4 py-2.5 flex items-center gap-3 text-sm">
-        <div class="flex-1 min-w-0 truncate text-gray-800">{{ i.name }}</div>
+        <div class="flex-1 min-w-0">
+          <div class="truncate text-gray-800">{{ i.name }}</div>
+          {% if i.component %}<div class="text-xs text-green-700 mt-0.5">🧪 списання: {{ i.component }} × {{ i.component_qty }}</div>{% endif %}
+        </div>
         {% if i.price %}
         <div class="shrink-0 text-xs">
           <span class="text-gray-400 line-through">{{ i.old_price }}</span>
@@ -60,7 +73,10 @@
     <div class="max-h-72 overflow-y-auto divide-y divide-gray-50">
       {% for i in to_create %}
       <div class="px-4 py-2.5 flex items-center gap-3 text-sm">
-        <div class="flex-1 min-w-0 truncate text-gray-800">{{ i.name }}</div>
+        <div class="flex-1 min-w-0">
+          <div class="truncate text-gray-800">{{ i.name }}</div>
+          {% if i.component %}<div class="text-xs text-green-700 mt-0.5">🧪 списання: {{ i.component }} × {{ i.component_qty }}</div>{% endif %}
+        </div>
         {% if i.category %}<div class="shrink-0 text-xs text-gray-400">{{ i.category }}</div>{% endif %}
         <div class="shrink-0 text-xs text-brand-dark font-medium">{{ i.price|default:"0" }} ₴</div>
       </div>

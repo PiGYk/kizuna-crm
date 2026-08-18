@@ -10,6 +10,7 @@ urlpatterns = [
     path('import/', views.service_import, name='import'),
     path('import/execute/', views.service_import_execute, name='import_execute'),
     path('import/template/', views.service_import_template, name='import_template'),
+    path('export/', views.service_export, name='export'),
     # Старий /<pk>/ редиректить на edit (зберігаємо для існуючих посилань / закладок)
     path('<int:pk>/', RedirectView.as_view(pattern_name='services:edit', permanent=False), name='detail'),
     path('<int:pk>/edit/', views.service_update, name='edit'),

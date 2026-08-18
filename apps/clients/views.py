@@ -113,6 +113,11 @@ class ClientCreateView(LoginRequiredMixin, CreateView):
     form_class = ClientForm
     template_name = 'clients/form.html'
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['org'] = self.request.organization
+        return kwargs
+
     def get_success_url(self):
         return reverse('clients:detail', kwargs={'pk': self.object.pk})
 
@@ -126,6 +131,11 @@ class ClientUpdateView(LoginRequiredMixin, UpdateView):
     model = Client
     form_class = ClientForm
     template_name = 'clients/form.html'
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['org'] = self.request.organization
+        return kwargs
 
     def get_success_url(self):
         return reverse('clients:detail', kwargs={'pk': self.object.pk})
