@@ -273,3 +273,26 @@ class DemoLead(models.Model):
 
     def __str__(self):
         return f'{self.phone} ({self.created_at:%Y-%m-%d %H:%M})'
+
+
+class DemoTenant(models.Model):
+    """Пул готових гостьових демо-клінік.
+
+    Генерація клініки триває ~8 с — тримати людину стільки на попапі не можна,
+    тому клініки готуються заздалегідь у фоні. Гість забирає вільну миттєво,
+    вночі зайняті видаляються разом з усіма даними.
+    """
+    organization = models.OneToOneField(
+        'clinic.Organization', on_delete=models.CASCADE, related_name='demo_tenant')
+    username = models.CharField(max_length=150)
+    created_at = models.DateTimeField(auto_now_add=True)
+    taken_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    lead = models.ForeignKey(
+        'clinic.DemoLead', null=True, blank=True, on_delete=models.SET_NULL)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        state = 'зайнята' if self.taken_at else 'вільна'
+        return f'{self.organization.slug} ({state})'

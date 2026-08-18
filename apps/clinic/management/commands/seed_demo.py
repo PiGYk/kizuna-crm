@@ -108,6 +108,14 @@ class Command(BaseCommand):
             '--reset', action='store_true',
             help='Видалити всі дані демо-тенанта і наповнити заново',
         )
+        parser.add_argument(
+            '--slug', default='demo',
+            help='slug тенанта (для пулу гостьових демо: demo-xxxx)',
+        )
+        parser.add_argument(
+            '--name', default='',
+            help='назва клініки (за замовчуванням — Ветклініка «Лапка»)',
+        )
 
     def handle(self, *args, **options):
         global User
@@ -117,7 +125,12 @@ class Command(BaseCommand):
 
         self.stdout.write('=== seed_demo: старт ===')
 
-        org = self._get_or_create_org()
+        self.slug = options.get('slug') or 'demo'
+        # суфікс логінів: логіни в системі глобально унікальні, тому
+        # кожна гостьова клініка мусить мати свої (інакше юзер
+        # «переїде» в новий тенант і зламає попередній).
+        self.usuffix = '' if self.slug == 'demo' else '_' + self.slug.replace('demo-', '')
+        org = self._get_or_create_org(self.slug, options.get('name') or '')
 
         if options['reset']:
             self.stdout.write('  --reset: видаляємо старі дані демо-тенанта...')
@@ -158,13 +171,13 @@ class Command(BaseCommand):
     # ORG
     # ─────────────────────────────────────────────────────────────────
 
-    def _get_or_create_org(self):
+    def _get_or_create_org(self, slug='demo', name=''):
         from apps.clinic.models import Organization
 
         org, created = Organization.objects.get_or_create(
-            slug='demo',
+            slug=slug,
             defaults={
-                'name': 'Ветклініка «Лапка»',
+                'name': name or 'Ветклініка «Лапка»',
                 'short_name': 'Лапка (ДЕМО)',
                 'is_active': True,
                 'trial_expires_at': timezone.make_aware(datetime(2099, 12, 31)),
@@ -225,7 +238,7 @@ class Command(BaseCommand):
         Supplier.objects.filter(organization=org).delete()
         ExpenseCategory.objects.filter(organization=org).delete()
         Shift.objects.filter(organization=org).delete()
-        User.objects.filter(organization=org).exclude(username='demo').delete()
+        User.objects.filter(organization=org).exclude(username='demo' + self.usuffix).delete()
 
     # ─────────────────────────────────────────────────────────────────
     # USERS
@@ -251,7 +264,7 @@ class Command(BaseCommand):
 
         # Demo admin
         demo, _ = User.objects.get_or_create(
-            username='demo',
+            username='demo' + self.usuffix,
             defaults={
                 'first_name': 'Демо', 'last_name': 'Адмін',
                 'email': 'demo@lapka.vet',
@@ -266,7 +279,7 @@ class Command(BaseCommand):
         doctors = []
         for d in doctors_data:
             u, _ = User.objects.get_or_create(
-                username=d['username'],
+                username=d['username'] + self.usuffix,
                 defaults={
                     'first_name': d['first_name'], 'last_name': d['last_name'],
                     'email': d['email'], 'role': d['role'], 'organization': org,
@@ -281,7 +294,7 @@ class Command(BaseCommand):
             doctors.append(u)
 
         asst, _ = User.objects.get_or_create(
-            username=asst_data['username'],
+            username=asst_data['username'] + self.usuffix,
             defaults={
                 'first_name': asst_data['first_name'], 'last_name': asst_data['last_name'],
                 'email': asst_data['email'], 'role': asst_data['role'], 'organization': org,

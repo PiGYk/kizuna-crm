@@ -8,6 +8,8 @@ import re
 
 from django.contrib.auth import get_user_model, login as auth_login
 from django.core.cache import cache
+from django.db import transaction
+from django.utils import timezone
 from django.http import JsonResponse, HttpResponseNotAllowed
 from django.views.decorators.http import require_POST
 
@@ -45,8 +47,8 @@ def demo_start(request):
 
     cache.set(rl_key, count + 1, timeout=3600)
 
-    from apps.clinic.models import DemoLead
-    DemoLead.objects.create(
+    from apps.clinic.models import DemoLead, DemoTenant
+    lead = DemoLead.objects.create(
         phone=phone,
         ip=ip,
         user_agent=request.META.get('HTTP_USER_AGENT', '')[:2000],
@@ -57,10 +59,32 @@ def demo_start(request):
     )
 
     User = get_user_model()
-    demo = (
-        User.objects.filter(username='demo', organization__slug='demo', is_active=True)
-        .first()
-    )
+
+    # Своя клініка на кожного гостя: беремо готову з пулу (генерувати на місці
+    # не можна — це ~8 с очікування). Вибір атомарний, щоб двом гостям не
+    # дісталась одна й та сама клініка.
+    username = None
+    with transaction.atomic():
+        slot = (
+            DemoTenant.objects
+            .select_for_update(skip_locked=True)
+            .filter(taken_at__isnull=True)
+            .order_by('created_at')
+            .first()
+        )
+        if slot is not None:
+            slot.taken_at = timezone.now()
+            slot.lead = lead
+            slot.save(update_fields=['taken_at', 'lead'])
+            username = slot.username
+
+    demo = None
+    if username:
+        demo = User.objects.filter(username=username, is_active=True).first()
+    if demo is None:
+        # запасний варіант: спільна демо-клініка, щоб гість не лишився ні з чим
+        demo = User.objects.filter(
+            username='demo', organization__slug='demo', is_active=True).first()
     if demo is None:
         return JsonResponse(
             {'ok': False, 'error': 'Демо тимчасово недоступне, спробуйте пізніше.'},
