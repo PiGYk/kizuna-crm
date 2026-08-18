@@ -208,14 +208,6 @@
 {# Tailwind-класи, що в templates/clients/detail.html, appointments/         #}
 {# calendar_day.html, billing/detail.html, inventory/list.html), а не       #}
 {# намальована схожість. Тому Tailwind підключено тим самим CDN, що в CRM.  #}
-<script src="https://cdn.tailwindcss.com"></script>
-<script>
-  tailwind.config = {
-    corePlugins: { preflight: false },   // не чіпаємо базові стилі лендінгу
-    theme: { extend: { colors: { brand: {
-      dark: '#12100F', gold: '#DEAA01', cream: '#FFF7F3', muted: '#2a2624' } } } }
-  }
-</script>
 <style>
 .kz-live{background:#fff;padding:72px 24px}
 .kz-head{max-width:900px;margin:0 auto 56px;text-align:center}
