@@ -65,7 +65,19 @@ def subscribe_test_payment(request):
     })
 
 
+def _is_landing_host(request):
+    """product.* — маркетинговий хост лендінгу; crm.* — робоча CRM."""
+    return request.get_host().split(':')[0].lower().startswith('product.')
+
+
 def robots_txt(request):
+    # Індексується лише лендінг. Робочу CRM з пошуку прибираємо повністю,
+    # інакше та сама сторінка дублюється на двох доменах (2026-08-18).
+    if not _is_landing_host(request):
+        return HttpResponse(
+            'User-agent: *\nDisallow: /\n',
+            content_type='text/plain; charset=utf-8',
+        )
     content = """User-agent: *
 Allow: /
 Disallow: /dashboard/
@@ -82,7 +94,7 @@ Disallow: /analytics/
 Disallow: /finance/
 Disallow: /tg/
 
-Sitemap: https://crm.kizuna.com.ua/sitemap.xml
+Sitemap: https://product.kizuna.com.ua/sitemap.xml
 """
     return HttpResponse(content, content_type='text/plain; charset=utf-8')
 
@@ -92,25 +104,25 @@ def sitemap_xml(request):
     content = f"""<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://crm.kizuna.com.ua/</loc>
+    <loc>https://product.kizuna.com.ua/</loc>
     <lastmod>{now}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://crm.kizuna.com.ua/register/</loc>
+    <loc>https://product.kizuna.com.ua/register/</loc>
     <lastmod>{now}</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://crm.kizuna.com.ua/terms/</loc>
+    <loc>https://product.kizuna.com.ua/terms/</loc>
     <lastmod>{now}</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
-    <loc>https://crm.kizuna.com.ua/offer/</loc>
+    <loc>https://product.kizuna.com.ua/offer/</loc>
     <lastmod>{now}</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.4</priority>
