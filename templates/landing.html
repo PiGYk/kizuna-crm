@@ -567,6 +567,56 @@
 
 
 
+<!-- ═══════════════════ МОБІЛЬНА ВЕРСІЯ ═══════════════════ -->
+<section id="mobile" class="py-20 px-6 bg-brand-dark overflow-hidden relative">
+  <div class="absolute inset-0 pointer-events-none">
+    <div class="absolute top-1/4 left-0 w-72 h-72 rounded-full bg-brand-gold/4 blur-3xl"></div>
+    <div class="absolute bottom-0 right-0 w-72 h-72 rounded-full bg-brand-gold/3 blur-3xl"></div>
+  </div>
+
+  <div class="relative max-w-5xl mx-auto">
+    <div class="text-center mb-14">
+      <span class="inline-block px-3 py-1 rounded-full bg-brand-gold/10 text-brand-gold text-xs font-semibold tracking-wide uppercase mb-4">З телефона</span>
+      <h2 class="text-3xl lg:text-4xl font-extrabold text-white mb-4">Уся клініка — в телефоні</h2>
+      <p class="text-white/50 text-base md:text-lg max-w-2xl mx-auto">
+        Записи, картки пацієнтів, каса й склад працюють з телефона так само, як з комп'ютера. Не окремий застосунок — просто відкриваєте в браузері. Качати й встановлювати нічого не треба.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-5 md:gap-6 max-w-3xl mx-auto">
+      <figure class="flex flex-col items-center">
+        <div class="rounded-[1.75rem] border-4 border-gray-700/80 bg-gray-900 overflow-hidden shadow-lg shadow-black/40 w-full">
+          <img src="{% static 'landing/mobile-schedule.png' %}" alt="Розклад прийомів у Kizuna CRM на телефоні" class="block w-full" loading="lazy" width="390" height="844">
+        </div>
+        <figcaption class="text-white/60 text-sm mt-3">Розклад прийомів</figcaption>
+      </figure>
+      <figure class="flex flex-col items-center">
+        <div class="rounded-[1.75rem] border-4 border-gray-700/80 bg-gray-900 overflow-hidden shadow-lg shadow-black/40 w-full">
+          <img src="{% static 'landing/mobile-patient.png' %}" alt="Картка пацієнта у Kizuna CRM на телефоні" class="block w-full" loading="lazy" width="390" height="844">
+        </div>
+        <figcaption class="text-white/60 text-sm mt-3">Картка пацієнта</figcaption>
+      </figure>
+      <figure class="flex flex-col items-center">
+        <div class="rounded-[1.75rem] border-4 border-gray-700/80 bg-gray-900 overflow-hidden shadow-lg shadow-black/40 w-full">
+          <img src="{% static 'landing/mobile-cash.png' %}" alt="Каса клініки у Kizuna CRM на телефоні" class="block w-full" loading="lazy" width="390" height="844">
+        </div>
+        <figcaption class="text-white/60 text-sm mt-3">Каса клініки</figcaption>
+      </figure>
+      <figure class="flex flex-col items-center">
+        <div class="rounded-[1.75rem] border-4 border-gray-700/80 bg-gray-900 overflow-hidden shadow-lg shadow-black/40 w-full">
+          <img src="{% static 'landing/mobile-stock.png' %}" alt="Склад і залишки у Kizuna CRM на телефоні" class="block w-full" loading="lazy" width="390" height="844">
+        </div>
+        <figcaption class="text-white/60 text-sm mt-3">Склад і залишки</figcaption>
+      </figure>
+    </div>
+
+    <p class="text-center text-white/40 text-sm mt-12">
+      Ті самі дані, що на комп'ютері — оновлюються миттєво на всіх пристроях.
+    </p>
+  </div>
+</section>
+
+
 <!-- ═══════════════════ ТАРИФИ ═══════════════════ -->
 <section id="pricing" class="py-20 px-6 bg-white">
   <div class="max-w-5xl mx-auto">
@@ -884,6 +934,88 @@
 
   </div>
 </section>
+
+
+<!-- ═══════════════════ ФОРМА ЗВОРОТНОГО ЗВ'ЯЗКУ ═══════════════════ -->
+<section id="contact" class="py-20 px-6 bg-white">
+  <div class="max-w-2xl mx-auto">
+    <div class="text-center mb-10">
+      <h2 class="text-3xl lg:text-4xl font-extrabold text-brand-dark mb-4">Поговорімо про вашу клініку</h2>
+      <p class="text-gray-500 text-lg">Лишіть контакти — зателефонуємо, покажемо систему на прикладі вашої клініки й відповімо на все. Без нав'язування.</p>
+    </div>
+
+    <form id="contact-form" class="bg-brand-cream rounded-2xl p-6 md:p-8 border border-gray-100" autocomplete="on" novalidate>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+        <div>
+          <label for="ct-name" class="block text-sm font-semibold text-brand-dark mb-1.5">Ім'я</label>
+          <input id="ct-name" name="name" type="text" autocomplete="name" placeholder="Як до вас звертатись"
+            class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-brand-dark placeholder-gray-400 focus:border-brand-gold focus:ring-1 focus:ring-brand-gold outline-none transition">
+        </div>
+        <div>
+          <label for="ct-phone" class="block text-sm font-semibold text-brand-dark mb-1.5">Телефон</label>
+          <input id="ct-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+380 XX XXX XX XX"
+            class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-brand-dark placeholder-gray-400 focus:border-brand-gold focus:ring-1 focus:ring-brand-gold outline-none transition">
+        </div>
+      </div>
+      <div class="mb-4">
+        <label for="ct-email" class="block text-sm font-semibold text-brand-dark mb-1.5">Електронна пошта</label>
+        <input id="ct-email" name="email" type="email" autocomplete="email" placeholder="you@clinic.ua"
+          class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-brand-dark placeholder-gray-400 focus:border-brand-gold focus:ring-1 focus:ring-brand-gold outline-none transition">
+      </div>
+      <div class="mb-5">
+        <label for="ct-msg" class="block text-sm font-semibold text-brand-dark mb-1.5">Повідомлення <span class="text-gray-400 font-normal">— за бажанням</span></label>
+        <textarea id="ct-msg" name="message" rows="3" placeholder="Коротко про вашу клініку або питання, з яким прийшли"
+          class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-brand-dark placeholder-gray-400 focus:border-brand-gold focus:ring-1 focus:ring-brand-gold outline-none transition resize-none"></textarea>
+      </div>
+      <p id="ct-error" class="text-red-500 text-sm mb-3 min-h-[20px]"></p>
+      <button type="submit" id="ct-submit"
+        class="w-full py-4 gradient-gold text-brand-dark rounded-xl font-bold text-base hover:brightness-95 transition-all shadow-lg shadow-brand-gold/20">
+        Зв'яжіться зі мною
+      </button>
+      <p class="text-gray-400 text-xs text-center mt-3">Телефон і пошта потрібні лише щоб ми могли відповісти. Нікому не передаємо.</p>
+    </form>
+
+    <div id="ct-success" style="display:none;" class="text-center bg-brand-cream rounded-2xl p-8 md:p-10 border border-brand-gold/30">
+      <svg class="w-12 h-12 text-brand-gold mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      <h3 class="text-xl font-bold text-brand-dark mb-2">Дякуємо, заявку прийнято</h3>
+      <p class="text-gray-500">Зв'яжемося найближчим часом. Якщо зручніше — телефонуйте самі: <a href="tel:+380984782121" class="text-brand-gold font-semibold whitespace-nowrap">+38 098 478 21 21</a>.</p>
+    </div>
+  </div>
+</section>
+<script>
+(function(){
+  function getCookie(n){var m=document.cookie.match("(^|;)\\s*"+n+"\\s*=\\s*([^;]+)");return m?m.pop():"";}
+  var form=document.getElementById("contact-form");
+  if(!form)return;
+  var nameEl=document.getElementById("ct-name"),phoneEl=document.getElementById("ct-phone"),
+      emailEl=document.getElementById("ct-email"),msgEl=document.getElementById("ct-msg"),
+      err=document.getElementById("ct-error"),submit=document.getElementById("ct-submit"),
+      success=document.getElementById("ct-success");
+  var reP=/^(\+380\d{9}|0\d{9})$/, reE=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  form.addEventListener("submit",function(e){
+    e.preventDefault();
+    var nm=(nameEl.value||"").trim();
+    var ph=(phoneEl.value||"").replace(/[\s\-()]/g,"");
+    var em=(emailEl.value||"").trim();
+    if(nm.length<2){err.textContent="Вкажіть, як до вас звертатись.";nameEl.focus();return;}
+    if(!reP.test(ph)){err.textContent="Телефон у форматі +380XXXXXXXXX або 0XXXXXXXXX";phoneEl.focus();return;}
+    if(!reE.test(em)){err.textContent="Перевірте адресу електронної пошти.";emailEl.focus();return;}
+    err.textContent="";submit.disabled=true;submit.textContent="Надсилаємо…";
+    var body=new URLSearchParams();
+    body.append("name",nm);body.append("phone",ph);body.append("email",em);body.append("message",(msgEl.value||"").trim());
+    fetch("/contact/submit/"+location.search,{method:"POST",credentials:"same-origin",
+      headers:{"X-CSRFToken":getCookie("csrftoken"),"Content-Type":"application/x-www-form-urlencoded"},
+      body:body.toString()})
+    .then(function(r){return r.json().catch(function(){return {ok:false,error:"Помилка сервера"};});})
+    .then(function(d){
+      if(d.ok){form.style.display="none";success.style.display="block";
+        try{gtag('event','generate_lead',{event_category:'contact',event_label:'contact_form'});}catch(e){}}
+      else{err.textContent=d.error||"Не вдалося надіслати. Спробуйте ще раз.";submit.disabled=false;submit.textContent="Зв'яжіться зі мною";}
+    })
+    .catch(function(){err.textContent="Немає зв'язку. Спробуйте ще раз.";submit.disabled=false;submit.textContent="Зв'яжіться зі мною";});
+  });
+})();
+</script>
 
 
 <!-- ═══════════════════ CTA FINAL ═══════════════════ -->

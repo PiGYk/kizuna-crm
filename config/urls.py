@@ -9,7 +9,7 @@ from django.shortcuts import render, redirect
 from django.views.decorators.csrf import ensure_csrf_cookie
 
 from apps.clinic.media_serve import serve_media
-from apps.clinic.demo_views import demo_start
+from apps.clinic.demo_views import demo_start, contact_submit
 from apps.clinic.views import (
     superadmin_dashboard,
     superadmin_toggle_active,
@@ -186,6 +186,7 @@ urlpatterns = [
     path('terms/', legal_terms, name='legal_terms'),
     path('', landing, name='landing'),
     path('demo/start/', demo_start, name='demo_start'),
+    path('contact/submit/', contact_submit, name='contact_submit'),
     # Back-compat: name='dashboard' використовується у багатьох шаблонах
     # ({% url 'dashboard' %}). Залишаємо короткий alias на головну view нового
     # dashboard_builder, а під /dashboards/ — повний include з усіма під-URL.
