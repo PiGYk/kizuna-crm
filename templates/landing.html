@@ -23,6 +23,90 @@
     })(window, document, "clarity", "script", "y4x0bmxdxe");
   </script>
 
+  <!-- Meta Pixel Code -->
+  <script>
+  !function(f,b,e,v,n,t,s)
+  {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+  n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+  if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+  n.queue=[];t=b.createElement(e);t.async=!0;
+  t.src=v;s=b.getElementsByTagName(e)[0];
+  s.parentNode.insertBefore(t,s)}(window, document,'script',
+  'https://connect.facebook.net/en_US/fbevents.js');
+  fbq('init', '1486580763637268');
+  fbq('track', 'PageView');
+  </script>
+  <noscript><img height="1" width="1" style="display:none"
+  src="https://www.facebook.com/tr?id=1486580763637268&ev=PageView&noscript=1"
+  /></noscript>
+  <!-- End Meta Pixel Code -->
+  <!-- kz-meta-events: цільові дії -> Meta Pixel -->
+  <script>
+  (function(){
+    function T(n,p){ try{ if(window.fbq) fbq('track', n, p||Object()); }catch(e){} }
+    window.kzTrack = T;
+
+    // 1) наявні gtag-події дублюємо в Мету (одна точка замість правок у 8 місцях)
+    var MAP = Object();
+    MAP['generate_lead']      = 'Lead';
+    MAP['begin_registration'] = 'InitiateCheckout';
+    MAP['open_demo']          = 'ViewContent';
+    var g = window.gtag;
+    if (typeof g === 'function') {
+      window.gtag = function(){
+        try{
+          if (arguments[0] === 'event' && MAP[arguments[1]]) {
+            var pr = arguments[2] || Object();
+            T(MAP[arguments[1]], Object.assign(Object(), {
+              content_name: pr.event_label || '',
+              content_category: pr.event_category || ''
+            }));
+          }
+        }catch(e){}
+        return g.apply(this, arguments);
+      };
+    }
+
+    // 2) успіх заявки ловимо по ВІДПОВІДІ сервера, а не по кліку
+    var of = window.fetch;
+    if (typeof of === 'function') {
+      window.fetch = function(){
+        var u = '';
+        try{ u = (arguments[0] && arguments[0].url) ? arguments[0].url : String(arguments[0] || ''); }catch(e){}
+        var pr = of.apply(this, arguments);
+        try{
+          var hit = null;
+          if (u.indexOf('/demo/start/') !== -1)      hit = 'demo';
+          else if (u.indexOf('/contact/submit/') !== -1) hit = 'contact';
+          else if (u.indexOf('/help/chat/lead/') !== -1) hit = 'chat';
+          if (hit) {
+            pr.then(function(r){
+              r.clone().json().then(function(d){
+                if (!d) return;
+                var ok = (d.ok === true) || (d.success === true);
+                if (!ok) return;
+                T('Lead', { content_name: hit, value: 1, currency: 'UAH' });
+                if (hit === 'demo') T('CompleteRegistration', { content_name: 'demo' });
+              }).catch(function(){});
+            }).catch(function(){});
+          }
+        }catch(e){}
+        return pr;
+      };
+    }
+
+    // 3) клік по телефону = контакт
+    document.addEventListener('DOMContentLoaded', function(){
+      var tels = document.querySelectorAll('a[href^="tel:"]');
+      for (var i = 0; i < tels.length; i++) {
+        tels[i].addEventListener('click', function(){ T('Contact', { content_name: 'phone' }); });
+      }
+    });
+  })();
+  </script>
+  <!-- /kz-meta-events -->
+
+
   <!-- SEO -->
   <title>Kizuna CRM — Ветеринарна CRM система для клінік України</title>
   <meta name="description" content="Kizuna CRM — хмарна CRM для ветеринарних клінік. Облік клієнтів та тварин, розклад прийомів, склад, білінг, фіскалізація Checkbox, Telegram-бот. Спробуйте безкоштовно.">
@@ -258,7 +342,7 @@
 
 <section id="pain" class="kz-live">
   <div class="kz-head">
-    <h2>Впізнаєте себе?</h2>
+    <h2>Шість щоденних болячок клініки</h2>
     <p>Спершу — як воно зазвичай буває. Поруч — справжні екрани системи: та сама розмітка, що працює в клініці щодня.</p>
   </div>
 
@@ -636,14 +720,15 @@
     <div class="text-center mb-8">
       <h2 class="text-3xl lg:text-4xl font-extrabold text-brand-dark mb-4">Одна ціна за клініку</h2>
       <p class="text-gray-500 text-lg">Не за лікаря. Не за робоче місце. Скільки б вас не було —
-        ціна не змінюється.</p>
+        ціна не змінюється. Система в усіх пакетах однакова: різниця тільки в тому,
+        скільки ми поруч із вами.</p>
     </div>
 
     <!-- Порівняння моделі оплати: головна перевага -->
     <div class="max-w-3xl mx-auto mb-14 rounded-2xl border border-gray-200 bg-brand-cream p-6">
       <p class="text-sm text-gray-600 leading-relaxed text-center">
         Більшість ветеринарних програм в Україні беруть плату <strong>за кожного лікаря</strong>:
-        близько 700 ₴ на місяць за одного. Клініка з чотирма лікарями віддає під 2 800 ₴ —
+        близько 300 ₴ на місяць за одного. Клініка з шістьма лікарями віддає 1 800 ₴ —
         і платить більше щоразу, коли наймає людину.
         <br class="hidden md:block">
         <span class="text-brand-dark font-semibold">У нас — 900 ₴ за всю клініку.
@@ -1038,7 +1123,7 @@
     <div class="absolute bottom-0 right-1/4 w-64 h-64 rounded-full bg-brand-gold/5 blur-3xl"></div>
   </div>
   <div class="relative max-w-2xl mx-auto">
-    <h2 class="text-4xl font-extrabold text-white mb-4">Готові спробувати?</h2>
+    <h2 class="text-4xl font-extrabold text-white mb-4">Клініка запрацює в системі сьогодні</h2>
     <p class="text-white/60 text-lg mb-8">30 днів безкоштовно. Без кредитної картки. Без обмежень функцій.</p>
     <a href="https://crm.kizuna.com.ua/register/"
        onclick="gtag('event','begin_registration',{event_category:'cta',event_label:'bottom_cta'})"
@@ -1235,11 +1320,28 @@
       body:body.toString()})
     .then(function(r){return r.json().catch(function(){return {ok:false,error:"Помилка сервера"};});})
     .then(function(d){
-      if(d.ok&&d.redirect){location.href=d.redirect;}
+      if(d.ok&&d.redirect){
+        var go=function(){location.href=d.redirect;};
+        try{gtag('event','demo_started',{event_category:'demo',event_label:'demo_modal',event_callback:go});setTimeout(go,600);}catch(e){go();}
+      }
       else{err.textContent=d.error||"Не вдалося. Спробуйте ще раз.";submit.disabled=false;submit.textContent="Відкрити демо →";}
     })
     .catch(function(){err.textContent="Немає зв’язку. Спробуйте ще раз.";submit.disabled=false;submit.textContent="Відкрити демо →";});
   });
+})();
+</script>
+
+<!-- Клік по телефону / пошті -> GA4 -->
+<script>
+(function(){
+  function ev(n,l){try{gtag('event',n,{event_category:'contact',event_label:l});}catch(e){}}
+  document.addEventListener('click',function(e){
+    var t=e.target; if(!t||!t.closest) return;
+    var a=t.closest('a[href^="tel:"],a[href^="mailto:"]');
+    if(!a) return;
+    var where=a.closest('footer')?'footer':(a.closest('nav')?'navbar':'page');
+    ev(a.getAttribute('href').slice(0,4)==='tel:'?'click_phone':'click_email', where);
+  }, true);
 })();
 </script>
 {% include "_chat_widget.html" %}
