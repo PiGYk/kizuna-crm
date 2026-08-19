@@ -6,6 +6,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}Довідка Kizuna CRM{% endblock %}</title>
   <meta name="description" content="{% block meta_desc %}Довідка Kizuna CRM — покрокові пояснення для персоналу ветеринарної клініки.{% endblock %}">
+  <link rel="canonical" href="https://product.kizuna.com.ua{{ request.path }}">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Kizuna CRM">
+  <meta property="og:locale" content="uk_UA">
+  <meta property="og:url" content="https://product.kizuna.com.ua{{ request.path }}">
+  <meta property="og:title" content="{% block og_title %}Довідка Kizuna CRM{% endblock %}">
+  <meta property="og:description" content="{% block og_desc %}Довідка Kizuna CRM — покрокові пояснення для персоналу ветеринарної клініки.{% endblock %}">
+  <meta property="og:image" content="https://product.kizuna.com.ua{% static 'img/og-image.jpg' %}">
+  <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" type="image/x-icon" href="{% static 'img/favicon.ico' %}">
   <meta name="theme-color" content="#12100F">
   <link rel="preconnect" href="https://fonts.googleapis.com">

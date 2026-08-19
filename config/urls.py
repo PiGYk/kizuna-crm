@@ -102,35 +102,36 @@ Sitemap: https://product.kizuna.com.ua/sitemap.xml
 
 
 def sitemap_xml(request):
+    """Карта сайту маркетингового домену: лендінг, правові сторінки і вся Довідка.
+    Реєстрація/вхід живуть на crm.* — у карту product не потрапляють."""
     now = timezone.now().strftime('%Y-%m-%d')
-    content = f"""<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>https://product.kizuna.com.ua/</loc>
-    <lastmod>{now}</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>1.0</priority>
-  </url>
-  <url>
-    <loc>https://product.kizuna.com.ua/register/</loc>
-    <lastmod>{now}</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://product.kizuna.com.ua/terms/</loc>
-    <lastmod>{now}</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.4</priority>
-  </url>
-  <url>
-    <loc>https://product.kizuna.com.ua/offer/</loc>
-    <lastmod>{now}</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.4</priority>
-  </url>
-</urlset>"""
-    return HttpResponse(content, content_type='application/xml; charset=utf-8')
+    base = 'https://product.kizuna.com.ua'
+    items = [
+        (f'{base}/', 'weekly', '1.0'),
+        (f'{base}/help/', 'weekly', '0.8'),
+        (f'{base}/terms/', 'monthly', '0.4'),
+        (f'{base}/offer/', 'monthly', '0.4'),
+    ]
+    try:
+        from apps.help import content as help_content
+        for cat in help_content.build_tree():
+            for art in cat['articles']:
+                items.append((f"{base}/help/{cat['slug']}/{art['slug']}/", 'monthly', '0.6'))
+    except Exception:
+        pass
+
+    body = ''.join(
+        f"  <url>\n    <loc>{loc}</loc>\n    <lastmod>{now}</lastmod>\n"
+        f"    <changefreq>{freq}</changefreq>\n    <priority>{prio}</priority>\n  </url>\n"
+        for loc, freq, prio in items
+    )
+    content = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        + body +
+        '</urlset>\n'
+    )
+    return HttpResponse(content, content_type='application/xml')
 
 
 def trial_expired(request):

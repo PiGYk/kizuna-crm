@@ -1,6 +1,8 @@
 {% extends "help/base.html" %}
 {% block title %}{{ article.title }} — Довідка Kizuna CRM{% endblock %}
 {% block meta_desc %}Довідка Kizuna CRM: {{ article.title }}. Покрокові пояснення для персоналу ветеринарної клініки.{% endblock %}
+{% block og_title %}{{ article.title }} — Довідка Kizuna CRM{% endblock %}
+{% block og_desc %}{{ article.title }}: покрокове пояснення для персоналу ветеринарної клініки в Kizuna CRM.{% endblock %}
 {% block help_center %}
   <main class="help-main">
     <button class="help-nav-toggle" id="help-nav-toggle" aria-label="Відкрити розділи">

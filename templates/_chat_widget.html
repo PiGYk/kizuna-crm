@@ -70,7 +70,9 @@
 
   var history=[];
   var busy=false;
-  var STORE='kzc-collapsed';
+  // Вибір «відкрито/згорнуто» памʼятаємо ОКРЕМО для вітрини й для Довідки:
+  // інакше відкритий на лендінгу чат їде в статтю і закриває її зміст.
+  var STORE = location.pathname.indexOf('/help/')===0 ? 'kzc-collapsed-help' : 'kzc-collapsed-land';
 
   function collapsed(v){
     if(v===undefined)return root.classList.contains('is-collapsed');
