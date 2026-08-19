@@ -1,0 +1,148 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Довідка Kizuna CRM{% endblock %}</title>
+  <meta name="description" content="{% block meta_desc %}Довідка Kizuna CRM — покрокові пояснення для персоналу ветеринарної клініки.{% endblock %}">
+  <link rel="icon" type="image/x-icon" href="{% static 'img/favicon.ico' %}">
+  <meta name="theme-color" content="#12100F">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/landing.min.css' %}">
+  <link rel="stylesheet" href="{% static 'css/help.css' %}">
+</head>
+<body class="help-body">
+
+<nav class="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100">
+  <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+    <a href="/" class="flex items-center gap-3">
+      <img src="{% static 'img/logo.svg' %}" alt="Kizuna CRM" class="h-10 w-auto">
+      <span class="font-bold text-lg text-brand-dark">Kizuna CRM</span>
+    </a>
+    <div class="hidden md:flex items-center gap-8 text-sm text-gray-600">
+      <a href="/#pain" class="hover:text-brand-gold transition-colors">Можливості</a>
+      <a href="/#pricing" class="hover:text-brand-gold transition-colors">Тарифи</a>
+      <a href="/help/" class="text-brand-gold font-semibold">Довідка</a>
+    </div>
+    <div class="flex items-center gap-4">
+      <a href="/login/" class="text-sm text-gray-600 hover:text-brand-dark transition-colors hidden sm:inline">Увійти</a>
+      <a href="/register/" class="px-4 py-2 gradient-gold text-brand-dark rounded-lg text-sm font-semibold hover:brightness-95 transition-all whitespace-nowrap">
+        <span class="sm:hidden">Спробувати</span>
+        <span class="hidden sm:inline">Спробувати безкоштовно</span>
+      </a>
+    </div>
+  </div>
+</nav>
+
+<div class="help-scrim" id="help-scrim"></div>
+
+<div class="help-search">
+  <form class="help-search-form" action="{% url 'help:search' %}" method="get" role="search" autocomplete="off">
+    <svg class="help-search-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="2"/><path d="M14 14l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    <input type="search" name="q" id="help-q" class="help-search-input" placeholder="Пошук у Довідці — наприклад «створити чек», «вакцина»…" value="{{ query|default:'' }}" aria-label="Пошук у Довідці">
+  </form>
+  <div class="help-search-panel" id="help-search-panel" hidden></div>
+</div>
+
+<div class="help-layout">
+  <aside class="help-sidebar" id="help-sidebar">
+    <div class="help-sidebar-head">Довідка</div>
+    <nav class="help-tree">
+      {% for cat in help_tree %}
+      <div class="help-cat">
+        <div class="help-cat-title">{{ cat.title }}</div>
+        <ul>
+          {% for a in cat.articles %}
+          <li><a href="{% url 'help:article' cat.slug a.slug %}"{% if cat.slug == active_cat and a.slug == active_art %} class="is-active"{% endif %}>{{ a.title }}</a></li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endfor %}
+    </nav>
+  </aside>
+
+  {% block help_center %}{% endblock %}
+</div>
+
+<footer class="bg-brand-dark py-10 px-6">
+  <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+    <div class="flex items-center gap-3">
+      <img src="{% static 'img/logo.svg' %}" alt="Kizuna CRM" class="h-7 w-auto opacity-80">
+      <span class="text-white/60 text-sm">Kizuna CRM — ветеринарна CRM система</span>
+    </div>
+    <div class="flex flex-wrap items-center justify-center md:justify-end gap-x-5 gap-y-2 text-sm text-white/40">
+      <a href="/help/" class="hover:text-brand-gold transition-colors">Довідка</a>
+      <a href="/register/" class="hover:text-brand-gold transition-colors">Реєстрація</a>
+      <a href="/login/" class="hover:text-brand-gold transition-colors">Вхід</a>
+      <a href="/terms/" class="hover:text-brand-gold transition-colors">Умови використання</a>
+      <a href="/offer/" class="hover:text-brand-gold transition-colors">Публічна оферта</a>
+      <span>© 2025–2026 Kizuna CRM</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var t=document.getElementById('help-nav-toggle');
+  var s=document.getElementById('help-sidebar');
+  var scrim=document.getElementById('help-scrim');
+  function close(){s.classList.remove('is-open');scrim.classList.remove('is-open');}
+  if(t&&s&&scrim){
+    t.addEventListener('click',function(){s.classList.toggle('is-open');scrim.classList.toggle('is-open');});
+    scrim.addEventListener('click',close);
+    s.addEventListener('click',function(e){if(e.target.tagName==='A')close();});
+  }
+})();
+(function(){
+  var input=document.getElementById('help-q');
+  var panel=document.getElementById('help-search-panel');
+  if(!input||!panel)return;
+  var index=null,loading=false;
+  function load(){
+    if(index||loading)return;
+    loading=true;
+    fetch('/help/search.json').then(function(r){return r.json();}).then(function(d){index=d.items||[];render(input.value.trim());}).catch(function(){index=[];});
+  }
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+  function snippet(text,words){
+    var low=text.toLowerCase(),pos=-1;
+    for(var i=0;i<words.length;i++){var p=low.indexOf(words[i]);if(p>=0&&(pos<0||p<pos))pos=p;}
+    if(pos<0)pos=0;
+    var start=Math.max(0,pos-45),frag=text.slice(start,start+150);
+    if(start>0)frag='…'+frag;
+    if(start+150<text.length)frag=frag+'…';
+    return frag;
+  }
+  function render(q){
+    var words=q.toLowerCase().split(/\s+/).filter(Boolean);
+    if(!words.length||!index){panel.hidden=true;panel.innerHTML='';return;}
+    var res=[];
+    for(var i=0;i<index.length;i++){
+      var it=index[i],t=it.title.toLowerCase(),all=t+' '+it.text.toLowerCase(),ok=true;
+      for(var w=0;w<words.length;w++){if(all.indexOf(words[w])<0){ok=false;break;}}
+      if(!ok)continue;
+      var score=0;
+      for(var w2=0;w2<words.length;w2++){score+=t.indexOf(words[w2])>=0?3:1;}
+      res.push({it:it,score:score});
+    }
+    res.sort(function(a,b){return b.score-a.score;});
+    res=res.slice(0,12);
+    if(!res.length){panel.innerHTML='<div class=\"help-search-empty\">Нічого не знайдено. Спробуйте інше слово.</div>';panel.hidden=false;return;}
+    var html='';
+    for(var k=0;k<res.length;k++){
+      var it2=res[k].it,url='/help/'+it2.cat_slug+'/'+it2.slug+'/';
+      html+='<a class=\"help-search-item\" href=\"'+url+'\"><span class=\"help-search-sect\">'+esc(it2.cat_title)+'</span><span class=\"help-search-title\">'+esc(it2.title)+'</span><span class=\"help-search-snip\">'+esc(snippet(it2.text,words))+'</span></a>';
+    }
+    panel.innerHTML=html;panel.hidden=false;
+  }
+  input.addEventListener('focus',load);
+  input.addEventListener('input',function(){if(index)render(input.value.trim());else load();});
+  document.addEventListener('click',function(e){if(!panel.contains(e.target)&&e.target!==input)panel.hidden=true;});
+  input.addEventListener('keydown',function(e){if(e.key==='Escape'){panel.hidden=true;input.blur();}});
+})();
+</script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from django.shortcuts import redirect, render
 
 from . import content
@@ -30,3 +30,20 @@ def help_article(request, cat_slug, art_slug):
     )
     ctx.update({"article": data, "cat_title": cat_title})
     return render(request, "help/article.html", ctx)
+
+
+def help_search(request):
+    """Серверна сторінка результатів пошуку (фолбек без JS + окрема адреса)."""
+    q = (request.GET.get("q") or "").strip()
+    results = content.search(q) if q else []
+    ctx = _base_ctx()
+    ctx.update({"query": q, "results": results})
+    return render(request, "help/search.html", ctx)
+
+
+def help_search_json(request):
+    """Індекс усіх статей для миттєвого пошуку в браузері."""
+    return JsonResponse(
+        {"items": content.search_index()},
+        json_dumps_params={"ensure_ascii": False},
+    )

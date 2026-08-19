@@ -1,0 +1,35 @@
+{% extends "help/base.html" %}
+{% block title %}{% if query %}Пошук: {{ query }}{% else %}Пошук{% endif %} — Довідка Kizuna CRM{% endblock %}
+{% block help_center %}
+  <main class="help-main">
+    <button class="help-nav-toggle" id="help-nav-toggle" aria-label="Відкрити розділи">
+      <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      Розділи
+    </button>
+    <nav class="help-crumbs" aria-label="Хлібні крихти">
+      <a href="/help/">Довідка</a><span>/</span>
+      <span class="help-crumb-current">Пошук</span>
+    </nav>
+    <article class="help-article">
+      <h1>Пошук у Довідці</h1>
+      {% if query %}
+        {% if results %}
+          <p class="help-search-count">Знайдено за запитом «{{ query }}»: {{ results|length }}.</p>
+          <div class="help-search-results">
+            {% for r in results %}
+            <a class="help-result" href="{% url 'help:article' r.cat_slug r.slug %}">
+              <span class="help-result-sect">{{ r.cat_title }}</span>
+              <span class="help-result-title">{{ r.title }}</span>
+              <span class="help-result-snip">{{ r.snippet }}</span>
+            </a>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p>За запитом «{{ query }}» нічого не знайдено. Спробуйте інше слово — наприклад «чек», «склад», «запис», «вакцина».</p>
+        {% endif %}
+      {% else %}
+        <p>Введіть слово у поле пошуку вгорі сторінки — наприклад «створити чек», «вакцина», «зарплата». Підказки з’являться одразу під час набору.</p>
+      {% endif %}
+    </article>
+  </main>
+{% endblock %}

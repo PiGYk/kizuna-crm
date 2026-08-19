@@ -136,3 +136,86 @@ def first_article():
         if cat["articles"]:
             return cat["slug"], cat["articles"][0]["slug"]
     return None, None
+
+
+# ── Пошук по Довідці ─────────────────────────────────────────────────────────
+import html as _htmllib
+
+_TAG_RE = re.compile(r"<[^>]+>")
+_WS_RE = re.compile(r"\s+")
+_INDEX_CACHE = None
+
+
+def _plain_text(body, limit=2000):
+    """Markdown → чистий текст для індексу пошуку."""
+    md = markdown.Markdown(extensions=["extra"])
+    raw = _TAG_RE.sub(" ", md.convert(body))
+    raw = _htmllib.unescape(raw)
+    raw = _WS_RE.sub(" ", raw).strip()
+    return raw[:limit]
+
+
+def search_index():
+    """Список статей для пошуку (кеш на час життя процесу)."""
+    global _INDEX_CACHE
+    if _INDEX_CACHE is not None:
+        return _INDEX_CACHE
+    items = []
+    for cat in build_tree():
+        for a in cat["articles"]:
+            path = _find_file(cat["slug"], a["slug"])
+            if path is None:
+                continue
+            _, body = _parse_frontmatter(_read(path))
+            items.append({
+                "cat_slug": cat["slug"],
+                "cat_title": cat["title"],
+                "slug": a["slug"],
+                "title": a["title"],
+                "text": _plain_text(body),
+            })
+    _INDEX_CACHE = items
+    return items
+
+
+def _snippet(text, words, width=150):
+    low = text.lower()
+    pos = -1
+    for w in words:
+        p = low.find(w)
+        if p >= 0 and (pos < 0 or p < pos):
+            pos = p
+    if pos < 0:
+        pos = 0
+    start = max(0, pos - 45)
+    frag = text[start:start + width]
+    if start > 0:
+        frag = "…" + frag
+    if start + width < len(text):
+        frag = frag + "…"
+    return frag
+
+
+def search(q, limit=30):
+    """Серверний пошук: усі слова запиту мають бути в назві або тексті статті."""
+    words = [w for w in q.lower().split() if w]
+    if not words:
+        return []
+    out = []
+    for it in search_index():
+        title_low = it["title"].lower()
+        text_low = it["text"].lower()
+        hay = title_low + " " + text_low
+        if not all(w in hay for w in words):
+            continue
+        score = sum(3 if w in title_low else 1 for w in words)
+        out.append({
+            "cat_slug": it["cat_slug"],
+            "cat_title": it["cat_title"],
+            "slug": it["slug"],
+            "title": it["title"],
+            "snippet": _snippet(it["text"], words),
+            "score": score,
+        })
+    out.sort(key=lambda x: -x["score"])
+    return out[:limit]
