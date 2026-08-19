@@ -108,6 +108,8 @@
 .help-article a{color:var(--kz-link);text-decoration:underline;text-underline-offset:2px;}
 .help-article a:hover{color:var(--kz-gold);}
 .help-article ul,.help-article ol{margin:0 0 16px;padding-left:24px;line-height:1.7;}
+.help-article ul{list-style:disc outside;}
+.help-article ol{list-style:decimal outside;}
 .help-article li{margin:6px 0;}
 .help-article li::marker{color:var(--kz-gold);}
 .help-article blockquote{
