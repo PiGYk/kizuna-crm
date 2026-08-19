@@ -185,6 +185,7 @@ urlpatterns = [
     path('offer/', legal_offer, name='legal_offer'),
     path('terms/', legal_terms, name='legal_terms'),
     path('', landing, name='landing'),
+    path('help/', include('apps.help.urls')),
     path('demo/start/', demo_start, name='demo_start'),
     path('contact/submit/', contact_submit, name='contact_submit'),
     # Back-compat: name='dashboard' використовується у багатьох шаблонах

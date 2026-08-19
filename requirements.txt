@@ -12,3 +12,4 @@ celery[redis]>=5.3
 django-celery-beat>=2.6
 redis>=5.0
 django-axes>=6.4
+markdown==3.7

@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     'axes',
     # apps
     'apps.clinic',
+    'apps.help',
     'apps.accounts',
     'apps.clients',
     'apps.inventory',
