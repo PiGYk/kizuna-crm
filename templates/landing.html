@@ -591,14 +591,7 @@
     <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
 
       <!-- База -->
-      <div class="rounded-2xl border-2 border-brand-gold p-8 relative shadow-xl shadow-brand-gold/10">
-        <!-- Центрування через inline-стилі: клас -translate-x-1/2 відсутній у зібраному landing.min.css -->
-        <div style="position:absolute;top:-14px;left:0;right:0;text-align:center;">
-          <span class="gradient-gold text-brand-dark text-xs font-bold rounded-full"
-                style="display:inline-block;padding:4px 16px;white-space:nowrap;">
-            Обирають найчастіше
-          </span>
-        </div>
+      <div class="rounded-2xl border border-gray-200 p-8">
         <div class="text-sm font-semibold text-brand-gold mb-2">База</div>
         <div class="text-4xl font-extrabold text-brand-dark mb-1">₴900<span class="text-lg font-normal text-gray-400">/міс</span></div>
         <p class="text-gray-400 text-xs mb-4">₴720/міс при оплаті за рік</p>
@@ -612,16 +605,23 @@
           <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Аналітика, зарплати, фінанси</li>
         </ul>
         <a href="/register/" onclick="gtag('event','begin_registration',{event_category:'pricing',event_label:'base'})"
-           class="block text-center py-2.5 gradient-gold text-brand-dark rounded-xl font-bold text-sm hover:brightness-95 transition-all">
+           class="block text-center py-2.5 border-2 border-brand-gold text-brand-gold rounded-xl font-semibold text-sm hover:bg-brand-gold hover:text-brand-dark transition-all">
           Почати безкоштовно →
         </a>
       </div>
 
       <!-- Підтримка -->
-      <div class="rounded-2xl border border-gray-200 p-8">
-        <div class="text-sm font-semibold text-gray-500 mb-2">Підтримка</div>
-        <div class="text-4xl font-extrabold text-brand-dark mb-1">₴2 200<span class="text-lg font-normal text-gray-400">/міс</span></div>
-        <p class="text-gray-400 text-xs mb-4">₴1 760/міс при оплаті за рік</p>
+      <div class="rounded-2xl border-2 border-brand-gold p-8 relative shadow-xl shadow-brand-gold/10">
+        <!-- Центрування через inline-стилі: клас -translate-x-1/2 відсутній у зібраному landing.min.css -->
+        <div style="position:absolute;top:-14px;left:0;right:0;text-align:center;">
+          <span class="gradient-gold text-brand-dark text-xs font-bold rounded-full"
+                style="display:inline-block;padding:4px 16px;white-space:nowrap;">
+            Обирають найчастіше
+          </span>
+        </div>
+        <div class="text-sm font-semibold text-brand-gold mb-2">Підтримка</div>
+        <div class="text-4xl font-extrabold text-brand-dark mb-1">₴1 300<span class="text-lg font-normal text-gray-400">/міс</span></div>
+        <p class="text-gray-400 text-xs mb-4">₴1 040/міс при оплаті за рік</p>
         <p class="text-gray-500 text-sm mb-8">Коли не хочеться розбиратися самим — я веду вас особисто.</p>
         <ul class="space-y-3 text-sm text-gray-600 mb-8">
           <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Усе з «Бази»</li>
@@ -632,7 +632,7 @@
           <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Ваші побажання — у першу чергу</li>
         </ul>
         <a href="/register/" onclick="gtag('event','begin_registration',{event_category:'pricing',event_label:'support'})"
-           class="block text-center py-2.5 border-2 border-brand-gold text-brand-gold rounded-xl font-semibold text-sm hover:bg-brand-gold hover:text-brand-dark transition-all">
+           class="block text-center py-2.5 gradient-gold text-brand-dark rounded-xl font-bold text-sm hover:brightness-95 transition-all">
           Спробувати
         </a>
       </div>
@@ -640,16 +640,16 @@
       <!-- Індивідуальний -->
       <div class="rounded-2xl border border-gray-200 p-8">
         <div class="text-sm font-semibold text-gray-500 mb-2">Індивідуальний</div>
-        <div class="text-4xl font-extrabold text-brand-dark mb-1">від ₴4 500<span class="text-lg font-normal text-gray-400">/міс</span></div>
+        <div class="text-4xl font-extrabold text-brand-dark mb-1">від ₴5 000<span class="text-lg font-normal text-gray-400">/міс</span></div>
         <p class="text-gray-400 text-xs mb-4">Вартість — після розмови про задачі</p>
         <p class="text-gray-500 text-sm mb-8">Коли клініка працює інакше, ніж усі — систему підганяємо під неї.</p>
         <ul class="space-y-3 text-sm text-gray-600 mb-8">
           <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Усе з «Підтримки»</li>
-          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Доробки під ваші процеси</li>
-          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Свої звіти й документи</li>
-          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Інтеграції з вашими сервісами</li>
+          <li class="flex items-start gap-2"><span class="text-green-500 mt-0.5">✓</span> Заводимо накладні за вас — скидаєте, вносимо з вашими цінами</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Інтеграція з Checkbox і будь-якою платіжкою</li>
           <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Кілька філій в одній системі</li>
           <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Домовлений час реакції</li>
+          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Свої звіти й документи</li>
         </ul>
         <a href="/register/" onclick="gtag('event','begin_registration',{event_category:'pricing',event_label:'custom'})"
            class="block text-center py-2.5 border-2 border-brand-gold text-brand-gold rounded-xl font-semibold text-sm hover:bg-brand-gold hover:text-brand-dark transition-all">
