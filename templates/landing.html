@@ -186,6 +186,122 @@
     .kzh-nav .bg-brand-dark{background:#fff !important; color:#12100F !important;}
     .kzh-nav img{filter:brightness(0) invert(1);}
 
+
+    /* ─── ЖИВИЙ СЦЕНАРІЙ CRM (розмітка з реальних екранів) ─── */
+    .kzh-grid{
+      display:grid; grid-template-columns:minmax(0,1fr) 560px; gap:56px; align-items:center;
+    }
+    .kzs{
+      position:relative; width:100%;
+      border-radius:14px; overflow:hidden;
+      border:1px solid rgba(255,255,255,.10);
+      background:#151311;
+      box-shadow:0 30px 70px rgba(0,0,0,.45);
+    }
+    .kzs-bar{
+      display:flex; align-items:center; gap:7px;
+      padding:11px 14px; background:#151311;
+      border-bottom:1px solid rgba(255,255,255,.07);
+    }
+    .kzs-bar i{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.16);}
+    .kzs-bar b{margin-left:8px;color:rgba(255,255,255,.5);font-size:12px;font-weight:500;}
+
+    .kzs-body{position:relative; display:flex; height:390px; background:#f9fafb;}
+    /* бічне меню — як у CRM */
+    .kzs-nav{
+      width:132px; flex-shrink:0; background:#12100F; padding:14px 0;
+      display:flex; flex-direction:column; gap:2px;
+    }
+    .kzs-nav span{
+      font-size:11.5px; color:rgba(255,255,255,.45); padding:7px 14px;
+      display:block; white-space:nowrap;
+    }
+    .kzs-nav span.on{background:rgba(222,170,1,.14); color:#DEAA01; font-weight:600;}
+
+    .kzs-main{position:relative; flex:1; min-width:0; overflow:hidden;}
+    .kzs-screen{
+      position:absolute; inset:0; padding:18px 20px;
+      opacity:0; transform:translateY(6px);
+      animation:kzs-cycle 15s cubic-bezier(.4,0,.2,1) infinite;
+    }
+    .kzs-screen:nth-child(1){animation-delay:0s;}
+    .kzs-screen:nth-child(2){animation-delay:5s;}
+    .kzs-screen:nth-child(3){animation-delay:10s;}
+    @keyframes kzs-cycle{
+      0%   {opacity:0; transform:translateY(6px);}
+      3%   {opacity:1; transform:none;}
+      30%  {opacity:1; transform:none;}
+      34%  {opacity:0; transform:translateY(-4px);}
+      100% {opacity:0; transform:translateY(6px);}
+    }
+
+    .kzs-h{font-size:19px; font-weight:700; color:#12100F; letter-spacing:-.01em;}
+    .kzs-sm{font-size:11.5px; color:#8a8478;}
+    .kzs-lbl{font-size:10.5px; letter-spacing:.05em; text-transform:uppercase; color:#8a8478; font-weight:600;}
+    .kzs-card{
+      background:#fff; border:1px solid #ece7e1; border-radius:10px; padding:12px 14px;
+    }
+    .kzs-row{display:flex; justify-content:space-between; font-size:12.5px; color:#2b2723; padding:4px 0;}
+    .kzs-row b{color:#12100F; font-weight:600;}
+    .kzs-pill{
+      display:inline-flex; align-items:center; gap:6px;
+      background:#fbf3d8; color:#8a6d00; border-radius:999px;
+      padding:4px 10px; font-size:11px; font-weight:600;
+    }
+    .kzs-btn{
+      display:inline-flex; align-items:center; gap:5px;
+      background:#DEAA01; color:#12100F; border-radius:8px;
+      padding:6px 12px; font-size:11.5px; font-weight:700;
+    }
+    .kzs-btn.ghost{background:#fff; border:1px solid #ece7e1; color:#2b2723; font-weight:600;}
+    .kzs-field{
+      background:#fff; border:1px solid #ece7e1; border-radius:8px;
+      padding:8px 10px; font-size:12px; color:#2b2723;
+    }
+    .kzs-field u{display:block; font-size:10px; color:#8a8478; text-decoration:none; margin-bottom:3px;}
+
+    /* курсор, що веде сценарій */
+    .kzs-cursor{
+      position:absolute; left:0; top:0; width:16px; height:16px; z-index:6;
+      pointer-events:none;
+      animation:kzs-move 15s cubic-bezier(.4,0,.2,1) infinite;
+    }
+    .kzs-cursor svg{display:block; filter:drop-shadow(0 2px 4px rgba(0,0,0,.35));}
+    @keyframes kzs-move{
+      0%,4%   {transform:translate(310px,300px); opacity:0;}
+      10%     {transform:translate(200px,150px); opacity:1;}
+      28%     {transform:translate(200px,150px); opacity:1;}
+      32%     {transform:translate(330px,60px);  opacity:1;}
+      60%     {transform:translate(330px,60px);  opacity:1;}
+      66%     {transform:translate(240px,250px); opacity:1;}
+      92%     {transform:translate(240px,250px); opacity:.9;}
+      100%    {transform:translate(310px,300px); opacity:0;}
+    }
+    /* текст, що друкується у «Скаргах» */
+    .kzs-type{
+      display:inline-block; overflow:hidden; white-space:nowrap;
+      border-right:1.5px solid #DEAA01;
+      width:0; animation:kzs-typing 3.4s steps(34,end) 10.6s infinite;
+      vertical-align:bottom;
+    }
+    @keyframes kzs-typing{0%{width:0} 55%{width:20ch} 100%{width:20ch}}
+
+    @media (prefers-reduced-motion:reduce){
+      .kzs-screen,.kzs-cursor,.kzs-type{animation:none;}
+      .kzs-screen:nth-child(1){opacity:1; transform:none;}
+      .kzs-screen:nth-child(2),.kzs-screen:nth-child(3){display:none;}
+      .kzs-cursor{display:none;}
+      .kzs-type{width:20ch; border-right:none;}
+    }
+
+    @media(max-width:1180px){
+      .kzh-grid{grid-template-columns:1fr; gap:44px;}
+      .kzs{max-width:560px;}
+    }
+    @media(max-width:820px){
+      .kzs{display:none;}
+    }
+
     /* ─── ГЕРОЙ v2 (розбір Attio + Linear: текст ліворуч, продукт за край) ─── */
     .kzh{
       position:relative;
@@ -346,6 +462,7 @@
 <!-- ═══════════════════ HERO ═══════════════════ -->
 <section class="kzh">
   <div class="kzh-wrap">
+   <div class="kzh-grid">
     <div class="kzh-top">
       <div class="kzh-eyebrow"><s></s>Дві клініки працюють у системі щодня</div>
 
@@ -371,6 +488,87 @@
 
       <p class="kzh-note"><b>900 ₴ на місяць за всю клініку</b> · без картки · без обмежень функцій</p>
     </div>
+
+    <!-- живий сценарій: клієнт → пацієнт → новий візит (розмітка з реальної CRM) -->
+    <div class="kzs" aria-hidden="true">
+      <div class="kzs-bar"><i></i><i></i><i></i><b>Kizuna CRM</b></div>
+      <div class="kzs-body">
+        <div class="kzs-nav">
+          <span>Дашборд</span>
+          <span class="on">Клієнти</span>
+          <span>Пацієнти</span>
+          <span>Розклад</span>
+          <span>Каса</span>
+          <span>Склад</span>
+        </div>
+        <div class="kzs-main">
+
+          <!-- 1. картка клієнта -->
+          <div class="kzs-screen">
+            <div class="kzs-h">Єлизавета</div>
+            <div class="kzs-pill" style="margin-top:8px">🐾 Твік</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px">
+              <div class="kzs-card">
+                <div class="kzs-lbl" style="margin-bottom:8px">Контакти</div>
+                <div class="kzs-row"><span>Телефон</span><b>+380 63 815 75 58</b></div>
+                <div class="kzs-row"><span>Клієнт з</span><b>11.05.2026</b></div>
+              </div>
+              <div class="kzs-card">
+                <div class="kzs-lbl" style="margin-bottom:8px">Пацієнти</div>
+                <div style="display:flex;align-items:center;gap:9px">
+                  <div style="width:34px;height:34px;border-radius:8px;background:#f4efe9;display:flex;align-items:center;justify-content:center">🐾</div>
+                  <div><div style="font-size:13px;font-weight:700;color:#12100F">Твік</div><div class="kzs-sm">Кіт · 3 роки</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. картка пацієнта -->
+          <div class="kzs-screen">
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+              <span class="kzs-btn">+ Чек</span>
+              <span class="kzs-btn ghost">Госпіталізувати</span>
+              <span class="kzs-btn ghost">Медкартка PDF</span>
+            </div>
+            <div style="display:grid;grid-template-columns:150px 1fr;gap:12px">
+              <div class="kzs-card">
+                <div style="height:60px;border-radius:8px;background:#f4efe9;display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:10px">🐾</div>
+                <div class="kzs-row"><span>Стать</span><b>Кіт</b></div>
+                <div class="kzs-row"><span>Вік</span><b>3 роки</b></div>
+                <div class="kzs-row"><span>Лікар</span><b>Дергачова</b></div>
+              </div>
+              <div class="kzs-card">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+                  <span class="kzs-lbl">Історія маніпуляцій</span>
+                  <span style="font-size:11.5px;color:#8a6d00;font-weight:700">+ Візит</span>
+                </div>
+                <div class="kzs-sm">Маніпуляцій ще немає</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. новий візит -->
+          <div class="kzs-screen">
+            <div class="kzs-h">Новий візит</div>
+            <div class="kzs-sm" style="margin-bottom:14px">Твік · Єлизавета</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+              <div class="kzs-field"><u>Дата та час</u>19.08.2026, 11:44</div>
+              <div class="kzs-field"><u>Лікар</u>Катерина Дергачова</div>
+            </div>
+            <div class="kzs-field" style="min-height:74px">
+              <u>Скарги</u><span class="kzs-type">Кульгає на праву лапу</span>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="kzs-cursor">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 1.5l10.5 5.2-4.3 1.1-1.4 4.3L2 1.5z" fill="#fff" stroke="#12100F" stroke-width="1.1" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+    </div>
+
+   </div>
   </div>
 
   <div class="kzh-stage">
