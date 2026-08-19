@@ -39,9 +39,11 @@
     .visit-html strong { font-weight: 600; }
     .visit-html em { font-style: italic; }
   </style>
+  <link rel="stylesheet" href="{% static 'css/fixel.css' %}">
   <link rel="stylesheet" href="{% static 'css/mobile-overrides.css' %}">
   <link rel="stylesheet" href="{% static 'css/tg-mobile.css' %}">
   {% block extra_head %}{% endblock %}
+  <style>body{font-family:'Fixel',system-ui,-apple-system,sans-serif;}</style>
 </head>
 <body class="bg-brand-cream text-brand-dark">
 

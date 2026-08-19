@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="uk">
 <head>
@@ -10,8 +11,8 @@
       theme: { extend: { colors: { brand: { dark: '#12100F', gold: '#DEAA01' } } } }
     }
   </script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>body { font-family: 'Inter', sans-serif; }</style>
+  <link rel="stylesheet" href="{% static 'css/fixel.css' %}">
 </head>
 <body class="bg-brand-dark min-h-screen flex items-center justify-center px-4">
   <div class="text-center text-white">

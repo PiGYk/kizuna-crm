@@ -1,0 +1,44 @@
+/* Fixel — український шрифт MacPaw (Open Font License), розміщений у нас.
+   Text — для тіла, форм і таблиць; Display — для великих заголовків.
+   Замінив Inter з Google Fonts (2026-08-19): свій хостинг, українська кирилиця,
+   і сторінка більше не залежить від сторонніх серверів. */
+
+@font-face{
+  font-family:'Fixel';
+  src:url('/static/fonts/fixel/FixelText-Regular.woff2') format('woff2');
+  font-weight:400; font-style:normal; font-display:swap;
+}
+@font-face{
+  font-family:'Fixel';
+  src:url('/static/fonts/fixel/FixelText-Medium.woff2') format('woff2');
+  font-weight:500; font-style:normal; font-display:swap;
+}
+@font-face{
+  font-family:'Fixel';
+  src:url('/static/fonts/fixel/FixelText-SemiBold.woff2') format('woff2');
+  font-weight:600; font-style:normal; font-display:swap;
+}
+@font-face{
+  font-family:'Fixel';
+  src:url('/static/fonts/fixel/FixelText-Bold.woff2') format('woff2');
+  font-weight:700; font-style:normal; font-display:swap;
+}
+
+@font-face{
+  font-family:'Fixel Display';
+  src:url('/static/fonts/fixel/FixelDisplay-SemiBold.woff2') format('woff2');
+  font-weight:600; font-style:normal; font-display:swap;
+}
+@font-face{
+  font-family:'Fixel Display';
+  src:url('/static/fonts/fixel/FixelDisplay-Bold.woff2') format('woff2');
+  font-weight:700; font-style:normal; font-display:swap;
+}
+@font-face{
+  font-family:'Fixel Display';
+  src:url('/static/fonts/fixel/FixelDisplay-ExtraBold.woff2') format('woff2');
+  font-weight:800; font-style:normal; font-display:swap;
+}
+
+/* Заголовки — Display, решта успадковує Fixel Text через body */
+h1,h2,h3,.kz-head h2,.kz-txt h3{font-family:'Fixel Display','Fixel',system-ui,sans-serif;}

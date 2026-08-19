@@ -165,9 +165,6 @@
         <a href="{% url 'analytics:profit' %}" class="sb-sub {% if an == 'analytics' and 'profit' in un %}sb-sub-active{% endif %}">Чистий прибуток</a>
         <a href="{% url 'analytics:usage' %}" class="sb-sub {% if an == 'analytics' and 'usage' in un %}sb-sub-active{% endif %}">Використання</a>
         <a href="{% url 'analytics:debtors' %}" class="sb-sub {% if an == 'analytics' and un == 'debtors' %}sb-sub-active{% endif %}">Боржники</a>
-        {% if user.role == 'admin' %}
-        <a href="{% url 'analytics:payroll' %}" class="sb-sub {% if an == 'analytics' and un == 'payroll' %}sb-sub-active{% endif %}">Зарплата</a>
-        {% endif %}
       </div>
     </div>
     {% endif %}

@@ -7,7 +7,6 @@
   <title>Підтвердіть email — Kizuna CRM</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>tailwind.config={theme:{extend:{colors:{brand:{dark:'#12100F',gold:'#DEAA01'}}}}}</script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>body{font-family:'Inter',sans-serif;}</style>
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-JDBP6T5SSC"></script>
@@ -18,8 +17,24 @@
     gtag('config', 'G-JDBP6T5SSC');
     {% if not resent %}
     gtag('event', 'sign_up', { method: 'email', event_category: 'registration' });
+    if (window.fbq) fbq('track', 'CompleteRegistration', Object.assign(Object(), {content_name: 'signup', status: true}));
     {% endif %}
   </script>
+  <!-- Meta Pixel Code -->
+  <script>
+  !function(f,b,e,v,n,t,s)
+  {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+  n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+  if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+  n.queue=[];t=b.createElement(e);t.async=!0;
+  t.src=v;s=b.getElementsByTagName(e)[0];
+  s.parentNode.insertBefore(t,s)}(window, document,'script',
+  'https://connect.facebook.net/en_US/fbevents.js');
+  fbq('init', '1486580763637268');
+  fbq('track', 'PageView');
+  </script>
+  <!-- End Meta Pixel Code -->
+  <link rel="stylesheet" href="{% static 'css/fixel.css' %}">
 </head>
 <body class="bg-brand-dark min-h-screen flex items-center justify-center px-4">
   <div class="max-w-md w-full text-center">
