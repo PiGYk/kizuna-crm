@@ -187,6 +187,29 @@
     .kzh-nav img{filter:brightness(0) invert(1);}
 
 
+
+    /* ─── БЛОК ЯКОРІВ (три цифри замість трьох колонок тексту) ─── */
+    .kza{background:#0d0c0b;border-top:1px solid rgba(255,255,255,.07);padding:96px 0 88px;}
+    .kza-wrap{max-width:1320px;margin:0 auto;padding:0 40px;}
+    .kza-lbl{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:rgba(255,255,255,.32);font-weight:600;margin-bottom:56px;}
+    .kza-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0;}
+    .kza-item{padding:0 44px;border-left:1px solid rgba(255,255,255,.09);}
+    .kza-item:first-child{padding-left:0;border-left:none;}
+    .kza-item:last-child{padding-right:0;}
+    .kza-num{font-family:'Fixel Display','Fixel',system-ui,sans-serif;font-size:clamp(44px,4.6vw,68px);font-weight:700;line-height:1;letter-spacing:-.03em;color:#fff;margin-bottom:14px;display:flex;align-items:baseline;gap:6px;}
+    .kza-num s{font-size:.42em;color:#DEAA01;text-decoration:none;font-weight:600;}
+    .kza-t{font-size:16px;font-weight:600;color:#fff;margin-bottom:8px;}
+    .kza-d{font-size:14.5px;line-height:1.6;color:rgba(255,255,255,.5);}
+    .kza-foot{margin-top:64px;padding-top:26px;border-top:1px solid rgba(255,255,255,.07);font-size:14.5px;color:rgba(255,255,255,.42);}
+    .kza-foot b{color:rgba(255,255,255,.78);font-weight:600;}
+    @media(max-width:900px){
+      .kza{padding:64px 0 60px;}
+      .kza-wrap{padding:0 20px;}
+      .kza-grid{grid-template-columns:1fr;gap:36px;}
+      .kza-item,.kza-item:first-child{padding:0 0 0 18px;border-left:2px solid rgba(222,170,1,.35);}
+      .kza-lbl{margin-bottom:34px;}
+    }
+
     /* ─── ЖИВИЙ СЦЕНАРІЙ CRM (розмітка з реальних екранів) ─── */
     .kzh-grid{
       display:grid; grid-template-columns:minmax(0,1fr) 560px; gap:56px; align-items:center;
@@ -586,32 +609,63 @@
 
 
 
-<!-- ═══════════════════ ДОВІРА ═══════════════════ -->
-<section class="py-10 px-6 bg-white border-b border-gray-100">
-  <div class="max-w-5xl mx-auto">
-    <p class="text-center text-xs uppercase tracking-wider text-gray-400 mb-6">
-      Чим ця CRM відрізняється
-    </p>
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
-      <div>
-        <div class="text-xl font-extrabold text-brand-dark mb-1">Без обмежень</div>
-        <p class="text-gray-500 text-sm">Скільки завгодно клієнтів, тварин і лікарів. Ваших пацієнтів ніхто не рахує, за робоче місце доплат немає.</p>
+<!-- ═══════════════════ ЯКОРІ ═══════════════════ -->
+<section class="kza">
+  <div class="kza-wrap">
+    <div class="kza-lbl">Чим ця CRM відрізняється</div>
+
+    <div class="kza-grid">
+      <div class="kza-item">
+        <div class="kza-num"><span data-count="0">0</span><s>₴</s></div>
+        <div class="kza-t">доплат за лікаря і робоче місце</div>
+        <div class="kza-d">Скільки завгодно клієнтів, тварин і лікарів. Ваших пацієнтів ніхто не рахує — ціна за клініку не змінюється.</div>
       </div>
-      <div>
-        <div class="text-xl font-extrabold text-brand-dark mb-1">30 розділів</div>
-        <p class="text-gray-500 text-sm">Не три екрани «для галочки»: картки, розклад, склад, каса з фіскалізацією, зарплати, аналітика.</p>
+
+      <div class="kza-item">
+        <div class="kza-num"><span data-count="30">0</span></div>
+        <div class="kza-t">розділів системи</div>
+        <div class="kza-d">Не три екрани «для галочки»: картки, розклад, склад, каса з фіскалізацією, зарплати, аналітика.</div>
       </div>
-      <div>
-        <div class="text-xl font-extrabold text-brand-dark mb-1">Жива підтримка</div>
-        <p class="text-gray-500 text-sm">Пишете напряму мені, а не в службу підтримки. Немає потрібної дрібниці — дописуємо.</p>
+
+      <div class="kza-item">
+        <div class="kza-num"><span data-count="1">0</span><s>день</s></div>
+        <div class="kza-t">від побажання до доробки</div>
+        <div class="kza-d">Пишете напряму мені, а не в службу підтримки. Немає потрібної дрібниці — дописуємо того ж дня.</div>
       </div>
     </div>
-    <p class="text-center text-sm text-gray-500 mt-8">
-      Серед користувачів — <span class="text-brand-dark font-semibold">приватні та державні
-      ветеринарні клініки</span>.
-    </p>
+
+    <div class="kza-foot">
+      Серед користувачів — <b>приватні та державні ветеринарні клініки</b>.
+    </div>
   </div>
 </section>
+
+<script>
+(function(){
+  var els = document.querySelectorAll('.kza-num [data-count]');
+  if(!els.length) return;
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function run(el){
+    var to = parseInt(el.getAttribute('data-count'),10) || 0;
+    if(reduce || to === 0){ el.textContent = to; return; }
+    var t0 = null, dur = 900;
+    function step(ts){
+      if(!t0) t0 = ts;
+      var k = Math.min(1, (ts - t0)/dur);
+      el.textContent = Math.round(to * (1 - Math.pow(1-k, 3)));
+      if(k < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+  if(!('IntersectionObserver' in window)){ Array.prototype.forEach.call(els, run); return; }
+  var io = new IntersectionObserver(function(list){
+    list.forEach(function(e){
+      if(e.isIntersecting){ run(e.target); io.unobserve(e.target); }
+    });
+  }, {threshold:.25});
+  Array.prototype.forEach.call(els, function(el){ io.observe(el); });
+})();
+</script>
 
 
 {# ═══════════ БІЛЬ → ЖИВА СИСТЕМА (розмітка ВЗЯТА З CRM) ═══════════ #}
@@ -620,19 +674,28 @@
 {# calendar_day.html, billing/detail.html, inventory/list.html), а не       #}
 {# намальована схожість. Тому Tailwind підключено тим самим CDN, що в CRM.  #}
 <style>
-.kz-live{background:#fff;padding:72px 24px}
-.kz-head{max-width:900px;margin:0 auto 56px;text-align:center}
-.kz-head h2{font-size:34px;font-weight:800;color:#12100F;margin:0 0 12px;line-height:1.2}
-.kz-head p{font-size:17px;color:#6b6560;margin:0;line-height:1.6}
-.kz-row{max-width:1120px;margin:0 auto 64px;display:flex;gap:48px;align-items:center}
+.kz-live{background:#FFF7F3;padding:100px 24px 88px;position:relative}
+.kz-live::before{content:"";position:absolute;top:0;left:50%;transform:translateX(-50%);width:min(1120px,calc(100% - 48px));height:1px;background:linear-gradient(90deg,transparent,rgba(222,170,1,.55),transparent)}
+.kz-head{max-width:1120px;margin:0 auto 64px;text-align:left}
+.kz-eyebrow{display:inline-flex;align-items:center;gap:10px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#a07d13;font-weight:700;margin-bottom:22px}
+.kz-eyebrow s{width:26px;height:1px;background:#DEAA01;display:block;text-decoration:none}
+.kz-head h2{font-family:'Fixel Display','Fixel',system-ui,sans-serif;font-size:clamp(33px,4.4vw,54px);font-weight:800;color:#12100F;margin:0 0 18px;line-height:1.08;letter-spacing:-.02em;max-width:18ch}
+.kz-head h2 .mut{color:#b8b0a8;font-weight:700}
+.kz-head p{font-size:18px;color:#6b6560;margin:0;line-height:1.6;max-width:62ch}
+.kz-row{max-width:1120px;margin:0 auto 96px;display:flex;gap:64px;align-items:center}
+.kz-row:last-of-type{margin-bottom:0}
 .kz-row.rev .kz-txt{order:2}
-.kz-txt{flex:1 1 0;min-width:0}
+.kz-txt{flex:1 1 0;min-width:0;max-width:50ch}
 .kz-vis{flex:1 1 0;min-width:0}
-.kz-pain{display:inline-flex;align-items:center;gap:8px;background:#fdf1f1;color:#b04141;font-size:13px;font-weight:700;padding:6px 14px;border-radius:999px;margin-bottom:14px}
-.kz-txt h3{font-size:25px;font-weight:800;color:#12100F;margin:0 0 12px;line-height:1.25}
-.kz-txt p{font-size:16px;color:#6b6560;line-height:1.65;margin:0 0 16px}
-.kz-fix{display:flex;align-items:flex-start;gap:10px;font-size:16px;color:#12100F;font-weight:600;line-height:1.5}
-.kz-fix span{color:#DEAA01;font-weight:800}
+.kz-pain{display:flex;align-items:center;gap:14px;margin-bottom:20px}
+.kz-pain b{font-family:'Fixel Display','Fixel',system-ui,sans-serif;font-size:13px;font-weight:800;color:#12100F;letter-spacing:.01em;line-height:1}
+.kz-pain s{flex:0 0 26px;height:1px;background:rgba(18,16,15,.2);text-decoration:none;display:block}
+.kz-pain span{font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#6f665f;line-height:1.3}
+.kz-txt h3{font-family:'Fixel Display','Fixel',system-ui,sans-serif;font-size:clamp(24px,2.3vw,31px);font-weight:800;color:#12100F;margin:0 0 14px;line-height:1.16;letter-spacing:-.018em}
+.kz-txt p{font-size:17px;color:#6b6560;line-height:1.72;margin:0 0 24px;max-width:46ch}
+.kz-fix{display:block;background:#fff;border:1px solid rgba(18,16,15,.07);border-left:2px solid #DEAA01;border-radius:0 12px 12px 0;padding:15px 20px;font-size:16px;color:#12100F;font-weight:600;line-height:1.55}
+.kz-fix::before{content:"У СИСТЕМІ";display:block;font-size:10.5px;font-weight:700;letter-spacing:.11em;color:#8a6a0d;margin-bottom:7px}
+.kz-fix span{display:none}
 .kz-note{margin-top:16px;padding:12px 16px;background:#fbf7ea;border-left:3px solid #DEAA01;border-radius:0 10px 10px 0;font-size:14px;color:#4a453f;line-height:1.6}
 .kz-note b{color:#12100F;font-weight:700}
 /* рамка «вікна CRM»: сірий фон робочої області, як у кабінеті */
@@ -649,24 +712,30 @@
 .kz-in .kz-fade:nth-child(4){animation-delay:.8s}
 @keyframes kzIn{to{opacity:1;transform:none}}
 @media (max-width:900px){
-  .kz-live{padding:56px 18px}
-  .kz-head h2{font-size:27px}
-  .kz-row{flex-direction:column;gap:26px;margin-bottom:52px}
+  .kz-live{padding:64px 18px 56px}
+  .kz-head{margin-bottom:44px}
+  .kz-head h2{font-size:clamp(28px,7.5vw,34px)}
+  .kz-head p{font-size:16px}
+  .kz-row{flex-direction:column;gap:24px;margin-bottom:64px}
   .kz-row.rev .kz-txt{order:0}
-  .kz-txt h3{font-size:22px}
+  .kz-txt{max-width:none}
+  .kz-txt h3{font-size:clamp(22px,5.8vw,26px)}
+  .kz-txt p{font-size:16px;max-width:none;margin-bottom:20px}
+  .kz-fix{padding:14px 16px;font-size:15.5px}
 }
 </style>
 
 <section id="pain" class="kz-live">
   <div class="kz-head">
-    <h2>Шість щоденних болячок клініки</h2>
+    <div class="kz-eyebrow"><s></s>Знайомо?</div>
+    <h2><span class="mut">Шість щоденних</span> болячок <span class="mut">клініки</span></h2>
     <p>Спершу — як воно зазвичай буває. Поруч — справжні екрани системи: та сама розмітка, що працює в клініці щодня.</p>
   </div>
 
   {# ── 1. Картка клієнта — розмітка з templates/clients/detail.html ── #}
   <div class="kz-row">
     <div class="kz-txt">
-      <div class="kz-pain">📓 Паперові журнали</div>
+      <div class="kz-pain"><b>01</b><s></s><span>Паперові журнали</span></div>
       <h3>«Де картка цього клієнта?»</h3>
       <p>Записи в телефоні, зошит на стійці, Excel на флешці. Клієнт дзвонить — ви шукаєте п'ять хвилин і все одно перепитуєте, як звати кота.</p>
       <div class="kz-fix"><span>→</span><div>Картка клієнта і всіх його тварин — в одному місці, з історією візитів</div></div>
@@ -715,7 +784,7 @@
   {# ── 2. Розклад — розмітка з templates/appointments/calendar_day.html ── #}
   <div class="kz-row rev">
     <div class="kz-txt">
-      <div class="kz-pain">📅 Записи в чатах і на папірці</div>
+      <div class="kz-pain"><b>02</b><s></s><span>Записи в чатах і на папірці</span></div>
       <h3>Розклад живе в трьох місцях одночасно</h3>
       <p>Щось у Telegram, щось у Viber, решта в блокноті. Два клієнти на одну годину, забутий прийом, лікар зранку не знає, хто до нього прийде.</p>
       <div class="kz-fix"><span>→</span><div>Один розклад на всіх лікарів, клієнту автоматично йде нагадування</div></div>
@@ -764,7 +833,7 @@
   {# ── 3. Рахунок — розмітка з templates/billing/detail.html ── #}
   <div class="kz-row">
     <div class="kz-txt">
-      <div class="kz-pain">🧾 РРО і фіскалізація</div>
+      <div class="kz-pain"><b>03</b><s></s><span>РРО і фіскалізація</span></div>
       <h3>Каса окремо, програма окремо, нерви окремо</h3>
       <p>Окремий касовий апарат, ручне введення сум, роздруківка чеків. Кожна оплата — це час і шанс помилитись у цифрі.</p>
       <div class="kz-fix"><span>→</span><div>Рахунок і фіскальний чек одним кліком, товар списується зі складу сам</div></div>
@@ -825,7 +894,7 @@
   {# ── 4. Склад — таблиця з templates/inventory/list.html ── #}
   <div class="kz-row rev">
     <div class="kz-txt">
-      <div class="kz-pain">💊 Склад «на окомір»</div>
+      <div class="kz-pain"><b>04</b><s></s><span>Склад «на окомір»</span></div>
       <h3>Препарат закінчився посеред прийому</h3>
       <p>Ніхто не рахує розхід, надлишки списують заднім числом, а потрібної ампули немає саме тоді, коли вона потрібна. Гроші тануть непомітно.</p>
       <div class="kz-fix"><span>→</span><div>Залишки рахуються самі, система сигналить, коли час замовляти</div></div>
@@ -879,7 +948,7 @@
   {# ── 5. Telegram-бот клініки ── #}
   <div class="kz-row">
     <div class="kz-txt">
-      <div class="kz-pain">💬 Клієнти пишуть у 5 місць</div>
+      <div class="kz-pain"><b>05</b><s></s><span>Клієнти пишуть у 5 місць</span></div>
       <h3>Viber, Instagram, Telegram і дзвінки одночасно</h3>
       <p>Питання губляться між застосунками, клієнт нагадує двічі, адміністратор переписує те саме вручну по колу.</p>
       <div class="kz-fix"><span>→</span><div>Свій Telegram-бот: клієнт сам бачить записи, аналізи й рахунки</div></div>
@@ -905,7 +974,7 @@
   {# ── 6. Аналітика — картки як у дашборді CRM ── #}
   <div class="kz-row rev">
     <div class="kz-txt">
-      <div class="kz-pain">📊 «Ми взагалі в плюсі?»</div>
+      <div class="kz-pain"><b>06</b><s></s><span>«Ми взагалі в плюсі?»</span></div>
       <h3>Виторг у голові, витрати на папері</h3>
       <p>Скільки сьогодні в касі, скільки на карті, що з витратами за місяць — відповідь завжди приблизна. Рішення приймаються наосліп.</p>
       <div class="kz-fix"><span>→</span><div>Каса, витрати й прибуток рахуються самі — цифри видно щодня</div></div>
@@ -982,418 +1051,586 @@
 
 
 <!-- ═══════════════════ МОБІЛЬНА ВЕРСІЯ ═══════════════════ -->
-<section id="mobile" class="py-20 px-6 bg-brand-dark overflow-hidden relative">
-  <div class="absolute inset-0 pointer-events-none">
-    <div class="absolute top-1/4 left-0 w-72 h-72 rounded-full bg-brand-gold/4 blur-3xl"></div>
-    <div class="absolute bottom-0 right-0 w-72 h-72 rounded-full bg-brand-gold/3 blur-3xl"></div>
+<style>
+.kzm{background:#0d0c0b;padding:96px 24px 88px;position:relative;overflow:hidden}
+.kzm::before{content:"";position:absolute;top:0;left:50%;transform:translateX(-50%);width:min(1120px,calc(100% - 48px));height:1px;background:linear-gradient(90deg,transparent,rgba(222,170,1,.5),transparent)}
+.kzm-head{max-width:1120px;margin:0 auto 8px}
+.kzm-eyebrow{display:inline-flex;align-items:center;gap:10px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#DEAA01;font-weight:700;margin-bottom:22px}
+.kzm-eyebrow s{width:26px;height:1px;background:#DEAA01;display:block;text-decoration:none}
+.kzm-head h2{font-family:'Fixel Display','Fixel',system-ui,sans-serif;font-size:clamp(33px,4.4vw,54px);font-weight:800;color:#fff;margin:0 0 18px;line-height:1.08;letter-spacing:-.02em;max-width:20ch}
+.kzm-head h2 .mut{color:rgba(255,255,255,.34);font-weight:700}
+.kzm-head p{font-size:18px;color:rgba(255,255,255,.55);line-height:1.65;margin:0;max-width:60ch}
+
+/* ── барабан-колесо ── */
+.kzm-stage{--R:540px;--W:192px;--H:416px;--STEP:20.5;position:relative;height:508px;margin:26px auto 0;max-width:1240px;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 13%,#000 87%,transparent);mask-image:linear-gradient(90deg,transparent,#000 13%,#000 87%,transparent)}
+.kzm-wheel{position:absolute;left:50%;top:calc(var(--R) + 232px);width:0;height:0}
+.kzm-stage::after{content:"";position:absolute;left:0;right:0;bottom:0;height:190px;pointer-events:none;z-index:60;
+  background:linear-gradient(180deg,rgba(13,12,11,0) 0%,rgba(13,12,11,.72) 52%,#0d0c0b 100%)}
+.kzm-arc{position:absolute;left:50%;top:calc(var(--R) + 232px);width:calc(var(--R) * 2);height:calc(var(--R) * 2);
+  margin-left:calc(var(--R) * -1);margin-top:calc(var(--R) * -1);border-radius:50%;border:1px solid rgba(255,255,255,.05);pointer-events:none}
+.kzm-item{position:absolute;left:0;top:0;width:var(--W);height:var(--H);margin-left:calc(var(--W) / -2);margin-top:calc(var(--H) / -2);
+  padding:0;border:0;background:transparent;cursor:pointer;border-radius:16px;overflow:hidden;
+  transition:transform .78s cubic-bezier(.65,.02,.3,1),opacity .78s ease;will-change:transform,opacity}
+.kzm-item img{display:block;width:100%;height:100%;object-fit:cover;object-position:top center;border-radius:16px;
+  box-shadow:0 26px 60px rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.09)}
+.kzm-item:focus-visible{outline:2px solid #DEAA01;outline-offset:4px}
+.kzm-cap{position:absolute;left:0;right:0;bottom:10px;z-index:70;text-align:center;font-size:16px;font-weight:700;color:#fff;letter-spacing:.01em}
+.kzm-cap b{display:block;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.35);margin-top:7px}
+.kzm-note{max-width:1120px;margin:34px auto 0;font-size:15px;color:rgba(255,255,255,.4)}
+
+/* ── лайтбокс ── */
+.kzm-lb{position:fixed;inset:0;z-index:99999;background:rgba(6,5,5,.93);display:flex;align-items:center;justify-content:center;padding:28px 16px}
+.kzm-lb[hidden]{display:none}
+.kzm-lb img{max-height:86vh;max-width:min(430px,86vw);border-radius:18px;border:1px solid rgba(255,255,255,.12);box-shadow:0 30px 80px rgba(0,0,0,.7);display:block}
+.kzm-lb-cap{position:absolute;bottom:22px;left:0;right:0;text-align:center;color:#fff;font-size:15px;font-weight:600}
+.kzm-nav{position:absolute;top:50%;transform:translateY(-50%);width:46px;height:46px;border-radius:50%;border:1px solid rgba(255,255,255,.18);
+  background:rgba(255,255,255,.07);color:#fff;font-size:20px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.kzm-nav:hover{background:rgba(255,255,255,.14)}
+.kzm-prev{left:16px}.kzm-next{right:16px}
+.kzm-close{position:absolute;top:16px;right:16px;width:40px;height:40px;border-radius:50%;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.07);color:#fff;font-size:18px;cursor:pointer}
+
+@media (max-width:900px){
+  .kzm{padding:64px 18px 56px}
+  .kzm-head h2{font-size:clamp(28px,7.5vw,34px)}
+  .kzm-head p{font-size:16px}
+  .kzm-stage{--R:380px;--W:168px;--H:364px;--STEP:27;height:446px;
+    -webkit-mask-image:linear-gradient(90deg,transparent,#000 16%,#000 84%,transparent);mask-image:linear-gradient(90deg,transparent,#000 16%,#000 84%,transparent)}
+  .kzm-wheel{top:calc(var(--R) + 202px)}
+  .kzm-stage::after{height:140px}
+  .kzm-nav{width:40px;height:40px}
+}
+@media (prefers-reduced-motion:reduce){.kzm-item{transition:none}}
+</style>
+
+<section id="mobile" class="kzm">
+  <div class="kzm-head">
+    <div class="kzm-eyebrow"><s></s>З телефона</div>
+    <h2><span class="mut">Уся клініка —</span> в&nbsp;телефоні</h2>
+    <p>Записи, картки пацієнтів, каса й склад працюють з телефона так само, як з комп'ютера. Не окремий застосунок — просто відкриваєте в браузері. Качати й встановлювати нічого не треба.</p>
   </div>
 
-  <div class="relative max-w-5xl mx-auto">
-    <div class="text-center mb-14">
-      <span class="inline-block px-3 py-1 rounded-full bg-brand-gold/10 text-brand-gold text-xs font-semibold tracking-wide uppercase mb-4">З телефона</span>
-      <h2 class="text-3xl lg:text-4xl font-extrabold text-white mb-4">Уся клініка — в телефоні</h2>
-      <p class="text-white/50 text-base md:text-lg max-w-2xl mx-auto">
-        Записи, картки пацієнтів, каса й склад працюють з телефона так само, як з комп'ютера. Не окремий застосунок — просто відкриваєте в браузері. Качати й встановлювати нічого не треба.
-      </p>
+  <div class="kzm-stage" id="kzmStage">
+    <div class="kzm-wheel" id="kzmWheel">
+      <button type="button" class="kzm-item" data-i="0" data-cap="Розклад дня" aria-label="Розклад дня — відкрити більшим">
+        <img src="{% static 'landing/mob/01-schedule.webp' %}" alt="Розклад прийомів клініки на телефоні" loading="lazy" width="780" height="1688">
+      </button>
+      <button type="button" class="kzm-item" data-i="1" data-cap="Пацієнти клініки" aria-label="Пацієнти клініки — відкрити більшим">
+        <img src="{% static 'landing/mob/02-patients.webp' %}" alt="Список пацієнтів клініки на телефоні" loading="lazy" width="780" height="1688">
+      </button>
+      <button type="button" class="kzm-item" data-i="2" data-cap="Картка пацієнта" aria-label="Картка пацієнта — відкрити більшим">
+        <img src="{% static 'landing/mob/03-pet.webp' %}" alt="Картка пацієнта з візитами та вакцинами на телефоні" loading="lazy" width="780" height="1688">
+      </button>
+      <button type="button" class="kzm-item" data-i="3" data-cap="Картка клієнта" aria-label="Картка клієнта — відкрити більшим">
+        <img src="{% static 'landing/mob/04-client.webp' %}" alt="Картка клієнта з контактами і тваринами на телефоні" loading="lazy" width="780" height="1688">
+      </button>
+      <button type="button" class="kzm-item" data-i="4" data-cap="Чеки і рахунки" aria-label="Чеки і рахунки — відкрити більшим">
+        <img src="{% static 'landing/mob/05-billing.webp' %}" alt="Рахунки та чеки клініки на телефоні" loading="lazy" width="780" height="1688">
+      </button>
+      <button type="button" class="kzm-item" data-i="5" data-cap="Послуги і ціни" aria-label="Послуги і ціни — відкрити більшим">
+        <img src="{% static 'landing/mob/06-services.webp' %}" alt="Прайс послуг клініки на телефоні" loading="lazy" width="780" height="1688">
+      </button>
+      <button type="button" class="kzm-item" data-i="6" data-cap="Склад" aria-label="Склад — відкрити більшим">
+        <img src="{% static 'landing/mob/07-stock.webp' %}" alt="Склад і залишки препаратів на телефоні" loading="lazy" width="780" height="1688">
+      </button>
+      <button type="button" class="kzm-item" data-i="7" data-cap="Що замовити" aria-label="Що замовити — відкрити більшим">
+        <img src="{% static 'landing/mob/08-reorder.webp' %}" alt="Список товарів до замовлення на телефоні" loading="lazy" width="780" height="1688">
+      </button>
+      <button type="button" class="kzm-item" data-i="8" data-cap="Аналітика за рік" aria-label="Аналітика за рік — відкрити більшим">
+        <img src="{% static 'landing/mob/09-analytics.webp' %}" alt="Аналітика виторгу клініки на телефоні" loading="lazy" width="780" height="1688">
+      </button>
+      <button type="button" class="kzm-item" data-i="9" data-cap="Нагадування про вакцини" aria-label="Нагадування про вакцини — відкрити більшим">
+        <img src="{% static 'landing/mob/10-vaccines.webp' %}" alt="Нагадування про вакцинації на телефоні" loading="lazy" width="780" height="1688">
+      </button>
     </div>
-
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-5 md:gap-6 max-w-3xl mx-auto">
-      <figure class="flex flex-col items-center">
-        <div class="rounded-[1.75rem] border-4 border-gray-700/80 bg-gray-900 overflow-hidden shadow-lg shadow-black/40 w-full">
-          <img src="{% static 'landing/mobile-schedule.png' %}" alt="Розклад прийомів у Kizuna CRM на телефоні" class="block w-full" loading="lazy" width="390" height="844">
-        </div>
-        <figcaption class="text-white/60 text-sm mt-3">Розклад прийомів</figcaption>
-      </figure>
-      <figure class="flex flex-col items-center">
-        <div class="rounded-[1.75rem] border-4 border-gray-700/80 bg-gray-900 overflow-hidden shadow-lg shadow-black/40 w-full">
-          <img src="{% static 'landing/mobile-patient.png' %}" alt="Картка пацієнта у Kizuna CRM на телефоні" class="block w-full" loading="lazy" width="390" height="844">
-        </div>
-        <figcaption class="text-white/60 text-sm mt-3">Картка пацієнта</figcaption>
-      </figure>
-      <figure class="flex flex-col items-center">
-        <div class="rounded-[1.75rem] border-4 border-gray-700/80 bg-gray-900 overflow-hidden shadow-lg shadow-black/40 w-full">
-          <img src="{% static 'landing/mobile-cash.png' %}" alt="Каса клініки у Kizuna CRM на телефоні" class="block w-full" loading="lazy" width="390" height="844">
-        </div>
-        <figcaption class="text-white/60 text-sm mt-3">Каса клініки</figcaption>
-      </figure>
-      <figure class="flex flex-col items-center">
-        <div class="rounded-[1.75rem] border-4 border-gray-700/80 bg-gray-900 overflow-hidden shadow-lg shadow-black/40 w-full">
-          <img src="{% static 'landing/mobile-stock.png' %}" alt="Склад і залишки у Kizuna CRM на телефоні" class="block w-full" loading="lazy" width="390" height="844">
-        </div>
-        <figcaption class="text-white/60 text-sm mt-3">Склад і залишки</figcaption>
-      </figure>
-    </div>
-
-    <p class="text-center text-white/40 text-sm mt-12">
-      Ті самі дані, що на комп'ютері — оновлюються миттєво на всіх пристроях.
-    </p>
+    <div class="kzm-cap" id="kzmCap"></div>
   </div>
+
+  <p class="kzm-note">Ті самі дані, що на комп'ютері — оновлюються миттєво на всіх пристроях.</p>
 </section>
+
+<div class="kzm-lb" id="kzmLb" hidden role="dialog" aria-modal="true" aria-label="Перегляд екрана">
+  <button type="button" class="kzm-close" id="kzmClose" aria-label="Закрити">✕</button>
+  <button type="button" class="kzm-nav kzm-prev" id="kzmPrev" aria-label="Попередній">‹</button>
+  <img id="kzmLbImg" src="" alt="">
+  <button type="button" class="kzm-nav kzm-next" id="kzmNext" aria-label="Наступний">›</button>
+  <div class="kzm-lb-cap" id="kzmLbCap"></div>
+</div>
+
+<script>
+(function(){
+  var stage=document.getElementById('kzmStage');
+  if(!stage) return;
+  var wheel=document.getElementById('kzmWheel');
+  var items=[].slice.call(wheel.querySelectorAll('.kzm-item'));
+  var cap=document.getElementById('kzmCap');
+  var N=items.length, cur=0, timer=null;
+  var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function conf(){
+    var cs=getComputedStyle(stage);
+    return {R:parseFloat(cs.getPropertyValue('--R')), STEP:parseFloat(cs.getPropertyValue('--STEP'))};
+  }
+  function render(){
+    var c=conf();
+    items.forEach(function(el,i){
+      var d=i-cur;
+      d=((d + N/2 + N*2) % N) - N/2;          // кільце: найкоротший шлях
+      var far=Math.abs(d)>2.9;
+      el.style.transition = far ? 'none' : '';
+      var th=d*c.STEP;
+      var sc=Math.max(.5, 1-Math.abs(d)*.18);
+      el.style.transform='rotate('+th+'deg) translateY(-'+c.R+'px) rotate('+(-th)+'deg) scale('+sc+')';
+      el.style.opacity = Math.abs(d)>2.6 ? 0 : Math.max(0,1-Math.abs(d)*.33);
+      el.style.pointerEvents = Math.abs(d)>2.55 ? 'none' : 'auto';
+      el.style.zIndex = String(100-Math.round(Math.abs(d)*10));
+    });
+    cap.innerHTML = items[cur].dataset.cap + '<b>' + (cur+1) + ' / ' + N + '</b>';
+  }
+  function step(){ cur=(cur+1)%N; render(); }
+  function play(){ if(reduce||timer) return; timer=setInterval(step, 1750); }   // 0,78с рух + ~1с пауза
+  function stop(){ if(timer){clearInterval(timer); timer=null;} }
+
+  render();
+  var io=('IntersectionObserver' in window) ? new IntersectionObserver(function(list){
+    list.forEach(function(e){ e.isIntersecting ? play() : stop(); });
+  },{threshold:.2}) : null;
+  if(io) io.observe(stage); else play();
+  stage.addEventListener('mouseenter',stop);
+  stage.addEventListener('mouseleave',function(){ if(!lb.hasAttribute('hidden')) return; play(); });
+
+  // ── лайтбокс ──
+  var lb=document.getElementById('kzmLb'), lbImg=document.getElementById('kzmLbImg'), lbCap=document.getElementById('kzmLbCap');
+  var li=0;
+  function show(i){
+    li=(i+N)%N;
+    var src=items[li].querySelector('img');
+    lbImg.src=src.getAttribute('src'); lbImg.alt=src.getAttribute('alt');
+    lbCap.textContent=items[li].dataset.cap+' — '+(li+1)+' / '+N;
+  }
+  function open(i){ show(i); lb.removeAttribute('hidden'); stop(); document.body.style.overflow='hidden'; }
+  function close(){ lb.setAttribute('hidden',''); document.body.style.overflow=''; play(); }
+  items.forEach(function(el,i){ el.addEventListener('click',function(){ cur=i; render(); open(i); }); });
+  document.getElementById('kzmClose').addEventListener('click',close);
+  document.getElementById('kzmPrev').addEventListener('click',function(){ show(li-1); });
+  document.getElementById('kzmNext').addEventListener('click',function(){ show(li+1); });
+  lb.addEventListener('click',function(e){ if(e.target===lb) close(); });
+  document.addEventListener('keydown',function(e){
+    if(lb.hasAttribute('hidden')) return;
+    if(e.key==='Escape') close();
+    if(e.key==='ArrowLeft') show(li-1);
+    if(e.key==='ArrowRight') show(li+1);
+  });
+  window.addEventListener('resize',render);
+})();
+</script>
 
 
 <!-- ═══════════════════ ТАРИФИ ═══════════════════ -->
-<section id="pricing" class="py-20 px-6 bg-white">
-  <div class="max-w-5xl mx-auto">
-    <div class="text-center mb-8">
-      <h2 class="text-3xl lg:text-4xl font-extrabold text-brand-dark mb-4">Одна ціна за клініку</h2>
-      <p class="text-gray-500 text-lg">Не за лікаря. Не за робоче місце. Скільки б вас не було —
-        ціна не змінюється. Система в усіх пакетах однакова: різниця тільки в тому,
-        скільки ми поруч із вами.</p>
-    </div>
+<style>
+.kzp{background:#fff;padding:100px 24px 88px;position:relative}
+.kzp-wrap{max-width:1160px;margin:0 auto}
+.kzp-eyebrow{display:inline-flex;align-items:center;gap:10px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#8a6a0d;font-weight:700;margin-bottom:22px}
+.kzp-eyebrow s{width:26px;height:1px;background:#DEAA01;display:block;text-decoration:none}
+.kzp h2{font-family:'Fixel Display','Fixel',system-ui,sans-serif;font-size:clamp(33px,4.4vw,54px);font-weight:800;color:#12100F;margin:0 0 18px;line-height:1.08;letter-spacing:-.02em}
+.kzp h2 .mut{color:#b8b0a8;font-weight:700}
+.kzp-sub{font-size:18px;color:#6b6560;line-height:1.65;margin:0 0 40px;max-width:62ch}
 
-    <!-- Порівняння моделі оплати: головна перевага -->
-    <div class="max-w-3xl mx-auto mb-14 rounded-2xl border border-gray-200 bg-brand-cream p-6">
-      <p class="text-sm text-gray-600 leading-relaxed text-center">
-        Більшість ветеринарних програм в Україні беруть плату <strong>за кожного лікаря</strong>:
-        близько 300 ₴ на місяць за одного. Клініка з шістьма лікарями віддає 1 800 ₴ —
-        і платить більше щоразу, коли наймає людину.
-        <br class="hidden md:block">
-        <span class="text-brand-dark font-semibold">У нас — 900 ₴ за всю клініку.
-        Наймайте скільки треба, платіж не зростає.</span>
+/* аргумент «за лікаря vs за клініку» */
+.kzp-arg{background:#FFF7F3;border:1px solid rgba(18,16,15,.07);border-left:2px solid #DEAA01;border-radius:0 14px 14px 0;padding:22px 26px;margin:0 0 56px;max-width:74ch}
+.kzp-arg p{margin:0;font-size:17px;line-height:1.7;color:#6b6560}
+.kzp-arg strong{color:#12100F;font-weight:700}
+.kzp-arg .hit{display:block;margin-top:12px;font-size:19px;color:#12100F;font-weight:700;line-height:1.5}
+
+.kzp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;align-items:start}
+.kzp-card{border:1px solid rgba(18,16,15,.09);border-radius:16px;padding:30px 28px 28px;background:#fff;display:flex;flex-direction:column;height:100%}
+.kzp-card.dark{background:#12100F;border-color:#12100F;position:relative;padding-top:34px}
+.kzp-badge{position:absolute;top:-12px;left:28px;background:#DEAA01;color:#12100F;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:5px 13px;border-radius:999px}
+.kzp-name{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8a6a0d;margin-bottom:16px}
+.kzp-card.dark .kzp-name{color:#DEAA01}
+.kzp-price{font-family:'Fixel Display','Fixel',system-ui,sans-serif;font-size:clamp(34px,3.4vw,44px);font-weight:800;color:#12100F;line-height:1;letter-spacing:-.025em;margin-bottom:8px}
+.kzp-card.dark .kzp-price{color:#fff}
+.kzp-price i{font-style:normal;font-size:16px;font-weight:500;color:#a49c94;letter-spacing:0}
+.kzp-year{font-size:13px;color:#a49c94;margin-bottom:18px}
+.kzp-card.dark .kzp-year{color:rgba(255,255,255,.4)}
+.kzp-desc{font-size:15px;color:#6b6560;line-height:1.6;margin:0 0 26px;padding-bottom:24px;border-bottom:1px solid rgba(18,16,15,.07)}
+.kzp-card.dark .kzp-desc{color:rgba(255,255,255,.55);border-bottom-color:rgba(255,255,255,.12)}
+.kzp-list{list-style:none;padding:0;margin:0 0 30px;display:flex;flex-direction:column;gap:13px;flex:1}
+.kzp-list li{display:flex;align-items:flex-start;gap:11px;font-size:15px;line-height:1.5;color:#4a453f}
+.kzp-card.dark .kzp-list li{color:rgba(255,255,255,.8)}
+.kzp-list li::before{content:"";flex:0 0 14px;height:1px;background:#DEAA01;margin-top:11px}
+.kzp-btn{display:block;text-align:center;padding:13px 18px;border-radius:12px;font-size:15px;font-weight:700;text-decoration:none;transition:all .2s ease}
+.kzp-btn.ghost{border:1px solid rgba(18,16,15,.18);color:#12100F}
+.kzp-btn.ghost:hover{background:#12100F;color:#fff;border-color:#12100F}
+.kzp-btn.gold{background:#DEAA01;color:#12100F}
+.kzp-btn.gold:hover{filter:brightness(.94)}
+.kzp-note{margin:36px 0 0;font-size:15px;color:#8a827a}
+.kzp-note b{color:#12100F;font-weight:700}
+
+@media (max-width:980px){
+  .kzp{padding:64px 18px 56px}
+  .kzp h2{font-size:clamp(28px,7.5vw,34px)}
+  .kzp-sub{font-size:16px;margin-bottom:32px}
+  .kzp-arg{padding:18px 20px;margin-bottom:40px}
+  .kzp-arg p{font-size:16px}
+  .kzp-arg .hit{font-size:17px}
+  .kzp-grid{grid-template-columns:1fr;gap:34px}
+  .kzp-card.dark{margin-top:8px}
+}
+</style>
+
+<section id="pricing" class="kzp">
+  <div class="kzp-wrap">
+    <div class="kzp-eyebrow"><s></s>Ціна</div>
+    <h2><span class="mut">Одна ціна</span> за клініку</h2>
+    <p class="kzp-sub">Не за лікаря. Не за робоче місце. Скільки б вас не було — ціна не змінюється. Система в усіх пакетах однакова: різниця тільки в тому, скільки ми поруч із вами.</p>
+
+    <div class="kzp-arg">
+      <p>Більшість ветеринарних програм в Україні беруть плату <strong>за кожного лікаря</strong>: близько 300 ₴ на місяць за одного. Клініка з шістьма лікарями віддає 1 800 ₴ — і платить більше щоразу, коли наймає людину.
+        <span class="hit">У нас — 900 ₴ за всю клініку. Наймайте скільки треба, платіж не зростає.</span>
       </p>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-
-      <!-- База -->
-      <div class="rounded-2xl border border-gray-200 p-8">
-        <div class="text-sm font-semibold text-brand-gold mb-2">База</div>
-        <div class="text-4xl font-extrabold text-brand-dark mb-1">₴900<span class="text-lg font-normal text-gray-400">/міс</span></div>
-        <p class="text-gray-400 text-xs mb-4">₴720/міс при оплаті за рік</p>
-        <p class="text-gray-500 text-sm mb-8">Уся система без обмежень. Для клініки, яка сама дає собі раду.</p>
-        <ul class="space-y-3 text-sm text-gray-600 mb-8">
-          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Лікарів — скільки завгодно</li>
-          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Клієнти, тварини, історія хвороб</li>
-          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Розклад, склад, рахунки</li>
-          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Фіскалізація Checkbox</li>
-          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Telegram-бот для клієнтів</li>
-          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Аналітика, зарплати, фінанси</li>
-        </ul>
-        <a href="https://crm.kizuna.com.ua/register/" onclick="gtag('event','begin_registration',{event_category:'pricing',event_label:'base'})"
-           class="block text-center py-2.5 border-2 border-brand-gold text-brand-gold rounded-xl font-semibold text-sm hover:bg-brand-gold hover:text-brand-dark transition-all">
-          Почати безкоштовно →
-        </a>
-      </div>
-
-      <!-- Підтримка -->
-      <div class="rounded-2xl border-2 border-brand-gold p-8 relative shadow-xl shadow-brand-gold/10">
-        <!-- Центрування через inline-стилі: клас -translate-x-1/2 відсутній у зібраному landing.min.css -->
-        <div style="position:absolute;top:-14px;left:0;right:0;text-align:center;">
-          <span class="gradient-gold text-brand-dark text-xs font-bold rounded-full"
-                style="display:inline-block;padding:4px 16px;white-space:nowrap;">
-            Обирають найчастіше
-          </span>
-        </div>
-        <div class="text-sm font-semibold text-brand-gold mb-2">Підтримка</div>
-        <div class="text-4xl font-extrabold text-brand-dark mb-1">₴1 300<span class="text-lg font-normal text-gray-400">/міс</span></div>
-        <p class="text-gray-400 text-xs mb-4">₴1 040/міс при оплаті за рік</p>
-        <p class="text-gray-500 text-sm mb-8">Коли не хочеться розбиратися самим — я веду вас особисто.</p>
-        <ul class="space-y-3 text-sm text-gray-600 mb-8">
-          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Усе з «Бази»</li>
-          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Перенесення даних зі старої програми</li>
-          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Навчання адміністраторів і лікарів</li>
-          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Особистий контакт, не служба підтримки</li>
-          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Налаштування під ваші процеси</li>
-          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Ваші побажання — у першу чергу</li>
-        </ul>
-        <a href="https://crm.kizuna.com.ua/register/" onclick="gtag('event','begin_registration',{event_category:'pricing',event_label:'support'})"
-           class="block text-center py-2.5 gradient-gold text-brand-dark rounded-xl font-bold text-sm hover:brightness-95 transition-all">
-          Спробувати
-        </a>
-      </div>
-
-      <!-- Індивідуальний -->
-      <div class="rounded-2xl border border-gray-200 p-8">
-        <div class="text-sm font-semibold text-gray-500 mb-2">Індивідуальний</div>
-        <div class="text-4xl font-extrabold text-brand-dark mb-1">від ₴5 000<span class="text-lg font-normal text-gray-400">/міс</span></div>
-        <p class="text-gray-400 text-xs mb-4">Вартість — після розмови про задачі</p>
-        <p class="text-gray-500 text-sm mb-8">Коли клініка працює інакше, ніж усі — систему підганяємо під неї.</p>
-        <ul class="space-y-3 text-sm text-gray-600 mb-8">
-          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Усе з «Підтримки»</li>
-          <li class="flex items-start gap-2"><span class="text-green-500 mt-0.5">✓</span> Заводимо накладні за вас — скидаєте, вносимо з вашими цінами</li>
-          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Інтеграція з Checkbox і будь-якою платіжкою</li>
-          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Кілька філій в одній системі</li>
-          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Домовлений час реакції</li>
-          <li class="flex items-center gap-2"><span class="text-green-500">✓</span> Свої звіти й документи</li>
-        </ul>
-        <a href="https://crm.kizuna.com.ua/register/" onclick="gtag('event','begin_registration',{event_category:'pricing',event_label:'custom'})"
-           class="block text-center py-2.5 border-2 border-brand-gold text-brand-gold rounded-xl font-semibold text-sm hover:bg-brand-gold hover:text-brand-dark transition-all">
-          Обговорити
-        </a>
-      </div>
-
+    <div class="kzp-grid">
+    <div class="kzp-card">
+      <div class="kzp-name">База</div>
+      <div class="kzp-price">₴900<i>/міс</i></div>
+      <div class="kzp-year">₴720/міс при оплаті за рік</div>
+      <p class="kzp-desc">Уся система без обмежень. Для клініки, яка сама дає собі раду.</p>
+      <ul class="kzp-list">
+        <li>Лікарів — скільки завгодно</li>
+        <li>Клієнти, тварини, історія хвороб</li>
+        <li>Розклад, склад, рахунки</li>
+        <li>Фіскалізація Checkbox</li>
+        <li>Telegram-бот для клієнтів</li>
+        <li>Аналітика, зарплати, фінанси</li>
+      </ul>
+      <a href="https://crm.kizuna.com.ua/register/" onclick="gtag('event','begin_registration',{event_category:'pricing',event_label:'base'})" class="kzp-btn ghost">Почати безкоштовно →</a>
     </div>
 
-    <p class="text-center text-gray-400 text-sm mt-8">
-      Перші 30 днів — безкоштовно, картка не потрібна. При оплаті за рік — знижка 20%.
-    </p>
+    <div class="kzp-card dark">
+      <div class="kzp-badge">Обирають найчастіше</div>
+      <div class="kzp-name">Підтримка</div>
+      <div class="kzp-price">₴1 300<i>/міс</i></div>
+      <div class="kzp-year">₴1 040/міс при оплаті за рік</div>
+      <p class="kzp-desc">Коли не хочеться розбиратися самим — я веду вас особисто.</p>
+      <ul class="kzp-list">
+        <li>Усе з «Бази»</li>
+        <li>Перенесення даних зі старої програми</li>
+        <li>Навчання адміністраторів і лікарів</li>
+        <li>Особистий контакт, не служба підтримки</li>
+        <li>Налаштування під ваші процеси</li>
+        <li>Ваші побажання — у першу чергу</li>
+      </ul>
+      <a href="https://crm.kizuna.com.ua/register/" onclick="gtag('event','begin_registration',{event_category:'pricing',event_label:'support'})" class="kzp-btn gold">Спробувати</a>
+    </div>
+
+    <div class="kzp-card">
+      <div class="kzp-name">Індивідуальний</div>
+      <div class="kzp-price">від ₴5 000<i>/міс</i></div>
+      <div class="kzp-year">Вартість — після розмови про задачі</div>
+      <p class="kzp-desc">Коли клініка працює інакше, ніж усі — систему підганяємо під неї.</p>
+      <ul class="kzp-list">
+        <li>Усе з «Підтримки»</li>
+        <li>Заводимо накладні за вас — скидаєте, вносимо з вашими цінами</li>
+        <li>Інтеграція з Checkbox і будь-якою платіжкою</li>
+        <li>Кілька філій в одній системі</li>
+        <li>Домовлений час реакції</li>
+        <li>Свої звіти й документи</li>
+      </ul>
+      <a href="https://crm.kizuna.com.ua/register/" onclick="gtag('event','begin_registration',{event_category:'pricing',event_label:'custom'})" class="kzp-btn ghost">Обговорити</a>
+    </div>
+    </div>
+
+    <p class="kzp-note">Перші 30 днів — безкоштовно, картка не потрібна. При оплаті за рік — <b>знижка 20%</b>.</p>
   </div>
 </section>
 
 
 <!-- ═══════════════════ FAQ ═══════════════════ -->
-<section class="py-20 px-6 bg-brand-cream">
-  <div class="max-w-3xl mx-auto">
-    <h2 class="text-3xl font-extrabold text-brand-dark text-center mb-12">Часті питання</h2>
+<style>
+.kzf{background:#FFF7F3;padding:100px 24px 92px}
+.kzf-wrap{max-width:1120px;margin:0 auto}
+.kzf-eyebrow{display:inline-flex;align-items:center;gap:10px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#8a6a0d;font-weight:700;margin-bottom:22px}
+.kzf-eyebrow s{width:26px;height:1px;background:#DEAA01;display:block;text-decoration:none}
+.kzf h2{font-family:'Fixel Display','Fixel',system-ui,sans-serif;font-size:clamp(33px,4.4vw,54px);font-weight:800;color:#12100F;margin:0 0 44px;line-height:1.08;letter-spacing:-.02em}
+.kzf h2 .mut{color:#b8b0a8;font-weight:700}
+.kzf-list{max-width:920px;border-top:1px solid rgba(18,16,15,.11)}
+.kzf-i{border-bottom:1px solid rgba(18,16,15,.11)}
+.kzf-i summary{list-style:none;cursor:pointer;display:flex;align-items:flex-start;justify-content:space-between;gap:28px;
+  padding:24px 2px;font-size:19px;font-weight:700;color:#12100F;line-height:1.4;transition:color .2s ease}
+.kzf-i summary::-webkit-details-marker{display:none}
+.kzf-i summary:hover{color:#8a6a0d}
+.kzf-i summary i{position:relative;flex:0 0 15px;height:15px;margin-top:5px;transition:transform .3s ease}
+.kzf-i summary i::before,.kzf-i summary i::after{content:"";position:absolute;background:#12100F;border-radius:2px}
+.kzf-i summary i::before{left:0;right:0;top:7px;height:1.5px}
+.kzf-i summary i::after{top:0;bottom:0;left:7px;width:1.5px}
+.kzf-i[open]:not(.closing) summary i{transform:rotate(45deg)}
+.kzf-i[open]:not(.closing) summary i::before,.kzf-i[open]:not(.closing) summary i::after{background:#DEAA01}
+.kzf-a{display:grid;grid-template-rows:0fr;transition:grid-template-rows .32s cubic-bezier(.4,0,.2,1)}
+.kzf-i[open]:not(.closing) .kzf-a{grid-template-rows:1fr}
+.kzf-a > div{overflow:hidden}
+.kzf-a p{margin:0;padding:0 60px 26px 0;font-size:16.5px;line-height:1.72;color:#6b6560;max-width:76ch}
+.kzf-a a{color:#8a6a0d;font-weight:600}
+@media (max-width:900px){
+  .kzf{padding:64px 18px 56px}
+  .kzf h2{font-size:clamp(28px,7.5vw,34px);margin-bottom:32px}
+  .kzf-i summary{font-size:17px;padding:20px 2px;gap:18px}
+  .kzf-a p{padding-right:24px;font-size:16px}
+}
+@media (prefers-reduced-motion:reduce){.kzf-a{transition:none}.kzf-i summary i{transition:none}}
+</style>
 
-    <div class="space-y-4">
-      <details class="bg-white rounded-2xl p-6 group cursor-pointer">
-        <summary class="font-semibold text-brand-dark flex items-start gap-4 justify-between list-none cursor-pointer">
-          Чи потрібно щось встановлювати?
-          <span class="text-brand-gold text-xl group-open:rotate-45 transition-transform">+</span>
-        </summary>
-        <p class="text-gray-500 text-sm mt-3 leading-relaxed">Ні. Kizuna CRM — хмарна система. Достатньо зареєструватись і відкрити в будь-якому браузері. Працює на комп'ютері, планшеті, телефоні.</p>
+<section class="kzf">
+  <div class="kzf-wrap">
+    <div class="kzf-eyebrow"><s></s>Питання</div>
+    <h2><span class="mut">Часті</span> питання</h2>
+    <div class="kzf-list">
+      <details class="kzf-i">
+        <summary><span>Чи потрібно щось встановлювати?</span><i aria-hidden="true"></i></summary>
+        <div class="kzf-a"><div><p>Ні. Kizuna CRM — хмарна система. Достатньо зареєструватись і відкрити в будь-якому браузері. Працює на комп'ютері, планшеті, телефоні.</p></div></div>
       </details>
-
-      <details class="bg-white rounded-2xl p-6 group cursor-pointer">
-        <summary class="font-semibold text-brand-dark flex items-start gap-4 justify-between list-none cursor-pointer">
-          Як швидко можна почати роботу?
-          <span class="text-brand-gold text-xl group-open:rotate-45 transition-transform">+</span>
-        </summary>
-        <p class="text-gray-500 text-sm mt-3 leading-relaxed">Реєстрація займає 2 хвилини. Базове налаштування (назва, контакти, послуги) — ще 15 хвилин. Після цього можна вносити клієнтів і вести запис.</p>
+      <details class="kzf-i">
+        <summary><span>Як швидко можна почати роботу?</span><i aria-hidden="true"></i></summary>
+        <div class="kzf-a"><div><p>Реєстрація займає 2 хвилини. Базове налаштування (назва, контакти, послуги) — ще 15 хвилин. Після цього можна вносити клієнтів і вести запис.</p></div></div>
       </details>
-
-      <details class="bg-white rounded-2xl p-6 group cursor-pointer">
-        <summary class="font-semibold text-brand-dark flex items-start gap-4 justify-between list-none cursor-pointer">
-          Чи є інтеграція з Checkbox (РРО)?
-          <span class="text-brand-gold text-xl group-open:rotate-45 transition-transform">+</span>
-        </summary>
-        <p class="text-gray-500 text-sm mt-3 leading-relaxed">Так, і це рідкість серед ветеринарних CRM. Ви вводите ліцензійний ключ Checkbox у налаштуваннях — і фіскальний чек видається прямо з рахунку одним кліком. Окрема каса не потрібна. А в індивідуальному пакеті налаштуємо інтеграцію з будь-яким платіжним сервісом, яким ви користуєтесь.</p>
+      <details class="kzf-i">
+        <summary><span>Чи є інтеграція з Checkbox (РРО)?</span><i aria-hidden="true"></i></summary>
+        <div class="kzf-a"><div><p>Так, і це рідкість серед ветеринарних CRM. Ви вводите ліцензійний ключ Checkbox у налаштуваннях — і фіскальний чек видається прямо з рахунку одним кліком. Окрема каса не потрібна. А в індивідуальному пакеті налаштуємо інтеграцію з будь-яким платіжним сервісом, яким ви користуєтесь.</p></div></div>
       </details>
-
-      <details class="bg-white rounded-2xl p-6 group cursor-pointer">
-        <summary class="font-semibold text-brand-dark flex items-start gap-4 justify-between list-none cursor-pointer">
-          Чи можна перенести дані зі старої програми?
-          <span class="text-brand-gold text-xl group-open:rotate-45 transition-transform">+</span>
-        </summary>
-        <p class="text-gray-500 text-sm mt-3 leading-relaxed">Так, ми допоможемо з переносом із Excel або CSV-файлів. Напишіть або зателефонуйте після реєстрації — <a href="tel:+380984782121" class="text-brand-gold hover:underline">+38 098 478 21 21</a>.</p>
+      <details class="kzf-i">
+        <summary><span>Чи можна перенести дані зі старої програми?</span><i aria-hidden="true"></i></summary>
+        <div class="kzf-a"><div><p>Так, ми допоможемо з переносом із Excel або CSV-файлів. Напишіть або зателефонуйте після реєстрації — <a href="tel:+380984782121" class="text-brand-gold hover:underline">+38 098 478 21 21</a>.</p></div></div>
       </details>
-
-      <details class="bg-white rounded-2xl p-6 group cursor-pointer">
-        <summary class="font-semibold text-brand-dark flex items-start gap-4 justify-between list-none cursor-pointer">
-          Де зберігаються дані?
-          <span class="text-brand-gold text-xl group-open:rotate-45 transition-transform">+</span>
-        </summary>
-        <p class="text-gray-500 text-sm mt-3 leading-relaxed">На захищеному сервері в Німеччині. Дані шифруються, щодня створюються резервні копії, а бази різних клінік повністю ізольовані одна від одної.</p>
+      <details class="kzf-i">
+        <summary><span>Де зберігаються дані?</span><i aria-hidden="true"></i></summary>
+        <div class="kzf-a"><div><p>На захищеному сервері в Німеччині. Дані шифруються, щодня створюються резервні копії, а бази різних клінік повністю ізольовані одна від одної.</p></div></div>
       </details>
-
-      <details class="bg-white rounded-2xl p-6 group cursor-pointer">
-        <summary class="font-semibold text-brand-dark flex items-start gap-4 justify-between list-none cursor-pointer">
-          Скільки це коштує?
-          <span class="text-brand-gold text-xl group-open:rotate-45 transition-transform">+</span>
-        </summary>
-        <p class="text-gray-500 text-sm mt-3 leading-relaxed">База — 900 ₴ на місяць за всю клініку, без плати за кожного лікаря чи робоче місце. Пакет з підтримкою — 1300 ₴. Індивідуальний — від 5000 ₴. Перші 30 днів безкоштовно, без картки.</p>
+      <details class="kzf-i">
+        <summary><span>Скільки це коштує?</span><i aria-hidden="true"></i></summary>
+        <div class="kzf-a"><div><p>База — 900 ₴ на місяць за всю клініку, без плати за кожного лікаря чи робоче місце. Пакет з підтримкою — 1300 ₴. Індивідуальний — від 5000 ₴. Перші 30 днів безкоштовно, без картки.</p></div></div>
       </details>
-
-      <details class="bg-white rounded-2xl p-6 group cursor-pointer">
-        <summary class="font-semibold text-brand-dark flex items-start gap-4 justify-between list-none cursor-pointer">
-          Що буде після 30 днів безкоштовного періоду?
-          <span class="text-brand-gold text-xl group-open:rotate-45 transition-transform">+</span>
-        </summary>
-        <p class="text-gray-500 text-sm mt-3 leading-relaxed">Нічого не зникне. Продовжуєте на обраному тарифі — усі дані лишаються на місці. Не підійшло — просто не продовжуєте, ніхто не дзвонитиме щодня і не вмовлятиме.</p>
+      <details class="kzf-i">
+        <summary><span>Що буде після 30 днів безкоштовного періоду?</span><i aria-hidden="true"></i></summary>
+        <div class="kzf-a"><div><p>Нічого не зникне. Продовжуєте на обраному тарифі — усі дані лишаються на місці. Не підійшло — просто не продовжуєте, ніхто не дзвонитиме щодня і не вмовлятиме.</p></div></div>
       </details>
-
-      <details class="bg-white rounded-2xl p-6 group cursor-pointer">
-        <summary class="font-semibold text-brand-dark flex items-start gap-4 justify-between list-none cursor-pointer">
-          Чи можу я забрати свої дані?
-          <span class="text-brand-gold text-xl group-open:rotate-45 transition-transform">+</span>
-        </summary>
-        <p class="text-gray-500 text-sm mt-3 leading-relaxed">Так. Дані ваші — вивантаження клієнтів, тварин і залишків складу в Excel доступне будь-коли. Прив'язки до нас немає.</p>
+      <details class="kzf-i">
+        <summary><span>Чи можу я забрати свої дані?</span><i aria-hidden="true"></i></summary>
+        <div class="kzf-a"><div><p>Так. Дані ваші — вивантаження клієнтів, тварин і залишків складу в Excel доступне будь-коли. Прив'язки до нас немає.</p></div></div>
       </details>
     </div>
   </div>
 </section>
+
+<script>
+(function(){
+  var list=document.querySelectorAll('.kzf-i');
+  if(!list.length) return;
+  Array.prototype.forEach.call(list,function(d){
+    var sum=d.querySelector('summary');
+    sum.addEventListener('click',function(e){
+      e.preventDefault();
+      if(d.open){
+        d.classList.add('closing');
+        setTimeout(function(){ d.open=false; d.classList.remove('closing'); },320);
+      } else { d.open=true; }
+    });
+  });
+})();
+</script>
 
 
 <!-- ═══════════════════ ROADMAP / АКТИВНА РОЗРОБКА ═══════════════════ -->
-<section class="py-20 px-6 bg-brand-dark overflow-hidden relative">
-  <div class="absolute inset-0 pointer-events-none">
-    <div class="absolute top-0 right-0 w-96 h-96 rounded-full bg-brand-gold/4 blur-3xl"></div>
-    <div class="absolute bottom-0 left-0 w-64 h-64 rounded-full bg-brand-gold/3 blur-3xl"></div>
-  </div>
+<style>
+.kzr{background:#0d0c0b;padding:100px 24px 92px;position:relative}
+.kzr::before{content:"";position:absolute;top:0;left:50%;transform:translateX(-50%);width:min(1120px,calc(100% - 48px));height:1px;background:linear-gradient(90deg,transparent,rgba(222,170,1,.5),transparent)}
+.kzr-wrap{max-width:1120px;margin:0 auto}
+.kzr-top{display:flex;align-items:flex-end;justify-content:space-between;gap:40px;margin-bottom:56px;flex-wrap:wrap}
+.kzr-live{display:inline-flex;align-items:center;gap:10px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#DEAA01;font-weight:700;margin-bottom:20px}
+.kzr-live u{position:relative;width:8px;height:8px;border-radius:50%;background:#DEAA01;text-decoration:none;display:block}
+.kzr-live u::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:1px solid #DEAA01;opacity:.55;animation:kzrPing 2.2s cubic-bezier(0,0,.2,1) infinite}
+@keyframes kzrPing{0%{transform:scale(.6);opacity:.7}80%,100%{transform:scale(1.9);opacity:0}}
+.kzr h2{font-family:'Fixel Display','Fixel',system-ui,sans-serif;font-size:clamp(33px,4.4vw,54px);font-weight:800;color:#fff;margin:0 0 18px;line-height:1.08;letter-spacing:-.02em;max-width:17ch}
+.kzr h2 .mut{color:rgba(255,255,255,.34);font-weight:700}
+.kzr-lead{font-size:17px;color:rgba(255,255,255,.5);line-height:1.65;margin:0;max-width:56ch}
+.kzr-cta{flex-shrink:0;display:inline-block;padding:14px 24px;background:#DEAA01;color:#12100F;border-radius:12px;font-size:15px;font-weight:700;text-decoration:none;transition:filter .2s ease}
+.kzr-cta:hover{filter:brightness(.94)}
 
-  <div class="relative max-w-5xl mx-auto">
+.kzr-cols{display:grid;grid-template-columns:1fr 1fr;gap:56px;margin-bottom:56px}
+.kzr-h{display:flex;align-items:baseline;gap:12px;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.42);padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,.12);margin-bottom:4px}
+.kzr-h em{font-style:normal;color:rgba(255,255,255,.24);letter-spacing:0;text-transform:none;font-weight:500;font-size:13px}
+.kzr-list{list-style:none;padding:0;margin:0}
+.kzr-list li{display:flex;align-items:flex-start;gap:16px;padding:16px 0;border-bottom:1px solid rgba(255,255,255,.07);font-size:15.5px;line-height:1.55;color:rgba(255,255,255,.78)}
+.kzr-list li b{flex:0 0 42px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding-top:3px}
+.kzr-list li b.f1{color:#DEAA01}
+.kzr-list li b.f2{color:rgba(222,170,1,.62)}
+.kzr-list li b.f3{color:rgba(255,255,255,.3)}
+.kzr-wip li{gap:0}
+.kzr-wip li span b{display:block;flex:none;font-size:15.5px;font-weight:700;letter-spacing:0;text-transform:none;color:#fff;margin-bottom:4px;padding-top:0}
+.kzr-wip li span{display:block;font-size:14px;color:rgba(255,255,255,.45);line-height:1.55;position:relative;padding-left:22px}
+.kzr-wip li span::before{content:"";position:absolute;left:0;top:9px;width:12px;height:1px;background:#DEAA01;opacity:.75}
 
-    <!-- Header -->
-    <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-14">
+.kzr-foot{border:1px solid rgba(255,255,255,.11);border-left:2px solid #DEAA01;border-radius:0 16px 16px 0;padding:26px 30px;display:flex;align-items:center;gap:32px;flex-wrap:wrap}
+.kzr-foot h3{font-size:19px;font-weight:700;color:#fff;margin:0 0 7px}
+.kzr-foot p{font-size:15px;color:rgba(255,255,255,.5);line-height:1.6;margin:0;max-width:64ch}
+.kzr-foot .txt{flex:1 1 380px}
+.kzr-foot .btns{display:flex;gap:12px;flex-wrap:wrap}
+.kzr-b1{padding:12px 20px;background:#DEAA01;color:#12100F;border-radius:11px;font-size:14.5px;font-weight:700;text-decoration:none}
+.kzr-b1:hover{filter:brightness(.94)}
+.kzr-b2{padding:12px 20px;border:1px solid rgba(255,255,255,.18);color:rgba(255,255,255,.75);border-radius:11px;font-size:14.5px;font-weight:600;text-decoration:none;transition:all .2s ease}
+.kzr-b2:hover{border-color:#DEAA01;color:#DEAA01}
+
+@media (max-width:900px){
+  .kzr{padding:64px 18px 56px}
+  .kzr h2{font-size:clamp(28px,7.5vw,34px)}
+  .kzr-top{gap:26px;margin-bottom:40px}
+  .kzr-cols{grid-template-columns:1fr;gap:40px;margin-bottom:40px}
+  .kzr-foot{padding:22px 20px;gap:20px}
+  .kzr-cta{width:100%;text-align:center}
+}
+@media (prefers-reduced-motion:reduce){.kzr-live u::after{animation:none}}
+</style>
+
+<section class="kzr">
+  <div class="kzr-wrap">
+    <div class="kzr-top">
       <div>
-        <div class="flex items-center gap-2.5 mb-3">
-          <span class="relative flex h-3 w-3">
-            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-            <span class="relative inline-flex rounded-full h-3 w-3 bg-green-400"></span>
-          </span>
-          <span class="text-green-400 text-sm font-semibold tracking-wide uppercase">Активна розробка</span>
-        </div>
-        <h2 class="text-3xl lg:text-4xl font-extrabold text-white mb-3">
-          Система росте разом<br>з вашою клінікою
-        </h2>
-        <p class="text-white/50 text-base max-w-md">
-          Ми не продаємо готовий продукт і забуваємо про вас. Kizuna CRM оновлюється щотижня —
-          і саме ваші відгуки визначають що з'явиться наступним.
-        </p>
+        <div class="kzr-live"><u></u>Активна розробка</div>
+        <h2>Система росте разом <span class="mut">з вашою клінікою</span></h2>
+        <p class="kzr-lead">Ми не продаємо готовий продукт і забуваємо про вас. Kizuna CRM оновлюється щотижня — і саме ваші відгуки визначають що з'явиться наступним.</p>
       </div>
-      <a href="mailto:hello@kizuna.com.ua?subject=Пропозиція для Kizuna CRM"
-         class="flex-shrink-0 inline-flex items-center gap-2 px-6 py-3 bg-brand-gold text-brand-dark rounded-xl font-bold text-sm hover:opacity-90 transition-all shadow-lg shadow-brand-gold/20">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
-        </svg>
-        Запропонувати функцію
-      </a>
+      <a href="mailto:hello@kizuna.com.ua?subject=Пропозиція для Kizuna CRM" class="kzr-cta">Запропонувати функцію</a>
     </div>
 
-    <!-- Two columns: changelog + roadmap -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
-
-      <!-- Останні оновлення -->
-      <div class="bg-white/5 border border-white/8 rounded-2xl p-6">
-        <div class="flex items-center gap-2 mb-5">
-          <svg class="w-4 h-4 text-brand-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-          </svg>
-          <span class="text-white font-semibold">Нещодавно додали</span>
-        </div>
-        <div class="space-y-3.5">
-          <div class="flex items-start gap-3">
-            <span class="mt-0.5 px-2 py-0.5 bg-green-500/15 text-green-400 text-xs rounded-md font-medium flex-shrink-0">серп</span>
-            <span class="text-gray-300 text-sm">Форма запису на сайт клініки — два рядки коду, і клієнти записуються самі</span>
-          </div>
-          <div class="flex items-start gap-3">
-            <span class="mt-0.5 px-2 py-0.5 bg-green-500/15 text-green-400 text-xs rounded-md font-medium flex-shrink-0">серп</span>
-            <span class="text-gray-300 text-sm">Переписаний розділ Telegram — листування з клієнтом просто в системі</span>
-          </div>
-          <div class="flex items-start gap-3">
-            <span class="mt-0.5 px-2 py-0.5 bg-brand-gold/15 text-brand-gold text-xs rounded-md font-medium flex-shrink-0">лип</span>
-            <span class="text-gray-300 text-sm">Мобільна версія всіх екранів — каса, склад і записи з телефона</span>
-          </div>
-          <div class="flex items-start gap-3">
-            <span class="mt-0.5 px-2 py-0.5 bg-brand-gold/15 text-brand-gold text-xs rounded-md font-medium flex-shrink-0">лип</span>
-            <span class="text-gray-300 text-sm">Інвентаризація складу і підказка «що замовити» за витратами</span>
-          </div>
-          <div class="flex items-start gap-3">
-            <span class="mt-0.5 px-2 py-0.5 bg-white/10 text-gray-400 text-xs rounded-md font-medium flex-shrink-0">трав</span>
-            <span class="text-gray-300 text-sm">Контакти клієнтів у телефоні — синхронізуються самі, з кличкою тварини</span>
-          </div>
-          <div class="flex items-start gap-3">
-            <span class="mt-0.5 px-2 py-0.5 bg-white/10 text-gray-400 text-xs rounded-md font-medium flex-shrink-0">трав</span>
-            <span class="text-gray-300 text-sm">Власний дашборд — самі обираєте, які показники бачити при вході</span>
-          </div>
-        </div>
+    <div class="kzr-cols">
+      <div>
+        <div class="kzr-h">Нещодавно додали</div>
+        <ul class="kzr-list">
+          <li><b class="f1">серп</b><span>Форма запису на сайт клініки — два рядки коду, і клієнти записуються самі</span></li>
+          <li><b class="f1">серп</b><span>Медична карта тварини у PDF — повна історія хвороб, щеплень і аналізів в один файл</span></li>
+          <li><b class="f1">серп</b><span>Переписаний розділ Telegram — листування з клієнтом просто в системі</span></li>
+          <li><b class="f2">лип</b><span>Мобільна версія всіх екранів — каса, склад і записи з телефона</span></li>
+          <li><b class="f2">лип</b><span>Інвентаризація складу і підказка «що замовити» за витратами</span></li>
+          <li><b class="f3">трав</b><span>Контакти клієнтів у телефоні — синхронізуються самі, з кличкою тварини</span></li>
+          <li><b class="f3">трав</b><span>Власний дашборд — самі обираєте, які показники бачити при вході</span></li>
+        </ul>
       </div>
-
-      <!-- Що в роботі -->
-      <div class="bg-white/5 border border-white/8 rounded-2xl p-6">
-        <div class="flex items-center gap-2 mb-5">
-          <svg class="w-4 h-4 text-brand-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-          </svg>
-          <span class="text-white font-semibold">В розробці</span>
-        </div>
-        <div class="space-y-3.5">
-          <div class="flex items-start gap-3">
-            <span class="mt-0.5 w-2 h-2 rounded-full bg-yellow-400 flex-shrink-0 mt-1.5"></span>
-            <div>
-              <span class="text-gray-200 text-sm font-medium">SMS-нагадування про прийом</span>
-              <p class="text-gray-500 text-xs mt-0.5">Автоматичні SMS клієнтам за день до запису</p>
-            </div>
-          </div>
-          <div class="flex items-start gap-3">
-            <span class="mt-0.5 w-2 h-2 rounded-full bg-yellow-400 flex-shrink-0 mt-1.5"></span>
-            <div>
-              <span class="text-gray-200 text-sm font-medium">Медична карта тварини (PDF)</span>
-              <p class="text-gray-500 text-xs mt-0.5">Повна історія хвороб, щеплень, аналізів у PDF</p>
-            </div>
-          </div>
-          <div class="flex items-start gap-3">
-            <span class="mt-0.5 w-2 h-2 rounded-full bg-blue-400 flex-shrink-0 mt-1.5"></span>
-            <div>
-              <span class="text-gray-200 text-sm font-medium">Кілька філій в одній системі</span>
-              <p class="text-gray-500 text-xs mt-0.5">Спільна база клієнтів, окремі каса і склад по кожній точці</p>
-            </div>
-          </div>
-          <div class="flex items-start gap-3">
-            <span class="mt-0.5 w-2 h-2 rounded-full bg-purple-400 flex-shrink-0 mt-1.5"></span>
-            <div>
-              <span class="text-gray-200 text-sm font-medium">Перенесення з Excel і старих програм</span>
-              <p class="text-gray-500 text-xs mt-0.5">Клієнти, тварини й залишки складу — без ручного набивання</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- Feedback CTA -->
-    <div class="bg-gradient-to-r from-brand-gold/10 to-brand-gold/5 border border-brand-gold/20 rounded-2xl p-6 md:p-8 flex flex-col md:flex-row items-center gap-6">
-      <div class="text-4xl flex-shrink-0">💬</div>
-      <div class="flex-1 text-center md:text-left">
-        <h3 class="text-white font-bold text-lg mb-1">Ваш відгук формує продукт</h3>
-        <p class="text-white/50 text-sm">
-          Не вистачає якоїсь функції? Незручно щось? Маєте ідею?
-          Напишіть — і саме ваш запит може стати наступним оновленням системи.
-          Ми читаємо кожне повідомлення.
-        </p>
-      </div>
-      <div class="flex flex-col sm:flex-row gap-3 flex-shrink-0">
-        <a href="mailto:hello@kizuna.com.ua?subject=Ідея для Kizuna CRM"
-           class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-brand-gold text-brand-dark rounded-xl font-semibold text-sm hover:opacity-90 transition-all">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-          Написати ідею
-        </a>
-        <a href="tel:+380984782121"
-           class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 border border-white/15 text-white/70 rounded-xl font-semibold text-sm hover:border-brand-gold hover:text-brand-gold transition-all">
-          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"/></svg>
-          +38 098 478 21 21
-        </a>
+      <div>
+        <div class="kzr-h">В розробці</div>
+        <ul class="kzr-list kzr-wip">
+          <li><span><b>SMS-нагадування про прийом</b>Автоматичні SMS клієнтам за день до запису</span></li>
+          <li><span><b>Viber-бот для клієнтів</b>Записи, нагадування й листування у Viber — так само, як уже працює в Telegram</span></li>
+          <li><span><b>Автонагадування про щеплення</b>Підходить термін ревакцинації — система сама пише клієнту, без ручних обдзвонів</span></li>
+          <li><span><b>Кілька філій в одній системі</b>Спільна база клієнтів, окремі каса і склад по кожній точці</span></li>
+        </ul>
       </div>
     </div>
 
+    <div class="kzr-foot">
+      <div class="txt">
+        <h3>Ваш відгук формує продукт</h3>
+        <p>Не вистачає якоїсь функції? Незручно щось? Маєте ідею? Напишіть — і саме ваш запит може стати наступним оновленням системи. Ми читаємо кожне повідомлення.</p>
+      </div>
+      <div class="btns">
+        <a href="mailto:hello@kizuna.com.ua?subject=Ідея для Kizuna CRM" class="kzr-b1">Написати ідею</a>
+        <a href="tel:+380984782121" class="kzr-b2">+38 098 478 21 21</a>
+      </div>
+    </div>
   </div>
 </section>
 
+<style>
+.kzcon{background:#fff;padding:100px 24px 92px}
+.kzcon-wrap{max-width:1120px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:72px;align-items:start}
+.kzcon-eyebrow{display:inline-flex;align-items:center;gap:10px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#8a6a0d;font-weight:700;margin-bottom:22px}
+.kzcon-eyebrow s{width:26px;height:1px;background:#DEAA01;display:block;text-decoration:none}
+.kzcon h2{font-family:'Fixel Display','Fixel',system-ui,sans-serif;font-size:clamp(31px,3.9vw,48px);font-weight:800;color:#12100F;margin:0 0 18px;line-height:1.08;letter-spacing:-.02em}
+.kzcon h2 .mut{color:#b8b0a8;font-weight:700}
+.kzcon-lead{font-size:17px;color:#6b6560;line-height:1.7;margin:0;max-width:44ch}
 
-<!-- ═══════════════════ ФОРМА ЗВОРОТНОГО ЗВ'ЯЗКУ ═══════════════════ -->
-<section id="contact" class="py-20 px-6 bg-white">
-  <div class="max-w-2xl mx-auto">
-    <div class="text-center mb-10">
-      <h2 class="text-3xl lg:text-4xl font-extrabold text-brand-dark mb-4">Поговорімо про вашу клініку</h2>
-      <p class="text-gray-500 text-lg">Лишіть контакти — зателефонуємо, покажемо систему на прикладі вашої клініки й відповімо на все. Без нав'язування.</p>
+.kzcon-form{border:1px solid rgba(18,16,15,.09);border-radius:16px;padding:30px 28px}
+.kzcon-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.kzcon-f{display:block;margin-bottom:16px}
+.kzcon-f label,.kzcon-row label{display:block;font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#8a827a;margin-bottom:8px}
+.kzcon-f label i,.kzcon-row label i{font-style:normal;color:#b8b0a8;font-weight:600}
+.kzcon input,.kzcon textarea{width:100%;padding:13px 15px;border:1px solid rgba(18,16,15,.14);border-radius:10px;background:#fff;
+  font-family:inherit;font-size:15.5px;color:#12100F;outline:none;transition:border-color .18s ease,box-shadow .18s ease}
+.kzcon input::placeholder,.kzcon textarea::placeholder{color:#b8b0a8}
+.kzcon input:focus,.kzcon textarea:focus{border-color:#DEAA01;box-shadow:0 0 0 3px rgba(222,170,1,.16)}
+.kzcon textarea{resize:none;line-height:1.6}
+#ct-error{color:#b04141;font-size:14px;margin:0 0 12px;min-height:20px}
+#ct-submit{width:100%;padding:15px 20px;background:#12100F;color:#fff;border:0;border-radius:12px;
+  font-family:inherit;font-size:15.5px;font-weight:700;cursor:pointer;transition:background .2s ease}
+#ct-submit:hover{background:#DEAA01;color:#12100F}
+#ct-submit:disabled{opacity:.6;cursor:default}
+.kzcon-note{margin:14px 0 0;font-size:13px;color:#a49c94;line-height:1.5}
+#ct-success{border:1px solid rgba(222,170,1,.4);border-left:2px solid #DEAA01;border-radius:0 16px 16px 0;padding:28px 30px;background:#FFF7F3}
+#ct-success h3{font-size:20px;font-weight:800;color:#12100F;margin:0 0 8px}
+#ct-success p{font-size:15.5px;color:#6b6560;line-height:1.65;margin:0}
+#ct-success a{color:#8a6a0d;font-weight:700;white-space:nowrap}
+
+/* фінальний заклик */
+.kzq{background:linear-gradient(135deg,#12100F 0%,#211d1b 62%,#15120f 100%);padding:110px 24px;position:relative;overflow:hidden}
+.kzq::before{content:"";position:absolute;top:0;left:50%;transform:translateX(-50%);width:min(1120px,calc(100% - 48px));height:1px;background:linear-gradient(90deg,transparent,rgba(222,170,1,.55),transparent)}
+.kzq-wrap{max-width:820px;margin:0 auto;text-align:center;position:relative}
+.kzq h2{font-family:'Fixel Display','Fixel',system-ui,sans-serif;font-size:clamp(32px,4.6vw,56px);font-weight:800;color:#fff;margin:0 0 18px;line-height:1.07;letter-spacing:-.022em}
+.kzq p{font-size:18px;color:rgba(255,255,255,.52);margin:0 0 36px;line-height:1.6}
+.kzq-btn{display:inline-block;padding:17px 38px;background:#DEAA01;color:#12100F;border-radius:13px;font-size:16.5px;font-weight:800;text-decoration:none;transition:filter .2s ease}
+.kzq-btn:hover{filter:brightness(.94)}
+.kzq-sub{margin:22px 0 0;font-size:13px;color:rgba(255,255,255,.26);letter-spacing:.02em}
+
+@media (max-width:900px){
+  .kzcon{padding:64px 18px 56px}
+  .kzcon-wrap{grid-template-columns:1fr;gap:36px}
+  .kzcon h2{font-size:clamp(27px,7.2vw,33px)}
+  .kzcon-lead{font-size:16px;max-width:none}
+  .kzcon-form{padding:24px 20px}
+  .kzcon-row{grid-template-columns:1fr;gap:0}
+  .kzcon-row > div{margin-bottom:16px}
+  .kzq{padding:72px 18px}
+  .kzq h2{font-size:clamp(28px,7.6vw,36px)}
+  .kzq p{font-size:16px;margin-bottom:28px}
+  .kzq-btn{display:block;padding:16px 20px}
+}
+</style>
+
+<section id="contact" class="kzcon">
+  <div class="kzcon-wrap">
+    <div>
+      <div class="kzcon-eyebrow"><s></s>Контакти</div>
+      <h2><span class="mut">Поговорімо</span> про вашу клініку</h2>
+      <p class="kzcon-lead">Лишіть контакти — зателефонуємо, покажемо систему на прикладі вашої клініки й відповімо на все. Без нав'язування.</p>
     </div>
 
-    <form id="contact-form" class="bg-brand-cream rounded-2xl p-6 md:p-8 border border-gray-100" autocomplete="on" novalidate>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-        <div>
-          <label for="ct-name" class="block text-sm font-semibold text-brand-dark mb-1.5">Ім'я</label>
-          <input id="ct-name" name="name" type="text" autocomplete="name" placeholder="Як до вас звертатись"
-            class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-brand-dark placeholder-gray-400 focus:border-brand-gold focus:ring-1 focus:ring-brand-gold outline-none transition">
+    <div>
+      <form id="contact-form" class="kzcon-form" autocomplete="on" novalidate>
+        <div class="kzcon-row">
+          <div>
+            <label for="ct-name">Ім'я</label>
+            <input id="ct-name" name="name" type="text" autocomplete="name" placeholder="Як до вас звертатись">
+          </div>
+          <div>
+            <label for="ct-phone">Телефон</label>
+            <input id="ct-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+380 XX XXX XX XX">
+          </div>
         </div>
-        <div>
-          <label for="ct-phone" class="block text-sm font-semibold text-brand-dark mb-1.5">Телефон</label>
-          <input id="ct-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+380 XX XXX XX XX"
-            class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-brand-dark placeholder-gray-400 focus:border-brand-gold focus:ring-1 focus:ring-brand-gold outline-none transition">
+        <div class="kzcon-f">
+          <label for="ct-email">Електронна пошта</label>
+          <input id="ct-email" name="email" type="email" autocomplete="email" placeholder="you@clinic.ua">
         </div>
-      </div>
-      <div class="mb-4">
-        <label for="ct-email" class="block text-sm font-semibold text-brand-dark mb-1.5">Електронна пошта</label>
-        <input id="ct-email" name="email" type="email" autocomplete="email" placeholder="you@clinic.ua"
-          class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-brand-dark placeholder-gray-400 focus:border-brand-gold focus:ring-1 focus:ring-brand-gold outline-none transition">
-      </div>
-      <div class="mb-5">
-        <label for="ct-msg" class="block text-sm font-semibold text-brand-dark mb-1.5">Повідомлення <span class="text-gray-400 font-normal">— за бажанням</span></label>
-        <textarea id="ct-msg" name="message" rows="3" placeholder="Коротко про вашу клініку або питання, з яким прийшли"
-          class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-brand-dark placeholder-gray-400 focus:border-brand-gold focus:ring-1 focus:ring-brand-gold outline-none transition resize-none"></textarea>
-      </div>
-      <p id="ct-error" class="text-red-500 text-sm mb-3 min-h-[20px]"></p>
-      <button type="submit" id="ct-submit"
-        class="w-full py-4 gradient-gold text-brand-dark rounded-xl font-bold text-base hover:brightness-95 transition-all shadow-lg shadow-brand-gold/20">
-        Зв'яжіться зі мною
-      </button>
-      <p class="text-gray-400 text-xs text-center mt-3">Телефон і пошта потрібні лише щоб ми могли відповісти. Нікому не передаємо.</p>
-    </form>
+        <div class="kzcon-f">
+          <label for="ct-msg">Повідомлення <i>— за бажанням</i></label>
+          <textarea id="ct-msg" name="message" rows="3" placeholder="Коротко про вашу клініку або питання, з яким прийшли"></textarea>
+        </div>
+        <p id="ct-error"></p>
+        <button type="submit" id="ct-submit">Зв'яжіться зі мною</button>
+        <p class="kzcon-note">Телефон і пошта потрібні лише щоб ми могли відповісти. Нікому не передаємо.</p>
+      </form>
 
-    <div id="ct-success" style="display:none;" class="text-center bg-brand-cream rounded-2xl p-8 md:p-10 border border-brand-gold/30">
-      <svg class="w-12 h-12 text-brand-gold mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-      <h3 class="text-xl font-bold text-brand-dark mb-2">Дякуємо, заявку прийнято</h3>
-      <p class="text-gray-500">Зв'яжемося найближчим часом. Якщо зручніше — телефонуйте самі: <a href="tel:+380984782121" class="text-brand-gold font-semibold whitespace-nowrap">+38 098 478 21 21</a>.</p>
+      <div id="ct-success" style="display:none;">
+        <h3>Дякуємо, заявку прийнято</h3>
+        <p>Зв'яжемося найближчим часом. Якщо зручніше — телефонуйте самі: <a href="tel:+380984782121">+38 098 478 21 21</a>.</p>
+      </div>
     </div>
   </div>
 </section>
@@ -1432,22 +1669,15 @@
 })();
 </script>
 
-
 <!-- ═══════════════════ CTA FINAL ═══════════════════ -->
-<section class="py-24 px-6 gradient-hero text-center relative overflow-hidden">
-  <div class="absolute inset-0 pointer-events-none">
-    <div class="absolute top-0 left-1/4 w-64 h-64 rounded-full bg-brand-gold/5 blur-3xl"></div>
-    <div class="absolute bottom-0 right-1/4 w-64 h-64 rounded-full bg-brand-gold/5 blur-3xl"></div>
-  </div>
-  <div class="relative max-w-2xl mx-auto">
-    <h2 class="text-4xl font-extrabold text-white mb-4">Клініка запрацює в системі сьогодні</h2>
-    <p class="text-white/60 text-lg mb-8">30 днів безкоштовно. Без кредитної картки. Без обмежень функцій.</p>
+<section class="kzq">
+  <div class="kzq-wrap">
+    <h2>Клініка запрацює в системі сьогодні</h2>
+    <p>30 днів безкоштовно. Без кредитної картки. Без обмежень функцій.</p>
     <a href="https://crm.kizuna.com.ua/register/"
        onclick="gtag('event','begin_registration',{event_category:'cta',event_label:'bottom_cta'})"
-       class="inline-block px-10 py-4 gradient-gold text-brand-dark rounded-xl font-bold text-lg hover:brightness-95 transition-all shadow-xl shadow-brand-gold/20">
-      Зареєструвати клініку безкоштовно →
-    </a>
-    <p class="text-white/30 text-sm mt-4">Kizuna CRM · Ветеринарна CRM система · Україна</p>
+       class="kzq-btn">Зареєструвати клініку безкоштовно →</a>
+    <p class="kzq-sub">Kizuna CRM · Ветеринарна CRM система · Україна</p>
   </div>
 </section>
 
