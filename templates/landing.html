@@ -145,7 +145,6 @@
   <link rel="stylesheet" href="{% static 'css/landing.min.css' %}">
 
   <!-- Preload LCP image -->
-  <link rel="preload" as="image" type="image/webp" href="{% static 'landing/dashboard.webp' %}">
 
   <style>
     html { scroll-behavior: smooth; }
@@ -184,7 +183,7 @@
     .kzh-nav .text-gray-600{color:rgba(255,255,255,.55) !important;}
     .kzh-nav a.text-gray-600:hover{color:#fff !important;}
     .kzh-nav .bg-brand-dark{background:#fff !important; color:#12100F !important;}
-    .kzh-nav img{filter:brightness(0) invert(1);}
+    .kzh-nav img{filter:none;}
 
 
 
@@ -359,6 +358,8 @@
       max-width:15ch;
     }
     .kzh-h1 .dim{color:rgba(255,255,255,.42);}
+    /* Fixel: альтернативні гліфи великих літер у заголовках (наказ Олега 20.08) — А М Н У В Ж К Х Я */
+    .kzh-h1,.kza-num,.kz-head h2,.kz-txt h3,.kzm-head h2,.kzp h2,.kzp-price,.kzf h2,.kzr h2,.kzcon h2,.kzq h2,.kzg h2{font-feature-settings:"ss01" 1,"ss02" 1}
 
     .kzh-sub{
       font-size:17px; line-height:1.55;
@@ -458,10 +459,9 @@
 <!-- ═══════════════════ NAVBAR ═══════════════════ -->
 <nav class="kzh-nav fixed top-0 left-0 right-0 z-50">
   <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-    <div class="flex items-center gap-3">
-      <img src="{% static 'img/logo.svg' %}" alt="Kizuna CRM" class="h-10 w-auto">
-      <span class="font-bold text-lg text-brand-dark">Kizuna CRM</span>
-    </div>
+    <a href="/" class="flex items-center" aria-label="Kizuna CRM">
+      <img src="{% static 'img/logo-full.svg' %}" alt="Kizuna CRM" class="h-7 w-auto">
+    </a>
     <div class="hidden md:flex items-center gap-8 text-sm text-gray-600">
       <a href="#pain" class="hover:text-brand-gold transition-colors">Можливості</a>
       <a href="#pricing" class="hover:text-brand-gold transition-colors">Тарифи</a>
@@ -594,16 +594,6 @@
    </div>
   </div>
 
-  <div class="kzh-stage">
-    <div class="kzh-frame">
-      <div class="kzh-bar"><i></i><i></i><i></i><b>Kizuna CRM · дашборд клініки</b></div>
-      <picture>
-        <source srcset="{% static 'landing/dashboard.webp' %}" type="image/webp">
-        <img src="{% static 'landing/dashboard.png' %}" alt="Дашборд ветеринарної CRM Kizuna" width="1280" height="577" fetchpriority="high">
-      </picture>
-      <div class="kzh-live"><u></u>Дані клініки оновлюються в реальному часі</div>
-    </div>
-  </div>
 </section>
 
 
@@ -1669,6 +1659,181 @@
 })();
 </script>
 
+<style>
+.kzg{background:#FFF7F3;padding:100px 24px 92px;position:relative}
+.kzg::before{content:"";position:absolute;top:0;left:50%;transform:translateX(-50%);width:min(1120px,calc(100% - 48px));height:1px;background:linear-gradient(90deg,transparent,rgba(222,170,1,.5),transparent)}
+.kzg-wrap{max-width:1240px;margin:0 auto}
+.kzg-eyebrow{display:inline-flex;align-items:center;gap:10px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#8a6a0d;font-weight:700;margin-bottom:22px}
+.kzg-eyebrow s{width:26px;height:1px;background:#DEAA01;display:block;text-decoration:none}
+.kzg h2{font-family:'Fixel Display','Fixel',system-ui,sans-serif;font-size:clamp(31px,4.2vw,52px);font-weight:800;color:#12100F;margin:0 0 16px;line-height:1.08;letter-spacing:-.02em}
+.kzg h2 .mut{color:#b8b0a8;font-weight:700}
+.kzg-lead{font-size:17px;color:#6b6560;line-height:1.7;margin:0 0 46px;max-width:56ch}
+
+.kzg-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;grid-auto-flow:dense;align-items:stretch}
+.kzg-i{position:relative;padding:0;border:1px solid rgba(18,16,15,.1);border-radius:12px;overflow:hidden;background:#fff;cursor:pointer;
+  display:block;line-height:0;aspect-ratio:16/10;transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease}
+.kzg-i.big{grid-column:span 2;grid-row:span 2;aspect-ratio:1.58}
+.kzg-i img{display:block;width:100%;height:100%;object-fit:cover;object-position:top left}
+.kzg-i span{position:absolute;left:0;right:0;bottom:0;padding:26px 14px 11px;text-align:left;line-height:1.3;
+  font-size:12.5px;font-weight:700;color:#fff;letter-spacing:.01em;opacity:0;transition:opacity .22s ease;
+  background:linear-gradient(180deg,rgba(13,12,11,0),rgba(13,12,11,.86))}
+.kzg-i:hover{transform:translateY(-3px);box-shadow:0 14px 34px rgba(18,16,15,.16);border-color:rgba(222,170,1,.55)}
+.kzg-i:hover span{opacity:1}
+.kzg-i:focus-visible{outline:2px solid #DEAA01;outline-offset:3px}
+
+.kzg-lb{position:fixed;inset:0;z-index:99999;background:rgba(6,5,5,.94);display:flex;align-items:center;justify-content:center;padding:34px 18px}
+.kzg-lb[hidden]{display:none}
+.kzg-lb img{max-width:min(1500px,94vw);max-height:86vh;border-radius:12px;border:1px solid rgba(255,255,255,.14);box-shadow:0 30px 80px rgba(0,0,0,.7);display:block}
+.kzg-cap{position:absolute;bottom:20px;left:0;right:0;text-align:center;color:#fff;font-size:15px;font-weight:600}
+.kzg-cap b{display:block;font-size:12px;font-weight:600;color:rgba(255,255,255,.4);margin-top:6px}
+.kzg-nav{position:absolute;top:50%;transform:translateY(-50%);width:48px;height:48px;border-radius:50%;border:1px solid rgba(255,255,255,.2);
+  background:rgba(255,255,255,.08);color:#fff;font-size:22px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.kzg-nav:hover{background:rgba(255,255,255,.16)}
+.kzg-prev{left:20px}.kzg-next{right:20px}
+.kzg-close{position:absolute;top:18px;right:18px;width:42px;height:42px;border-radius:50%;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;font-size:18px;cursor:pointer}
+
+@media (max-width:1100px){ .kzg-grid{grid-template-columns:repeat(3,1fr)} }
+@media (max-width:760px){
+  .kzg{padding:64px 18px 56px}
+  .kzg h2{font-size:clamp(28px,7.4vw,34px)}
+  .kzg-lead{font-size:16px;margin-bottom:32px}
+  .kzg-grid{grid-template-columns:repeat(2,1fr);gap:10px}
+  .kzg-i.big{grid-column:span 2;grid-row:span 1;aspect-ratio:16/10}
+  .kzg-i span{opacity:1;font-size:11px;padding:20px 10px 8px}
+  .kzg-nav{width:40px;height:40px}
+  .kzg-prev{left:8px}.kzg-next{right:8px}
+}
+@media (prefers-reduced-motion:reduce){.kzg-i{transition:none}}
+</style>
+
+<section id="gallery" class="kzg">
+  <div class="kzg-wrap">
+    <div class="kzg-eyebrow"><s></s>Інтерфейс</div>
+    <h2>Двадцять екранів <span class="mut">справжньої системи</span></h2>
+    <p class="kzg-lead">Не макети й не малюнки — це знімки робочої клініки в Kizuna CRM, з живими записами, чеками й залишками. Натисніть на будь-який, щоб роздивитись.</p>
+
+    <div class="kzg-grid">
+      <button type="button" class="kzg-i big" data-full="{% static 'landing/gal/01-full.webp' %}" data-cap="Дашборд клініки" aria-label="Дашборд клініки — відкрити більшим">
+        <img src="{% static 'landing/gal/01.webp' %}" alt="Дашборд клініки — екран Kizuna CRM" loading="lazy" width="880" height="550">
+        <span>Дашборд клініки</span>
+      </button>
+      <button type="button" class="kzg-i big" data-full="{% static 'landing/gal/02-full.webp' %}" data-cap="Розклад на тиждень" aria-label="Розклад на тиждень — відкрити більшим">
+        <img src="{% static 'landing/gal/02.webp' %}" alt="Розклад на тиждень — екран Kizuna CRM" loading="lazy" width="880" height="550">
+        <span>Розклад на тиждень</span>
+      </button>
+      <button type="button" class="kzg-i" data-full="{% static 'landing/gal/03-full.webp' %}" data-cap="Клієнти" aria-label="Клієнти — відкрити більшим">
+        <img src="{% static 'landing/gal/03.webp' %}" alt="Клієнти — екран Kizuna CRM" loading="lazy" width="880" height="550">
+        <span>Клієнти</span>
+      </button>
+      <button type="button" class="kzg-i" data-full="{% static 'landing/gal/04-full.webp' %}" data-cap="Пацієнти" aria-label="Пацієнти — відкрити більшим">
+        <img src="{% static 'landing/gal/04.webp' %}" alt="Пацієнти — екран Kizuna CRM" loading="lazy" width="880" height="550">
+        <span>Пацієнти</span>
+      </button>
+      <button type="button" class="kzg-i" data-full="{% static 'landing/gal/05-full.webp' %}" data-cap="Картка клієнта" aria-label="Картка клієнта — відкрити більшим">
+        <img src="{% static 'landing/gal/05.webp' %}" alt="Картка клієнта — екран Kizuna CRM" loading="lazy" width="880" height="550">
+        <span>Картка клієнта</span>
+      </button>
+      <button type="button" class="kzg-i" data-full="{% static 'landing/gal/06-full.webp' %}" data-cap="Картка пацієнта" aria-label="Картка пацієнта — відкрити більшим">
+        <img src="{% static 'landing/gal/06.webp' %}" alt="Картка пацієнта — екран Kizuna CRM" loading="lazy" width="880" height="550">
+        <span>Картка пацієнта</span>
+      </button>
+      <button type="button" class="kzg-i" data-full="{% static 'landing/gal/07-full.webp' %}" data-cap="Чеки і рахунки" aria-label="Чеки і рахунки — відкрити більшим">
+        <img src="{% static 'landing/gal/07.webp' %}" alt="Чеки і рахунки — екран Kizuna CRM" loading="lazy" width="880" height="550">
+        <span>Чеки і рахунки</span>
+      </button>
+      <button type="button" class="kzg-i big" data-full="{% static 'landing/gal/08-full.webp' %}" data-cap="Чек із фіскалізацією" aria-label="Чек із фіскалізацією — відкрити більшим">
+        <img src="{% static 'landing/gal/08.webp' %}" alt="Чек із фіскалізацією — екран Kizuna CRM" loading="lazy" width="880" height="550">
+        <span>Чек із фіскалізацією</span>
+      </button>
+      <button type="button" class="kzg-i" data-full="{% static 'landing/gal/09-full.webp' %}" data-cap="Склад" aria-label="Склад — відкрити більшим">
+        <img src="{% static 'landing/gal/09.webp' %}" alt="Склад — екран Kizuna CRM" loading="lazy" width="880" height="550">
+        <span>Склад</span>
+      </button>
+      <button type="button" class="kzg-i" data-full="{% static 'landing/gal/10-full.webp' %}" data-cap="Що замовити" aria-label="Що замовити — відкрити більшим">
+        <img src="{% static 'landing/gal/10.webp' %}" alt="Що замовити — екран Kizuna CRM" loading="lazy" width="880" height="550">
+        <span>Що замовити</span>
+      </button>
+      <button type="button" class="kzg-i" data-full="{% static 'landing/gal/11-full.webp' %}" data-cap="Рухи складу" aria-label="Рухи складу — відкрити більшим">
+        <img src="{% static 'landing/gal/11.webp' %}" alt="Рухи складу — екран Kizuna CRM" loading="lazy" width="880" height="550">
+        <span>Рухи складу</span>
+      </button>
+      <button type="button" class="kzg-i" data-full="{% static 'landing/gal/12-full.webp' %}" data-cap="Інвентаризація" aria-label="Інвентаризація — відкрити більшим">
+        <img src="{% static 'landing/gal/12.webp' %}" alt="Інвентаризація — екран Kizuna CRM" loading="lazy" width="880" height="550">
+        <span>Інвентаризація</span>
+      </button>
+      <button type="button" class="kzg-i" data-full="{% static 'landing/gal/13-full.webp' %}" data-cap="Аналітика складу" aria-label="Аналітика складу — відкрити більшим">
+        <img src="{% static 'landing/gal/13.webp' %}" alt="Аналітика складу — екран Kizuna CRM" loading="lazy" width="880" height="550">
+        <span>Аналітика складу</span>
+      </button>
+      <button type="button" class="kzg-i big" data-full="{% static 'landing/gal/14-full.webp' %}" data-cap="Аналітика за рік" aria-label="Аналітика за рік — відкрити більшим">
+        <img src="{% static 'landing/gal/14.webp' %}" alt="Аналітика за рік — екран Kizuna CRM" loading="lazy" width="880" height="550">
+        <span>Аналітика за рік</span>
+      </button>
+      <button type="button" class="kzg-i" data-full="{% static 'landing/gal/15-full.webp' %}" data-cap="Витрати" aria-label="Витрати — відкрити більшим">
+        <img src="{% static 'landing/gal/15.webp' %}" alt="Витрати — екран Kizuna CRM" loading="lazy" width="880" height="550">
+        <span>Витрати</span>
+      </button>
+      <button type="button" class="kzg-i" data-full="{% static 'landing/gal/16-full.webp' %}" data-cap="Боржники" aria-label="Боржники — відкрити більшим">
+        <img src="{% static 'landing/gal/16.webp' %}" alt="Боржники — екран Kizuna CRM" loading="lazy" width="880" height="550">
+        <span>Боржники</span>
+      </button>
+      <button type="button" class="kzg-i" data-full="{% static 'landing/gal/17-full.webp' %}" data-cap="Послуги і ціни" aria-label="Послуги і ціни — відкрити більшим">
+        <img src="{% static 'landing/gal/17.webp' %}" alt="Послуги і ціни — екран Kizuna CRM" loading="lazy" width="880" height="550">
+        <span>Послуги і ціни</span>
+      </button>
+      <button type="button" class="kzg-i" data-full="{% static 'landing/gal/18-full.webp' %}" data-cap="Графік роботи" aria-label="Графік роботи — відкрити більшим">
+        <img src="{% static 'landing/gal/18.webp' %}" alt="Графік роботи — екран Kizuna CRM" loading="lazy" width="880" height="550">
+        <span>Графік роботи</span>
+      </button>
+      <button type="button" class="kzg-i big" data-full="{% static 'landing/gal/19-full.webp' %}" data-cap="Нагадування про вакцини" aria-label="Нагадування про вакцини — відкрити більшим">
+        <img src="{% static 'landing/gal/19.webp' %}" alt="Нагадування про вакцини — екран Kizuna CRM" loading="lazy" width="880" height="550">
+        <span>Нагадування про вакцини</span>
+      </button>
+      <button type="button" class="kzg-i" data-full="{% static 'landing/gal/20-full.webp' %}" data-cap="Користувачі й ролі" aria-label="Користувачі й ролі — відкрити більшим">
+        <img src="{% static 'landing/gal/20.webp' %}" alt="Користувачі й ролі — екран Kizuna CRM" loading="lazy" width="880" height="550">
+        <span>Користувачі й ролі</span>
+      </button>
+    </div>
+  </div>
+</section>
+
+<div class="kzg-lb" id="kzgLb" hidden role="dialog" aria-modal="true" aria-label="Перегляд екрана">
+  <button type="button" class="kzg-close" id="kzgClose" aria-label="Закрити">✕</button>
+  <button type="button" class="kzg-nav kzg-prev" id="kzgPrev" aria-label="Попередній">‹</button>
+  <img id="kzgImg" src="" alt="">
+  <button type="button" class="kzg-nav kzg-next" id="kzgNext" aria-label="Наступний">›</button>
+  <div class="kzg-cap" id="kzgCap"></div>
+</div>
+
+<script>
+(function(){
+  var items=[].slice.call(document.querySelectorAll('.kzg-i'));
+  if(!items.length) return;
+  var lb=document.getElementById('kzgLb'), img=document.getElementById('kzgImg'), cap=document.getElementById('kzgCap');
+  var cur=0, N=items.length;
+  function show(i){
+    cur=(i+N)%N;
+    var el=items[cur];
+    img.src=el.dataset.full; img.alt=el.querySelector('img').getAttribute('alt');
+    cap.innerHTML=el.dataset.cap+'<b>'+(cur+1)+' / '+N+'</b>';
+  }
+  function open(i){ show(i); lb.removeAttribute('hidden'); document.body.style.overflow='hidden'; }
+  function close(){ lb.setAttribute('hidden',''); document.body.style.overflow=''; }
+  items.forEach(function(el,i){ el.addEventListener('click',function(){ open(i); }); });
+  document.getElementById('kzgClose').addEventListener('click',close);
+  document.getElementById('kzgPrev').addEventListener('click',function(){ show(cur-1); });
+  document.getElementById('kzgNext').addEventListener('click',function(){ show(cur+1); });
+  lb.addEventListener('click',function(e){ if(e.target===lb) close(); });
+  document.addEventListener('keydown',function(e){
+    if(lb.hasAttribute('hidden')) return;
+    if(e.key==='Escape') close();
+    if(e.key==='ArrowLeft') show(cur-1);
+    if(e.key==='ArrowRight') show(cur+1);
+  });
+})();
+</script>
+
+
 <!-- ═══════════════════ CTA FINAL ═══════════════════ -->
 <section class="kzq">
   <div class="kzq-wrap">
@@ -1686,8 +1851,7 @@
 <footer class="bg-brand-dark py-10 px-6">
   <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
     <div class="flex items-center gap-3">
-      <img src="{% static 'img/logo.svg' %}" alt="Kizuna CRM" class="h-7 w-auto opacity-80">
-      <span class="text-white/60 text-sm">Kizuna CRM — ветеринарна CRM система</span>
+      <img src="{% static 'img/logo-full.svg' %}" alt="Kizuna CRM — ветеринарна CRM система" class="h-8 w-auto">
     </div>
     <div class="flex flex-wrap items-center justify-center md:justify-end gap-x-5 gap-y-2 text-sm text-white/40">
       <a href="tel:+380984782121" class="hover:text-brand-gold transition-colors flex items-center gap-1.5">
@@ -1743,7 +1907,7 @@
   "@type": "Organization",
   "name": "Kizuna CRM",
   "url": "https://product.kizuna.com.ua",
-  "logo": "https://product.kizuna.com.ua/static/img/logo.svg",
+  "logo": "https://product.kizuna.com.ua/static/img/logo-full.svg",
   "contactPoint": {
     "@type": "ContactPoint",
     "telephone": "+380984782121",
