@@ -744,26 +744,22 @@ class Command(BaseCommand):
 
         # Базовий тренд: лютий–липень 2026 + поточний місяць
         month_config = [
-            (SIX_MONTHS_AGO.year, SIX_MONTHS_AGO.month, 35),
-            (None, None, 38),  # +1 місяць
-            (None, None, 42),
-            (None, None, 46),
-            (None, None, 50),
-            (TODAY.year, TODAY.month, 55),  # поточний
+            (SIX_MONTHS_AGO.year, SIX_MONTHS_AGO.month, 82),
+            (None, None, 90),  # +1 місяць
+            (None, None, 98),
+            (None, None, 106),
+            (None, None, 115),
+            (TODAY.year, TODAY.month, 124),  # поточний
         ]
 
-        # Розрахуємо конкретні (year, month, count)
-        months = []
-        base = SIX_MONTHS_AGO.replace(day=1)
-        for i, (y, m, cnt) in enumerate(month_config):
-            target = base.replace(day=1)
-            import calendar
-            months.append((target.year, target.month, cnt))
-            # Перейти до наступного місяця
-            if base.month == 12:
-                base = base.replace(year=base.year + 1, month=1)
-            else:
-                base = base.replace(month=base.month + 1)
+        # Місяці: останній = ПОТОЧНИЙ (щоб виручка й витрати збігались по періоду).
+        seq = []
+        yy, mm = TODAY.year, TODAY.month
+        for _ in range(len(month_config)):
+            seq.append((yy, mm)); mm -= 1
+            if mm == 0: mm = 12; yy -= 1
+        seq.reverse()  # від найстарішого до поточного
+        months = [(y, m, cnt) for (y, m), (_, _, cnt) in zip(seq, month_config)]
 
         total_inv = 0
         svc_pool = [s for s in services]
@@ -772,8 +768,9 @@ class Command(BaseCommand):
             import calendar
             days_in_month = calendar.monthrange(year, month)[1]
 
+            max_day = TODAY.day if (year == TODAY.year and month == TODAY.month) else days_in_month
             for _ in range(count):
-                day = RNG.randint(1, days_in_month)
+                day = RNG.randint(1, max_day)
                 # Пропускаємо неділю
                 try:
                     dt = date(year, month, day)
@@ -868,13 +865,16 @@ class Command(BaseCommand):
         for m_offset in range(6):
             exp_date = (TODAY.replace(day=1) - timedelta(days=m_offset * 30)).replace(day=1)
 
-            # Щомісячні витрати
+            # Щомісячні витрати (прибуткова клініка: витрати ~60% виторгу).
+            # Оренда і зарплата — БЕЗГОТІВКОВО (переказ), як у сучасній клініці;
+            # готівкою лише дрібне. Зарплата тут ОДИН раз (Expense), без дублю в касі.
             monthly = [
-                ('Оренда', 'cash', 15000),
-                ('Комунальні послуги', 'cash', RNG.randint(3200, 4500)),
-                ('Реклама та маркетинг', 'card', RNG.randint(2000, 3500)),
-                ('Закупівля медикаментів', 'card', RNG.randint(5000, 9000)),
-                ('Зарплата', 'cash', RNG.randint(28000, 35000)),
+                ('Оренда', 'card', 22000),
+                ('Зарплата', 'card', RNG.randint(36000, 42000)),
+                ('Закупівля медикаментів', 'card', RNG.randint(9000, 14000)),
+                ('Реклама та маркетинг', 'card', RNG.randint(3000, 5000)),
+                ('Комунальні послуги', 'cash', RNG.randint(4500, 6500)),
+                ('Інше', 'cash', RNG.randint(1500, 3000)),
             ]
             for cat_name, pay_method, amt in monthly:
                 e_date = exp_date + timedelta(days=RNG.randint(1, 5))
@@ -890,15 +890,16 @@ class Command(BaseCommand):
                     organization=org,
                 ))
 
-            # Касова операція: вилучення для зарплати
-            w_date = exp_date + timedelta(days=RNG.randint(3, 7))
+            # Касова операція: інкасація готівкового виторгу в банк
+            # (клініка не тримає всю готівку в касі — здає в банк)
+            w_date = exp_date + timedelta(days=RNG.randint(20, 27))
             if w_date > TODAY:
                 w_date = TODAY
             cash_ops.append(CashOperation(
                 type='withdrawal',
-                amount=Decimal(str(RNG.randint(15000, 22000))),
+                amount=Decimal(str(RNG.randint(22000, 30000))),
                 date=w_date,
-                description=f'Виплата зарплати — {exp_date.strftime("%B %Y")}',
+                description=f'Інкасація виторгу — {exp_date.strftime("%B %Y")}',
                 created_by=admin_user,
                 organization=org,
             ))
