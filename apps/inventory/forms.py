@@ -23,6 +23,16 @@ class ProductForm(forms.ModelForm):
             self.fields['unit'].queryset = Unit.objects.filter(
                 Q(organization__isnull=True) | Q(organization=org)
             ).order_by('name')
+            # Категорія — той самий фікс, що й у послугах (22.08): Django рахує
+            # queryset поля при імпорті модуля, коли клініки ще не видно, і
+            # порожній список лишається назавжди. Тому список був порожній
+            # завжди — категорію товару обрати було просто нічим.
+            self.fields['category'].queryset = Category._base_manager.filter(
+                organization=org,
+            ).order_by('name')
+        else:
+            self.fields['category'].queryset = Category._base_manager.none()
+        self.fields['category'].empty_label = '— Без категорії —'
         for field in self.fields.values():
             field.widget.attrs.setdefault('class', FIELD_CLASS)
 
