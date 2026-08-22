@@ -57,11 +57,12 @@ class ServiceDetailView(LoginRequiredMixin, DetailView):
 
 @login_required
 def service_create(request):
-    form = ServiceForm(request.POST or None)
-    formset = ComponentFormSet(request.POST or None, prefix='comp')
+    org = request.organization
+    form = ServiceForm(request.POST or None, org=org)
+    formset = ComponentFormSet(request.POST or None, prefix='comp', form_kwargs={'org': org})
     if request.method == 'POST' and form.is_valid() and formset.is_valid():
         service = form.save(commit=False)
-        service.organization = request.organization
+        service.organization = org
         service.save()
         formset.instance = service
         formset.save()
@@ -73,8 +74,9 @@ def service_create(request):
 @login_required
 def service_update(request, pk):
     service = get_object_or_404(Service, pk=pk, organization=request.organization)
-    form = ServiceForm(request.POST or None, instance=service)
-    formset = ComponentFormSet(request.POST or None, instance=service, prefix='comp')
+    form = ServiceForm(request.POST or None, instance=service, org=request.organization)
+    formset = ComponentFormSet(request.POST or None, instance=service, prefix='comp',
+                               form_kwargs={'org': request.organization})
     if request.method == 'POST' and form.is_valid() and formset.is_valid():
         form.save()
         formset.save()
@@ -259,15 +261,24 @@ def service_import_execute(request):
         return redirect('services:import')
 
     org = request.organization
-    cat_cache = {c.name.strip().lower(): c for c in ServiceCategory.objects.all()}
+    cat_cache = {
+        c.name.strip().lower(): c
+        for c in ServiceCategory._base_manager.filter(organization=org)
+    }
 
     def resolve_category(title):
-        """Категорія за назвою; якої немає — заводимо, щоб не губити розкладку."""
+        """Категорія за назвою; якої немає — заводимо, щоб не губити розкладку.
+
+        Клініку ставимо явно: без неї категорія лишалась нічия
+        (organization=NULL) і не показувалась потім НІКОМУ.
+        """
         key = (title or '').strip().lower()
         if not key:
             return None
         if key not in cat_cache:
-            cat_cache[key] = ServiceCategory.objects.create(name=title.strip())
+            cat_cache[key] = ServiceCategory._base_manager.create(
+                name=title.strip(), organization=org,
+            )
         return cat_cache[key]
 
     from decimal import Decimal

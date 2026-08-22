@@ -51,6 +51,37 @@ class BookingWidgetView(AdminRequiredMixin, View):
         })
 
 
+class PricelistWidgetView(AdminRequiredMixin, View):
+    """Сторінка «Прайс на сайт» — адреса, з якої будь-який сайт бере прайс клініки.
+
+    Прайс віддається окремо для кожної клініки (за її міткою `?org=`), тому
+    чужі послуги на чийсь сайт потрапити не можуть. Тут просто показуємо
+    готову адресу, приклад відповіді й нагадуємо, що у прайс ідуть лише
+    послуги з галочкою «Показувати на сайті».
+    """
+
+    def get(self, request):
+        from apps.services.models import Service
+
+        org = request.organization
+        if org is None:
+            messages.error(request, 'Організацію не визначено.')
+            return redirect('clinic:settings')
+
+        base = request.build_absolute_uri('/').rstrip('/')
+        api_url = f'{base}/api/public/pricelist/?org={org.slug}'
+        shown = Service._base_manager.filter(
+            organization=org, is_active=True, show_on_website=True,
+        ).count()
+        return render(request, 'clinic/pricelist_widget.html', {
+            'org': org,
+            'api_url': api_url,
+            'api_url_category': f'{api_url}&category=Хірургія',
+            'shown_count': shown,
+            'website_set': bool((org.website or '').strip()),
+        })
+
+
 class ClinicSettingsView(AdminRequiredMixin, View):
     def _ctx(self, request, form):
         from apps.accounts.models import User

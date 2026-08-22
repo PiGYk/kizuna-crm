@@ -27,6 +27,17 @@
         <label class="block text-sm font-medium text-gray-700 mb-1">Категорія</label>
         {{ form.category }}
         {% if form.category.errors %}<p class="text-red-500 text-xs mt-1">{{ form.category.errors|join:", " }}</p>{% endif %}
+
+        {# Потрібної категорії ще немає — заводимо прямо тут, без окремої сторінки. #}
+        <button type="button" id="new-cat-btn"
+          class="mt-2 text-sm text-brand-gold hover:text-brand-dark font-medium">
+          + Нова категорія
+        </button>
+        <div id="new-cat-box" class="mt-2 {% if not form.new_category.value and not form.new_category.errors %}hidden{% endif %}">
+          {{ form.new_category }}
+          {% if form.new_category.errors %}<p class="text-red-500 text-xs mt-1">{{ form.new_category.errors|join:", " }}</p>{% endif %}
+          <p class="text-xs text-gray-400 mt-1">Збережете послугу — категорія створиться і одразу застосується до неї.</p>
+        </div>
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Опис</label>
@@ -48,33 +59,50 @@
           {{ form.show_on_website }}
           <span>
             <span class="font-medium">Показувати на сайті</span>
-            <span class="block text-xs text-gray-400">Послуга з'явиться на kizuna.com.ua/pricelist/ (оновлення за ~5 хв)</span>
+            <span class="block text-xs text-gray-400">
+              Послуга потрапить у публічний прайс
+              {% if clinic.website %}вашого сайту ({{ clinic.website }}){% else %}вашої клініки{% endif %}
+              — оновлення за ~5 хв.
+            </span>
           </span>
         </label>
+        <a href="{% url 'clinic:pricelist_widget' %}"
+           class="inline-block mt-1.5 ml-6 text-xs text-brand-gold hover:underline font-medium">
+          Як вивести прайс на свій сайт →
+        </a>
       </div>
     </div>
 
     <!-- Components formset -->
     <div class="bg-white rounded-xl border border-gray-200 p-6 mb-4">
-      <h2 class="text-sm font-semibold text-gray-700 mb-3">Склад послуги
+      <h2 class="text-sm font-semibold text-gray-700 mb-1">Склад послуги
         <span class="text-gray-400 font-normal">(товари зі складу, які списуються)</span>
       </h2>
-
-      <!-- пошук для фільтрації select-ів товарів у formset -->
-      <div class="mb-2">
-        <input type="text" id="comp-search" placeholder="Фільтр товарів у рядках нижче…"
-          class="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-base md:text-sm focus:outline-none focus:ring-1 focus:ring-brand-gold"
-          oninput="filterFormsetSelects(this.value)">
-      </div>
+      <p class="text-xs text-gray-400 mb-3">Почніть вводити назву товару — система підкаже зі складу.</p>
 
       <div id="formset-container" class="space-y-3">
         {% for f in formset %}
-        <div class="formset-row flex items-center gap-3 {% if f.instance.pk and f.DELETE.value %}opacity-40{% endif %}">
-          <div class="flex-1">{{ f.product }}</div>
-          <div class="w-28">{{ f.quantity }}</div>
-          <label class="flex items-center gap-1 text-xs text-gray-400 shrink-0">
-            {{ f.DELETE }} видалити
-          </label>
+        {# На телефоні рядок стає стовпчиком: у ряд назва товару стискалась до «Біцилін…» #}
+        <div class="formset-row flex flex-col md:flex-row md:items-start gap-2 md:gap-3
+                    pb-3 border-b border-gray-100 last:border-0 md:pb-0 md:border-0
+                    {% if f.instance.pk and f.DELETE.value %}opacity-40{% endif %}">
+          <div class="flex-1 relative">
+            <input type="text" autocomplete="off"
+              class="comp-name w-full px-4 py-2.5 border border-gray-300 rounded-lg text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold focus:border-transparent"
+              placeholder="Назва товару…"
+              value="{% if f.instance.pk %}{{ f.instance.product.name }}{% endif %}">
+            <div class="comp-drop hidden absolute z-30 left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto"></div>
+            {% if f.product.errors %}<p class="comp-err text-red-500 text-xs mt-1">Оберіть товар зі списку</p>{% endif %}
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="w-28">
+              {{ f.quantity }}
+              {% if f.quantity.errors %}<p class="comp-err text-red-500 text-xs mt-1">{{ f.quantity.errors|join:", " }}</p>{% endif %}
+            </div>
+            <label class="flex items-center gap-1.5 text-xs text-gray-400 shrink-0 md:pt-3">
+              {{ f.DELETE }} видалити
+            </label>
+          </div>
           {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
         </div>
         {% endfor %}
@@ -112,33 +140,93 @@
 </div>
 
 <script>
-// Фільтр товарів у formset-selects
-function filterFormsetSelects(q) {
-  const lower = q.toLowerCase();
-  document.querySelectorAll('.formset-row select').forEach(sel => {
-    Array.from(sel.options).forEach(opt => {
-      if (!opt.value) return; // залишаємо "— Товар —"
-      opt.hidden = lower && !opt.text.toLowerCase().includes(lower);
-    });
-  });
-}
+// ── Нова категорія ──────────────────────────────────────────────────────────
+document.getElementById('new-cat-btn').addEventListener('click', () => {
+  const box = document.getElementById('new-cat-box');
+  box.classList.toggle('hidden');
+  const input = box.querySelector('input');
+  if (input && !box.classList.contains('hidden')) input.focus();
+});
 
-// Динамічне додавання рядків formset
+// ── Пошук товару у складі послуги ───────────────────────────────────────────
+// Той самий механізм, що й у чеку: вводиш дві літери — падає список зі складу,
+// клікнув — товар обрано. Випадайка на сотні позицій тут неможлива.
 const container = document.getElementById('formset-container');
 const totalForms = document.getElementById('id_comp-TOTAL_FORMS');
+let searchTimer = null;
+
+function esc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                  .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+container.addEventListener('input', e => {
+  const input = e.target;
+  if (!input.classList.contains('comp-name')) return;
+  const row = input.closest('.formset-row');
+  const drop = row.querySelector('.comp-drop');
+  const hidden = row.querySelector('input[name$="-product"]');
+  if (hidden) hidden.value = '';   // почав правити назву — стара прив'язка вже не діє
+  const q = input.value.trim();
+  clearTimeout(searchTimer);
+  if (q.length < 2) { drop.classList.add('hidden'); return; }
+  searchTimer = setTimeout(() => {
+    fetch('/billing/product-search/?q=' + encodeURIComponent(q))
+      .then(r => r.json())
+      .then(data => {
+        const items = data.results || [];
+        drop.innerHTML = items.length
+          ? items.map(r =>
+              '<div class="comp-opt px-3 py-2 hover:bg-brand-gold/10 cursor-pointer flex justify-between gap-3 border-b border-gray-50 last:border-0"' +
+              ' data-id="' + r.id + '" data-name="' + esc(r.name) + '">' +
+              '<span class="text-sm text-brand-dark">' + esc(r.name) + '</span>' +
+              '<span class="text-xs text-gray-400 whitespace-nowrap">' + r.qty + ' ' + esc(r.unit || '') + '</span></div>'
+            ).join('')
+          : '<div class="px-3 py-2 text-sm text-gray-400">Нічого не знайдено</div>';
+        drop.classList.remove('hidden');
+      })
+      .catch(() => drop.classList.add('hidden'));
+  }, 200);
+});
+
+container.addEventListener('click', e => {
+  const opt = e.target.closest('.comp-opt');
+  if (!opt) return;
+  const row = opt.closest('.formset-row');
+  const hidden = row.querySelector('input[name$="-product"]');
+  if (hidden) hidden.value = opt.dataset.id;
+  row.querySelector('.comp-name').value = opt.dataset.name;
+  row.querySelector('.comp-drop').classList.add('hidden');
+  const err = row.querySelector('.comp-err');
+  if (err) err.remove();
+});
+
+document.addEventListener('click', e => {
+  document.querySelectorAll('.comp-drop').forEach(d => {
+    if (!d.closest('.formset-row').contains(e.target)) d.classList.add('hidden');
+  });
+});
+
+// ── Динамічне додавання рядків formset ──────────────────────────────────────
 document.getElementById('add-component').addEventListener('click', () => {
   const idx = parseInt(totalForms.value);
   const template = container.querySelector('.formset-row');
   const clone = template.cloneNode(true);
   clone.querySelectorAll('input, select').forEach(el => {
-    el.name = el.name.replace(/-\d+-/, `-${idx}-`);
-    el.id = el.id.replace(/-\d+-/, `-${idx}-`);
-    if (el.type !== 'checkbox') el.value = '';
-    if (el.type === 'checkbox') el.checked = false;
+    if (el.name) {
+      el.name = el.name.replace(/-\d+-/, `-${idx}-`);
+      el.id = el.id.replace(/-\d+-/, `-${idx}-`);
+    }
+    if (el.type === 'checkbox') { el.checked = false; } else { el.value = ''; el.removeAttribute('value'); }
   });
+  clone.querySelectorAll('.comp-err').forEach(el => el.remove());
+  const drop = clone.querySelector('.comp-drop');
+  drop.innerHTML = '';
+  drop.classList.add('hidden');
   clone.classList.remove('opacity-40');
   container.appendChild(clone);
   totalForms.value = idx + 1;
+  clone.querySelector('.comp-name').focus();
 });
 </script>
 {% endblock %}

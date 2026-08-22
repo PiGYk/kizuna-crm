@@ -2,6 +2,7 @@ from django.urls import path
 from .views import (
     BookingWidgetView,
     ClinicSettingsView,
+    PricelistWidgetView,
     superadmin_dashboard,
     superadmin_toggle_active,
     superadmin_extend_trial,
@@ -16,4 +17,5 @@ app_name = 'clinic'
 urlpatterns = [
     path('settings/', ClinicSettingsView.as_view(), name='settings'),
     path('booking-widget/', BookingWidgetView.as_view(), name='booking_widget'),
+    path('pricelist-widget/', PricelistWidgetView.as_view(), name='pricelist_widget'),
 ]
