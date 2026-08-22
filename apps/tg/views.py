@@ -972,25 +972,22 @@ def _cmd_my_appointments(chat):
 # ── Запис на прийом (booking flow) ───────────────────────────────────────────
 
 def _cmd_book_appointment(chat):
-    """Step 1: Choose doctor."""
-    from django.contrib.auth import get_user_model
-    User = get_user_model()
-    doctors = User.objects.filter(
-        role__in=['admin', 'doctor'],
-        organization=chat.organization,
-        is_active=True,
-    ).order_by('last_name', 'first_name')[:10]
+    """Крок 1: одразу вибір дати.
 
-    if not doctors.exists():
-        return 'Наразі немає доступних лікарів для запису.', _main_menu_keyboard()
-
-    rows = [(f"{d.last_name} {d.first_name}".strip() or d.username, f"book_doctor:{d.pk}") for d in doctors]
-    markup = _inline_keyboard(rows)
-    return 'Оберіть лікаря для запису:', markup
+    Лікаря клієнт НЕ обирає. На зміні в клініці завжди один лікар, а вибір
+    лікаря дозволяв двом клієнтам зайняти один і той самий час у різних
+    «лікарів» (жива накладка 22.08 на 10:00). Зайнятість тепер рахується по
+    КЛІНІЦІ — так само, як у публічній формі запису на сайті.
+    """
+    return _cmd_book_choose_date(chat)
 
 
-def _cmd_book_choose_date(chat, doctor_id):
-    """Step 2: Show next 7 working days as date choices."""
+def _cmd_book_choose_date(chat, doctor_id=None):
+    """Крок 2: наступні 7 робочих днів.
+
+    doctor_id приймається, але ігнорується — щоб старі кнопки «Оберіть лікаря»,
+    які вже висять у клієнтів у чатах, не падали.
+    """
     from datetime import date, timedelta
     today = date.today()
     org = chat.organization
@@ -1004,97 +1001,49 @@ def _cmd_book_choose_date(chat, doctor_id):
             continue
         weekdays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд']
         label = f"{weekdays[candidate.weekday()]} {candidate.strftime('%d.%m')}"
-        rows.append((label, f"book_date:{doctor_id}:{candidate.isoformat()}"))
+        # «-» на місці лікаря: формат кнопки лишається 4-частинним, тому
+        # парсер split(':', 3) не ріже час навпіл, а старі кнопки з номером
+        # лікаря так само розбираються.
+        rows.append((label, f"book_date:-:{candidate.isoformat()}"))
     markup = _inline_keyboard(rows)
     return 'Оберіть дату запису:', markup
 
 
-def _doctor_busy_intervals(doctor_id, chosen_date, kyiv_tz, slot_min=30):
-    """Зайняті інтервали лікаря (у локальному часі) які перетинають chosen_date.
+def _cmd_book_choose_time(chat, date_str, doctor_id=None):
+    """Крок 3: вільний час на обрану дату.
 
-    Повертає список (start_local_naive, end_local_naive). Враховує реальну тривалість
-    кожного запису (15/30/60/90/120 хв) + ловить запис що почався вчора пізно і
-    тягнеться у chosen_date (max 24h backwards).
+    Зайнятість рахується ПО КЛІНІЦІ, а не по лікарю: використовуємо ту саму
+    функцію, що й публічна форма на сайті (`_free_slots`), тож бот і сайт
+    ніколи не розходяться у тому, який час вільний. Один час = один запис.
     """
-    from datetime import datetime, time, timedelta
-    from apps.appointments.models import Appointment
-
-    day_start_local = datetime.combine(chosen_date, time(0, 0))
-    day_end_local = day_start_local + timedelta(days=1)
-    day_start_aware = day_start_local.replace(tzinfo=kyiv_tz)
-    day_end_aware = day_end_local.replace(tzinfo=kyiv_tz)
-
-    qs = Appointment.objects.filter(
-        doctor_id=doctor_id,
-        status__in=['scheduled', 'confirmed'],
-        starts_at__gte=day_start_aware - timedelta(hours=24),
-        starts_at__lt=day_end_aware,
-    ).values_list('starts_at', 'duration')
-
-    busy = []
-    for starts_at, duration in qs:
-        s = starts_at.astimezone(kyiv_tz).replace(tzinfo=None)
-        e = s + timedelta(minutes=duration or slot_min)
-        if e > day_start_local and s < day_end_local:
-            busy.append((s, e))
-    return busy
-
-
-def _cmd_book_choose_time(chat, doctor_id, date_str):
-    """Step 3: Show available time slots."""
-    from datetime import datetime, time, timedelta, date as date_type
-    from zoneinfo import ZoneInfo
+    from datetime import date as date_type
+    from apps.appointments.public_api import _free_slots
 
     try:
         chosen_date = date_type.fromisoformat(date_str)
     except ValueError:
         return 'Невірна дата.', _main_menu_keyboard()
 
-    # Working hours from organization settings (fallback: 10:00-18:00, 30 min)
-    start_hour = chat.organization.work_start if chat.organization and chat.organization.work_start else time(10, 0)
-    end_hour = chat.organization.work_end if chat.organization and chat.organization.work_end else time(18, 0)
-    slot_min = chat.organization.slot_duration if chat.organization and chat.organization.slot_duration else 30
+    free = _free_slots(chat.organization, chosen_date)
+    back = _inline_keyboard([('← Назад', 'book_doctor:-')])
 
-    slots = []
-    current = datetime.combine(chosen_date, start_hour)
-    end_dt = datetime.combine(chosen_date, end_hour)
-    while current < end_dt:
-        slots.append(current.time())
-        current += timedelta(minutes=slot_min)
-
-    kyiv_tz = ZoneInfo('Europe/Kyiv')
-    busy = _doctor_busy_intervals(doctor_id, chosen_date, kyiv_tz, slot_min=slot_min)
-
-    def _slot_is_free(slot_time):
-        slot_start = datetime.combine(chosen_date, slot_time)
-        slot_end = slot_start + timedelta(minutes=slot_min)
-        # Слот вільний якщо жоден busy-інтервал не перетинає [slot_start, slot_end).
-        return all(not (b_start < slot_end and b_end > slot_start) for b_start, b_end in busy)
-
-    available = [
-        (t.strftime('%H:%M'), f"book_time:{doctor_id}:{date_str}:{t.strftime('%H:%M')}")
-        for t in slots if _slot_is_free(t)
-    ]
-    if not available:
+    if free is None:  # вихідний день клініки
+        return 'Цього дня клініка не працює. Оберіть інший день.', back
+    if not free:
         return (
             f'На {chosen_date.strftime("%d.%m")} немає вільних слотів. Оберіть інший день.',
-            _inline_keyboard([('← Назад', f'book_doctor:{doctor_id}')])
+            back,
         )
 
+    available = [(t, f"book_time:-:{date_str}:{t}") for t in free]
     return f'Оберіть час на {chosen_date.strftime("%d.%m")}:', _inline_keyboard(available[:12])
 
 
-def _cmd_book_confirm(chat, doctor_id, date_str, time_str):
-    """Step 4: Show confirmation message with book/cancel buttons."""
-    from django.contrib.auth import get_user_model
+def _cmd_book_confirm(chat, date_str, time_str, doctor_id=None):
+    """Крок 4: підтвердження. Конкретного лікаря не називаємо — прийматиме той,
+    хто на зміні."""
     from datetime import date as date_type
 
-    try:
-        doctor = get_user_model().objects.get(pk=doctor_id)
-    except Exception:
-        return 'Лікаря не знайдено.', _main_menu_keyboard()
-
-    doctor_name = doctor.get_full_name() or doctor.username
     try:
         chosen_date = date_type.fromisoformat(date_str)
     except ValueError:
@@ -1102,21 +1051,24 @@ def _cmd_book_confirm(chat, doctor_id, date_str, time_str):
 
     text = (
         f'📋 <b>Підтвердження запису</b>\n\n'
-        f'👨‍⚕️ Лікар: <b>{doctor_name}</b>\n'
         f'📅 Дата: <b>{chosen_date.strftime("%d.%m.%Y")}</b>\n'
         f'🕐 Час: <b>{time_str}</b>\n\n'
         f'Підтверджуєте запис?'
     )
     markup = _inline_keyboard([
-        ('Так, записуюсь', f'book_confirm:{doctor_id}:{date_str}:{time_str}'),
+        ('Так, записуюсь', f'book_confirm:-:{date_str}:{time_str}'),
         ('Скасувати', 'book_cancel'),
     ])
     return text, markup
 
 
-def _cmd_book_create(chat, doctor_id, date_str, time_str):
-    """Step 5: Create the appointment."""
-    from django.contrib.auth import get_user_model
+def _cmd_book_create(chat, date_str, time_str, doctor_id=None):
+    """Крок 5: створення запису.
+
+    Лікар не приходить від клієнта — ставимо лікаря клініки за замовчуванням
+    (адміністратор за потреби перепризначає в CRM). Зайнятість перевіряємо по
+    клініці тією ж функцією, що й сайт.
+    """
     from django.utils import timezone
     from datetime import datetime
     from zoneinfo import ZoneInfo
@@ -1124,10 +1076,8 @@ def _cmd_book_create(chat, doctor_id, date_str, time_str):
     if not chat.client:
         return 'Для запису потрібно бути зареєстрованим клієнтом. Зверніться до адміністратора.', _main_menu_keyboard()
 
-    try:
-        doctor = get_user_model().objects.get(pk=doctor_id, organization=chat.organization)
-    except Exception:
-        return 'Лікаря не знайдено.', _main_menu_keyboard()
+    org = chat.organization
+    doctor = org.get_default_doctor() if org else None
 
     try:
         kyiv_tz = ZoneInfo('Europe/Kyiv')
@@ -1136,25 +1086,14 @@ def _cmd_book_create(chat, doctor_id, date_str, time_str):
     except Exception:
         return 'Помилка дати/часу.', _main_menu_keyboard()
 
-    from datetime import timedelta
-    slot_min = chat.organization.slot_duration if chat.organization and chat.organization.slot_duration else 30
-    new_end = starts_at + timedelta(minutes=slot_min)
+    slot_min = org.slot_duration if org and org.slot_duration else 30
 
-    # Real overlap check (а не лише exact-start) — захист від race + некоректних
-    # callback_data. Вікно −2 год покриває максимальну тривалість запису (120 хв).
+    # Перевірка зайнятості — ПО КЛІНІЦІ, тією ж функцією, що й на сайті: захист
+    # від гонки (двоє тиснуть один слот) і від підробленого callback_data.
     from apps.appointments.models import Appointment
-    nearby = Appointment.objects.filter(
-        organization=chat.organization,
-        doctor=doctor,
-        status__in=['scheduled', 'confirmed'],
-        starts_at__gte=starts_at - timedelta(hours=2),
-        starts_at__lt=new_end,
-    ).values_list('starts_at', 'duration')
-    conflict = any(
-        s < new_end and s + timedelta(minutes=d or slot_min) > starts_at
-        for s, d in nearby
-    )
-    if conflict:
+    from apps.appointments.public_api import _slot_is_free
+
+    if not _slot_is_free(org, starts_at, slot_min):
         return f'На {time_str} вже є запис. Оберіть інший час.', _main_menu_keyboard()
 
     Appointment.objects.create(
@@ -1163,14 +1102,12 @@ def _cmd_book_create(chat, doctor_id, date_str, time_str):
         starts_at=starts_at,
         duration=slot_min,
         status='scheduled',
-        organization=chat.organization,
+        organization=org,
         notes='Записано через Telegram-бот',
     )
 
-    doctor_name = doctor.get_full_name() or doctor.username
     text = (
         f'✅ <b>Запис створено!</b>\n\n'
-        f'👨‍⚕️ <b>{doctor_name}</b>\n'
         f'📅 {starts_at.strftime("%d.%m.%Y")} о <b>{starts_at.strftime("%H:%M")}</b>\n\n'
         f'Чекаємо вас! 🐾'
     )
@@ -1661,7 +1598,8 @@ def _handle_callback(callback, org=None):
             chat = TelegramChat.objects.get(tg_user_id=tg_user_id, organization=org)
         except TelegramChat.DoesNotExist:
             return
-        reply_text, markup = _cmd_book_choose_date(chat, int(parts[1]))
+        # parts[1] — «-» (нові кнопки) або номер лікаря (старі): ігноруємо.
+        reply_text, markup = _cmd_book_choose_date(chat)
         _send_tg(tg_user_id, reply_text, markup, org=org)
         return
 
@@ -1670,7 +1608,7 @@ def _handle_callback(callback, org=None):
             chat = TelegramChat.objects.get(tg_user_id=tg_user_id, organization=org)
         except TelegramChat.DoesNotExist:
             return
-        reply_text, markup = _cmd_book_choose_time(chat, int(parts[1]), parts[2])
+        reply_text, markup = _cmd_book_choose_time(chat, parts[2])
         _send_tg(tg_user_id, reply_text, markup, org=org)
         return
 
@@ -1679,7 +1617,7 @@ def _handle_callback(callback, org=None):
             chat = TelegramChat.objects.get(tg_user_id=tg_user_id, organization=org)
         except TelegramChat.DoesNotExist:
             return
-        reply_text, markup = _cmd_book_confirm(chat, int(parts[1]), parts[2], parts[3])
+        reply_text, markup = _cmd_book_confirm(chat, parts[2], parts[3])
         _send_tg(tg_user_id, reply_text, markup, org=org)
         return
 
@@ -1688,7 +1626,7 @@ def _handle_callback(callback, org=None):
             chat = TelegramChat.objects.get(tg_user_id=tg_user_id, organization=org)
         except TelegramChat.DoesNotExist:
             return
-        reply_text, markup = _cmd_book_create(chat, int(parts[1]), parts[2], parts[3])
+        reply_text, markup = _cmd_book_create(chat, parts[2], parts[3])
         _send_tg(tg_user_id, reply_text, markup, org=org)
         return
 
