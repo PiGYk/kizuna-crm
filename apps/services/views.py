@@ -15,7 +15,7 @@ class ServiceListView(LoginRequiredMixin, ListView):
     context_object_name = 'services'
 
     def get_queryset(self):
-        qs = Service.objects.select_related('category').prefetch_related('components__product')
+        qs = Service.objects.select_related('category').prefetch_related('components__product__unit')
         if not self.request.GET.get('inactive'):
             qs = qs.filter(is_active=True)
         q = self.request.GET.get('q', '').strip()

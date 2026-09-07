@@ -90,7 +90,7 @@
             <input type="text" autocomplete="off"
               class="comp-name w-full px-4 py-2.5 border border-gray-300 rounded-lg text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold focus:border-transparent"
               placeholder="Назва товару…"
-              value="{% if f.instance.pk %}{{ f.instance.product.name }}{% endif %}">
+              value="{{ f.product_name.value|default:'' }}">
             <div class="comp-drop hidden absolute z-30 left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto"></div>
             {% if f.product.errors %}<p class="comp-err text-red-500 text-xs mt-1">Оберіть товар зі списку</p>{% endif %}
           </div>
@@ -145,7 +145,12 @@ document.getElementById('new-cat-btn').addEventListener('click', () => {
   const box = document.getElementById('new-cat-box');
   box.classList.toggle('hidden');
   const input = box.querySelector('input');
-  if (input && !box.classList.contains('hidden')) input.focus();
+  if (box.classList.contains('hidden')) {
+    // Ховаємо — очищуємо, щоб не відправляти приховану категорію.
+    if (input) input.value = '';
+  } else if (input) {
+    input.focus();
+  }
 });
 
 // ── Пошук товару у складі послуги ───────────────────────────────────────────
@@ -166,7 +171,9 @@ container.addEventListener('input', e => {
   const row = input.closest('.formset-row');
   const drop = row.querySelector('.comp-drop');
   const hidden = row.querySelector('input[name$="-product"]');
-  if (hidden) hidden.value = '';   // почав правити назву — стара прив'язка вже не діє
+  const hiddenName = row.querySelector('input[name$="-product_name"]');
+  if (hidden) hidden.value = '';       // почав правити назву — стара прив'язка вже не діє
+  if (hiddenName) hiddenName.value = '';
   const q = input.value.trim();
   clearTimeout(searchTimer);
   if (q.length < 2) { drop.classList.add('hidden'); return; }
@@ -194,7 +201,9 @@ container.addEventListener('click', e => {
   if (!opt) return;
   const row = opt.closest('.formset-row');
   const hidden = row.querySelector('input[name$="-product"]');
+  const hiddenName = row.querySelector('input[name$="-product_name"]');
   if (hidden) hidden.value = opt.dataset.id;
+  if (hiddenName) hiddenName.value = opt.dataset.name;
   row.querySelector('.comp-name').value = opt.dataset.name;
   row.querySelector('.comp-drop').classList.add('hidden');
   const err = row.querySelector('.comp-err');
@@ -226,6 +235,10 @@ document.getElementById('add-component').addEventListener('click', () => {
   clone.classList.remove('opacity-40');
   container.appendChild(clone);
   totalForms.value = idx + 1;
+  // Нові рядки отримують кількість 1 за замовчуванням — порожня кількість
+  // при вибраному товарі викликає "Це поле обов'язкове" і губить компонент.
+  const qtyNew = clone.querySelector('input[name$="-quantity"]');
+  if (qtyNew && !qtyNew.value) qtyNew.value = '1';
   clone.querySelector('.comp-name').focus();
 });
 </script>

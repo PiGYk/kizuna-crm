@@ -98,6 +98,15 @@ class ServiceForm(forms.ModelForm):
 
 
 class ServiceComponentForm(forms.ModelForm):
+    # Текстова назва товару для JS-поля comp-name. Без цього поля при POST
+    # з помилками comp-name стає порожнім (f.instance.pk=None для нових рядків),
+    # хоча hidden product може мати правильне значення — товар невидимий у формі.
+    product_name = forms.CharField(
+        widget=forms.HiddenInput(),
+        required=False,
+        label='',
+    )
+
     class Meta:
         model = ServiceComponent
         fields = ('product', 'quantity')
@@ -119,6 +128,20 @@ class ServiceComponentForm(forms.ModelForm):
             ).order_by('name')
         else:
             self.fields['product'].queryset = Product._base_manager.none()
+        # Для існуючого компонента заповнюємо product_name з instance — щоб
+        # при GET і при ре-рендері після POST, comp-name завжди показував назву.
+        if self.instance.pk and self.instance.product_id:
+            try:
+                self.initial.setdefault('product_name', self.instance.product.name)
+            except Exception:
+                pass
+
+    def clean_quantity(self):
+        from decimal import Decimal
+        qty = self.cleaned_data.get('quantity')
+        if qty is not None and qty <= Decimal('0'):
+            raise forms.ValidationError('Кількість має бути більше 0.')
+        return qty
 
 
 ComponentFormSet = inlineformset_factory(
