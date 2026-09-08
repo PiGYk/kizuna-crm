@@ -365,6 +365,7 @@ class InboxReply(models.Model):
     draft = models.TextField('Чернетка відповіді', blank=True)
     auto_sent = models.BooleanField('Відповіли автоматично', default=False)
     hold_reason = models.CharField('Чому чекає людину', max_length=200, blank=True)
+    escalated = models.BooleanField('Передано Славі', default=False)
     created_at = models.DateTimeField('Опрацьовано', auto_now_add=True)
 
     class Meta:
