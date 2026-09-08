@@ -9,6 +9,7 @@
   @font-face{font-family:'Fixel Display';src:url('https://crm.kizuna.com.ua/static/fonts/fixel/FixelDisplay-SemiBold.woff2') format('woff2');font-weight:600;font-display:swap}
   @font-face{font-family:'Fixel Text';src:url('https://crm.kizuna.com.ua/static/fonts/fixel/FixelText-Regular.woff2') format('woff2');font-weight:400;font-display:swap}
   @font-face{font-family:'Fixel Text';src:url('https://crm.kizuna.com.ua/static/fonts/fixel/FixelText-SemiBold.woff2') format('woff2');font-weight:600;font-display:swap}
+  :root{color-scheme:dark only;supported-color-schemes:dark}
   body{margin:0;padding:0;background:#0d0c0b}
   a{color:#DEAA01}
   .lnk:hover{opacity:.85}
@@ -40,7 +41,7 @@
 
     <!-- заголовок -->
     <tr><td class="pad" style="padding:32px 40px 0 40px;">
-      <h1 class="h1" style="margin:0;font-family:'Fixel Display','Fixel',Georgia,system-ui,sans-serif;
+      <h1 class="h1" style="margin:0;font-family:'Fixel Display','Fixel','Helvetica Neue',Arial,sans-serif;
           font-weight:600;font-size:30px;line-height:36px;letter-spacing:-0.3px;color:#FFF7F3;">{{ title }}</h1>
     </td></tr>
 
@@ -57,7 +58,7 @@
       <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
         <td style="background:#DEAA01;border-radius:6px;">
           <a class="lnk" href="{{ cta_url }}"
-             style="display:inline-block;padding:13px 26px;font-family:'Fixel Text','Fixel',system-ui,sans-serif;
+             style="display:inline-block;padding:12px 24px;font-family:'Fixel Text','Fixel',system-ui,sans-serif;
                     font-size:15px;font-weight:600;line-height:20px;color:#12100F;text-decoration:none;">{{ cta_text }}</a>
         </td>
       </tr></table>
@@ -70,17 +71,17 @@
         <td height="1" style="height:1px;line-height:1px;font-size:0;background:#2b2723;">&nbsp;</td>
       </tr></table>
     </td></tr>
-    <tr><td class="pad" style="padding:20px 40px 0 40px;
+    <tr><td class="pad" style="padding:24px 40px 0 40px;
         font-family:'Fixel Text','Fixel',system-ui,sans-serif;font-size:15px;line-height:22px;color:#e6ded6;">
       Олег<br>
       <span style="color:#8a8478;font-size:14px;">Kizuna CRM</span>
     </td></tr>
 
     <!-- футер -->
-    <tr><td class="pad" style="padding:28px 40px 32px 40px;
-        font-family:'Fixel Text','Fixel',system-ui,sans-serif;font-size:13px;line-height:20px;color:#6b6560;">
+    <tr><td class="pad" style="padding:32px 40px 32px 40px;
+        font-family:'Fixel Text','Fixel',system-ui,sans-serif;font-size:13px;line-height:20px;color:#9a9488;">
       Ви отримали цей лист, бо реєстрували клініку в Kizuna CRM.<br>
-      <a href="https://crm.kizuna.com.ua" style="color:#8a6a0d;text-decoration:none;">crm.kizuna.com.ua</a>
+      <a href="https://crm.kizuna.com.ua" style="color:#DEAA01;text-decoration:none;">crm.kizuna.com.ua</a>
     </td></tr>
 
   </table>
