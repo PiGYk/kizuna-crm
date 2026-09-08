@@ -34,6 +34,26 @@ def _steps(items):
             'style="margin:0 0 16px 0;">' + ''.join(rows) + '</table>')
 
 
+def _plans():
+    """Тарифи таблицею — у листі про гроші ціни мають читатись, а не губитись у рядку."""
+    rows = []
+    for label, price, note in (('Старт', '990', 'до 2 лікарів'),
+                               ('Клініка', '1 990', 'звичайна клініка'),
+                               ('Мережа', '3 990', 'кілька філій')):
+        rows.append(
+            f'<tr>'
+            f'<td style="padding:8px 0;border-bottom:1px solid #2b2723;font-size:16px;'
+            f'line-height:22px;color:{FG};">{label}'
+            f'<span style="color:#9a9488;font-size:14px;">&nbsp;&nbsp;{note}</span></td>'
+            f'<td align="right" style="padding:8px 0;border-bottom:1px solid #2b2723;'
+            f"font-family:'Fixel Display','Fixel',sans-serif;font-size:16px;font-weight:600;"
+            f'line-height:22px;color:{GOLD};white-space:nowrap;">{price} грн/міс</td>'
+            f'</tr>'
+        )
+    return ('<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+            'border="0" style="margin:0 0 16px 0;">' + ''.join(rows) + '</table>')
+
+
 def build_html(kind, *, name, clinic, ends, subject, title):
     hello = f'Вітаю, {name}!' if name else 'Вітаю!'
     c = _b(clinic)
@@ -71,8 +91,10 @@ def build_html(kind, *, name, clinic, ends, subject, title):
                 + _p(f'Безкоштовний доступ для {c} діє ще пʼять днів, до {_b(ends)}.')
                 + _p('Далі система закриється, але дані нікуди не подінуться — усе, що ви завели, '
                      'лишається. Продовжите — працюєте з того самого місця.')
-                + _p('Тарифи: Старт 990 грн на місяць, Клініка 1990, Мережа 3990. Функціонал у всіх '
-                     'однаковий, уся система цілком. Різниця в тому, наскільки щільно ми на звʼязку.')
+                + _p('Тарифи:')
+                + _plans()
+                + _p('Функціонал у всіх однаковий — уся система цілком. Різниця в тому, наскільки '
+                     'щільно ми на звʼязку.')
                 + _p('Якщо потрібні інші умови — напишіть у відповідь, домовимось.', last=True))
         cta_text = 'Продовжити доступ'
         cta_url = CRM + '/subscribe/clinic/'

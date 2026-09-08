@@ -74,7 +74,7 @@ def build(kind, *, name, clinic, trial_ends=None):
             f'{SIGNATURE}'
         )
     elif kind == BEFORE5:
-        subject = f'Безкоштовний період {clinic} закінчується {ends}'
+        subject = f'Безкоштовний період закінчується {ends}'
         body = (
             f'{hello}\n\n'
             f'Безкоштовний доступ для {clinic} діє ще пʼять днів, до {ends}.\n\n'
