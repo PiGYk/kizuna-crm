@@ -321,3 +321,33 @@ class ContactLead(models.Model):
 
     def __str__(self):
         return f"{self.name} · {self.phone} ({self.created_at:%Y-%m-%d %H:%M})"
+
+
+class TrialEmail(models.Model):
+    """Облік листів супроводу тріалу: один вид листа — один раз на клініку."""
+    from apps.clinic.trial_emails import KINDS as _KINDS
+
+    organization = models.ForeignKey(
+        'clinic.Organization', on_delete=models.CASCADE,
+        related_name='trial_emails', verbose_name='Клініка',
+    )
+    kind = models.CharField('Вид листа', max_length=20, choices=_KINDS)
+    to_email = models.EmailField('Кому')
+    sent_at = models.DateTimeField('Надіслано', auto_now_add=True)
+    ok = models.BooleanField('Успішно', default=True)
+    error = models.TextField('Помилка', blank=True)
+
+    class Meta:
+        verbose_name = 'Лист супроводу тріалу'
+        verbose_name_plural = 'Листи супроводу тріалу'
+        ordering = ('-sent_at',)
+        constraints = [
+            models.UniqueConstraint(
+                fields=('organization', 'kind'),
+                condition=models.Q(ok=True),
+                name='uniq_trial_email_per_org_kind',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.organization} — {self.get_kind_display()}'
