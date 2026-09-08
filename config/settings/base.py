@@ -182,6 +182,12 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': 60 * 60 * 24,  # раз на добу
         'options': {'expires': 3600},
     },
+    # Листи супроводу тріалу — раз на день о 10:00, коли люди читають пошту.
+    'send-trial-emails': {
+        'task': 'apps.clinic.tasks.send_trial_emails',
+        'schedule': crontab(hour=10, minute=0),
+        'options': {'expires': 3600},
+    },
     # Звіт по зверненнях і лідах — двічі на день, у обід і ввечері.
     'send-lead-report': {
         'task': 'apps.tg.lead_report_tasks.send_lead_report',
@@ -189,6 +195,10 @@ CELERY_BEAT_SCHEDULE = {
         'options': {'expires': 3600},
     },
 }
+
+# Листи супроводу тріалу. Поки False — задача робить сухий прогін і лише пише в лог.
+# Вмикати після вичитки текстів: TRIAL_EMAILS_ENABLED=1 у .env + up -d web celery-beat.
+TRIAL_EMAILS_ENABLED = config('TRIAL_EMAILS_ENABLED', default=False, cast=bool)
 
 TELEGRAM_BOT_TOKEN = config('TELEGRAM_BOT_TOKEN', default='')
 
