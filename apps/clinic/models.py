@@ -351,3 +351,24 @@ class TrialEmail(models.Model):
 
     def __str__(self):
         return f'{self.organization} — {self.get_kind_display()}'
+
+
+class InboxReply(models.Model):
+    """Опрацьована відповідь клініки: щоб на той самий лист не готувати чернетку двічі."""
+    organization = models.ForeignKey(
+        'clinic.Organization', on_delete=models.CASCADE,
+        related_name='inbox_replies', verbose_name='Клініка',
+    )
+    message_id = models.CharField('Id листа', max_length=255, unique=True)
+    from_email = models.EmailField('Від кого')
+    question = models.TextField('Що написали', blank=True)
+    draft = models.TextField('Чернетка відповіді', blank=True)
+    created_at = models.DateTimeField('Опрацьовано', auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Відповідь клініки'
+        verbose_name_plural = 'Відповіді клінік'
+        ordering = ('-created_at',)
+
+    def __str__(self):
+        return f'{self.from_email} — {self.created_at:%d.%m.%Y}'

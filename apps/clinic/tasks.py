@@ -20,3 +20,15 @@ def send_trial_emails():
     logger.info('Листи тріалу: старт, відправка %s', 'УВІМКНЕНА' if enabled else 'вимкнена')
     call_command('send_trial_emails', send=enabled, verbosity=1)
     return 'sent' if enabled else 'dry-run'
+
+
+@shared_task(name='apps.clinic.tasks.check_clinic_mail')
+def check_clinic_mail():
+    """Кожні пів години: нові відповіді клінік → чернетка + сповіщення Олегу.
+
+    Нічого не відправляє клієнтам — тільки готує чернетку в пошті.
+    """
+    from apps.clinic import mail_replier
+    n = mail_replier.process(limit=10, dry_run=False)
+    logger.info('Пошта клінік: опрацьовано листів %s', n)
+    return n

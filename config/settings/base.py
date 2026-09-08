@@ -188,6 +188,12 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': crontab(hour=10, minute=0),
         'options': {'expires': 3600},
     },
+    # Відповіді клінік на листи — раз на 30 хв, щоб не тримати людину в очікуванні.
+    'check-clinic-mail': {
+        'task': 'apps.clinic.tasks.check_clinic_mail',
+        'schedule': crontab(minute='*/30'),
+        'options': {'expires': 1500},
+    },
     # Звіт по зверненнях і лідах — двічі на день, у обід і ввечері.
     'send-lead-report': {
         'task': 'apps.tg.lead_report_tasks.send_lead_report',
