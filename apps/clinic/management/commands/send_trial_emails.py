@@ -16,6 +16,7 @@ from django.utils import timezone
 
 from apps.clinic.models import Organization, TrialEmail
 from apps.clinic import trial_emails as T
+from apps.clinic.trial_emails_html import build_html
 
 # Клініки з «вічним» тріалом (Ірпінь, демо) не турбуємо взагалі.
 FOREVER_AFTER_DAYS = 365
@@ -73,8 +74,11 @@ class Command(BaseCommand):
                 self.stdout.write(f'    тема: {subject}')
                 continue
             try:
+                html = build_html(kind, name=name, clinic=org.name,
+                                  ends=T._date(org.trial_expires_at),
+                                  subject=subject, title=subject)
                 send_mail(subject=subject, message=body, from_email=None,
-                          recipient_list=[user.email], fail_silently=False)
+                          recipient_list=[user.email], html_message=html, fail_silently=False)
                 TrialEmail.objects.create(organization=org, kind=kind, to_email=user.email, ok=True)
                 self.stdout.write(self.style.SUCCESS('НАДІСЛАНО ' + head))
             except Exception as e:  # noqa: BLE001 — лог і далі, одна помилка не валить решту
