@@ -739,9 +739,8 @@ def _handle_command(chat, text, from_user):
             msg = (
                 greeting
                 + f'Це {chat.organization.name if chat.organization else "ветеринарна клініка"}.\n\n'
-                + 'Адміністратор отримав ваше повідомлення і відповість найближчим часом.\n\n'
-                + 'А поки що — опишіть, будь ласка, вашу проблему або запит до клініки. '
-                + 'Вкажіть вид та ім\'я вашого улюбленця, якщо це стосується прийому. 🐾'
+                + 'Розкажіть, будь ласка, з чим прийдете — вкажіть кличку і вид улюбленця. '
+                + 'Підберу зручний час і запишу вас. 🐾'
             )
             return msg, _remove_keyboard()
 
@@ -751,14 +750,7 @@ def _handle_command(chat, text, from_user):
     if not is_verified:
         from . import autodialog
         if autodialog.should_engage(chat, text):
-            return autodialog.engage(chat, text)
-        # Відмовився, але потім передумав і написав «записатись» — пропонуємо знову.
-        if (
-            autodialog.get_stage(chat) == autodialog.STAGE_DECLINED
-            and autodialog.wants_booking(text)
-        ):
-            autodialog.set_stage(chat, '')
-            return autodialog.engage(chat, text)
+            return autodialog.handle_message(chat, text)
         return None
 
     if text == '🐾 Мої тварини':

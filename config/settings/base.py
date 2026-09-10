@@ -211,9 +211,9 @@ TELEGRAM_BOT_TOKEN = config('TELEGRAM_BOT_TOKEN', default='')
 # Автодіалог з незареєстрованими в Telegram.
 # Детермінований сценарій працює завжди; LLM-шар (жива відповідь на вільний
 # текст) вмикається лише коли є і прапорець, і ключ — інакше тихо відкат.
-TG_AUTODIALOG_LLM = config('TG_AUTODIALOG_LLM', default=False, cast=bool)
+TG_AUTODIALOG_LLM = config('TG_AUTODIALOG_LLM', default=True, cast=bool)
 TG_AUTODIALOG_MODEL = config('TG_AUTODIALOG_MODEL', default='claude-haiku-4-5')
-ANTHROPIC_API_KEY = config('ANTHROPIC_API_KEY', default='')
+ANTHROPIC_API_KEY = config('ANTHROPIC_API_KEY', default='') or config('KIZUNA_CHAT_API_KEY', default='')
 
 CHECKBOX_API_URL = config('CHECKBOX_API_URL', default='https://api.checkbox.in.ua/api/v1')
 CHECKBOX_LICENSE_KEY = config('CHECKBOX_LICENSE_KEY', default='')
