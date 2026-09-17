@@ -240,6 +240,8 @@ class PaymentTransaction(models.Model):
     amount = models.DecimalField('Сума', max_digits=10, decimal_places=2, default=0)
     status = models.CharField('Статус', max_length=50)
     raw_payload = models.JSONField('Сирий payload', default=dict, blank=True)
+    reason = models.CharField('Причина відмови', max_length=255, blank=True)
+    notified_abandoned = models.BooleanField('Сповіщено про обрив', default=False)
     processed_at = models.DateTimeField('Оброблено', auto_now_add=True)
 
     class Meta:
