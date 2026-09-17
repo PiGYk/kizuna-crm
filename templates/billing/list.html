@@ -167,9 +167,14 @@
             <a href="{% url 'billing:pdf' inv.pk %}" target="_blank" class="text-gray-400 hover:text-brand-dark p-1.5" title="PDF">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.6L19 9.4V19a2 2 0 0 1-2 2z"/></svg>
             </a>
-            {% if inv.status != 'paid' or user.is_admin %}
+            {% if inv.status == 'paid' and user.is_admin %}
+            <button type="button" onclick="openDelModal({{ inv.pk }})"
+                    class="text-gray-400 hover:text-red-500 p-1.5" title="Видалити">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.87 12.14A2 2 0 0 1 16.14 21H7.86a2 2 0 0 1-2-1.86L5 7m5 4v6m4-6v6m1-10V4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3M4 7h16"/></svg>
+            </button>
+            {% elif inv.status != 'paid' %}
             <form method="post" action="{% url 'billing:delete' inv.pk %}"
-                  onsubmit="return confirm('{% if inv.status == 'paid' %}УВАГА! Видалити ОПЛАЧЕНИЙ #{{ inv.pk }}? Товари повернуться на склад. Запис зникне з аналітики. Продовжити?{% else %}Видалити рахунок #{{ inv.pk }}?{% endif %}')">
+                  onsubmit="return confirm('Видалити рахунок #{{ inv.pk }}?')">
               {% csrf_token %}
               <button type="submit" class="text-gray-400 hover:text-red-500 p-1.5" title="Видалити">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.87 12.14A2 2 0 0 1 16.14 21H7.86a2 2 0 0 1-2-1.86L5 7m5 4v6m4-6v6m1-10V4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3M4 7h16"/></svg>
@@ -264,6 +269,51 @@ function goPage(p) {
   window.location = url.toString();
 }
 </script>
+
+<!-- Модаль видалення оплаченого рахунку (два режими) -->
+<div id="del-modal" class="fixed inset-0 z-50 hidden" aria-modal="true" role="dialog">
+  <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick="closeDelModal()"></div>
+  <div class="absolute inset-0 flex items-center justify-center p-4">
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+      <h3 class="text-base font-semibold text-gray-900 mb-1">Видалити рахунок <span id="del-modal-pk"></span></h3>
+      <p class="text-sm text-gray-500 mb-4">Оберіть режим — це рішення незворотне.</p>
+      <div class="space-y-2">
+        <form method="post" id="del-form-yes">
+          {% csrf_token %}
+          <input type="hidden" name="restore" value="yes">
+          <button type="submit"
+            class="w-full text-left px-4 py-3 rounded-xl border border-green-300 bg-green-50 hover:bg-green-100 transition text-sm">
+            <div class="font-semibold text-green-800">&#8617; Видалити з поверненням на склад</div>
+            <div class="text-green-600 text-xs mt-0.5">Товари повернуться у залишки — продажу не було</div>
+          </button>
+        </form>
+        <form method="post" id="del-form-no">
+          {% csrf_token %}
+          <input type="hidden" name="restore" value="no">
+          <button type="submit"
+            class="w-full text-left px-4 py-3 rounded-xl border border-red-300 bg-red-50 hover:bg-red-100 transition text-sm">
+            <div class="font-semibold text-red-800">&#128465; Видалити без повернення</div>
+            <div class="text-red-600 text-xs mt-0.5">Товари вже відпущені — залишки лишаються списаними</div>
+          </button>
+        </form>
+      </div>
+      <button type="button" onclick="closeDelModal()"
+        class="mt-4 w-full py-2 text-sm text-gray-500 hover:text-gray-700">Скасувати</button>
+    </div>
+  </div>
+</div>
+<script>
+function openDelModal(pk) {
+  var base = "{% url 'billing:delete' 0 %}".replace('/0/', '/' + pk + '/');
+  document.getElementById('del-form-yes').action = base;
+  document.getElementById('del-form-no').action = base;
+  document.getElementById('del-modal-pk').textContent = '#' + pk;
+  document.getElementById('del-modal').classList.remove('hidden');
+}
+function closeDelModal() { document.getElementById('del-modal').classList.add('hidden'); }
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeDelModal(); });
+</script>
+
 {% endblock %}
 </content>
 </invoke>
