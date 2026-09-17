@@ -305,24 +305,6 @@ def subscribe_checkout(request, plan_key):
     callback_url = request.build_absolute_uri('/subscribe/callback/')
 
     fields = build_payment_fields(plan_key, org.pk, return_url, callback_url)
-
-    # Слід «людина пішла платити». Якщо колбек не прийде — це обрив, і фонова
-    # задача про нього нагадає. Без цього запису обрив невидимий у принципі.
-    try:
-        from decimal import Decimal
-        from apps.clinic.models import PaymentTransaction
-        PaymentTransaction.objects.get_or_create(
-            order_ref=fields['orderReference'],
-            defaults={
-                'organization_id': org.pk,
-                'plan_key': plan_key,
-                'amount': Decimal(str(PLANS[plan_key]['price'])),
-                'status': 'initiated',
-            },
-        )
-    except Exception as exc:  # noqa: BLE001 — слід не має права зламати оплату
-        logger.warning('checkout trace failed for org=%s plan=%s: %s', org.pk, plan_key, exc)
-
     return render(request, 'clinic/subscribe_checkout.html', {
         'fields': fields,
         'wayforpay_url': WAYFORPAY_URL,
@@ -395,7 +377,7 @@ def subscribe_callback(request):
                 # slow ack і без цього ловила б +30 днів за кожен дубль).
                 from apps.clinic.models import PaymentTransaction
                 from decimal import Decimal
-                tx, tx_created = PaymentTransaction.objects.get_or_create(
+                _, tx_created = PaymentTransaction.objects.get_or_create(
                     order_ref=order_ref,
                     defaults={
                         'organization_id': org_id,
@@ -405,17 +387,9 @@ def subscribe_callback(request):
                         'raw_payload': data,
                     },
                 )
-                # ⚠️ Дубль — це НЕ «запис існує». Запис уже існує з часу checkout
-                # зі статусом initiated. Справжній дубль = вже було Approved.
-                if not tx_created and tx.status == 'Approved':
+                if not tx_created:
                     logger.info('WayForPay duplicate callback: ref=%s (skip)', order_ref)
                     return JsonResponse(accept_response(order_ref))
-                if not tx_created:
-                    tx.status = 'Approved'
-                    tx.amount = Decimal(str(paid_amount))
-                    tx.raw_payload = data
-                    tx.organization_id = tx.organization_id or org_id
-                    tx.save(update_fields=['status', 'amount', 'raw_payload', 'organization'])
 
                 org = Organization.objects.get(pk=org_id)
                 # Подовжуємо доступ на 30 днів від сьогодні (або від поточної дати закінчення)
@@ -424,49 +398,8 @@ def subscribe_callback(request):
                 org.plan = plan_key
                 org.is_active = True
                 org.save(update_fields=['trial_expires_at', 'plan', 'is_active'])
-
-                try:
-                    from apps.clinic.payment_alerts import notify_paid
-                    notify_paid(org, PLANS.get(plan_key, {}).get('label', plan_key),
-                                paid_amount, order_ref)
-                except Exception as exc:  # noqa: BLE001
-                    logger.warning('paid alert failed: %s', exc)
             except (ValueError, Organization.DoesNotExist) as exc:
                 logger.warning('WayForPay callback parse/lookup failed: %s', exc)
                 return JsonResponse({'error': 'org not found'}, status=500)
-
-    else:
-        # Будь-який НЕуспішний результат теж фіксуємо і показуємо власнику.
-        # Раніше відмови жили лише в лог-файлі — тобто не існували.
-        status = str(data.get('transactionStatus', 'Unknown'))
-        reason = str(data.get('reason', '') or data.get('reasonCode', ''))
-        order_ref = data.get('orderReference', '')
-        try:
-            from apps.clinic.models import PaymentTransaction
-            from apps.clinic.payment_alerts import notify_failed
-            from decimal import Decimal
-            parts = order_ref.split('-')
-            org_id = int(parts[1]) if len(parts) >= 3 and parts[1].isdigit() else None
-            plan_key = parts[2] if len(parts) >= 3 else ''
-            try:
-                amount = Decimal(str(data.get('amount', 0)))
-            except Exception:  # noqa: BLE001
-                amount = Decimal('0')
-            tx, created = PaymentTransaction.objects.get_or_create(
-                order_ref=order_ref,
-                defaults={'organization_id': org_id, 'plan_key': plan_key,
-                          'amount': amount, 'status': status, 'reason': reason[:255],
-                          'raw_payload': data},
-            )
-            if not created and tx.status != status:
-                tx.status = status
-                tx.reason = reason[:255]
-                tx.raw_payload = data
-                tx.save(update_fields=['status', 'reason', 'raw_payload'])
-            org = Organization.objects.filter(pk=org_id).first() if org_id else None
-            notify_failed(org, PLANS.get(plan_key, {}).get('label', plan_key),
-                          amount, order_ref, status, reason)
-        except Exception as exc:  # noqa: BLE001
-            logger.warning('failed-payment trace failed: ref=%s %s', order_ref, exc)
 
     return JsonResponse(accept_response(data.get('orderReference', '')))

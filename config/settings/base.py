@@ -162,11 +162,6 @@ CELERY_TASK_DEFAULT_QUEUE = 'default'
 CELERY_TIMEZONE = 'Europe/Kyiv'
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 CELERY_BEAT_SCHEDULE = {
-    'notify-abandoned-payments': {
-        'task': 'apps.clinic.tasks.notify_abandoned_payments',
-        'schedule': 60 * 15,  # кожні 15 хв
-        'options': {'expires': 900},
-    },
     'send-vaccine-reminders-daily': {
         'task': 'apps.clients.tasks.send_vaccine_reminders',
         'schedule': 60 * 60 * 24,  # раз на добу
@@ -256,9 +251,3 @@ LOGGING = {
         },
     },
 }
-
-
-# --- Сповіщення про оплати в Telegram -------------------------------------
-# Значення — у .env (поза git). Порожньо → сповіщення мовчки вимкнені.
-PAYMENT_ALERT_BOT_TOKEN = os.environ.get('PAYMENT_ALERT_BOT_TOKEN', '')
-PAYMENT_ALERT_CHAT_IDS = os.environ.get('PAYMENT_ALERT_CHAT_IDS', '')
