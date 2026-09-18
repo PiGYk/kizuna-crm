@@ -67,6 +67,15 @@
           <div class="flex justify-between"><dt class="text-gray-500">Вік</dt><dd>{{ patient.age_display }}</dd></div>
           <div class="flex justify-between"><dt class="text-gray-500">Кастр./стерил.</dt><dd>{% if patient.is_neutered %}Так{% else %}Ні{% endif %}</dd></div>
           {% if patient.color %}<div class="flex justify-between"><dt class="text-gray-500">Масть</dt><dd>{{ patient.color }}</dd></div>{% endif %}
+          {% if patient.microchip %}
+          <div class="flex justify-between gap-2">
+            <dt class="text-gray-500 shrink-0">Мікрочіп</dt>
+            <dd class="text-right">
+              <span class="font-mono font-medium tracking-tight select-all">{{ patient.microchip }}</span>
+              {% if patient.microchip_date %}<span class="block text-[11px] text-gray-400">чіповано {{ patient.microchip_date|date:"d.m.Y" }}</span>{% endif %}
+            </dd>
+          </div>
+          {% endif %}
           {% include 'clients/partials/patient_doctor.html' %}
         </dl>
       </div>

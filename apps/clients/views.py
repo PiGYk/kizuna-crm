@@ -37,7 +37,8 @@ class PatientListView(LoginRequiredMixin, ListView):
                 Q(name__icontains=q) |
                 Q(client__first_name__icontains=q) |
                 Q(client__last_name__icontains=q) |
-                Q(breed__icontains=q)
+                Q(breed__icontains=q) |
+                Q(microchip__icontains=q)          # знайти тварину за номером чіпа
             )
         species = self.request.GET.get('species', '')
         if species:
@@ -476,8 +477,9 @@ def client_search(request):
         ).filter(
             Q(first_name__icontains=q) |
             Q(last_name__icontains=q) |
-            Q(phone__icontains=q)
-        ).prefetch_related('patients')[:10]
+            Q(phone__icontains=q) |
+            Q(patients__microchip__icontains=q)    # знайшли чіп -> бачимо власника
+        ).distinct().prefetch_related('patients')[:10]
     mode = request.GET.get('mode', '')
     return render(request, 'clients/partials/search_results.html', {'clients': clients, 'q': q, 'mode': mode})
 

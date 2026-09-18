@@ -92,6 +92,11 @@ class Patient(models.Model):
         verbose_name='Лікар',
         limit_choices_to={'role__in': ['admin', 'doctor']},
     )
+    microchip = models.CharField(
+        'Номер мікрочіпа', max_length=30, blank=True, db_index=True,
+        help_text='15 цифр з чіпа. За цим номером тварину можна знайти в системі',
+    )
+    microchip_date = models.DateField('Дата чіпування', null=True, blank=True)
     notes = models.TextField('Нотатки', blank=True)
     allergies = models.TextField('Алергії / хронічні', blank=True,
         help_text='Алергії на препарати, хронічні захворювання — видно на картці червоним')

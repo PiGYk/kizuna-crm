@@ -28,6 +28,12 @@ def _apply_field_class(form):
     """Виставляє FIELD_CLASS для всіх полів і додатково стилізує <select>."""
     for field in form.fields.values():
         widget = field.widget
+        # Галочка — НЕ текстове поле: FIELD_CLASS має w-full + padding, від чого
+        # чекбокс розтягувався на всю ширину і підпис відлітав убік (спіймано 18.09).
+        if isinstance(widget, forms.CheckboxInput):
+            widget.attrs.setdefault(
+                'class', 'h-4 w-4 rounded border-gray-300 text-brand-gold focus:ring-brand-gold')
+            continue
         widget.attrs.setdefault('class', FIELD_CLASS)
         if isinstance(widget, forms.Select) and not isinstance(widget, forms.SelectMultiple):
             widget.attrs['class'] = widget.attrs['class'] + SELECT_EXTRA_CLASS
@@ -75,9 +81,11 @@ class ClientForm(forms.ModelForm):
 class PatientForm(forms.ModelForm):
     class Meta:
         model = Patient
-        fields = ('name', 'species', 'breed', 'sex', 'date_of_birth', 'age', 'is_neutered', 'color', 'photo', 'assigned_doctor', 'notes', 'allergies')
+        fields = ('name', 'species', 'breed', 'sex', 'date_of_birth', 'age', 'is_neutered', 'color', 'microchip', 'microchip_date', 'photo', 'assigned_doctor', 'notes', 'allergies')
         widgets = {
             'date_of_birth': forms.DateInput(format='%Y-%m-%d', attrs={'type': 'date'}),
+            'microchip_date': forms.DateInput(format='%Y-%m-%d', attrs={'type': 'date'}),
+            'microchip': forms.TextInput(attrs={'placeholder': '15 цифр з чіпа', 'inputmode': 'numeric'}),
             'notes': forms.Textarea(attrs={'rows': 3}),
             'allergies': forms.Textarea(attrs={'rows': 2}),
         }
