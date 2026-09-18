@@ -67,15 +67,6 @@
           <div class="flex justify-between"><dt class="text-gray-500">Вік</dt><dd>{{ patient.age_display }}</dd></div>
           <div class="flex justify-between"><dt class="text-gray-500">Кастр./стерил.</dt><dd>{% if patient.is_neutered %}Так{% else %}Ні{% endif %}</dd></div>
           {% if patient.color %}<div class="flex justify-between"><dt class="text-gray-500">Масть</dt><dd>{{ patient.color }}</dd></div>{% endif %}
-          {% if patient.microchip %}
-          <div class="flex justify-between gap-2">
-            <dt class="text-gray-500 shrink-0">Мікрочіп</dt>
-            <dd class="text-right">
-              <span class="font-mono font-medium tracking-tight select-all">{{ patient.microchip }}</span>
-              {% if patient.microchip_date %}<span class="block text-[11px] text-gray-400">чіповано {{ patient.microchip_date|date:"d.m.Y" }}</span>{% endif %}
-            </dd>
-          </div>
-          {% endif %}
           {% include 'clients/partials/patient_doctor.html' %}
         </dl>
       </div>
@@ -165,6 +156,65 @@
       {% endif %}
         </div>{# /section-content #}
       </div>{# /collapsible вакцини #}
+    </div>
+    <!-- Мікрочіп -->
+    <div class="patient-section bg-white rounded-xl border border-gray-200 p-5">
+      <div class="mb-4">
+        <button type="button" onclick="toggleSection(this)" aria-expanded="true" data-section="microchip" class="w-full flex items-center justify-between text-left py-3 min-h-[44px]">
+          <h3 class="text-sm font-semibold text-gray-700">🔖 Мікрочіп
+            {% if patient.microchip %}<span class="text-xs text-gray-400 font-normal ml-1">{{ patient.microchip }}</span>
+            {% else %}<span class="text-xs text-gray-400 font-normal ml-1">немає</span>{% endif %}
+          </h3>
+          <span class="w-11 h-11 -mr-2 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5 text-gray-400 transition-transform section-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </span>
+        </button>
+        <div class="section-content kz-m-hide">
+      <div class="flex items-center justify-between mb-3">
+        <span></span>
+        <button onclick="document.getElementById('chip-form').classList.toggle('hidden')"
+                class="inline-flex items-center min-h-[44px] px-2 -mr-2 text-xs text-brand-gold hover:text-brand-dark font-medium md:min-h-0 md:px-0 md:mr-0">{% if patient.microchip %}Змінити{% else %}+ Записати{% endif %}</button>
+      </div>
+
+      {% if patient.microchip %}
+        <div class="flex items-baseline gap-2 mb-1">
+          <span class="text-lg font-bold text-brand-dark font-mono tracking-tight select-all break-all">{{ patient.microchip }}</span>
+        </div>
+        {% if patient.microchip_date %}
+        <p class="text-xs text-gray-400">чіповано {{ patient.microchip_date|date:"d.m.Y" }}</p>
+        {% endif %}
+        <p class="text-xs text-gray-400 mt-2">Тварину можна знайти за цим номером у пошуку пацієнтів</p>
+      {% else %}
+        <p class="text-sm text-gray-400 mb-3">Чіп не записано</p>
+      {% endif %}
+
+      <div id="chip-form" class="{% if patient.microchip %}hidden {% endif %}pt-3 border-t border-gray-100 mt-3">
+        <form method="post" action="{% url 'clients:microchip_save' patient.pk %}">
+          {% csrf_token %}
+          <div class="space-y-2">
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Номер чіпа</label>
+              <input type="text" name="microchip" value="{{ patient.microchip }}" inputmode="numeric"
+                     placeholder="15 цифр з чіпа" autocomplete="off"
+                     class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-base md:text-sm font-mono">
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Дата чіпування</label>
+              <input type="date" name="microchip_date" value="{{ patient.microchip_date|date:'Y-m-d' }}"
+                     class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-base md:text-sm">
+            </div>
+          </div>
+          <button type="submit"
+            class="mt-3 w-full min-h-[44px] bg-brand-gold text-brand-dark py-2 rounded-lg text-sm font-semibold hover:brightness-95">
+            Зберегти
+          </button>
+          {% if patient.microchip %}
+          <p class="text-[11px] text-gray-400 mt-2 text-center">Щоб прибрати чіп — зітріть номер і збережіть</p>
+          {% endif %}
+        </form>
+      </div>
+        </div>{# /section-content #}
+      </div>{# /collapsible мікрочіп #}
     </div>
     <!-- Вага -->
     <div class="patient-section bg-white rounded-xl border border-gray-200 p-5">

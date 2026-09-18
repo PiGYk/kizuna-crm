@@ -485,6 +485,53 @@ def client_search(request):
 
 
 @login_required
+@require_POST
+def microchip_save(request, patient_pk):
+    """Запис/зміна мікрочіпа прямо з картки пацієнта (плашка між вакцинами і вагою)."""
+    patient = get_object_or_404(
+        Patient, pk=patient_pk, client__organization=request.organization
+    )
+    # Валідація на межі: з чіпа читаються цифри (15) або старий літерно-цифровий код.
+    raw = (request.POST.get('microchip') or '').strip().replace(' ', '').replace('-', '')
+    chip = ''.join(ch for ch in raw if ch.isalnum())[:30]
+    if raw and not chip:
+        messages.error(request, 'Номер чіпа може містити тільки цифри й літери')
+        return redirect('clients:patient_detail', pk=patient_pk)
+
+    date_raw = (request.POST.get('microchip_date') or '').strip()
+    chip_date = None
+    if date_raw:
+        from datetime import datetime as _dt
+        try:
+            chip_date = _dt.strptime(date_raw, '%Y-%m-%d').date()
+        except ValueError:
+            messages.error(request, 'Дата чіпування у незрозумілому форматі')
+            return redirect('clients:patient_detail', pk=patient_pk)
+
+    # Той самий номер в іншої тварини цієї клініки — майже завжди помилка набору.
+    if chip:
+        twin = Patient.objects.filter(
+            client__organization=request.organization, microchip=chip,
+        ).exclude(pk=patient.pk).first()
+        if twin:
+            messages.error(
+                request,
+                'Номер %s вже стоїть у тварини «%s» (власник %s). Перевірте номер.'
+                % (chip, twin.name, twin.client),
+            )
+            return redirect('clients:patient_detail', pk=patient_pk)
+
+    patient.microchip = chip
+    patient.microchip_date = chip_date
+    patient.save(update_fields=['microchip', 'microchip_date'])
+    messages.success(
+        request,
+        'Мікрочіп %s записано' % chip if chip else 'Мікрочіп прибрано з картки',
+    )
+    return redirect('clients:patient_detail', pk=patient_pk)
+
+
+@login_required
 def weight_add(request, patient_pk):
     patient = get_object_or_404(
         Patient, pk=patient_pk, client__organization=request.organization

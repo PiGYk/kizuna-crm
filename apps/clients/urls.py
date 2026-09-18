@@ -24,6 +24,7 @@ urlpatterns = [
     path('patients/<int:patient_pk>/analyses/create/', views.analysis_create, name='analysis_create'),
     path('analyses/<int:pk>/delete/', views.analysis_delete, name='analysis_delete'),
     path('search/', views.client_search, name='search'),
+    path('patients/<int:patient_pk>/microchip/', views.microchip_save, name='microchip_save'),
     path('patients/<int:patient_pk>/weights/add/', views.weight_add, name='weight_add'),
     path('weights/<int:pk>/delete/', views.weight_delete, name='weight_delete'),
     path('patients/period/', views.patients_by_period, name='patients_period'),
