@@ -8,7 +8,7 @@
   <span class="px-3 py-0.5 rounded-full bg-gray-200/70 text-[11px] font-medium text-gray-500">{{ msg.day_label }}</span>
 </div>
 {% endif %}
-<div class="flex {% if msg.direction == 'out' %}justify-end{% else %}justify-start{% endif %}" data-msg-id="{{ msg.id }}">
+<div class="flex group items-center gap-1 {% if msg.direction == 'out' %}justify-end{% else %}justify-start{% endif %}" data-msg-id="{{ msg.id }}">
 
   {% if msg.media_type == 'sticker' %}
     {# Стікер без bubble #}
@@ -95,7 +95,7 @@
     {% endif %}
 
     {% if msg.text and msg.media_type != 'voice' and msg.media_type != 'location' %}
-      <div class="text-[15px] whitespace-pre-wrap break-words">{{ msg.text }}</div>
+      <div class="text-[15px] whitespace-pre-wrap break-words" data-text-view="{{ msg.id }}">{{ msg.text }}</div>
     {% endif %}
 
     <div class="text-[11px] mt-1 {% if msg.direction == 'out' %}text-brand-dark/50{% else %}text-gray-400{% endif %} text-right">
@@ -107,7 +107,34 @@
         {% if msg.tg_message_id %}<span class="ml-0.5">✓</span>{% else %}<span class="ml-0.5 opacity-60">⏱</span>{% endif %}
       {% endif %}
     </div>
+    {% if msg.direction == 'out' %}
+    <form data-edit="{{ msg.id }}" class="hidden mt-1"
+          hx-post="{% url 'tg:edit_message' msg.id %}" hx-target="closest [data-msg-id]" hx-swap="outerHTML">
+      {% csrf_token %}
+      <textarea name="text" rows="2" class="w-full text-sm text-brand-dark bg-white rounded-lg border border-brand-gold/70 px-2 py-1 focus:outline-none focus:ring-1 focus:ring-brand-gold">{{ msg.text }}</textarea>
+      <div class="flex gap-1 justify-end mt-1">
+        <button type="button" onclick="tgEditCancel({{ msg.id }})" class="px-2 py-1 text-xs text-gray-500 hover:text-gray-700">Скасувати</button>
+        <button type="submit" class="px-3 py-1 text-xs font-semibold bg-brand-gold text-brand-dark rounded-lg hover:brightness-95">Зберегти</button>
+      </div>
+    </form>
+    {% endif %}
   </div>
+  {% if msg.direction == 'out' %}
+  <div class="flex items-center gap-0.5 self-center order-first shrink-0 opacity-70">
+    <button type="button" title="Редагувати" onclick="tgEditStart({{ msg.id }})"
+      class="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-brand-dark hover:bg-gray-100 active:opacity-70">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.4-9.6a2 2 0 1 1 2.83 2.83L11.83 15H9v-2.83l8.6-8.77z"/></svg>
+    </button>
+    <form hx-post="{% url 'tg:delete_message' msg.id %}" hx-target="closest [data-msg-id]" hx-swap="outerHTML"
+          hx-confirm="Видалити це повідомлення? Воно зникне і в Telegram у клієнта.">
+      {% csrf_token %}
+      <button type="submit" title="Видалити"
+        class="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 active:opacity-70">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.87 12.14A2 2 0 0 1 16.14 21H7.86a2 2 0 0 1-2-1.86L5 7m5 4v6m4-6v6m1-10V4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3M4 7h16"/></svg>
+      </button>
+    </form>
+  </div>
+  {% endif %}
   {% endif %}
 </div>
 {% endfor %}

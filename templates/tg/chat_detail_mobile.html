@@ -573,4 +573,20 @@ function tgClearAttach() {
   });
 })();
 </script>
+
+<script>
+function tgEditStart(id){
+  var w=document.querySelector('[data-msg-id="'+id+'"]'); if(!w) return;
+  var v=w.querySelector('[data-text-view="'+id+'"]'); if(v) v.classList.add('hidden');
+  var f=w.querySelector('[data-edit="'+id+'"]'); if(!f) return;
+  f.classList.remove('hidden');
+  var t=f.querySelector('textarea'); if(t){ t.focus(); t.setSelectionRange(t.value.length,t.value.length); }
+}
+function tgEditCancel(id){
+  var w=document.querySelector('[data-msg-id="'+id+'"]'); if(!w) return;
+  var v=w.querySelector('[data-text-view="'+id+'"]'); if(v) v.classList.remove('hidden');
+  var f=w.querySelector('[data-edit="'+id+'"]'); if(f) f.classList.add('hidden');
+}
+</script>
+
 {% endblock %}

@@ -91,6 +91,34 @@ def _send_tg(chat_id, text, reply_markup=None, org=None):
     return resp.json()
 
 
+def _edit_tg(chat_id, message_id, text, org=None):
+    """Редагує текст раніше надісланого нами повідомлення (Bot API editMessageText)."""
+    token = _get_token(org)
+    url = f"https://api.telegram.org/bot{token}/editMessageText"
+    payload = {'chat_id': chat_id, 'message_id': message_id, 'text': text, 'parse_mode': 'HTML'}
+    resp = requests.post(url, json=payload, timeout=10)
+    return resp.json()
+
+
+def _edit_tg_caption(chat_id, message_id, caption, org=None):
+    """Редагує підпис медіа-повідомлення (editMessageCaption)."""
+    token = _get_token(org)
+    url = f"https://api.telegram.org/bot{token}/editMessageCaption"
+    payload = {'chat_id': chat_id, 'message_id': message_id, 'caption': caption, 'parse_mode': 'HTML'}
+    resp = requests.post(url, json=payload, timeout=10)
+    return resp.json()
+
+
+def _delete_tg(chat_id, message_id, org=None):
+    """Видаляє раніше надіслане нами повідомлення (deleteMessage). Telegram блокує
+    видалення старших за 48 год — тоді result.ok == False."""
+    token = _get_token(org)
+    url = f"https://api.telegram.org/bot{token}/deleteMessage"
+    payload = {'chat_id': chat_id, 'message_id': message_id}
+    resp = requests.post(url, json=payload, timeout=10)
+    return resp.json()
+
+
 def _fetch_avatar_file_id(tg_user_id, org=None):
     """Повертає file_id аватарки юзера або '' якщо немає."""
     token = _get_token(org)
@@ -2086,6 +2114,78 @@ def send_message(request, pk):
     prev = chat.messages.filter(id__lt=msg.id).order_by('-id').first()
     _mark_day_dividers([msg], prev.created_at if prev else None)
     return render(request, _items_template(mobile), {'chat': chat, 'messages': [msg]})
+
+
+def _tg_msg_fail(message, status=422):
+    response = HttpResponse(status=status)
+    response['HX-Trigger'] = json.dumps({'tg-send-failed': {'message': message}})
+    return response
+
+
+@login_required
+@_require_telegram_plan
+@require_POST
+def edit_message(request, pk):
+    """Редагування нашого повідомлення: правимо текст (або підпис медіа) в Telegram
+    і в CRM. Тільки OUT, тільки з підтвердженим tg_message_id."""
+    msg = get_object_or_404(
+        TelegramMessage, pk=pk, chat__organization=request.organization
+    )
+    mobile = is_mobile(request)
+    if msg.direction != TelegramMessage.Direction.OUT:
+        return _tg_msg_fail('Редагувати можна лише наші повідомлення')
+    if not msg.tg_message_id:
+        return _tg_msg_fail('Повідомлення не підтверджене Telegram — нема що редагувати')
+    new_text = request.POST.get('text', '').strip()
+    if not new_text:
+        return _tg_msg_fail('Порожній текст. Щоб прибрати повідомлення — видаліть його')
+
+    if msg.media_type:
+        result = _edit_tg_caption(
+            msg.chat.tg_user_id, msg.tg_message_id, _esc(new_text), org=msg.chat.organization
+        )
+    else:
+        result = _edit_tg(
+            msg.chat.tg_user_id, msg.tg_message_id, _esc(new_text), org=msg.chat.organization
+        )
+
+    if not result.get('ok'):
+        err = (result.get('description') or 'невідома помилка Telegram')
+        # той самий текст — Telegram відмовляє 'message is not modified', це не помилка
+        if 'not modified' not in err.lower():
+            logger.warning('edit_message: TG error msg %s: %s', msg.pk, result)
+            return _tg_msg_fail(f'Telegram: {err[:200]}')
+
+    msg.text = new_text
+    msg.save(update_fields=['text'])
+    return render(request, _items_template(mobile), {'chat': msg.chat, 'messages': [msg]})
+
+
+@login_required
+@_require_telegram_plan
+@require_POST
+def delete_message(request, pk):
+    """Видалення нашого повідомлення з Telegram і CRM. Якщо Telegram відмовляє
+    (старіше 48 год / вже видалене) — за прапорцем ?crm_only=1 прибираємо лише з CRM."""
+    msg = get_object_or_404(
+        TelegramMessage, pk=pk, chat__organization=request.organization
+    )
+    if msg.direction != TelegramMessage.Direction.OUT:
+        return _tg_msg_fail('Видаляти можна лише наші повідомлення')
+
+    crm_only = request.POST.get('crm_only') == '1'
+    if msg.tg_message_id and not crm_only:
+        result = _delete_tg(msg.chat.tg_user_id, msg.tg_message_id, org=msg.chat.organization)
+        if not result.get('ok'):
+            err = (result.get('description') or 'невідома помилка Telegram')
+            logger.warning('delete_message: TG error msg %s: %s', msg.pk, result)
+            # 409 → фронт запропонує «прибрати лише з CRM»
+            return _tg_msg_fail(
+                f'Telegram не дає видалити ({err[:120]}). Прибрати лише з CRM?', status=409
+            )
+
+    msg.delete()
+    return HttpResponse('')  # порожньо → htmx прибирає бульбашку
 
 
 # ── Прив'язати до клієнта ─────────────────────────────────────────────────────
