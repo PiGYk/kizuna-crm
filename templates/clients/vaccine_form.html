@@ -33,7 +33,7 @@
                placeholder="Введіть назву або виберіть зі складу">
         {% if form.name.errors %}<p class="text-red-500 text-xs mt-1">{{ form.name.errors|join:", " }}</p>{% endif %}
       </div>
-      <div class="grid grid-cols-3 gap-4">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Дата щеплення *</label>
           {{ form.date }}
@@ -47,7 +47,7 @@
           {{ form.valid_until }}
         </div>
       </div>
-      <div class="grid grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Лікар</label>
           {{ form.doctor }}

@@ -13,6 +13,10 @@ FIELD_CLASS = (
     'focus:outline-none focus:ring-2 focus:ring-brand-gold focus:border-transparent'
 )
 
+# Поля дат: px-2 замість px-4 — інакше «дд.мм.рррр» + іконка календаря
+# не влазять і браузер обрізає рік (скарга Каті 26.09).
+DATE_FIELD_CLASS = FIELD_CLASS.replace('px-4', 'px-2')
+
 # Для <select> — додаємо appearance-none + кастомний chevron, бо рідний на Android жахливий.
 SELECT_EXTRA_CLASS = ' appearance-none bg-white bg-no-repeat pr-9'
 SELECT_CHEVRON_STYLE = (
@@ -132,9 +136,12 @@ class VaccineForm(forms.ModelForm):
         model = Vaccine
         fields = ('name', 'date', 'next_date', 'valid_until', 'doctor', 'batch_number', 'notes')
         widgets = {
-            'date': forms.DateInput(format='%Y-%m-%d', attrs={'type': 'date'}),
-            'next_date': forms.DateInput(format='%Y-%m-%d', attrs={'type': 'date'}),
-            'valid_until': forms.DateInput(format='%Y-%m-%d', attrs={'type': 'date'}),
+            'date': forms.DateInput(format='%Y-%m-%d',
+                                    attrs={'type': 'date', 'class': DATE_FIELD_CLASS}),
+            'next_date': forms.DateInput(format='%Y-%m-%d',
+                                         attrs={'type': 'date', 'class': DATE_FIELD_CLASS}),
+            'valid_until': forms.DateInput(format='%Y-%m-%d',
+                                           attrs={'type': 'date', 'class': DATE_FIELD_CLASS}),
             'notes': forms.Textarea(attrs={'rows': 2}),
         }
 
