@@ -81,9 +81,9 @@
 <h2>Нирки</h2>
 <table class="params">
   {% if report.kidney_left_size %}<tr><td class="label">Ліва нирка — розмір</td><td class="value">{{ report.kidney_left_size }}</td></tr>{% endif %}
-  {% if report.kidney_left_cortex %}<tr><td class="label">Ліва — кірковий шар</td><td class="value">{{ report.kidney_left_cortex }} мм</td></tr>{% endif %}
+  {% if report.kidney_left_cortex %}<tr><td class="label">Ліва — кірковий шар</td><td class="value">{{ report.kidney_left_cortex }} см</td></tr>{% endif %}
   {% if report.kidney_right_size %}<tr><td class="label">Права нирка — розмір</td><td class="value">{{ report.kidney_right_size }}</td></tr>{% endif %}
-  {% if report.kidney_right_cortex %}<tr><td class="label">Права — кірковий шар</td><td class="value">{{ report.kidney_right_cortex }} мм</td></tr>{% endif %}
+  {% if report.kidney_right_cortex %}<tr><td class="label">Права — кірковий шар</td><td class="value">{{ report.kidney_right_cortex }} см</td></tr>{% endif %}
   {% if report.kidney_echogenicity %}<tr><td class="label">Ехогенність</td><td class="value">{{ report.kidney_echogenicity }}</td></tr>{% endif %}
   {% if report.kidney_pelvis %}<tr><td class="label">Ниркова миска</td><td class="value">{{ report.kidney_pelvis }}</td></tr>{% endif %}
 </table>
