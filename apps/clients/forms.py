@@ -237,6 +237,7 @@ class UltrasoundForm(forms.ModelForm):
             'liver_notes': forms.Textarea(attrs={'rows': 2}),
             'gallbladder_notes': forms.Textarea(attrs={'rows': 2}),
             'spleen_notes': forms.Textarea(attrs={'rows': 2}),
+            'pancreas_notes': forms.Textarea(attrs={'rows': 2}),
             'kidney_notes': forms.Textarea(attrs={'rows': 2}),
             'bladder_notes': forms.Textarea(attrs={'rows': 2}),
             'gi_notes': forms.Textarea(attrs={'rows': 3}),

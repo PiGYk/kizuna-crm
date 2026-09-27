@@ -541,6 +541,14 @@ class UltrasoundReport(models.Model):
     spleen_structure = models.CharField('Структура селезінки', max_length=100, blank=True)
     spleen_notes = models.TextField('Коментар (селезінка)', blank=True)
 
+    # ── Підшлункова залоза ──
+    # Додано 27.09.2026 на запит Каті: блоку не було взагалі, тому «панкреатит?»
+    # у діагнозі протоколом ні підтвердити, ні зняти було неможливо.
+    pancreas_size = models.CharField('Розмір підшлункової', max_length=50, blank=True, help_text='Норма / збільшена / товщина см')
+    pancreas_echogenicity = models.CharField('Ехогенність підшлункової', max_length=50, blank=True, help_text='Нормальна / підвищена / знижена / неоднорідна')
+    pancreas_structure = models.CharField('Структура підшлункової', max_length=100, blank=True, help_text='Однорідна / неоднорідна, контури')
+    pancreas_notes = models.TextField('Коментар (підшлункова)', blank=True)
+
     # ── Нирки ──
     kidney_left_size = models.CharField('Ліва нирка розмір', max_length=50, blank=True, help_text='Довжина × ширина мм')
     kidney_left_cortex = models.CharField('Кірковий шар лівої', max_length=50, blank=True, help_text='мм')

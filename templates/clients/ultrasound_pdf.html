@@ -77,6 +77,16 @@
 {% if report.spleen_notes %}<div class="comment">{{ report.spleen_notes }}</div>{% endif %}
 {% endif %}
 
+{% if report.pancreas_size or report.pancreas_echogenicity or report.pancreas_structure or report.pancreas_notes %}
+<h2>Підшлункова залоза</h2>
+<table class="params">
+  {% if report.pancreas_size %}<tr><td class="label">Розмір / товщина</td><td class="value">{{ report.pancreas_size }}</td></tr>{% endif %}
+  {% if report.pancreas_echogenicity %}<tr><td class="label">Ехогенність</td><td class="value">{{ report.pancreas_echogenicity }}</td></tr>{% endif %}
+  {% if report.pancreas_structure %}<tr><td class="label">Структура / контури</td><td class="value">{{ report.pancreas_structure }}</td></tr>{% endif %}
+</table>
+{% if report.pancreas_notes %}<div class="comment">{{ report.pancreas_notes }}</div>{% endif %}
+{% endif %}
+
 {% if report.kidney_left_size or report.kidney_right_size or report.kidney_echogenicity or report.kidney_pelvis or report.kidney_notes %}
 <h2>Нирки</h2>
 <table class="params">

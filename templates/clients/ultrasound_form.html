@@ -65,10 +65,24 @@
       <div class="mt-3"><label class="text-xs text-gray-500 block mb-1">Коментар</label>{{ form.spleen_notes }}</div>
     </div>
 
+    <!-- Підшлункова залоза -->
+    <div class="bg-white rounded-xl border border-gray-200 p-5 mb-4">
+      <h2 class="text-sm font-bold text-brand-dark mb-3 flex items-center gap-2">
+        <span class="w-6 h-6 rounded bg-rose-50 text-rose-600 flex items-center justify-center text-xs">4</span>
+        Підшлункова залоза
+      </h2>
+      <div class="grid grid-cols-3 gap-3">
+        <div><label class="text-xs text-gray-500 block mb-1">Розмір (см)</label>{{ form.pancreas_size }}</div>
+        <div><label class="text-xs text-gray-500 block mb-1">Ехогенність</label>{{ form.pancreas_echogenicity }}</div>
+        <div><label class="text-xs text-gray-500 block mb-1">Контури</label>{{ form.pancreas_structure }}</div>
+      </div>
+      <div class="mt-3"><label class="text-xs text-gray-500 block mb-1">Коментар</label>{{ form.pancreas_notes }}</div>
+    </div>
+
     <!-- Нирки -->
     <div class="bg-white rounded-xl border border-gray-200 p-5 mb-4">
       <h2 class="text-sm font-bold text-brand-dark mb-3 flex items-center gap-2">
-        <span class="w-6 h-6 rounded bg-blue-50 text-blue-600 flex items-center justify-center text-xs">4</span>
+        <span class="w-6 h-6 rounded bg-blue-50 text-blue-600 flex items-center justify-center text-xs">5</span>
         Нирки
       </h2>
       <div class="grid grid-cols-2 gap-3">
@@ -85,7 +99,7 @@
     <!-- Сечовий міхур -->
     <div class="bg-white rounded-xl border border-gray-200 p-5 mb-4">
       <h2 class="text-sm font-bold text-brand-dark mb-3 flex items-center gap-2">
-        <span class="w-6 h-6 rounded bg-cyan-50 text-cyan-600 flex items-center justify-center text-xs">5</span>
+        <span class="w-6 h-6 rounded bg-cyan-50 text-cyan-600 flex items-center justify-center text-xs">6</span>
         Сечовий міхур
       </h2>
       <div class="grid grid-cols-3 gap-3">
@@ -99,7 +113,7 @@
     <!-- ШКТ + Репродуктивна -->
     <div class="bg-white rounded-xl border border-gray-200 p-5 mb-4">
       <h2 class="text-sm font-bold text-brand-dark mb-3 flex items-center gap-2">
-        <span class="w-6 h-6 rounded bg-orange-50 text-orange-600 flex items-center justify-center text-xs">6</span>
+        <span class="w-6 h-6 rounded bg-orange-50 text-orange-600 flex items-center justify-center text-xs">7</span>
         ШКТ / Репродуктивна система / Рідина
       </h2>
       <div class="space-y-3">
