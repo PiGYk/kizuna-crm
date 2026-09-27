@@ -54,6 +54,7 @@ _MAX_INPUT_CHARS = 1500   # захист від простирадла
 _MAX_TURNS = 40           # стеля витрат на один чат
 _HISTORY_MESSAGES = 24    # скільки повідомлень віддаємо моделі як контекст
 _SLOT_DAYS = 7            # на скільки робочих днів показуємо вільний час
+_SAME_DAY_BUFFER_MIN = 60  # запас на дорогу, щоб не пропонувати запис «через 10 хвилин»
 _API_URL = 'https://api.anthropic.com/v1/messages'
 
 _WEEKDAYS = ['понеділок', 'вівторок', 'середа', 'четвер', 'п\'ятниця', 'субота', 'неділя']
@@ -117,22 +118,37 @@ def _llm_enabled() -> bool:
 # ── Вільний час ───────────────────────────────────────────────────────────────
 
 def _slots_map(org, days=_SLOT_DAYS) -> dict:
-    """{'2026-09-11': ['10:00', '10:30', ...]} на найближчі робочі дні."""
+    """{'2026-09-11': ['10:00', '10:30', ...]} на найближчі робочі дні, ВКЛЮЧНО З СЬОГОДНІ.
+
+    Народжено збоєм 27.09.2026: цикл робив `day += 1` ДО першої перевірки, тому
+    сьогоднішній день у переліку не з'являвся НІКОЛИ. Модель бачила список, що
+    починається з завтра, і сама вигадувала причину — «сьогодні неділя, ми не
+    працюємо» (клініка працює щодня). Той самий день, побачений із суботи,
+    спокійно пропонувався як «завтра» — тобто справа була не в графіку.
+
+    Минулі години сьогоднішнього дня відрізаємо з буфером: пропонувати 10:00,
+    коли вже 15:00, гірше за відсутність слота.
+    """
     from apps.appointments.public_api import _free_slots
 
     out = {}
-    day = date_type.today()
+    today = timezone.localdate()
+    cutoff = (timezone.localtime() + timedelta(minutes=_SAME_DAY_BUFFER_MIN)).strftime('%H:%M')
+    day = today
     looked = 0
     while len(out) < days and looked < 21:
         looked += 1
-        day += timedelta(days=1)
         try:
             free = _free_slots(org, day)
         except Exception:
             logger.exception('autodialog: _free_slots failed for %s', day)
             break
         if free:
-            out[day.isoformat()] = list(free)
+            if day == today:
+                free = [t for t in free if t >= cutoff]
+            if free:
+                out[day.isoformat()] = list(free)
+        day += timedelta(days=1)
     return out
 
 
@@ -251,11 +267,35 @@ def _history(chat, limit=_HISTORY_MESSAGES) -> list:
     return msgs
 
 
+def _work_days_line(org) -> str:
+    """Рядок «Клініка працює: …» з РЕАЛЬНИХ налаштувань клініки.
+
+    Без нього модель добудовувала графік зі власних уявлень і оголошувала
+    неділю вихідним (збій 27.09.2026). CRM багатотенантна: у когось справді
+    Пн-Пт, тому джерело — `organization.work_days`, а не константа.
+    """
+    days = list(org.work_days) if (org and org.work_days) else []
+    if not days:
+        return ''
+    days = sorted(d for d in days if isinstance(d, int) and 0 <= d <= 6)
+    if not days:
+        return ''
+    work = ', '.join(_WEEKDAYS[d] for d in days)
+    off = [_WEEKDAYS[d] for d in range(7) if d not in days]
+    if off:
+        return 'Клініка працює: %s. Вихідні: %s.' % (work, ', '.join(off))
+    return 'Клініка працює ЩОДНЯ, без вихідних (%s).' % work
+
+
 def _system_prompt(chat, slots: dict, collected: dict) -> str:
-    today = date_type.today()
+    # ⚡Час беремо з поясу клініки: контейнер живе в UTC, тому `date.today()`
+    # з 21:00 до півночі по Києву віддавав ВЧОРАШНЮ дату (збій 27.09.2026).
+    now = timezone.localtime()
+    today = timezone.localdate()
     org = chat.organization
     org_name = org.name if org else 'ветеринарна клініка'
     hours = (getattr(org, 'work_hours', '') or '').strip() or 'уточнюйте у клініці'
+    days_line = _work_days_line(org)
     phone = (getattr(org, 'phone', '') or '').strip()
     address = (getattr(org, 'address', '') or '').strip()
 
@@ -266,7 +306,8 @@ def _system_prompt(chat, slots: dict, collected: dict) -> str:
     return (
         f'Ти — адміністратор ветеринарної клініки "{org_name}". Листуєшся з клієнтом '
         f'у Telegram і сама оформлюєш запис на прийом.\n'
-        f'Сьогодні {today.strftime("%d.%m.%Y")}, {_WEEKDAYS[today.weekday()]}. '
+        f'Сьогодні {today.strftime("%d.%m.%Y")}, {_WEEKDAYS[today.weekday()]}, '
+        f'зараз {now.strftime("%H:%M")}. '
         f'«Завтра» — це {(today + timedelta(days=1)).strftime("%d.%m")}.\n\n'
         'ЯК ПИСАТИ:\n'
         '- Українською, коротко: 1-3 речення. Живо і по-людськи, як адміністратор, '
@@ -289,6 +330,10 @@ def _system_prompt(chat, slots: dict, collected: dict) -> str:
         'до цього моменту запису ще не існує.\n'
         '- Адресу, телефон і години роботи наводь ДОСЛІВНО так, як подано нижче. '
         'Нічого не додавай від себе: іншого ти не знаєш.\n'
+        '- \u26a0\ufe0f НІКОЛИ не кажи, що клініка в якийсь день не працює, якщо цього дня '
+        'немає у списку вихідних нижче. Немає дня в переліку вільного часу — значить '
+        'на той день усе ЗАЙНЯТО, а не що клініка закрита. Сьогоднішній день теж '
+        'робочий: якщо вільний час на сьогодні є в переліку — пропонуй його.\n'
         '- Ім\'я питай одним питанням ("як вас звати?"): якщо людина назве і прізвище — '
         'клади його в last_name, окремо про прізвище не допитуйся.\n'
         '- Якщо в повідомленні ознаки невідкладного стану (кровотеча, судоми, отруєння, '
@@ -309,6 +354,7 @@ def _system_prompt(chat, slots: dict, collected: dict) -> str:
         f'{_services_text(org)}\n\n'
         f'Вже відомо: {json.dumps(known, ensure_ascii=False) if known else "нічого"}\n'
         f'Години роботи: {hours}\n'
+        + (f'{days_line}\n' if days_line else '')
         + (f'Адреса: {address}\n' if address else '')
         + (f'Телефон клініки: {phone}\n' if phone else '')
         + '\nЯкщо клієнт прямо просить живу людину, скаржиться, або питає те, чого ти не '
