@@ -161,7 +161,7 @@ def send_appointment_reminders():
 
                 # 24 години (вікно 23-25 год) — тільки якщо ще не відправлено
                 if notify_24h and 23 <= hours <= 25 and not appt.reminder_24h_sent:
-                    _send_appointment_reminder(appt, org, '24 години')
+                    _send_appointment_reminder(appt, org, '24 години', with_route=True)
                     appt.reminder_24h_sent = True
                     appt.save(update_fields=['reminder_24h_sent'])
 
@@ -172,8 +172,14 @@ def send_appointment_reminders():
                     appt.save(update_fields=['reminder_2h_sent'])
 
 
-def _send_appointment_reminder(appt, org, time_label):
-    """Відправляє нагадування клієнту про запис. Caller має виставити org_context."""
+def _send_appointment_reminder(appt, org, time_label, with_route=False):
+    """Відправляє нагадування клієнту про запис. Caller має виставити org_context.
+
+    `with_route=True` дочіпляє адресу і відео «як нас знайти» (поле клініки
+    `route_video_url`). Ставимо його ЛИШЕ на нагадування за добу: людина саме
+    тоді планує дорогу. У нагадуванні за 2 години маршрут не повторюємо, щоб
+    не слати одне й те саме посилання втретє після запису й доби.
+    """
     from apps.tg.models import TelegramChat
     from apps.tg.views import _send_tg
 
@@ -196,10 +202,16 @@ def _send_appointment_reminder(appt, org, time_label):
         clinic_phone = getattr(org, 'phone', '') or ''
         phone_line = f'\nЯкщо не можете прийти — зателефонуйте: {clinic_phone}' if clinic_phone else ''
 
+        route_line = ''
+        if with_route:
+            from apps.tg.views import route_hint
+            route_line = route_hint(org)
+
         text = (
             f'\U0001f514 <b>Нагадування про візит</b>\n\n'
             f'Через {time_label} у вас запис у {clinic_name}.\n\n'
             f'\U0001f4c5 <b>{date_str}</b> о <b>{time_str}</b>{patient_str}{phone_line}'
+            f'{route_line}'
         )
         _send_tg(tg_chat.tg_user_id, text, org=org)
     except Exception:
