@@ -114,6 +114,13 @@ class Organization(models.Model):
     email = models.EmailField('Email', blank=True, default='')
     work_hours = models.CharField('Години роботи', max_length=100, blank=True, default='')
     website = models.CharField('Веб-сайт / домен', max_length=200, blank=True, default='')
+    # Посилання на відео «як нас знайти» — бот чіпляє його до підтвердження
+    # запису (запит Каті 29.09.2026). Поле клінічне, не константа: CRM
+    # багатотенантна, у кожної клініки свій маршрут.
+    route_video_url = models.CharField(
+        'Відео «як нас знайти»', max_length=300, blank=True, default='',
+        help_text='Посилання на відео або карту з дорогою до клініки. '
+                  'Бот додасть його до підтвердження запису.')
 
     # --- Налаштування ---
     currency_symbol = models.CharField('Символ валюти', max_length=5, default='₴')

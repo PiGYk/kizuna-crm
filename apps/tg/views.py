@@ -81,6 +81,25 @@ def _esc(text):
     return html.escape(str(text or ''), quote=False)
 
 
+def route_hint(org) -> str:
+    """Хвіст «як нас знайти» до підтвердження запису.
+
+    Запит Каті 29.09.2026: разом із записом людина має одразу отримати відео
+    з дорогою — клініку важко знайти з першого разу. Джерело — поле клініки
+    `route_video_url`, а не константа: CRM багатотенантна. Поле порожнє —
+    повертаємо порожній рядок, тобто нічого не змінюється.
+    """
+    url = (getattr(org, 'route_video_url', '') or '').strip() if org else ''
+    if not url:
+        return ''
+    address = (getattr(org, 'address', '') or '').strip()
+    parts = ['\n\n📍 <b>Як нас знайти</b>']
+    if address:
+        parts.append(_esc(address))
+    parts.append(f'Коротке відео з дорогою: {_esc(url)}')
+    return '\n'.join(parts)
+
+
 def _send_tg(chat_id, text, reply_markup=None, org=None):
     token = _get_token(org)
     url = f"https://api.telegram.org/bot{token}/sendMessage"
@@ -1130,6 +1149,7 @@ def _cmd_book_create(chat, date_str, time_str, doctor_id=None):
         f'✅ <b>Запис створено!</b>\n\n'
         f'📅 {starts_at.strftime("%d.%m.%Y")} о <b>{starts_at.strftime("%H:%M")}</b>\n\n'
         f'Чекаємо вас! 🐾'
+        + route_hint(org)
     )
     return text, _main_menu_keyboard()
 

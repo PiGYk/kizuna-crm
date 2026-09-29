@@ -120,6 +120,11 @@
           {{ form.currency_symbol }}
         </div>
         <div class="md:col-span-2">
+          <label class="block text-xs text-gray-500 mb-1">Відео «як нас знайти»</label>
+          {{ form.route_video_url }}
+          <p class="text-xs text-gray-400 mt-1">Бот додасть це посилання до підтвердження запису. Порожньо — нічого не додає.</p>
+        </div>
+        <div class="md:col-span-2">
           <label class="block text-xs text-gray-500 mb-1">Лікар за замовчуванням</label>
           {{ form.default_doctor }}
           <p class="text-xs text-gray-400 mt-1">Підставляється у нові візити, вакцини, записи та рахунки</p>

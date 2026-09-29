@@ -641,9 +641,11 @@ def handle_message(chat, text: str):
         starts_at, err = _create_booking(chat, data)
         if starts_at:
             set_stage(chat, STAGE_DONE, data)
+            from apps.tg.views import route_hint
             confirm = (
                 f'✅ Записала вас на <b>{starts_at.strftime("%d.%m")}</b> о '
                 f'<b>{starts_at.strftime("%H:%M")}</b>. Чекаємо! 🐾'
+                + route_hint(chat.organization)
             )
             return ((_esc(reply) + '\n\n' + confirm).strip() if reply else confirm), None
         if err == 'busy':

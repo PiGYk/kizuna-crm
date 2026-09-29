@@ -18,7 +18,7 @@ class OrganizationSettingsForm(forms.ModelForm):
         model = Organization
         fields = (
             'name', 'short_name', 'address', 'phone', 'email',
-            'work_hours', 'website', 'currency_symbol',
+            'work_hours', 'website', 'route_video_url', 'currency_symbol',
             'default_doctor',
             'logo', 'primary_color', 'sidebar_color',
             'telegram_bot_token', 'checkbox_license_key', 'checkbox_pin',
@@ -33,6 +33,8 @@ class OrganizationSettingsForm(forms.ModelForm):
             'email':                forms.EmailInput(attrs={'class': _input()}),
             'work_hours':           forms.TextInput(attrs={'class': _input(), 'placeholder': 'Пн–Нд: 10:00–18:00'}),
             'website':              forms.TextInput(attrs={'class': _input()}),
+            'route_video_url':      forms.TextInput(attrs={'class': _input(),
+                                    'placeholder': 'https://... (відео або карта з дорогою)'}),
             'currency_symbol':      forms.TextInput(attrs={'class': 'w-20 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold'}),
             'default_doctor':       forms.Select(attrs={'class': _input()}),
             'logo':                 forms.FileInput(attrs={'class': _input(), 'accept': 'image/*'}),
