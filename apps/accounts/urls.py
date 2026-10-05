@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path, reverse_lazy
 from django.contrib.auth import views as auth_views
 from . import views
 from . import views_payroll
@@ -19,6 +19,11 @@ urlpatterns = [
             template_name='accounts/password_reset_form.html',
             email_template_name='accounts/password_reset_email.html',
             subject_template_name='accounts/password_reset_subject.txt',
+            # ⚠️ ОБОВ'ЯЗКОВО з префіксом 'accounts:' — маршрути в namespace
+            # (app_name='accounts'), а Django за замовчуванням шукає голе
+            # 'password_reset_done' і падає NoReverseMatch -> 500 ПІСЛЯ того,
+            # як лист уже надіслано. Людина бачить «збій» і не шукає лист.
+            success_url=reverse_lazy('accounts:password_reset_done'),
         ),
         name='password_reset',
     ),
@@ -33,6 +38,7 @@ urlpatterns = [
         'reset/<uidb64>/<token>/',
         auth_views.PasswordResetConfirmView.as_view(
             template_name='accounts/password_reset_confirm.html',
+            success_url=reverse_lazy('accounts:password_reset_complete'),
         ),
         name='password_reset_confirm',
     ),
