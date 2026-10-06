@@ -78,6 +78,20 @@ AXES_LOCKOUT_PARAMETERS = ['ip_address', 'username']
 AXES_RESET_ON_SUCCESS = True
 AXES_ENABLE_ADMIN = False  # не показуємо у Django admin
 
+# Історія невдалих входів. Без цього обидва журнали порожні і розслідувати
+# скарги «не можу зайти» нічим: `axes_accessattempt` чиститься при успішному
+# вході (AXES_RESET_ON_SUCCESS), а `axes_accessfailurelog` за замовчуванням
+# вимкнений. Спіймано 05.10 на скарзі клієнта.
+AXES_ENABLE_ACCESS_FAILURE_LOG = True
+
+# Django стоїть за nginx, тому REMOTE_ADDR — це завжди докер-шлюз 172.21.0.1,
+# і в журналі ВСІ клієнти виглядали як одна адреса. nginx передає реальну в
+# X-Forwarded-For — вчимо axes брати саме її (один проксі перед застосунком).
+# ⚠️AXES_IPWARE_* НЕ ДІЮТЬ без пакета django-ipware — axes мовчки падає на
+# REMOTE_ADDR. У нас пакета нема, тому віддаємо axes власну функцію.
+from config.client_ip import client_ip_from_proxy  # noqa: E402
+AXES_CLIENT_IP_CALLABLE = client_ip_from_proxy
+
 ROOT_URLCONF = 'config.urls'
 
 TEMPLATES = [
