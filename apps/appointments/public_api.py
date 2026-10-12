@@ -275,8 +275,8 @@ def slots_view(request):
     # Хто приймає цього дня — форма показує людині (12.10.2026, Катя).
     doctor = day_rules.doctor_on(org, d)
 
-    # Екзот (кролик/гризун/птах/рептилія/інше) або операція на день, коли їх не
-    # беремо, — слотів не даємо і кажемо чому (12.10.2026, Катя).
+    # Екзот (кролик/гризун/птах/рептилія/інше) на день без лікаря по екзотах —
+    # слотів не даємо і кажемо чому (12.10.2026, Катя).
     pet_type = (request.GET.get('pet_type') or '').strip()
     if pet_type and day_rules.exotic_blocked(org, _map_species(pet_type), d):
         return _cors(
@@ -284,18 +284,31 @@ def slots_view(request):
                           'message': day_rules.exotic_refusal(org), 'doctor': doctor}),
             request,
         )
-    service = (request.GET.get('service') or '').strip()
-    if day_rules.is_site_surgery(service) and day_rules.surgery_blocked(org, d):
-        return _cors(
-            JsonResponse({'slots': [], 'date': d.isoformat(), 'surgery_off': True,
-                          'message': day_rules.surgery_refusal(org, service), 'doctor': doctor}),
-            request,
-        )
-    if day_rules.is_site_surgery(service):
-        # На операції сайт сам пише лише до 15:00 — пізніші слоти людині не показуємо.
-        free = [t for t in free if day_rules.surgery_time_ok(org, t)]
+    payload = {'slots': free, 'date': d.isoformat(), 'doctor': doctor}
+    if day_rules.is_site_surgery((request.GET.get('service') or '').strip()):
+        # Операцію сам не записуєш — це буде консультація перед операцією (Катя, 12.10.2026).
+        payload['note'] = day_rules.surgery_consult_hint(org)
+    return _cors(JsonResponse(payload), request)
 
-    return _cors(JsonResponse({'slots': free, 'date': d.isoformat(), 'doctor': doctor}), request)
+
+def schedule_view(request):
+    """GET /api/public/schedule/?org=kizuna — постійний графік лікарів для сайту."""
+    if request.method == 'OPTIONS':
+        return _cors(JsonResponse({}), request)
+    org, err = _resolve_org(request)
+    if err is not None:
+        return err
+    return _cors(JsonResponse({
+        'doctors': day_rules.doctors_week_groups(org),
+        'exotic_days': day_rules.days_text(day_rules.exotic_days(org)),
+    }), request)
+
+
+def _route_info(org):
+    """«Як нас знайти» для екрана успіху на сайті — те саме, що бот шле в Telegram."""
+    address = (getattr(org, 'address', '') or '').strip()
+    video = (getattr(org, 'route_video_url', '') or '').strip()
+    return {'address': address, 'video': video} if (address or video) else None
 
 
 # ── Rate limit для lead ───────────────────────────────────────────────────────
@@ -382,19 +395,14 @@ def lead_view(request):
     except ValueError:
         pass
 
-    # Екзот чи операція на день, коли їх не беремо, — запис не створюємо. Відповідь
-    # у формі slot_taken, щоб навіть стара версія скрипта сайту показала пояснення.
+    # Екзот на день без лікаря по екзотах — запис не створюємо. Відповідь у формі
+    # slot_taken, щоб навіть стара версія скрипта сайту показала пояснення.
+    # Операції сайт не блокує: це запис на консультацію перед операцією.
     pet_type_raw = (data.get('pet_type') or '').strip()
     refusal = None
     if preferred_date and pet_type_raw and day_rules.exotic_blocked(
             org, _map_species(pet_type_raw), preferred_date):
         refusal = day_rules.exotic_refusal(org)
-    elif (preferred_date and day_rules.is_site_surgery(data.get('service'))
-            and day_rules.surgery_blocked(org, preferred_date)):
-        refusal = day_rules.surgery_refusal(org, data.get('service'))
-    elif (preferred_time and day_rules.is_site_surgery(data.get('service'))
-            and not day_rules.surgery_time_ok(org, preferred_time.strftime('%H:%M'))):
-        refusal = day_rules.surgery_late_refusal(org)
     if refusal:
         return _cors(
             JsonResponse(
@@ -478,7 +486,11 @@ def lead_view(request):
 
     _notify_staff(lead, org)
 
-    return _cors(JsonResponse({'ok': True, 'id': lead.pk}), request)
+    return _cors(JsonResponse({
+        'ok': True, 'id': lead.pk,
+        'route': _route_info(org),
+        'consult': day_rules.is_site_surgery(data.get('service')),
+    }), request)
 
 
 # ── Маппінг виду тварини ─────────────────────────────────────────────────────
@@ -544,7 +556,7 @@ def _create_crm_objects(lead: LeadRequest, org, booking_dt=None, slot_duration=3
             if booking_dt is not None:
                 notes = f'Заявка з сайту. Причина: {lead.service_note}' if lead.service_note else 'Заявка з сайту'
                 if day_rules.is_site_surgery(lead.service_note):
-                    notes = day_rules.SURGERY_STAFF_WARNING + '\n' + notes
+                    notes = day_rules.SURGERY_CONSULT_NOTE + '\n' + notes
                 Appointment.objects.create(
                     client=client,
                     patient=patient,
@@ -575,8 +587,8 @@ def _notify_staff(lead: LeadRequest, org) -> None:
         time_str = lead.preferred_time.strftime('%H:%M') if lead.preferred_time else '—'
 
         lines = ['🐾 <b>Нова заявка з сайту</b>\n']
-        if day_rules.is_site_surgery(lead.service_note) and lead.preferred_time:
-            lines.insert(0, f'<b>{day_rules.SURGERY_STAFF_WARNING}</b>\n')
+        if day_rules.is_site_surgery(lead.service_note):
+            lines.insert(0, f'<b>{day_rules.SURGERY_CONSULT_NOTE}</b>\n')
         lines.append(f'👤 <b>{lead.name}</b>')
         lines.append(f'📞 {lead.phone}')
         if lead.pet_name:

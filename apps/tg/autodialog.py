@@ -40,8 +40,7 @@ from django.utils import timezone
 from apps.appointments.day_rules import (
     doctor_on as _doctor_on, doctors_week_text as _doctors_week_text,
     exotic_days as _exotic_days, is_exotic as _is_exotic, surgery_days as _surgery_days,
-    surgery_latest as _surgery_latest, surgery_time_ok as _surgery_time_ok,
-    SURGERY_STAFF_SHORT as _SURGERY_STAFF_SHORT, SURGERY_STAFF_WARNING as _SURGERY_STAFF_WARNING,
+    SURGERY_CONSULT_NOTE as _SURGERY_CONSULT_NOTE, SURGERY_CONSULT_SHORT as _SURGERY_CONSULT_SHORT,
 )
 
 logger = logging.getLogger(__name__)
@@ -172,7 +171,6 @@ def _slots_text(slots: dict, org=None) -> str:
     if not slots:
         return '(вільних місць на найближчі дні немає)'
     ex = _exotic_days(org) if org else None
-    su = _surgery_days(org) if org else None
     lines = []
     for iso, times in slots.items():
         d = date_type.fromisoformat(iso)
@@ -185,13 +183,6 @@ def _slots_text(slots: dict, org=None) -> str:
             notes.append(f'лікар {doc}')
         if ex:
             notes.append('екзоти — так' if d.weekday() in ex else 'екзоти — НІ')
-        if su:
-            if d.weekday() in su:
-                latest = _surgery_latest(org)
-                notes.append(f'операції — так, ЛИШЕ з початком до {latest} включно' if latest
-                             else 'операції — так')
-            else:
-                notes.append('операції — НІ')
         mark = f' [{"; ".join(notes)}]' if notes else ''
         lines.append(f'{iso} ({_WEEKDAYS[d.weekday()]} {d.strftime("%d.%m")}){mark}: {shown}')
     return '\n'.join(lines)
@@ -323,7 +314,9 @@ def _work_days_line(org) -> str:
 
 
 def _is_surgery(collected: dict) -> bool:
-    return str(collected.get('surgery') or '').strip().lower() in ('yes', 'true', '1', 'так')
+    """Людина прийшла по операцію (бот записує її на консультацію перед операцією)."""
+    return str(collected.get('surgery') or '').strip().lower() in (
+        'consult', 'yes', 'true', '1', 'так')
 
 
 def _exotic_line(org) -> str:
@@ -340,18 +333,17 @@ def _exotic_line(org) -> str:
             'записуй на будь-який день із переліку.'
         )
     sdays = _surgery_days(org)
-    if sdays:
-        names = ', '.join(_WEEKDAYS[d] for d in sdays)
-        parts.append(
-            'ОПЕРАЦІЇ (стерилізація, кастрація, видалення новоутворень, ЧИСТКА ЗУБІВ, '
-            'ВИДАЛЕННЯ ЗУБІВ, будь-яке хірургічне втручання чи процедура під наркозом) '
-            'проводимо ЛИШЕ в такі дні: '
-            f'{names}. Людина записується на операцію — постав у collected surgery="yes" '
-            'і пропонуй ТІЛЬКИ ці дні. Огляд, вакцинація, УЗД, аналізи — будь-який день.'
-            + (f' Час початку операції — НЕ пізніше {_surgery_latest(org)}: {_surgery_latest(org)} — '
-               'останній можливий; будь-який пізніший час (навіть на 30 хвилин пізніше) на '
-               'операцію НЕ пропонуй і НЕ називай.' if _surgery_latest(org) else '')
-        )
+    names = ', '.join(_WEEKDAYS[d] for d in (sdays or ()))
+    parts.append(
+        'ОПЕРАЦІЇ (стерилізація, кастрація, видалення новоутворень, ЧИСТКА ЗУБІВ, ВИДАЛЕННЯ '
+        'ЗУБІВ, будь-яке хірургічне втручання чи процедура під наркозом) САМОСТІЙНО НЕ '
+        'ЗАПИСУЄМО ЗОВСІМ: спершу потрібна консультація лікаря й діагностика, а час операції '
+        'лікар підбирає сам — тривалість у всіх різна. Людину, яка хоче операцію, спокійно '
+        'запиши на КОНСУЛЬТАЦІЮ перед операцією на будь-який вільний час (екзотів — лише в '
+        'їхні дні), постав у collected surgery="consult", а в reason напиши, яка саме операція. '
+        'Дату й час операції НЕ обіцяй і не називай — їх підбере лікар після огляду.'
+        + (f' Якщо питають, коли проводимо операції: {names}.' if names else '')
+    )
     week = _doctors_week_text(org)
     if week:
         parts.append(f'Лікарі за днями (постійний графік): {week}.')
@@ -382,20 +374,11 @@ def _system_prompt(chat, slots: dict, collected: dict) -> str:
     address = (getattr(org, 'address', '') or '').strip()
 
     exotic_days = _exotic_days(org)
-    surgery_days = _surgery_days(org)
     exotic_line = _exotic_line(org)
     if exotic_days and _is_exotic(_norm_species(collected.get('species'))):
         # Вже відомо, що тварина екзотична — інших днів моделі просто не показуємо.
         slots = {iso: t for iso, t in slots.items()
                  if date_type.fromisoformat(iso).weekday() in exotic_days}
-    if surgery_days and _is_surgery(collected):
-        # Те саме для операції.
-        slots = {iso: t for iso, t in slots.items()
-                 if date_type.fromisoformat(iso).weekday() in surgery_days}
-    if _is_surgery(collected) and _surgery_latest(org):
-        # І лише час до останнього дозволеного початку операції.
-        slots = {iso: [x for x in t if _surgery_time_ok(org, x)] for iso, t in slots.items()}
-        slots = {iso: t for iso, t in slots.items() if t}
 
     known = {k: v for k, v in collected.items() if v and k in (
         'first_name', 'last_name', 'phone', 'pet_name', 'species', 'date', 'time', 'reason',
@@ -620,12 +603,8 @@ def _create_booking(chat, collected: dict):
         if starts_at.astimezone(ZoneInfo('Europe/Kyiv')).weekday() not in exotic_days:
             return None, 'exotic_day'
 
-    surgery_days = _surgery_days(org)
-    if surgery_days and _is_surgery(collected):
-        if starts_at.astimezone(ZoneInfo('Europe/Kyiv')).weekday() not in surgery_days:
-            return None, 'surgery_day'
-    if _is_surgery(collected) and not _surgery_time_ok(org, at_time):
-        return None, 'surgery_time'
+    # Операцію сам не записуєш: це завжди консультація перед операцією, без обмежень
+    # дня й години (Катя, 12.10.2026). Позначка — у нотатці й сигналі персоналу.
 
     slot_min = (org.slot_duration if org and org.slot_duration else 30)
     if not _slot_is_free(org, starts_at, slot_min):
@@ -647,7 +626,7 @@ def _create_booking(chat, collected: dict):
 
         notes = 'Записано в Telegram (автозапис)'
         if _is_surgery(collected):
-            notes = _SURGERY_STAFF_WARNING + '\n' + notes
+            notes = _SURGERY_CONSULT_NOTE + '\n' + notes
         if reason:
             notes += f'\nЗвернення: {reason}'
         appointment = Appointment.objects.create(
@@ -666,7 +645,7 @@ def _create_booking(chat, collected: dict):
 
     _notify_staff(
         chat,
-        (_SURGERY_STAFF_SHORT + ' ' if _is_surgery(collected) else '')
+        (_SURGERY_CONSULT_SHORT + ' ' if _is_surgery(collected) else '')
         + f'✅ Клієнт записався сам: {last_name} {first_name} ({phone}), '
         f'🐾 {pet_name} — {starts_at.strftime("%d.%m о %H:%M")}'
         + (f'. Звернення: {reason}' if reason else ''),
@@ -784,24 +763,6 @@ def handle_message(chat, text: str):
             names = ', '.join(_WEEKDAYS[d] for d in (_exotic_days(chat.organization) or ()))
             return (
                 f'Екзотичних улюбленців у нас приймає окремий лікар — {names}. '
-                'Підкажіть, який із цих днів вам зручніший, і я покажу вільний час. 🐾',
-                None,
-            )
-        if err == 'surgery_time':
-            data.pop('time', None)
-            set_stage(chat, STAGE_TALKING, data)
-            return (
-                f'На операції записуємо не пізніше {_surgery_latest(chat.organization)}. '
-                'Підкажіть, будь ласка, раніший зручний час — покажу, що вільно. 🐾',
-                None,
-            )
-        if err == 'surgery_day':
-            data.pop('date', None)
-            data.pop('time', None)
-            set_stage(chat, STAGE_TALKING, data)
-            names = ', '.join(_WEEKDAYS[d] for d in (_surgery_days(chat.organization) or ()))
-            return (
-                f'Операції у нас проводять лише: {names}. '
                 'Підкажіть, який із цих днів вам зручніший, і я покажу вільний час. 🐾',
                 None,
             )
