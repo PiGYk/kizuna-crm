@@ -24,6 +24,9 @@ DOCTOR_BY_WEEKDAY = {
 EXOTIC_DAYS_BY_ORG = {1: (1, 4, 5, 6)}    # Kizuna: вт, пт, сб, нд — дні Дергачової
 SURGERY_DAYS_BY_ORG = {1: (1, 4, 5, 6)}   # операції — теж лише в її дні
 NOT_EXOTIC = ('dog', 'cat')
+# Останній час ПОЧАТКУ операції, на який бот і сайт записують самі (Катя, 12.10.2026:
+# «він записує на операції на 17:30, а ми працюємо до шостої»). Персонал у CRM — може пізніше.
+SURGERY_LATEST_START_BY_ORG = {1: '15:00'}
 # Значення «Причина звернення» у формі на сайті, що означають операцію.
 # «Стоматологія» — теж: чистка й видалення зубів у клініці = операції (Катя, 12.10.2026).
 SITE_SURGERY_SERVICES = ('Хірургія / операція', 'Стерилізація / кастрація', 'Стоматологія')
@@ -75,6 +78,28 @@ def exotic_blocked(org, species, day):
 def surgery_blocked(org, day):
     days = surgery_days(org)
     return bool(days) and day.weekday() not in days
+
+
+def surgery_latest(org):
+    return SURGERY_LATEST_START_BY_ORG.get(_pk(org))
+
+
+def surgery_time_ok(org, hhmm):
+    """Чи можна самому (бот/сайт) поставити операцію на цей час 'ГГ:ХХ'."""
+    latest = surgery_latest(org)
+    return not latest or (hhmm or '') <= latest
+
+
+def surgery_late_refusal(org):
+    return (f'На операції записуємо не пізніше {surgery_latest(org)}. '
+            'Оберіть, будь ласка, раніший час.')
+
+
+SURGERY_STAFF_WARNING = ('🔪 ОПЕРАЦІЯ — у календарі стоїть лише 30 хв, продовжте тривалість, '
+                         'щоб після неї ніхто не записався!')
+# Коротка версія — для живого сигналу бота: прев'ю там ріжеться на 150 символах,
+# довгий текст з'їв би ім'я клієнта й час.
+SURGERY_STAFF_SHORT = '🔪 ОПЕРАЦІЯ (у календарі 30 хв — продовжте!)'
 
 
 def exotic_refusal(org):

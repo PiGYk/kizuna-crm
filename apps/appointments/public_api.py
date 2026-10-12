@@ -291,6 +291,9 @@ def slots_view(request):
                           'message': day_rules.surgery_refusal(org, service), 'doctor': doctor}),
             request,
         )
+    if day_rules.is_site_surgery(service):
+        # На операції сайт сам пише лише до 15:00 — пізніші слоти людині не показуємо.
+        free = [t for t in free if day_rules.surgery_time_ok(org, t)]
 
     return _cors(JsonResponse({'slots': free, 'date': d.isoformat(), 'doctor': doctor}), request)
 
@@ -389,6 +392,9 @@ def lead_view(request):
     elif (preferred_date and day_rules.is_site_surgery(data.get('service'))
             and day_rules.surgery_blocked(org, preferred_date)):
         refusal = day_rules.surgery_refusal(org, data.get('service'))
+    elif (preferred_time and day_rules.is_site_surgery(data.get('service'))
+            and not day_rules.surgery_time_ok(org, preferred_time.strftime('%H:%M'))):
+        refusal = day_rules.surgery_late_refusal(org)
     if refusal:
         return _cors(
             JsonResponse(
@@ -537,6 +543,8 @@ def _create_crm_objects(lead: LeadRequest, org, booking_dt=None, slot_duration=3
             # тож тут просто створюємо запис із тривалістю слота клініки.
             if booking_dt is not None:
                 notes = f'Заявка з сайту. Причина: {lead.service_note}' if lead.service_note else 'Заявка з сайту'
+                if day_rules.is_site_surgery(lead.service_note):
+                    notes = day_rules.SURGERY_STAFF_WARNING + '\n' + notes
                 Appointment.objects.create(
                     client=client,
                     patient=patient,
@@ -567,6 +575,8 @@ def _notify_staff(lead: LeadRequest, org) -> None:
         time_str = lead.preferred_time.strftime('%H:%M') if lead.preferred_time else '—'
 
         lines = ['🐾 <b>Нова заявка з сайту</b>\n']
+        if day_rules.is_site_surgery(lead.service_note) and lead.preferred_time:
+            lines.insert(0, f'<b>{day_rules.SURGERY_STAFF_WARNING}</b>\n')
         lines.append(f'👤 <b>{lead.name}</b>')
         lines.append(f'📞 {lead.phone}')
         if lead.pet_name:
