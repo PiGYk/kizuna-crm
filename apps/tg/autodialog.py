@@ -37,6 +37,8 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
+from apps.appointments.exotic import exotic_days as _exotic_days, is_exotic as _is_exotic
+
 logger = logging.getLogger(__name__)
 
 # Стадії (`autodialog_state['stage']`).
@@ -77,12 +79,8 @@ _SPECIES_ALIASES = {
     'собачка': 'dog', 'кицька': 'cat', 'папужка': 'bird',
 }
 
-# Екзотів — усіх, крім собак і котів, — приймає окремий лікар (ратолог), і лише
-# у свої дні. Народжено скаргою Каті 12.10.2026: бот записував гризунів і птахів
-# на дні, коли такого лікаря в клініці немає. Дні — за Python (пн=0 … нд=6);
-# клініка без рядка тут обмеження не має.
-_EXOTIC_DAYS_BY_ORG = {1: (1, 4, 5, 6)}   # Kizuna: вівторок, п'ятниця, субота, неділя
-_NOT_EXOTIC = ('dog', 'cat')
+# Екзотів (усе, крім собак і котів) приймає окремий лікар і лише у свої дні —
+# правило спільне з формою на сайті: apps/appointments/exotic.py.
 
 # Ціни бот НЕ називає (наказ Каті 12.10.2026: бот писав «аналізи коштують
 # 300 гривень», а вартість щоразу різна — її пишуть люди). Прайс із промпту
@@ -305,15 +303,6 @@ def _work_days_line(org) -> str:
     if off:
         return 'Клініка працює: %s. Вихідні: %s.' % (work, ', '.join(off))
     return 'Клініка працює ЩОДНЯ, без вихідних (%s).' % work
-
-
-def _exotic_days(org):
-    """Дні прийому екзотів для клініки або None, якщо обмеження немає."""
-    return _EXOTIC_DAYS_BY_ORG.get(getattr(org, 'pk', None))
-
-
-def _is_exotic(species: str) -> bool:
-    return bool(species) and species not in _NOT_EXOTIC
 
 
 def _exotic_line(org) -> str:

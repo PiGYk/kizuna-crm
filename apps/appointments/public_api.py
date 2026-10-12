@@ -28,6 +28,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
+from . import exotic
 from .models import Appointment, LeadRequest
 
 logger = logging.getLogger(__name__)
@@ -271,6 +272,16 @@ def slots_view(request):
             request,
         )
 
+    # Обрано екзота (кролик/гризун/птах/рептилія/інше), а цього дня лікаря по
+    # екзотах немає — слотів не даємо, кажемо чому (12.10.2026, Катя).
+    pet_type = (request.GET.get('pet_type') or '').strip()
+    if pet_type and exotic.blocked(org, _map_species(pet_type), d):
+        return _cors(
+            JsonResponse({'slots': [], 'date': d.isoformat(), 'exotic_off': True,
+                          'message': exotic.refusal_text(org)}),
+            request,
+        )
+
     return _cors(JsonResponse({'slots': free, 'date': d.isoformat()}), request)
 
 
@@ -361,6 +372,25 @@ def lead_view(request):
     # Якщо вказані і дата, і час — час МУСИТЬ бути вільним. Перевірка + створення
     # запису відбуваються в одній транзакції з блокуванням рядків дня, щоб два
     # одночасні сабміти на той самий слот не створили накладку (закриває гонку).
+    # Екзот на день без лікаря по екзотах — запис не створюємо. Відповідь у формі
+    # slot_taken, щоб навіть стара версія скрипта сайту показала пояснення.
+    pet_type_raw = (data.get('pet_type') or '').strip()
+    if preferred_date and pet_type_raw and exotic.blocked(org, _map_species(pet_type_raw), preferred_date):
+        return _cors(
+            JsonResponse(
+                {
+                    'ok': False,
+                    'slot_taken': True,
+                    'exotic_off': True,
+                    'error': exotic.refusal_text(org),
+                    'slots': [],
+                    'date': preferred_date.isoformat(),
+                },
+                status=409,
+            ),
+            request,
+        )
+
     booking_dt = None
     slot_duration = org.slot_duration if org.slot_duration else 30
     if preferred_date and preferred_time:
