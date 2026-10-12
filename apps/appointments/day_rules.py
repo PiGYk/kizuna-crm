@@ -25,7 +25,8 @@ EXOTIC_DAYS_BY_ORG = {1: (1, 4, 5, 6)}    # Kizuna: вт, пт, сб, нд — �
 SURGERY_DAYS_BY_ORG = {1: (1, 4, 5, 6)}   # операції — теж лише в її дні
 NOT_EXOTIC = ('dog', 'cat')
 # Значення «Причина звернення» у формі на сайті, що означають операцію.
-SITE_SURGERY_SERVICES = ('Хірургія / операція', 'Стерилізація / кастрація')
+# «Стоматологія» — теж: чистка й видалення зубів у клініці = операції (Катя, 12.10.2026).
+SITE_SURGERY_SERVICES = ('Хірургія / операція', 'Стерилізація / кастрація', 'Стоматологія')
 
 
 def _pk(org):
@@ -81,6 +82,8 @@ def exotic_refusal(org):
             f'{days_text(exotic_days(org))}. Оберіть, будь ласка, один із цих днів.')
 
 
-def surgery_refusal(org):
-    return (f'Операції у нас проводять лише: {days_text(surgery_days(org))}. '
+def surgery_refusal(org, service=''):
+    what = ('Чистку та видалення зубів' if (service or '').strip() == 'Стоматологія'
+            else 'Операції')
+    return (f'{what} у нас проводять лише: {days_text(surgery_days(org))}. '
             'Оберіть, будь ласка, один із цих днів.')

@@ -288,7 +288,7 @@ def slots_view(request):
     if day_rules.is_site_surgery(service) and day_rules.surgery_blocked(org, d):
         return _cors(
             JsonResponse({'slots': [], 'date': d.isoformat(), 'surgery_off': True,
-                          'message': day_rules.surgery_refusal(org), 'doctor': doctor}),
+                          'message': day_rules.surgery_refusal(org, service), 'doctor': doctor}),
             request,
         )
 
@@ -388,7 +388,7 @@ def lead_view(request):
         refusal = day_rules.exotic_refusal(org)
     elif (preferred_date and day_rules.is_site_surgery(data.get('service'))
             and day_rules.surgery_blocked(org, preferred_date)):
-        refusal = day_rules.surgery_refusal(org)
+        refusal = day_rules.surgery_refusal(org, data.get('service'))
     if refusal:
         return _cors(
             JsonResponse(
