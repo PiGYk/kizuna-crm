@@ -28,7 +28,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
-from . import exotic
+from . import day_rules
 from .models import Appointment, LeadRequest
 
 logger = logging.getLogger(__name__)
@@ -272,17 +272,27 @@ def slots_view(request):
             request,
         )
 
-    # Обрано екзота (кролик/гризун/птах/рептилія/інше), а цього дня лікаря по
-    # екзотах немає — слотів не даємо, кажемо чому (12.10.2026, Катя).
+    # Хто приймає цього дня — форма показує людині (12.10.2026, Катя).
+    doctor = day_rules.doctor_on(org, d)
+
+    # Екзот (кролик/гризун/птах/рептилія/інше) або операція на день, коли їх не
+    # беремо, — слотів не даємо і кажемо чому (12.10.2026, Катя).
     pet_type = (request.GET.get('pet_type') or '').strip()
-    if pet_type and exotic.blocked(org, _map_species(pet_type), d):
+    if pet_type and day_rules.exotic_blocked(org, _map_species(pet_type), d):
         return _cors(
             JsonResponse({'slots': [], 'date': d.isoformat(), 'exotic_off': True,
-                          'message': exotic.refusal_text(org)}),
+                          'message': day_rules.exotic_refusal(org), 'doctor': doctor}),
+            request,
+        )
+    service = (request.GET.get('service') or '').strip()
+    if day_rules.is_site_surgery(service) and day_rules.surgery_blocked(org, d):
+        return _cors(
+            JsonResponse({'slots': [], 'date': d.isoformat(), 'surgery_off': True,
+                          'message': day_rules.surgery_refusal(org), 'doctor': doctor}),
             request,
         )
 
-    return _cors(JsonResponse({'slots': free, 'date': d.isoformat()}), request)
+    return _cors(JsonResponse({'slots': free, 'date': d.isoformat(), 'doctor': doctor}), request)
 
 
 # ── Rate limit для lead ───────────────────────────────────────────────────────
@@ -369,20 +379,24 @@ def lead_view(request):
     except ValueError:
         pass
 
-    # Якщо вказані і дата, і час — час МУСИТЬ бути вільним. Перевірка + створення
-    # запису відбуваються в одній транзакції з блокуванням рядків дня, щоб два
-    # одночасні сабміти на той самий слот не створили накладку (закриває гонку).
-    # Екзот на день без лікаря по екзотах — запис не створюємо. Відповідь у формі
-    # slot_taken, щоб навіть стара версія скрипта сайту показала пояснення.
+    # Екзот чи операція на день, коли їх не беремо, — запис не створюємо. Відповідь
+    # у формі slot_taken, щоб навіть стара версія скрипта сайту показала пояснення.
     pet_type_raw = (data.get('pet_type') or '').strip()
-    if preferred_date and pet_type_raw and exotic.blocked(org, _map_species(pet_type_raw), preferred_date):
+    refusal = None
+    if preferred_date and pet_type_raw and day_rules.exotic_blocked(
+            org, _map_species(pet_type_raw), preferred_date):
+        refusal = day_rules.exotic_refusal(org)
+    elif (preferred_date and day_rules.is_site_surgery(data.get('service'))
+            and day_rules.surgery_blocked(org, preferred_date)):
+        refusal = day_rules.surgery_refusal(org)
+    if refusal:
         return _cors(
             JsonResponse(
                 {
                     'ok': False,
                     'slot_taken': True,
-                    'exotic_off': True,
-                    'error': exotic.refusal_text(org),
+                    'day_rule_off': True,
+                    'error': refusal,
                     'slots': [],
                     'date': preferred_date.isoformat(),
                 },
@@ -391,6 +405,9 @@ def lead_view(request):
             request,
         )
 
+    # Якщо вказані і дата, і час — час МУСИТЬ бути вільним. Перевірка + створення
+    # запису відбуваються в одній транзакції з блокуванням рядків дня, щоб два
+    # одночасні сабміти на той самий слот не створили накладку (закриває гонку).
     booking_dt = None
     slot_duration = org.slot_duration if org.slot_duration else 30
     if preferred_date and preferred_time:

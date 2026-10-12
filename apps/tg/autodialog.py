@@ -37,7 +37,10 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
-from apps.appointments.exotic import exotic_days as _exotic_days, is_exotic as _is_exotic
+from apps.appointments.day_rules import (
+    doctor_on as _doctor_on, doctors_week_text as _doctors_week_text,
+    exotic_days as _exotic_days, is_exotic as _is_exotic, surgery_days as _surgery_days,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +83,7 @@ _SPECIES_ALIASES = {
 }
 
 # Екзотів (усе, крім собак і котів) приймає окремий лікар і лише у свої дні —
-# правило спільне з формою на сайті: apps/appointments/exotic.py.
+# правило спільне з формою на сайті: apps/appointments/day_rules.py (там же операції й лікарі).
 
 # Ціни бот НЕ називає (наказ Каті 12.10.2026: бот писав «аналізи коштують
 # 300 гривень», а вартість щоразу різна — її пишуть люди). Прайс із промпту
@@ -163,19 +166,26 @@ def _slots_map(org, days=_SLOT_DAYS) -> dict:
     return out
 
 
-def _slots_text(slots: dict, exotic_days=None) -> str:
+def _slots_text(slots: dict, org=None) -> str:
     if not slots:
         return '(вільних місць на найближчі дні немає)'
+    ex = _exotic_days(org) if org else None
+    su = _surgery_days(org) if org else None
     lines = []
     for iso, times in slots.items():
         d = date_type.fromisoformat(iso)
         shown = ', '.join(times[:16])
         if len(times) > 16:
             shown += ' …'
-        mark = ''
-        if exotic_days:
-            mark = (' [екзотів приймаємо]' if d.weekday() in exotic_days
-                    else ' [екзотів НЕ приймаємо]')
+        notes = []
+        doc = _doctor_on(org, d) if org else ''
+        if doc:
+            notes.append(f'лікар {doc}')
+        if ex:
+            notes.append('екзоти — так' if d.weekday() in ex else 'екзоти — НІ')
+        if su:
+            notes.append('операції — так' if d.weekday() in su else 'операції — НІ')
+        mark = f' [{"; ".join(notes)}]' if notes else ''
         lines.append(f'{iso} ({_WEEKDAYS[d.weekday()]} {d.strftime("%d.%m")}){mark}: {shown}')
     return '\n'.join(lines)
 
@@ -305,18 +315,36 @@ def _work_days_line(org) -> str:
     return 'Клініка працює ЩОДНЯ, без вихідних (%s).' % work
 
 
+def _is_surgery(collected: dict) -> bool:
+    return str(collected.get('surgery') or '').strip().lower() in ('yes', 'true', '1', 'так')
+
+
 def _exotic_line(org) -> str:
+    """Правила днів: екзоти, операції, лікарі за днями (з apps/appointments/day_rules.py)."""
+    parts = []
     days = _exotic_days(org)
-    if not days:
-        return ''
-    names = ', '.join(_WEEKDAYS[d] for d in days)
-    return (
-        'ЕКЗОТИЧНИХ тварин (усіх, крім собак і котів: кроликів, гризунів, птахів, '
-        'черепах, рептилій, тхорів, їжаків, риб) приймає окремий лікар ЛИШЕ в такі дні: '
-        f'{names}. Екзота записуй ТІЛЬКИ на ці дні; в інші дні лікаря по екзотах '
-        'немає — так і скажи і запропонуй найближчий із цих днів. Собак і котів '
-        'записуй на будь-який день із переліку.'
-    )
+    if days:
+        names = ', '.join(_WEEKDAYS[d] for d in days)
+        parts.append(
+            'ЕКЗОТИЧНИХ тварин (усіх, крім собак і котів: кроликів, гризунів, птахів, '
+            'черепах, рептилій, тхорів, їжаків, риб) приймає окремий лікар ЛИШЕ в такі дні: '
+            f'{names}. Екзота записуй ТІЛЬКИ на ці дні; в інші дні лікаря по екзотах '
+            'немає — так і скажи і запропонуй найближчий із цих днів. Собак і котів '
+            'записуй на будь-який день із переліку.'
+        )
+    sdays = _surgery_days(org)
+    if sdays:
+        names = ', '.join(_WEEKDAYS[d] for d in sdays)
+        parts.append(
+            'ОПЕРАЦІЇ (стерилізація, кастрація, видалення новоутворень, будь-яке хірургічне '
+            'втручання чи процедура під наркозом) проводимо ЛИШЕ в такі дні: '
+            f'{names}. Людина записується на операцію — постав у collected surgery="yes" '
+            'і пропонуй ТІЛЬКИ ці дні. Огляд, вакцинація, УЗД, аналізи — будь-який день.'
+        )
+    week = _doctors_week_text(org)
+    if week:
+        parts.append(f'Лікарі за днями (постійний графік): {week}.')
+    return '\n'.join(parts)
 
 
 def _strip_prices(reply: str):
@@ -343,14 +371,20 @@ def _system_prompt(chat, slots: dict, collected: dict) -> str:
     address = (getattr(org, 'address', '') or '').strip()
 
     exotic_days = _exotic_days(org)
+    surgery_days = _surgery_days(org)
     exotic_line = _exotic_line(org)
     if exotic_days and _is_exotic(_norm_species(collected.get('species'))):
         # Вже відомо, що тварина екзотична — інших днів моделі просто не показуємо.
         slots = {iso: t for iso, t in slots.items()
                  if date_type.fromisoformat(iso).weekday() in exotic_days}
+    if surgery_days and _is_surgery(collected):
+        # Те саме для операції.
+        slots = {iso: t for iso, t in slots.items()
+                 if date_type.fromisoformat(iso).weekday() in surgery_days}
 
     known = {k: v for k, v in collected.items() if v and k in (
         'first_name', 'last_name', 'phone', 'pet_name', 'species', 'date', 'time', 'reason',
+        'surgery',
     )}
 
     return (
@@ -404,7 +438,7 @@ def _system_prompt(chat, slots: dict, collected: dict) -> str:
         '  date — дата у форматі РРРР-ММ-ДД, ТІЛЬКИ з переліку вільних нижче\n'
         '  time — час ГГ:ХХ, ТІЛЬКИ з переліку вільних на ту дату\n\n'
         'ВІЛЬНИЙ ЧАС (іншого не пропонуй і не вигадуй):\n'
-        f'{_slots_text(slots, exotic_days)}\n\n'
+        f'{_slots_text(slots, org)}\n\n'
         'ПОСЛУГИ КЛІНІКИ — повний перелік того, що ми робимо (цін тут навмисно немає — '
         'не називай їх). Чого тут немає — ми НЕ робимо:\n'
         f'{_services_text(org)}\n\n'
@@ -419,7 +453,8 @@ def _system_prompt(chat, slots: dict, collected: dict) -> str:
         'уточниш і повернешся з відповіддю, і постав handoff=true.\n\n'
         'Поверни ЛИШЕ JSON без пояснень і без markdown:\n'
         '{"reply": "текст клієнту", "collected": {"first_name": "", "last_name": "", '
-        '"phone": "", "pet_name": "", "species": "", "date": "", "time": "", "reason": ""}, '
+        '"phone": "", "pet_name": "", "species": "", "date": "", "time": "", "reason": "", '
+        '"surgery": ""}, '
         '"ready": false, "handoff": false, "price_question": false}\n'
         'У collected клади лише те, що справді відоме (решту лишай порожнім) — раніше '
         'зібране не загубиться. ready=true став ЛИШЕ коли відомі всі сім полів і '
@@ -569,6 +604,11 @@ def _create_booking(chat, collected: dict):
     if exotic_days and _is_exotic(_norm_species(collected.get('species'))):
         if starts_at.astimezone(ZoneInfo('Europe/Kyiv')).weekday() not in exotic_days:
             return None, 'exotic_day'
+
+    surgery_days = _surgery_days(org)
+    if surgery_days and _is_surgery(collected):
+        if starts_at.astimezone(ZoneInfo('Europe/Kyiv')).weekday() not in surgery_days:
+            return None, 'surgery_day'
 
     slot_min = (org.slot_duration if org and org.slot_duration else 30)
     if not _slot_is_free(org, starts_at, slot_min):
@@ -724,6 +764,16 @@ def handle_message(chat, text: str):
             names = ', '.join(_WEEKDAYS[d] for d in (_exotic_days(chat.organization) or ()))
             return (
                 f'Екзотичних улюбленців у нас приймає окремий лікар — {names}. '
+                'Підкажіть, який із цих днів вам зручніший, і я покажу вільний час. 🐾',
+                None,
+            )
+        if err == 'surgery_day':
+            data.pop('date', None)
+            data.pop('time', None)
+            set_stage(chat, STAGE_TALKING, data)
+            names = ', '.join(_WEEKDAYS[d] for d in (_surgery_days(chat.organization) or ()))
+            return (
+                f'Операції у нас проводять лише: {names}. '
                 'Підкажіть, який із цих днів вам зручніший, і я покажу вільний час. 🐾',
                 None,
             )
