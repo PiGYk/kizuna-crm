@@ -74,7 +74,20 @@ _SPECIES_ALIASES = {
     'ящірка': 'reptile', 'змія': 'reptile', 'reptile': 'reptile',
     'риба': 'fish', 'fish': 'fish',
     'їжак': 'hedgehog', 'hedgehog': 'hedgehog',
+    'собачка': 'dog', 'кицька': 'cat', 'папужка': 'bird',
 }
+
+# Екзотів — усіх, крім собак і котів, — приймає окремий лікар (ратолог), і лише
+# у свої дні. Народжено скаргою Каті 12.10.2026: бот записував гризунів і птахів
+# на дні, коли такого лікаря в клініці немає. Дні — за Python (пн=0 … нд=6);
+# клініка без рядка тут обмеження не має.
+_EXOTIC_DAYS_BY_ORG = {1: (1, 4, 5, 6)}   # Kizuna: вівторок, п'ятниця, субота, неділя
+_NOT_EXOTIC = ('dog', 'cat')
+
+# Ціни бот НЕ називає (наказ Каті 12.10.2026: бот писав «аналізи коштують
+# 300 гривень», а вартість щоразу різна — її пишуть люди). Прайс із промпту
+# прибрано; це запобіжник на випадок, якщо модель таки напише суму з голови.
+_PRICE_RE = re.compile(r'\d[\d\s.,]*\s*(?:грн|гривн|₴|uah)', re.IGNORECASE)
 
 
 # ── Стан ──────────────────────────────────────────────────────────────────────
@@ -152,7 +165,7 @@ def _slots_map(org, days=_SLOT_DAYS) -> dict:
     return out
 
 
-def _slots_text(slots: dict) -> str:
+def _slots_text(slots: dict, exotic_days=None) -> str:
     if not slots:
         return '(вільних місць на найближчі дні немає)'
     lines = []
@@ -161,12 +174,19 @@ def _slots_text(slots: dict) -> str:
         shown = ', '.join(times[:16])
         if len(times) > 16:
             shown += ' …'
-        lines.append(f'{iso} ({_WEEKDAYS[d.weekday()]} {d.strftime("%d.%m")}): {shown}')
+        mark = ''
+        if exotic_days:
+            mark = (' [екзотів приймаємо]' if d.weekday() in exotic_days
+                    else ' [екзотів НЕ приймаємо]')
+        lines.append(f'{iso} ({_WEEKDAYS[d.weekday()]} {d.strftime("%d.%m")}){mark}: {shown}')
     return '\n'.join(lines)
 
 
 def _services_text(org) -> str:
-    """Прайс клініки для промпту, згрупований по категоріях.
+    """Перелік послуг клініки для промпту, згрупований по категоріях, БЕЗ ЦІН.
+
+    Ціни прибрано 12.10.2026 (наказ Каті): модель називала суми з прайсу
+    («аналізи 300 грн»), а реальна вартість залежить від випадку.
 
     Наказ Олега 10.09: «хайку має розуміти нашу клініку, знати які послуги ми
     надаємо. До прикладу ехо серця ми не робимо». Без цього переліку модель
@@ -176,7 +196,8 @@ def _services_text(org) -> str:
     from django.core.cache import cache
     from apps.services.models import Service
 
-    key = f'autodialog:services:{getattr(org, "pk", 0)}'
+    # ⚡Ключ змінено разом із форматом: старий текст із цінами живе в Redis ще 10 хв.
+    key = f'autodialog:services-noprice:{getattr(org, "pk", 0)}'
     cached = cache.get(key)
     if cached is not None:
         return cached
@@ -189,8 +210,7 @@ def _services_text(org) -> str:
     groups = {}
     for s in rows:
         cat = (s.category.name if s.category else 'Інше')
-        price = int(s.price) if s.price == int(s.price) else s.price
-        groups.setdefault(cat, []).append(f'{s.name} — {price} грн')
+        groups.setdefault(cat, []).append(s.name)
 
     text = '\n'.join(f'{cat}: ' + '; '.join(items) for cat, items in groups.items())
     cache.set(key, text, 600)
@@ -287,6 +307,40 @@ def _work_days_line(org) -> str:
     return 'Клініка працює ЩОДНЯ, без вихідних (%s).' % work
 
 
+def _exotic_days(org):
+    """Дні прийому екзотів для клініки або None, якщо обмеження немає."""
+    return _EXOTIC_DAYS_BY_ORG.get(getattr(org, 'pk', None))
+
+
+def _is_exotic(species: str) -> bool:
+    return bool(species) and species not in _NOT_EXOTIC
+
+
+def _exotic_line(org) -> str:
+    days = _exotic_days(org)
+    if not days:
+        return ''
+    names = ', '.join(_WEEKDAYS[d] for d in days)
+    return (
+        'ЕКЗОТИЧНИХ тварин (усіх, крім собак і котів: кроликів, гризунів, птахів, '
+        'черепах, рептилій, тхорів, їжаків, риб) приймає окремий лікар ЛИШЕ в такі дні: '
+        f'{names}. Екзота записуй ТІЛЬКИ на ці дні; в інші дні лікаря по екзотах '
+        'немає — так і скажи і запропонуй найближчий із цих днів. Собак і котів '
+        'записуй на будь-який день із переліку.'
+    )
+
+
+def _strip_prices(reply: str):
+    """Вирізає з відповіді речення із сумами в гривнях. Повертає (текст, чи_вирізали)."""
+    if not reply or not _PRICE_RE.search(reply):
+        return reply, False
+    parts = re.split(r'(?<=[.!?…])\s+', reply)
+    kept = [p for p in parts if not _PRICE_RE.search(p)]
+    text = ' '.join(kept).strip()
+    note = 'Точну вартість підкажемо окремо — вона залежить від конкретного випадку.'
+    return ((text + ' ' + note).strip() if text else note), True
+
+
 def _system_prompt(chat, slots: dict, collected: dict) -> str:
     # ⚡Час беремо з поясу клініки: контейнер живе в UTC, тому `date.today()`
     # з 21:00 до півночі по Києву віддавав ВЧОРАШНЮ дату (збій 27.09.2026).
@@ -298,6 +352,13 @@ def _system_prompt(chat, slots: dict, collected: dict) -> str:
     days_line = _work_days_line(org)
     phone = (getattr(org, 'phone', '') or '').strip()
     address = (getattr(org, 'address', '') or '').strip()
+
+    exotic_days = _exotic_days(org)
+    exotic_line = _exotic_line(org)
+    if exotic_days and _is_exotic(_norm_species(collected.get('species'))):
+        # Вже відомо, що тварина екзотична — інших днів моделі просто не показуємо.
+        slots = {iso: t for iso, t in slots.items()
+                 if date_type.fromisoformat(iso).weekday() in exotic_days}
 
     known = {k: v for k, v in collected.items() if v and k in (
         'first_name', 'last_name', 'phone', 'pet_name', 'species', 'date', 'time', 'reason',
@@ -319,8 +380,10 @@ def _system_prompt(chat, slots: dict, collected: dict) -> str:
         'Не пропонуй "дочекатись адміністратора" — адміністратор це ти.\n'
         '- Питай по одному-два питання за раз, не анкетою.\n'
         '- Діагнозів не став і лікування не призначай: "лікар подивиться на прийомі".\n'
-        '- Ціну називай ЛИШЕ якщо прямо спитали, дослівно з переліку послуг нижче, '
-        'і додавай, що остаточна сума залежить від огляду.\n'
+        '- ⛔ ЦІН НЕ НАЗИВАЙ НІКОЛИ — ні точних, ні приблизних, ні «від». Вартість '
+        'щоразу залежить від конкретного випадку, її пишуть колеги. Спитали ціну — '
+        'скажи, що точну вартість підкажемо окремо, бо вона залежить від випадку, '
+        'постав price_question=true і спокійно веди далі до запису.\n'
         '- ⚠️ Записуй ТІЛЬКИ на те, що є в переліку послуг. Просять те, чого в '
         'переліку немає (наприклад ехокардіографію чи рентген) — чесно скажи, що '
         'саме цього ми не робимо, і не обіцяй. Якщо доречно — запропонуй те, що в '
@@ -352,22 +415,23 @@ def _system_prompt(chat, slots: dict, collected: dict) -> str:
         '  date — дата у форматі РРРР-ММ-ДД, ТІЛЬКИ з переліку вільних нижче\n'
         '  time — час ГГ:ХХ, ТІЛЬКИ з переліку вільних на ту дату\n\n'
         'ВІЛЬНИЙ ЧАС (іншого не пропонуй і не вигадуй):\n'
-        f'{_slots_text(slots)}\n\n'
-        'ПОСЛУГИ КЛІНІКИ — повний перелік того, що ми робимо. Чого тут немає — '
-        'ми НЕ робимо:\n'
+        f'{_slots_text(slots, exotic_days)}\n\n'
+        'ПОСЛУГИ КЛІНІКИ — повний перелік того, що ми робимо (цін тут навмисно немає — '
+        'не називай їх). Чого тут немає — ми НЕ робимо:\n'
         f'{_services_text(org)}\n\n'
         f'Вже відомо: {json.dumps(known, ensure_ascii=False) if known else "нічого"}\n'
         f'Години роботи: {hours}\n'
         + (f'{days_line}\n' if days_line else '')
+        + (f'{exotic_line}\n' if exotic_line else '')
         + (f'Адреса: {address}\n' if address else '')
         + (f'Телефон клініки: {phone}\n' if phone else '')
         + '\nЯкщо клієнт прямо просить живу людину, скаржиться, або питає те, чого ти не '
-        'знаєш (ціни, наявність ліків, складне медичне) — не вигадуй: скажи, що зараз '
+        'знаєш (наявність ліків, складне медичне) — не вигадуй: скажи, що зараз '
         'уточниш і повернешся з відповіддю, і постав handoff=true.\n\n'
         'Поверни ЛИШЕ JSON без пояснень і без markdown:\n'
         '{"reply": "текст клієнту", "collected": {"first_name": "", "last_name": "", '
         '"phone": "", "pet_name": "", "species": "", "date": "", "time": "", "reason": ""}, '
-        '"ready": false, "handoff": false}\n'
+        '"ready": false, "handoff": false, "price_question": false}\n'
         'У collected клади лише те, що справді відоме (решту лишай порожнім) — раніше '
         'зібране не загубиться. ready=true став ЛИШЕ коли відомі всі сім полів і '
         '(last_name — виняток: якщо людина прізвище так і не назвала після одного '
@@ -512,6 +576,11 @@ def _create_booking(chat, collected: dict):
     if starts_at <= timezone.now():
         return None, 'past'
 
+    exotic_days = _exotic_days(org)
+    if exotic_days and _is_exotic(_norm_species(collected.get('species'))):
+        if starts_at.astimezone(ZoneInfo('Europe/Kyiv')).weekday() not in exotic_days:
+            return None, 'exotic_day'
+
     slot_min = (org.slot_duration if org and org.slot_duration else 30)
     if not _slot_is_free(org, starts_at, slot_min):
         return None, 'busy'
@@ -630,6 +699,11 @@ def handle_message(chat, text: str):
         )
 
     reply = (answer.get('reply') or '').strip()
+    reply, price_cut = _strip_prices(reply)
+    if price_cut:
+        logger.warning('autodialog: модель назвала ціну, речення вирізано (chat %s)', chat.pk)
+    if price_cut or answer.get('price_question'):
+        _notify_staff(chat, f'💰 Клієнт питає ціну — напишіть йому, будь ласка: {text[:150]}')
     fresh = answer.get('collected') or {}
     if isinstance(fresh, dict):
         for key, value in fresh.items():
@@ -654,6 +728,16 @@ def handle_message(chat, text: str):
                 + route_hint(chat.organization)
             )
             return ((_esc(reply) + '\n\n' + confirm).strip() if reply else confirm), None
+        if err == 'exotic_day':
+            data.pop('date', None)
+            data.pop('time', None)
+            set_stage(chat, STAGE_TALKING, data)
+            names = ', '.join(_WEEKDAYS[d] for d in (_exotic_days(chat.organization) or ()))
+            return (
+                f'Екзотичних улюбленців у нас приймає окремий лікар — {names}. '
+                'Підкажіть, який із цих днів вам зручніший, і я покажу вільний час. 🐾',
+                None,
+            )
         if err == 'busy':
             data.pop('time', None)
             set_stage(chat, STAGE_TALKING, data)
