@@ -50,8 +50,9 @@
       {% endif %}
     </div>
 
-    <!-- Kebab menu (admin only) -->
-    {% if user.role == 'admin' %}
+    {# Kebab: дії з чатом. Привʼязка клієнта — усім працівникам, як на ПК (Катя, 14.10.2026: #}
+    {# «з телефона теж підключати людину до телеги»); перемикачі співробітника — лише адміну. #}
+    {% if user.role != 'client' %}
     <button type="button"
             onclick="tgOpenSheet('admin-sheet')"
             class="tg-mobile-tap text-gray-500 active:opacity-70"
@@ -169,14 +170,15 @@
      ════════════════════════════════════════════════════════════════════════ -->
 <div id="tg-sheet-backdrop" class="tg-mobile-sheet-backdrop" onclick="tgCloseAllSheets()"></div>
 
-{% if user.role == 'admin' %}
-<!-- Admin actions sheet (kebab) -->
+{% if user.role != 'client' %}
+<!-- Chat actions sheet (kebab) -->
 <div id="admin-sheet" class="tg-mobile-sheet">
   <div class="tg-mobile-sheet-handle"></div>
   <div class="px-4 py-3 border-b border-gray-100 text-sm font-semibold text-brand-dark">Опції чату</div>
   <div class="tg-mobile-sheet-body py-2">
 
-    <!-- Staff toggle -->
+    {% if user.role == 'admin' %}
+    <!-- Staff toggle (лише адмін) -->
     <form method="post" action="{% url 'tg:toggle_staff' chat.pk %}" class="block">
       {% csrf_token %}
       <input type="hidden" name="field" value="is_staff">
@@ -220,10 +222,12 @@
     </form>
     {% endif %}
 
+    {% endif %}
+
     <!-- Link / unlink client -->
     <button type="button"
             onclick="tgCloseAllSheets(); setTimeout(function(){tgOpenSheet('link-sheet');}, 200);"
-            class="w-full flex items-center gap-3 px-5 py-3 text-left active:bg-gray-100 border-t border-gray-100"
+            class="w-full flex items-center gap-3 px-5 py-3 text-left active:bg-gray-100{% if user.role == 'admin' %} border-t border-gray-100{% endif %}"
             style="min-height: 48px;">
       <span class="text-xl">🔗</span>
       <span class="flex-1 text-sm text-brand-dark">
