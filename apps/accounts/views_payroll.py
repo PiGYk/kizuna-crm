@@ -79,9 +79,14 @@ def _shift_pickers(org):
         .annotate(recent=Count('shifts', filter=Q(shifts__date__gte=since)))
         .order_by('-recent', 'first_name', 'last_name')
     )
+    from .staff_colors import color_of, ensure_colors
+
+    people = list(people)
+    ensure_colors(org, people)   # новенькому — вільний колір, раз і назавжди
     doctors, assistants = [], []
     for u in people:
-        item = {'id': u.pk, 'label': _staff_label(u), 'full': u.get_full_name() or u.username}
+        item = {'id': u.pk, 'label': _staff_label(u), 'full': u.get_full_name() or u.username,
+                'color': color_of(u), 'recent': u.recent}
         (doctors if u.role == 'doctor' else assistants).append(item)
     return doctors, assistants
 
@@ -113,6 +118,7 @@ def shift_list(request):
 
     weeks_raw = calendar.Calendar(firstweekday=0).monthdatescalendar(year, month)
     grid_from, grid_to = weeks_raw[0][0], weeks_raw[-1][-1]
+    doctors, assistants = _shift_pickers(org)
 
     by_date = defaultdict(list)
     for s in (Shift.objects.filter(organization=org, date__gte=grid_from, date__lte=grid_to)
@@ -121,7 +127,19 @@ def shift_list(request):
 
     weeks = [[_day_context(d, by_date.get(d, []), org, month, today) for d in w] for w in weeks_raw]
     days = [day for w in weeks for day in w if day['in_month']]
-    doctors, assistants = _shift_pickers(org)
+    # Легенда = ключ до кольорів того, що на екрані: лише люди цього місяця.
+    # Порожній місяць — хто виходив за 90 днів, щоб ключ не зникав зовсім.
+    seen = set()
+    for d in days:
+        for sh in ([d['doctor']] if d['doctor'] else []) + d['assistants'] + d['others']:
+            seen.add(sh.user_id)
+    if seen:
+        legend_doctors = [p for p in doctors if p['id'] in seen]
+        legend_assistants = [p for p in assistants if p['id'] in seen]
+    else:
+        legend_doctors = [p for p in doctors if p['recent']] or doctors
+        legend_assistants = [p for p in assistants if p['recent']] or assistants
+    staff_colors = {str(p['id']): p['color'] for p in doctors + assistants}
 
     prev_month = first_day - timedelta(days=1)
     next_month = last_day + timedelta(days=1)
@@ -133,6 +151,9 @@ def shift_list(request):
         'month': month,
         'doctors': doctors,
         'assistants': assistants,
+        'legend_doctors': legend_doctors,
+        'legend_assistants': legend_assistants,
+        'staff_colors': staff_colors,
         'default_start': org.work_start,
         'default_end': org.work_end,
         'can_edit': request.user.is_admin(),

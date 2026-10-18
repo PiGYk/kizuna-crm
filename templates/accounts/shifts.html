@@ -29,11 +29,15 @@
     </div>
   </div>
 
-  {# ── Легенда ролей замість переліку всіх працівників ───────────────────── #}
-  <div class="flex flex-wrap items-center gap-x-5 gap-y-2 mb-4 text-xs text-gray-500">
-    <span class="inline-flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-brand-gold"></span>Лікар</span>
-    <span class="inline-flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-gray-400"></span>Асистент</span>
-    {% if can_edit %}<span class="text-gray-500">Натисніть на день, щоб змінити склад</span>{% endif %}
+  {# ── Легенда = ключ кольорів: колір — людина, смужка — лікар, крапка — асистент ── #}
+  <div class="mb-4 flex flex-wrap items-center gap-2 text-xs">
+    {% for p in legend_doctors %}
+    <span class="inline-flex items-center rounded-md border-l-[3px] px-2 py-1 font-semibold" style="background:{{ p.color.bg }};color:{{ p.color.fg }};border-left-color:{{ p.color.dot }}">{{ p.label }}</span>
+    {% endfor %}
+    {% for p in legend_assistants %}
+    <span class="inline-flex items-center gap-1.5 rounded-md px-2 py-1" style="background:{{ p.color.bg }};color:{{ p.color.fg }}"><span class="h-1.5 w-1.5 rounded-full" style="background:{{ p.color.dot }}"></span>{{ p.label }}</span>
+    {% endfor %}
+    <span class="ml-1 text-gray-500">смужка — лікар, крапка — асистент{% if can_edit %} · натисніть на день, щоб змінити склад{% endif %}</span>
   </div>
 
   {# ── Комп'ютер: місячна сітка ─────────────────────────────────────────── #}
@@ -117,25 +121,25 @@
 
     <div class="space-y-4">
       <label class="block">
-        <span class="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-brand-dark"><span class="h-2 w-2 rounded-full bg-brand-gold"></span>Лікар</span>
-        <select id="sp-doctor" onchange="syncPickers()" class="w-full h-11 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+        <span class="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-brand-dark"><span class="inline-block h-3 w-[3px] rounded-full bg-gray-500"></span>Лікар</span>
+        <div class="relative"><span id="sp-doctor-sw" class="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-full border-2" style="border-color:#d1d5db"></span><select id="sp-doctor" onchange="syncPickers()" class="w-full h-11 rounded-lg border border-gray-200 bg-white pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
           <option value="">— нікого —</option>
           {% for p in doctors %}<option value="{{ p.id }}">{{ p.full }}</option>{% endfor %}
-        </select>
+        </select></div>
       </label>
       <label class="block">
-        <span class="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-brand-dark"><span class="h-2 w-2 rounded-full bg-gray-400"></span>Асистент</span>
-        <select id="sp-a1" onchange="syncPickers()" class="w-full h-11 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+        <span class="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-brand-dark"><span class="h-1.5 w-1.5 rounded-full bg-gray-500"></span>Асистент</span>
+        <div class="relative"><span id="sp-a1-sw" class="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-full border-2" style="border-color:#d1d5db"></span><select id="sp-a1" onchange="syncPickers()" class="w-full h-11 rounded-lg border border-gray-200 bg-white pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
           <option value="">— нікого —</option>
           {% for p in assistants %}<option value="{{ p.id }}">{{ p.full }}</option>{% endfor %}
-        </select>
+        </select></div>
       </label>
       <label class="block">
-        <span class="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-brand-dark"><span class="h-2 w-2 rounded-full bg-gray-300"></span>Додатковий асистент <span class="font-normal text-gray-400">· необов'язково</span></span>
-        <select id="sp-a2" onchange="syncPickers()" class="w-full h-11 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+        <span class="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-brand-dark"><span class="h-1.5 w-1.5 rounded-full bg-gray-500"></span>Додатковий асистент <span class="font-normal text-gray-400">· необов'язково</span></span>
+        <div class="relative"><span id="sp-a2-sw" class="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-full border-2" style="border-color:#d1d5db"></span><select id="sp-a2" onchange="syncPickers()" class="w-full h-11 rounded-lg border border-gray-200 bg-white pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
           <option value="">— нікого —</option>
           {% for p in assistants %}<option value="{{ p.id }}">{{ p.full }}</option>{% endfor %}
-        </select>
+        </select></div>
       </label>
       <div class="grid grid-cols-2 gap-3">
         <label class="block">
@@ -160,6 +164,7 @@
   </div>
 </div>
 
+{{ staff_colors|json_script:"staff-colors" }}
 <script>
 (function () {
   var panel = document.getElementById('shift-panel');
@@ -185,7 +190,17 @@
   }
 
   // Одна людина — одне місце: обране в одному меню вимикаємо в інших.
+  var COLORS = JSON.parse(document.getElementById('staff-colors').textContent || '{}');
+  function paint(name) {
+    var swatch = document.getElementById('sp-' + name + '-sw');
+    if (!swatch) return;
+    var c = COLORS[sel[name].value];
+    swatch.style.background = c ? c.dot : 'transparent';
+    swatch.style.borderColor = c ? c.dot : '#d1d5db';
+  }
+
   window.syncPickers = function () {
+    ['doctor', 'a1', 'a2'].forEach(paint);
     var taken = [sel.doctor.value, sel.a1.value, sel.a2.value];
     ['doctor', 'a1', 'a2'].forEach(function (name, i) {
       Array.prototype.forEach.call(sel[name].options, function (o) {

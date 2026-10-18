@@ -50,6 +50,11 @@ class User(AbstractUser):
         verbose_name='Організація',
     )
 
+    # Постійний колір людини в графіку роботи — ключ палітри з
+    # apps/accounts/staff_colors.py. Видається сам при першому показі графіка
+    # і далі не змінюється: людину впізнають за кольором, не читаючи імені.
+    shift_color = models.CharField('Колір у графіку', max_length=16, blank=True, default='')
+
     def is_admin(self):
         return self.role == self.Role.ADMIN
 
