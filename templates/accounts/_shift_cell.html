@@ -1,7 +1,7 @@
 {% load payroll_tags %}{# Вміст комірки дня на комп'ютері. Той самий шаблон віддає сервер після збереження. Колір — людина, смужка зліва — лікар, крапка — асистент. #}
 <div class="space-y-1">
   {% if day.doctor %}{% with c=day.doctor.user|staff_color %}
-  <div class="flex items-center rounded-md border-l-[3px] px-2 py-1 text-xs font-semibold" style="background:{{ c.bg }};color:{{ c.fg }};border-left-color:{{ c.dot }}" title="Лікар: {{ day.doctor.user.get_full_name }}">
+  <div class="flex items-center rounded-md border-l-4 px-2 py-1 text-xs font-semibold" style="background:{{ c.bg }};color:{{ c.fg }};border-left-color:{{ c.dot }}" title="Лікар: {{ day.doctor.user.get_full_name }}">
     <span class="truncate">{{ day.doctor.user|staff_label }}</span>
   </div>
   {% endwith %}{% endif %}

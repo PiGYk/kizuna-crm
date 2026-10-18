@@ -32,7 +32,7 @@
   {# ── Легенда = ключ кольорів: колір — людина, смужка — лікар, крапка — асистент ── #}
   <div class="mb-4 flex flex-wrap items-center gap-2 text-xs">
     {% for p in legend_doctors %}
-    <span class="inline-flex items-center rounded-md border-l-[3px] px-2 py-1 font-semibold" style="background:{{ p.color.bg }};color:{{ p.color.fg }};border-left-color:{{ p.color.dot }}">{{ p.label }}</span>
+    <span class="inline-flex items-center rounded-md border-l-4 px-2 py-1 font-semibold" style="background:{{ p.color.bg }};color:{{ p.color.fg }};border-left-color:{{ p.color.dot }}">{{ p.label }}</span>
     {% endfor %}
     {% for p in legend_assistants %}
     <span class="inline-flex items-center gap-1.5 rounded-md px-2 py-1" style="background:{{ p.color.bg }};color:{{ p.color.fg }}"><span class="h-1.5 w-1.5 rounded-full" style="background:{{ p.color.dot }}"></span>{{ p.label }}</span>
@@ -121,7 +121,7 @@
 
     <div class="space-y-4">
       <label class="block">
-        <span class="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-brand-dark"><span class="inline-block h-3 w-[3px] rounded-full bg-gray-500"></span>Лікар</span>
+        <span class="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-brand-dark"><span class="inline-block h-3 w-1 rounded-full bg-gray-500"></span>Лікар</span>
         <div class="relative"><span id="sp-doctor-sw" class="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-full border-2" style="border-color:#d1d5db"></span><select id="sp-doctor" onchange="syncPickers()" class="w-full h-11 rounded-lg border border-gray-200 bg-white pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
           <option value="">— нікого —</option>
           {% for p in doctors %}<option value="{{ p.id }}">{{ p.full }}</option>{% endfor %}

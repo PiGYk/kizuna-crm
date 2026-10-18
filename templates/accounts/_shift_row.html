@@ -3,7 +3,7 @@
 <span class="text-sm text-gray-500">Нікого не поставлено</span>
 {% else %}
 <div class="flex flex-wrap items-center gap-1.5">
-  {% if day.doctor %}{% with c=day.doctor.user|staff_color %}<span class="inline-flex items-center rounded-md border-l-[3px] px-2 py-1 text-[13px] font-semibold" style="background:{{ c.bg }};color:{{ c.fg }};border-left-color:{{ c.dot }}">{{ day.doctor.user|staff_label }}</span>{% endwith %}{% endif %}
+  {% if day.doctor %}{% with c=day.doctor.user|staff_color %}<span class="inline-flex items-center rounded-md border-l-4 px-2 py-1 text-[13px] font-semibold" style="background:{{ c.bg }};color:{{ c.fg }};border-left-color:{{ c.dot }}">{{ day.doctor.user|staff_label }}</span>{% endwith %}{% endif %}
   {% for a in day.assistants %}{% with c=a.user|staff_color %}<span class="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[13px]" style="background:{{ c.bg }};color:{{ c.fg }}"><span class="h-1.5 w-1.5 rounded-full" style="background:{{ c.dot }}"></span>{{ a.user|staff_label }}</span>{% endwith %}{% endfor %}
   {% for o in day.others %}{% with c=o.user|staff_color %}<span class="inline-flex items-center rounded-md border border-dashed px-2 py-1 text-[13px]" style="color:{{ c.fg }};border-color:{{ c.dot }}">{{ o.user|staff_label }}</span>{% endwith %}{% endfor %}
   {% if day.custom_time %}<span class="text-xs text-gray-500">{{ day.start|time:"H:i" }}–{{ day.end|time:"H:i" }}</span>{% endif %}
