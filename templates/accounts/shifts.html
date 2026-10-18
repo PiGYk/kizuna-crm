@@ -4,145 +4,263 @@
 
 {% block content %}
 <div class="max-w-6xl">
-  <div class="flex items-center justify-between mb-6">
-    <h1 class="text-2xl font-bold text-brand-dark">Графік роботи</h1>
+
+  {# ── Шапка ───────────────────────────────────────────────────────────── #}
+  <div class="flex flex-wrap items-end justify-between gap-4 mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-brand-dark">Графік роботи</h1>
+      <p class="mt-1 text-sm text-gray-500">
+        Заповнено <span id="filled-count" class="font-semibold text-brand-dark">{{ filled_days }}</span> з {{ days|length }} днів
+      </p>
+    </div>
     <div class="flex items-center gap-2">
-      <a href="?year={{ prev_year }}&month={{ prev_month_num }}" class="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-500">
+      {% if not is_current_month %}
+      <a href="?" class="h-10 px-3 inline-flex items-center rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">Сьогодні</a>
+      {% endif %}
+      <a href="?year={{ prev_year }}&month={{ prev_month_num }}" aria-label="Попередній місяць"
+         class="h-10 w-10 inline-flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
       </a>
-      <span class="text-sm font-semibold text-brand-dark px-3">
-        {{ current_month|date:"F Y" }}
-      </span>
-      <a href="?year={{ next_year }}&month={{ next_month_num }}" class="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-500">
+      <span class="min-w-[9rem] text-center text-sm font-semibold text-brand-dark">{{ current_month|date:"F Y" }}</span>
+      <a href="?year={{ next_year }}&month={{ next_month_num }}" aria-label="Наступний місяць"
+         class="h-10 w-10 inline-flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
       </a>
     </div>
   </div>
 
-  <!-- Легенда працівників -->
-  <div class="flex flex-wrap gap-2 mb-4">
-    {% for u in staff %}
-    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-brand-gold/10 text-brand-dark border border-brand-gold/20">
-      {{ u.get_full_name|default:u.username }}
-      <span class="text-gray-400">({{ u.get_role_display }})</span>
-    </span>
-    {% endfor %}
+  {# ── Легенда ролей замість переліку всіх працівників ───────────────────── #}
+  <div class="flex flex-wrap items-center gap-x-5 gap-y-2 mb-4 text-xs text-gray-500">
+    <span class="inline-flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-brand-gold"></span>Лікар</span>
+    <span class="inline-flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-gray-400"></span>Асистент</span>
+    {% if can_edit %}<span class="text-gray-500">Натисніть на день, щоб змінити склад</span>{% endif %}
   </div>
 
-  <!-- Календарна сітка -->
-  <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-    <div class="grid grid-cols-7 border-b border-gray-200">
-      <div class="px-2 py-2 text-center text-xs font-medium text-gray-400">Пн</div>
-      <div class="px-2 py-2 text-center text-xs font-medium text-gray-400">Вт</div>
-      <div class="px-2 py-2 text-center text-xs font-medium text-gray-400">Ср</div>
-      <div class="px-2 py-2 text-center text-xs font-medium text-gray-400">Чт</div>
-      <div class="px-2 py-2 text-center text-xs font-medium text-gray-400">Пт</div>
-      <div class="px-2 py-2 text-center text-xs font-medium text-gray-400">Сб</div>
-      <div class="px-2 py-2 text-center text-xs font-medium text-gray-400">Нд</div>
+  {# ── Комп'ютер: місячна сітка ─────────────────────────────────────────── #}
+  <div class="hidden xl:block bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div class="grid grid-cols-7 border-b border-gray-200 bg-gray-50/60">
+      {% for wd in weekdays %}
+      <div class="py-2 text-center text-xs font-medium text-gray-500">{{ wd }}</div>
+      {% endfor %}
     </div>
-
     {% for week in weeks %}
-    <div class="grid grid-cols-7 border-b border-gray-50 last:border-b-0">
+    <div class="grid grid-cols-7 border-b border-gray-100 last:border-b-0">
       {% for day in week %}
-      <div class="min-h-[80px] px-2 py-1.5 border-r border-gray-50 last:border-r-0
-        {% if day.month != month %}bg-gray-50/50{% endif %}
-        {% if day == today %}bg-brand-gold/5{% endif %}">
-        <div class="text-xs {% if day.month != month %}text-gray-300{% elif day == today %}text-brand-gold font-bold{% else %}text-gray-500{% endif %} mb-1">
-          {{ day.day }}
+      {% if day.in_month and can_edit %}
+      <button type="button" onclick="openDay(this)"
+        data-key="{{ day.key }}" data-label="{{ day.date|date:'l, j E' }}"
+        data-doctor="{{ day.doctor_id }}" data-a1="{{ day.a1_id }}" data-a2="{{ day.a2_id }}"
+        data-start="{{ day.start|time:'H:i' }}" data-end="{{ day.end|time:'H:i' }}"
+        data-empty="{{ day.empty|yesno:'1,0' }}"
+        class="shift-day group flex flex-col justify-start min-h-[112px] p-2 text-left border-r border-gray-100 last:border-r-0 align-top transition hover:bg-brand-gold/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-gold">
+      {% else %}
+      <div class="min-h-[112px] p-2 border-r border-gray-100 last:border-r-0 {% if not day.in_month %}bg-gray-50/70{% endif %}">
+      {% endif %}
+        <div class="mb-1.5 flex items-center justify-between">
+          <span class="inline-flex h-6 min-w-[1.5rem] items-center justify-center rounded-full px-1 text-xs
+            {% if not day.in_month %}text-gray-300{% elif day.is_today %}bg-brand-gold font-bold text-brand-dark{% else %}font-medium text-gray-500{% endif %}">{{ day.date.day }}</span>
+          {% if day.in_month and can_edit %}
+          <svg class="w-3.5 h-3.5 text-gray-300 opacity-0 group-hover:opacity-100 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M4 20h4l10.5-10.5a2.5 2.5 0 00-3.536-3.536L4.5 16.5 4 20z"/></svg>
+          {% endif %}
         </div>
-        <!-- Зміни на цей день -->
-        <div class="space-y-0.5">
-          {% with day_key=day|date:"Y-m-d" %}
-          {% with day_shifts=shifts_by_date|get_item:day_key %}
-            {% for shift in day_shifts %}
-            <div class="flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded bg-brand-gold/10 text-brand-dark group"
-                 title="{{ shift.user.get_full_name }}{% if shift.start_time %} {{ shift.start_time|time:'H:i' }}–{{ shift.end_time|time:'H:i' }}{% endif %}">
-              <span class="truncate flex-1">{{ shift.user.first_name|default:shift.user.username }}
-              {% if shift.start_time %}<span class="text-gray-400">{{ shift.start_time|time:"H:i" }}</span>{% endif %}</span>
-              {% if user.is_admin %}
-              {# opacity-0 лише на ПК: на телефоні наведення немає, кнопка мусить бути видима завжди #}
-              <button type="button" onclick="deleteShift({{ shift.pk }}, this, '{{ shift.user.get_full_name|default:shift.user.username|escapejs }}', '{{ day|date:"j E" }}')"
-                class="opacity-100 md:opacity-0 md:group-hover:opacity-100 text-gray-400 hover:text-red-500 transition ml-0.5 flex-shrink-0 leading-none px-1 -mr-1"
-                title="Видалити зміну">&times;</button>
-              {% endif %}
-            </div>
-            {% endfor %}
-          {% endwith %}
-          {% endwith %}
-        </div>
-        <!-- Кнопка додати зміну -->
-        {% if day.month == month and user.is_admin %}
-        <button type="button" onclick="openShiftModal('{{ day|date:"Y-m-d" }}')"
-          class="w-full mt-1 text-center text-gray-300 hover:text-brand-gold text-xs py-0.5 rounded hover:bg-brand-gold/5 transition">+</button>
-        {% endif %}
-      </div>
+        {% if day.in_month %}<div data-slot="cell">{% include 'accounts/_shift_cell.html' %}</div>{% endif %}
+      {% if day.in_month and can_edit %}</button>{% else %}</div>{% endif %}
       {% endfor %}
     </div>
     {% endfor %}
   </div>
-</div>
 
-<!-- Модалка додавання зміни -->
-{% if user.is_admin %}
-<div id="shift-modal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4">
-  <div class="bg-white rounded-xl p-6 max-w-sm w-full shadow-xl">
-    <h2 class="text-lg font-bold text-brand-dark mb-4">Додати зміну</h2>
-    <form method="post" action="{% url 'accounts:shift_toggle' %}">
-      {% csrf_token %}
-      <input type="hidden" name="date" id="shift-date-input">
-      <div class="mb-4">
-        <label class="text-xs text-gray-500 block mb-1">Працівник</label>
-        <select name="user_id" required class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
-          {% for u in staff %}
-          <option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }} ({{ u.get_role_display }})</option>
-          {% endfor %}
-        </select>
+  {# ── Телефон: список днів — сітка з 7 колонок різала імена до однієї літери ── #}
+  <div class="xl:hidden bg-white rounded-xl border border-gray-200 overflow-hidden divide-y divide-gray-100">
+    {% for day in days %}
+    {% if can_edit %}
+    <button type="button" onclick="openDay(this)"
+      data-key="{{ day.key }}" data-label="{{ day.date|date:'l, j E' }}"
+      data-doctor="{{ day.doctor_id }}" data-a1="{{ day.a1_id }}" data-a2="{{ day.a2_id }}"
+      data-start="{{ day.start|time:'H:i' }}" data-end="{{ day.end|time:'H:i' }}"
+      data-empty="{{ day.empty|yesno:'1,0' }}"
+      {% if day.is_today %}id="today-row" {% endif %}class="shift-day w-full flex items-center gap-3 px-4 py-3 text-left scroll-mt-24 active:bg-brand-gold/10 {% if day.is_today %}bg-brand-gold/10{% endif %}">
+    {% else %}
+    <div class="flex items-center gap-3 px-4 py-3 {% if day.is_today %}bg-brand-gold/10{% endif %}">
+    {% endif %}
+      <div class="w-10 shrink-0 text-center">
+        <div class="text-[11px] uppercase tracking-wide text-gray-400">{{ day.date|date:"D" }}</div>
+        <div class="text-lg font-bold leading-tight {% if day.is_today %}text-brand-dark{% else %}text-gray-700{% endif %}">{{ day.date.day }}</div>
       </div>
-      <div class="grid grid-cols-2 gap-3 mb-4">
-        <div>
-          <label class="text-xs text-gray-500 block mb-1">Початок</label>
-          <input type="time" name="start_time" value="10:00" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
-        </div>
-        <div>
-          <label class="text-xs text-gray-500 block mb-1">Кінець</label>
-          <input type="time" name="end_time" value="18:00" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
-        </div>
-      </div>
-      <div class="flex gap-3">
-        <button type="submit" class="flex-1 bg-brand-gold text-brand-dark py-2.5 rounded-lg text-sm font-semibold hover:brightness-95 transition">Додати</button>
-        <button type="button" onclick="closeShiftModal()" class="flex-1 border border-gray-200 text-gray-500 py-2.5 rounded-lg text-sm hover:bg-gray-50 transition">Скасувати</button>
-      </div>
-    </form>
+      <div class="flex-1 min-w-0" data-slot="row">{% include 'accounts/_shift_row.html' %}</div>
+      {% if can_edit %}
+      <svg class="w-4 h-4 shrink-0 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      </button>
+      {% else %}
+    </div>
+      {% endif %}
+    {% endfor %}
   </div>
 </div>
-{% endif %}
+
+{# ── Панель складу зміни: на телефоні шторка знизу, на комп'ютері по центру ── #}
+{% if can_edit %}
+<div id="shift-panel" class="fixed inset-0 z-50 hidden" role="dialog" aria-modal="true" aria-labelledby="shift-panel-title">
+  <div class="absolute inset-0 bg-black/40" onclick="closeDay()"></div>
+  <div class="absolute inset-x-0 bottom-0 md:inset-auto md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[26rem]
+              bg-white rounded-t-2xl md:rounded-2xl shadow-xl p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+    <div class="flex items-start justify-between gap-4 mb-5">
+      <div>
+        <div class="text-xs font-medium uppercase tracking-wide text-gray-400">Склад зміни</div>
+        <h2 id="shift-panel-title" class="mt-1 text-lg font-bold text-brand-dark first-letter:uppercase"></h2>
+      </div>
+      <button type="button" onclick="closeDay()" aria-label="Закрити"
+        class="h-10 w-10 -mr-2 -mt-2 inline-flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <div class="space-y-4">
+      <label class="block">
+        <span class="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-brand-dark"><span class="h-2 w-2 rounded-full bg-brand-gold"></span>Лікар</span>
+        <select id="sp-doctor" onchange="syncPickers()" class="w-full h-11 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+          <option value="">— нікого —</option>
+          {% for p in doctors %}<option value="{{ p.id }}">{{ p.full }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="block">
+        <span class="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-brand-dark"><span class="h-2 w-2 rounded-full bg-gray-400"></span>Асистент</span>
+        <select id="sp-a1" onchange="syncPickers()" class="w-full h-11 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+          <option value="">— нікого —</option>
+          {% for p in assistants %}<option value="{{ p.id }}">{{ p.full }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="block">
+        <span class="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-brand-dark"><span class="h-2 w-2 rounded-full bg-gray-300"></span>Додатковий асистент <span class="font-normal text-gray-400">· необов'язково</span></span>
+        <select id="sp-a2" onchange="syncPickers()" class="w-full h-11 rounded-lg border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+          <option value="">— нікого —</option>
+          {% for p in assistants %}<option value="{{ p.id }}">{{ p.full }}</option>{% endfor %}
+        </select>
+      </label>
+      <div class="grid grid-cols-2 gap-3">
+        <label class="block">
+          <span class="mb-1.5 block text-sm font-medium text-brand-dark">Початок</span>
+          <input id="sp-start" type="time" class="w-full h-11 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+        </label>
+        <label class="block">
+          <span class="mb-1.5 block text-sm font-medium text-brand-dark">Кінець</span>
+          <input id="sp-end" type="time" class="w-full h-11 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+        </label>
+      </div>
+    </div>
+
+    <p id="sp-error" class="hidden mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700"></p>
+
+    <div class="mt-6 flex gap-3">
+      <button id="sp-save" type="button" onclick="saveDay()"
+        class="flex-1 h-12 rounded-lg bg-brand-gold text-sm font-semibold text-brand-dark hover:brightness-95 disabled:opacity-60 transition">Зберегти</button>
+      <button type="button" onclick="closeDay()"
+        class="h-12 px-5 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Скасувати</button>
+    </div>
+  </div>
+</div>
 
 <script>
-function openShiftModal(dateStr) {
-  document.getElementById('shift-date-input').value = dateStr;
-  document.getElementById('shift-modal').classList.remove('hidden');
-}
-function closeShiftModal() {
-  document.getElementById('shift-modal').classList.add('hidden');
-}
-function getCsrfToken() {
-  return document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith('csrftoken='))?.split('=')[1] || '';
-}
-function deleteShift(shiftId, btn, who, when) {
-  // На телефоні комірка дня вузька і ім'я обрізається до літери — питаємо повністю,
-  // щоб не стерти чужу зміну наосліп.
-  var q = 'Видалити зміну';
-  if (who) q += ': ' + who;
-  if (when) q += ' (' + when + ')';
-  if (!confirm(q + '?')) return;
-  fetch('/shifts/' + shiftId + '/delete/', {
-    method: 'POST',
-    headers: {'X-CSRFToken': getCsrfToken()},
-  }).then(r => {
-    if (r.ok) {
-      btn.closest('div[class*="bg-brand-gold"]').remove();
-    }
+(function () {
+  var panel = document.getElementById('shift-panel');
+  var sel = { doctor: document.getElementById('sp-doctor'), a1: document.getElementById('sp-a1'), a2: document.getElementById('sp-a2') };
+  var startEl = document.getElementById('sp-start'), endEl = document.getElementById('sp-end');
+  var errEl = document.getElementById('sp-error'), saveBtn = document.getElementById('sp-save');
+  var key = null, prev = {};
+
+  // Телефон: список днів довгий, а цікавить сьогодні — одразу прокручуємо до нього.
+  var todayRow = document.getElementById('today-row');
+  if (todayRow && window.matchMedia('(max-width: 1279px)').matches) {
+    todayRow.scrollIntoView({ block: 'start' });
+  }
+  var DEF_START = '{{ default_start|time:"H:i" }}', DEF_END = '{{ default_end|time:"H:i" }}';
+
+  // Людина, що стоїть у графіку, але вже не в списку (звільнена) — показуємо її
+  // в меню, інакше панель мовчки підставила б «нікого».
+  function ensureOption(select, id) {
+    if (!id || select.querySelector('option[value="' + id + '"]')) return;
+    var o = document.createElement('option');
+    o.value = id; o.textContent = 'Працівник #' + id; o.dataset.extra = '1';
+    select.appendChild(o);
+  }
+
+  // Одна людина — одне місце: обране в одному меню вимикаємо в інших.
+  window.syncPickers = function () {
+    var taken = [sel.doctor.value, sel.a1.value, sel.a2.value];
+    ['doctor', 'a1', 'a2'].forEach(function (name, i) {
+      Array.prototype.forEach.call(sel[name].options, function (o) {
+        o.disabled = !!o.value && taken.some(function (v, j) { return j !== i && v === o.value; });
+      });
+    });
+  };
+
+  window.openDay = function (el) {
+    var d = el.dataset;
+    key = d.key;
+    prev = { doctor: d.doctor || '', a1: d.a1 || '', a2: d.a2 || '' };
+    panel.querySelectorAll('option[data-extra]').forEach(function (o) { o.remove(); });
+    ensureOption(sel.doctor, prev.doctor); ensureOption(sel.a1, prev.a1); ensureOption(sel.a2, prev.a2);
+    sel.doctor.value = prev.doctor; sel.a1.value = prev.a1; sel.a2.value = prev.a2;
+    startEl.value = d.start || DEF_START; endEl.value = d.end || DEF_END;
+    document.getElementById('shift-panel-title').textContent = d.label;
+    errEl.classList.add('hidden');
+    syncPickers();
+    panel.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    sel.doctor.focus();
+  };
+
+  window.closeDay = function () {
+    panel.classList.add('hidden');
+    document.body.style.overflow = '';
+    key = null;
+  };
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !panel.classList.contains('hidden')) closeDay();
   });
-}
+
+  function csrf() {
+    var m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+    return m ? decodeURIComponent(m[1]) : '';
+  }
+
+  window.saveDay = function () {
+    if (!key) return;
+    var a1 = sel.a1.value, a2 = sel.a2.value;
+    if (!a1 && a2) { a1 = a2; a2 = ''; }   // один асистент — завжди в першому слоті
+    var body = new URLSearchParams({
+      date: key, doctor: sel.doctor.value, assistant: a1, assistant2: a2,
+      prev_doctor: prev.doctor, prev_assistant: prev.a1, prev_assistant2: prev.a2,
+      start_time: startEl.value, end_time: endEl.value
+    });
+    saveBtn.disabled = true; saveBtn.textContent = 'Зберігаю…';
+    errEl.classList.add('hidden');
+    fetch('{% url "accounts:shift_day_save" %}', {
+      method: 'POST', body: body,
+      headers: { 'X-CSRFToken': csrf(), 'Content-Type': 'application/x-www-form-urlencoded' }
+    }).then(function (r) {
+      return r.json().then(function (j) { if (!r.ok || !j.ok) throw new Error(j.error || 'Не вдалося зберегти'); return j; });
+    }).then(function (j) {
+      document.querySelectorAll('.shift-day[data-key="' + key + '"]').forEach(function (el) {
+        var s = j.state;
+        el.dataset.doctor = s.doctor; el.dataset.a1 = s.a1; el.dataset.a2 = s.a2;
+        el.dataset.start = s.start; el.dataset.end = s.end; el.dataset.empty = s.empty ? '1' : '0';
+        var cell = el.querySelector('[data-slot="cell"]'); if (cell) cell.innerHTML = j.cell;
+        var row = el.querySelector('[data-slot="row"]'); if (row) row.innerHTML = j.row;
+        el.classList.add('ring-2', 'ring-inset', 'ring-brand-gold');
+        setTimeout(function () { el.classList.remove('ring-2', 'ring-inset', 'ring-brand-gold'); }, 1200);
+      });
+      var filled = document.querySelectorAll('.xl\\:hidden .shift-day[data-empty="0"]').length;
+      var fc = document.getElementById('filled-count'); if (fc) fc.textContent = filled;
+      closeDay();
+    }).catch(function (e) {
+      errEl.textContent = e.message; errEl.classList.remove('hidden');
+    }).finally(function () {
+      saveBtn.disabled = false; saveBtn.textContent = 'Зберегти';
+    });
+  };
+})();
 </script>
+{% endif %}
 {% endblock %}

@@ -1,0 +1,20 @@
+{% load payroll_tags %}{# Вміст комірки дня на комп'ютері. Той самий шаблон віддає сервер після збереження. #}
+<div class="space-y-1">
+  {% if day.doctor %}
+  <div class="flex items-center gap-1.5 rounded-md bg-brand-gold/20 px-2 py-1 text-xs font-semibold text-brand-dark" title="Лікар: {{ day.doctor.user.get_full_name }}">
+    <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-brand-gold"></span><span class="truncate">{{ day.doctor.user|staff_label }}</span>
+  </div>
+  {% endif %}
+  {% for a in day.assistants %}
+  <div class="flex items-center gap-1.5 rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-700" title="Асистент: {{ a.user.get_full_name }}">
+    <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-gray-400"></span><span class="truncate">{{ a.user|staff_label }}</span>
+  </div>
+  {% endfor %}
+  {% for o in day.others %}
+  <div class="flex items-center gap-1.5 rounded-md border border-dashed border-gray-300 px-2 py-1 text-xs text-gray-500" title="Також у графіку: {{ o.user.get_full_name }}">
+    <span class="truncate">{{ o.user|staff_label }}</span>
+  </div>
+  {% endfor %}
+  {% if day.empty %}<div class="px-0.5 text-xs text-gray-500">нікого</div>{% endif %}
+  {% if day.custom_time and not day.empty %}<div class="px-0.5 text-[11px] text-gray-500">{{ day.start|time:"H:i" }}–{{ day.end|time:"H:i" }}</div>{% endif %}
+</div>

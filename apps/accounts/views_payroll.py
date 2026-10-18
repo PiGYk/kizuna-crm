@@ -11,55 +11,214 @@ from django.views.decorators.http import require_POST
 from .mixins import admin_required, menu_required
 
 
+def _staff_label(user):
+    """«Катерина С.» — ім'я і перша літера прізвища.
+
+    Самого імені мало: у клініці дві Катерини, і в старому календарі на
+    телефоні від обох лишалась одна літера «К».
+    """
+    first = (user.first_name or '').strip()
+    last = (user.last_name or '').strip()
+    if first and last:
+        return f'{first} {last[0]}.'
+    return first or last or user.username
+
+
+def _day_slots(day_shifts):
+    """Розкладає зміни дня по слотах: лікар, до двох асистентів, решта.
+
+    «Асистент» — будь-хто, крім лікаря: у Kizuna асистентка Софія має роль
+    адміністратора, і фільтр за роллю assistant її б не побачив. «Решта» — це
+    рідкісний другий лікар чи третій асистент: їх показуємо, але панель їх
+    не чіпає, щоб збереження не стирало людей мовчки.
+    """
+    doctor = next((s for s in day_shifts if s.user.role == 'doctor'), None)
+    rest = [s for s in day_shifts if s is not doctor]
+    assistants = [s for s in rest if s.user.role != 'doctor'][:2]
+    others = [s for s in rest if s not in assistants]
+    return doctor, assistants, others
+
+
+def _day_context(d, day_shifts, org, month, today):
+    doctor, assistants, others = _day_slots(day_shifts)
+    first = doctor or (assistants[0] if assistants else None)
+    start = (first.start_time if first and first.start_time else org.work_start)
+    end = (first.end_time if first and first.end_time else org.work_end)
+    return {
+        'date': d,
+        'key': d.isoformat(),
+        'in_month': d.month == month,
+        'is_today': d == today,
+        'is_past': d < today,
+        'doctor': doctor,
+        'assistants': assistants,
+        'others': others,
+        'empty': not day_shifts,
+        'start': start,
+        'end': end,
+        'custom_time': (start, end) != (org.work_start, org.work_end),
+        'doctor_id': doctor.user_id if doctor else '',
+        'a1_id': assistants[0].user_id if len(assistants) > 0 else '',
+        'a2_id': assistants[1].user_id if len(assistants) > 1 else '',
+    }
+
+
+def _shift_pickers(org):
+    """Хто з'являється в меню «Лікар» і «Асистент».
+
+    Тільки живі люди: без імені — службові акаунти (тестовий «claude»). Зверху —
+    ті, хто реально виходив на зміни за останні три місяці, щоб не гортати
+    власників і звільнених.
+    """
+    from django.db.models import Count, Q
+    from .models import User
+    since = date.today() - timedelta(days=90)
+    people = (
+        User.objects.filter(organization=org, is_active=True)
+        .exclude(first_name='', last_name='')
+        .annotate(recent=Count('shifts', filter=Q(shifts__date__gte=since)))
+        .order_by('-recent', 'first_name', 'last_name')
+    )
+    doctors, assistants = [], []
+    for u in people:
+        item = {'id': u.pk, 'label': _staff_label(u), 'full': u.get_full_name() or u.username}
+        (doctors if u.role == 'doctor' else assistants).append(item)
+    return doctors, assistants
+
+
 @menu_required('shifts')
 def shift_list(request):
-    """Графік роботи — календарний вигляд за місяць."""
+    """Графік роботи — місяць, склад зміни на кожен день.
+
+    Переписано 18.10 (наказ Олега): «незручно і мені, і дівчатам». Було так:
+    щоб поставити лікаря й двох асистентів — тричі «+», тричі вибір зі
+    спільного списку, тричі час, і перезавантаження після кожного. З жовтня
+    графік фактично покинули — заповнено один день із двадцяти. Тепер клік по
+    дню відкриває одну панель: лікар, асистент, додатковий асистент, «Зберегти».
+    """
+    import calendar
+    from collections import defaultdict
     from .models_payroll import Shift
-    from .models import User
 
     org = request.organization
-    year = int(request.GET.get('year', date.today().year))
-    month = int(request.GET.get('month', date.today().month))
+    today = date.today()
+    try:
+        year = int(request.GET.get('year', today.year))
+        month = int(request.GET.get('month', today.month))
+        first_day = date(year, month, 1)
+    except (TypeError, ValueError):
+        year, month = today.year, today.month
+        first_day = date(year, month, 1)
+    last_day = date(year + (month == 12), month % 12 + 1, 1) - timedelta(days=1)
 
-    first_day = date(year, month, 1)
-    if month == 12:
-        last_day = date(year + 1, 1, 1) - timedelta(days=1)
-    else:
-        last_day = date(year, month + 1, 1) - timedelta(days=1)
+    weeks_raw = calendar.Calendar(firstweekday=0).monthdatescalendar(year, month)
+    grid_from, grid_to = weeks_raw[0][0], weeks_raw[-1][-1]
 
-    shifts = Shift.objects.filter(
-        organization=org, date__gte=first_day, date__lte=last_day,
-    ).select_related('user').order_by('date', 'start_time')
+    by_date = defaultdict(list)
+    for s in (Shift.objects.filter(organization=org, date__gte=grid_from, date__lte=grid_to)
+              .select_related('user').order_by('date', 'start_time', 'id')):
+        by_date[s.date].append(s)
 
-    # Групуємо по датах (ключі — рядки ISO для template lookup)
-    from collections import defaultdict
-    shifts_by_date = defaultdict(list)
-    for s in shifts:
-        shifts_by_date[s.date.isoformat()].append(s)
+    weeks = [[_day_context(d, by_date.get(d, []), org, month, today) for d in w] for w in weeks_raw]
+    days = [day for w in weeks for day in w if day['in_month']]
+    doctors, assistants = _shift_pickers(org)
 
-    # Генеруємо календарну сітку
-    import calendar
-    cal = calendar.Calendar(firstweekday=0)
-    weeks = cal.monthdatescalendar(year, month)
-
-    staff = User.objects.filter(organization=org, is_active=True).order_by('last_name')
-
-    # Навігація
     prev_month = first_day - timedelta(days=1)
     next_month = last_day + timedelta(days=1)
-
     return render(request, 'accounts/shifts.html', {
         'weeks': weeks,
-        'shifts_by_date': dict(shifts_by_date),
+        'days': days,
         'current_month': first_day,
         'year': year,
         'month': month,
-        'staff': staff,
+        'doctors': doctors,
+        'assistants': assistants,
+        'default_start': org.work_start,
+        'default_end': org.work_end,
+        'can_edit': request.user.is_admin(),
         'prev_year': prev_month.year,
         'prev_month_num': prev_month.month,
         'next_year': next_month.year,
         'next_month_num': next_month.month,
-        'today': date.today(),
+        'is_current_month': (year, month) == (today.year, today.month),
+        'today': today,
+        'filled_days': sum(1 for d in days if not d['empty']),
+        'weekdays': ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'],
+    })
+
+
+@admin_required
+@require_POST
+def shift_day_save(request):
+    """Зберегти склад зміни на день одним натиском.
+
+    Клієнт шле, хто стояв у слотах на момент відкриття панелі (prev_*), і кого
+    обрано тепер. Рахуємо множинами: прибраних видаляємо, нових додаємо, тих,
+    хто лишився, не чіпаємо — тож перестановка асистентів місцями нікого не
+    губить. Людей поза слотами (другий лікар) не чіпаємо взагалі.
+    Модель Shift НЕ змінюється: з неї рахується зарплата за зміни.
+    """
+    from django.db import transaction
+    from django.http import JsonResponse
+    from django.template.loader import render_to_string
+    from .models import User
+    from .models_payroll import Shift
+
+    org = request.organization
+    try:
+        d = date.fromisoformat(request.POST.get('date', ''))
+    except ValueError:
+        return JsonResponse({'ok': False, 'error': 'Невірна дата'}, status=400)
+
+    org_users = dict(User.objects.filter(organization=org).values_list('pk', 'is_active'))
+
+    def _uid(name, need_active):
+        raw = (request.POST.get(name) or '').strip()
+        if not raw.isdigit():
+            return None
+        pk = int(raw)
+        if pk not in org_users or (need_active and not org_users[pk]):
+            return None   # чужа клініка або звільнений — ігноруємо
+        return pk
+
+    new_set = {u for u in (_uid('doctor', True), _uid('assistant', True), _uid('assistant2', True)) if u}
+    prev_set = {u for u in (_uid('prev_doctor', False), _uid('prev_assistant', False), _uid('prev_assistant2', False)) if u}
+
+    def _t(name, fallback):
+        try:
+            return time.fromisoformat(request.POST.get(name, '')) if request.POST.get(name) else fallback
+        except ValueError:
+            return fallback
+    start_t = _t('start_time', org.work_start)
+    end_t = _t('end_time', org.work_end)
+
+    with transaction.atomic():
+        removed = Shift.objects.filter(organization=org, date=d, user_id__in=prev_set - new_set).delete()[0]
+        for pk in new_set:
+            shift, made = Shift.objects.get_or_create(
+                organization=org, date=d, user_id=pk,
+                defaults={'start_time': start_t, 'end_time': end_t},
+            )
+            if not made and (shift.start_time, shift.end_time) != (start_t, end_t):
+                shift.start_time, shift.end_time = start_t, end_t
+                shift.save()   # save(), не update(): перераховує години для зарплати
+
+    day_shifts = list(Shift.objects.filter(organization=org, date=d)
+                      .select_related('user').order_by('start_time', 'id'))
+    today = date.today()
+    day = _day_context(d, day_shifts, org, d.month, today)
+    ctx = {'day': day, 'can_edit': True, 'default_start': org.work_start, 'default_end': org.work_end}
+    return JsonResponse({
+        'ok': True,
+        'removed': removed,
+        'cell': render_to_string('accounts/_shift_cell.html', ctx, request=request),
+        'row': render_to_string('accounts/_shift_row.html', ctx, request=request),
+        'state': {
+            'doctor': day['doctor_id'], 'a1': day['a1_id'], 'a2': day['a2_id'],
+            'start': day['start'].strftime('%H:%M') if day['start'] else '',
+            'end': day['end'].strftime('%H:%M') if day['end'] else '',
+            'empty': day['empty'],
+        },
     })
 
 

@@ -57,6 +57,7 @@ urlpatterns = [
     # Shifts & Payroll
     path('shifts/', views_payroll.shift_list, name='shifts'),
     path('shifts/toggle/', views_payroll.shift_toggle, name='shift_toggle'),
+    path('shifts/day/', views_payroll.shift_day_save, name='shift_day_save'),
     path('shifts/<int:pk>/delete/', views_payroll.shift_delete, name='shift_delete'),
     path('payroll/', views_payroll.payroll_list, name='payroll_list'),
     path('payroll/calculate/', views_payroll.payroll_calculate, name='payroll_calculate'),
