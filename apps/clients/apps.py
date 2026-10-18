@@ -9,3 +9,7 @@ class ClientsConfig(AppConfig):
         from .models import Patient, Visit, Vaccine, Prescription, WeightRecord, Hospitalization
         for model in [Patient, Visit, Vaccine, Prescription, WeightRecord, Hospitalization]:
             register_audit(model)
+        # Графік змін правлять усі працівники (з 18.10), а з нього рахується
+        # зарплата — тож хто кого поставив чи зняв, мусить лишатись у журналі.
+        from apps.accounts.models_payroll import Shift
+        register_audit(Shift)

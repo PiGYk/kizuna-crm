@@ -156,7 +156,7 @@ def shift_list(request):
         'staff_colors': staff_colors,
         'default_start': org.work_start,
         'default_end': org.work_end,
-        'can_edit': request.user.is_admin(),
+        'can_edit': True,   # правити може кожен, кому графік видно (наказ Олега 18.10)
         'prev_year': prev_month.year,
         'prev_month_num': prev_month.month,
         'next_year': next_month.year,
@@ -168,7 +168,7 @@ def shift_list(request):
     })
 
 
-@admin_required
+@menu_required('shifts')
 @require_POST
 def shift_day_save(request):
     """Зберегти склад зміни на день одним натиском.
@@ -178,6 +178,9 @@ def shift_day_save(request):
     хто лишився, не чіпаємо — тож перестановка асистентів місцями нікого не
     губить. Людей поза слотами (другий лікар) не чіпаємо взагалі.
     Модель Shift НЕ змінюється: з неї рахується зарплата за зміни.
+    Права ті самі, що на перегляд: хто бачить графік, той і править — адмін
+    клініки закриває графік ролі в налаштуваннях меню. Хто що змінив,
+    пише журнал дій (Shift зареєстровано в apps/clients/apps.py).
     """
     from django.db import transaction
     from django.http import JsonResponse
