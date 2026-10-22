@@ -564,6 +564,7 @@ def _create_crm_objects(lead: LeadRequest, org, booking_dt=None, slot_duration=3
                     duration=slot_duration,
                     organization=org,
                     notes=notes,
+                    source=Appointment.Source.SITE,
                 )
 
     except Exception:

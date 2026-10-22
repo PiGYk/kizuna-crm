@@ -75,7 +75,7 @@
 
         <!-- Сам card (свайпається) -->
         <a href="{% url 'appointments:edit' appt.pk %}"
-           class="appt-card relative block bg-white px-3 py-3 active:bg-gray-50">
+           class="appt-card relative block px-3 py-3 {% if appt.needs_callback %}border-l-4 active:brightness-95 {% if appt.source == 'telegram' %}bg-yellow-100 border-yellow-400{% else %}bg-violet-100 border-violet-400{% endif %}{% else %}bg-white active:bg-gray-50{% endif %}">
 
           <div class="flex items-start gap-3">
             <!-- Час -->
@@ -95,6 +95,9 @@
                   {% else %}bg-brand-gold/20 text-brand-dark{% endif %}">
                   {{ appt.get_status_display }}
                 </span>
+                {% if appt.needs_callback %}
+                <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold {% if appt.source == 'telegram' %}bg-yellow-300 text-yellow-900{% else %}bg-violet-300 text-violet-900{% endif %}">{% if appt.source == 'telegram' %}Telegram{% else %}Сайт{% endif %} · передзвонити</span>
+                {% endif %}
               </div>
               <div class="font-semibold text-brand-dark text-[14px] truncate">
                 {{ appt.client.last_name }} {{ appt.client.first_name }}

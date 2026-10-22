@@ -67,11 +67,13 @@
   {% if appts %}
   <div class="space-y-3">
     {% for appt in appts %}
-    <div class="bg-white rounded-xl border
-      {% if appt.status == 'completed' %}border-green-200
-      {% elif appt.status == 'cancelled' or appt.status == 'no_show' %}border-gray-200 opacity-60
-      {% elif appt.status == 'confirmed' %}border-blue-200
-      {% else %}border-brand-gold/40{% endif %}
+    <div class="rounded-xl border
+      {% if appt.status == 'completed' %}bg-white border-green-200
+      {% elif appt.status == 'cancelled' or appt.status == 'no_show' %}bg-white border-gray-200 opacity-60
+      {% elif appt.status == 'confirmed' %}bg-white border-blue-200
+      {% elif appt.needs_callback and appt.source == 'telegram' %}bg-yellow-100 border-yellow-400 border-l-4
+      {% elif appt.needs_callback %}bg-violet-100 border-violet-400 border-l-4
+      {% else %}bg-white border-brand-gold/40{% endif %}
       p-4 shadow-sm">
 
       <!-- Верх картки: час + статус-бейдж + дії редагування -->
@@ -90,6 +92,12 @@
               {% else %}bg-brand-gold/20 text-brand-dark{% endif %}">
               {{ appt.get_status_display }}
             </span>
+            {% if appt.needs_callback %}
+            <span class="text-xs px-2 py-0.5 rounded-full mt-1 inline-block w-fit font-semibold
+              {% if appt.source == 'telegram' %}bg-yellow-300 text-yellow-900{% else %}bg-violet-300 text-violet-900{% endif %}">
+              {% if appt.source == 'telegram' %}Telegram{% else %}Сайт{% endif %} · передзвонити
+            </span>
+            {% endif %}
           </div>
         </div>
         <div class="flex items-center gap-1 shrink-0">

@@ -11,6 +11,11 @@ class Appointment(models.Model):
         CANCELLED = 'cancelled', 'Скасовано'
         NO_SHOW   = 'no_show',   'Не прийшов'
 
+    class Source(models.TextChoices):
+        CRM      = 'crm',      'CRM'
+        TELEGRAM = 'telegram', 'Telegram'
+        SITE     = 'site',     'Сайт'
+
     class Duration(models.IntegerChoices):
         MIN_15  = 15,  '15 хв'
         MIN_30  = 30,  '30 хв'
@@ -47,6 +52,11 @@ class Appointment(models.Model):
         verbose_name='Заплановані послуги'
     )
     notes = models.TextField('Нотатки', blank=True)
+    # Звідки прийшов запис: персонал у CRM чи клієнт сам (бот / сайт). Самозапис
+    # до підтвердження світиться в календарі своїм кольором — щоб одразу передзвонити.
+    source = models.CharField(
+        'Звідки запис', max_length=16, choices=Source.choices, default=Source.CRM,
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
         null=True, related_name='created_appointments'
@@ -80,6 +90,11 @@ class Appointment(models.Model):
     def ends_at(self):
         from datetime import timedelta
         return self.starts_at + timedelta(minutes=self.duration)
+
+    @property
+    def needs_callback(self):
+        """Клієнт записався сам, а персонал ще не підтвердив запис — передзвонити."""
+        return self.status == self.Status.SCHEDULED and self.source != self.Source.CRM
 
 
 class LeadRequest(models.Model):

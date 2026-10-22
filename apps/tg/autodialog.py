@@ -638,6 +638,7 @@ def _create_booking(chat, collected: dict):
             status='scheduled',
             organization=org,
             notes=notes,
+            source=Appointment.Source.TELEGRAM,
         )
         chat.client = client
         chat.last_message_at = timezone.now()

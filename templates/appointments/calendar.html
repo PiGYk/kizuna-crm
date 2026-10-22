@@ -124,6 +124,11 @@
   .cal-evt-completed { background: rgba(34,197,94,0.18); color: #166534; border-left: 3px solid #22c55e; }
   .cal-evt-no_show   { background: rgba(239,68,68,0.16); color: #991b1b; border-left: 3px solid #ef4444; }
   .cal-evt-cancelled { background: rgba(156,163,175,0.18); color: rgb(75 85 99); border-left: 3px solid #9ca3af; text-decoration: line-through; }
+  /* Клієнт записався сам, персонал ще не підтвердив — передзвонити. Після «Підтверджено» колір звичайний. */
+  .cal-evt-src-telegram { background: #FDE047; color: #422006; border-left: 3px solid #CA8A04; }
+  .cal-evt-src-site     { background: #C4B5FD; color: #2E1065; border-left: 3px solid #7C3AED; }
+  /* Легенда — мініатюра картки: та сама заливка і той самий лівий край */
+  .cal-swatch { display: inline-block; width: 16px; height: 12px; border-radius: 3px; }
 
   .cal-evt-title { font-weight: 600; }
   .cal-evt-meta { font-size: 0.625rem; opacity: 0.8; }
@@ -246,7 +251,7 @@
         {% with a=item.appt svcs=item.appt.services.all %}
         <a draggable="true"
            href="{% url 'appointments:edit' a.pk %}"
-           class="cal-evt cal-evt-{{ a.status }} {% if item.dur_min < 25 %}cal-evt-xs{% endif %}"
+           class="cal-evt cal-evt-{{ a.status }}{% if a.needs_callback %} cal-evt-src-{{ a.source }}{% endif %} {% if item.dur_min < 25 %}cal-evt-xs{% endif %}"
            data-appt-id="{{ a.pk }}"
            data-date="{{ d|date:'Y-m-d' }}"
            data-start-min="{{ item.start_min }}"
@@ -255,7 +260,7 @@
                   height: calc({{ item.dur_min }} / 30 * {{ cal_slot_px }}px - 2px);
                   left: calc({{ item.column }} * (100% / {{ item.cols }}) + 2px);
                   width: calc((100% / {{ item.cols }}) - 4px);"
-           title="{{ a.starts_at|localtime|date:'H:i' }} · {{ a.client }}{% if a.patient %} / {{ a.patient.name }}{% endif %} ({{ a.duration }} хв) · {{ a.get_status_display }}{% if svcs %}&#10;Послуги: {% for s in svcs %}{{ s.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}">
+           title="{{ a.starts_at|localtime|date:'H:i' }} · {{ a.client }}{% if a.patient %} / {{ a.patient.name }}{% endif %} ({{ a.duration }} хв) · {{ a.get_status_display }}{% if a.needs_callback %}&#10;Сам записався {% if a.source == 'telegram' %}в Telegram{% else %}на сайті{% endif %} — передзвонити{% endif %}{% if svcs %}&#10;Послуги: {% for s in svcs %}{{ s.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}">
 
           {% if item.dur_min < 25 %}
             {# Very small card: time + client first line, services on second if fit #}
@@ -310,11 +315,13 @@
 {% endif %}
 
 <div class="mt-3 flex flex-wrap gap-3 text-xs text-gray-500">
-  <div class="inline-flex items-center gap-1.5"><span class="inline-block w-2.5 h-2.5 rounded-sm" style="background:#DEAA01"></span>Заплановано</div>
-  <div class="inline-flex items-center gap-1.5"><span class="inline-block w-2.5 h-2.5 rounded-sm" style="background:#3b82f6"></span>Підтверджено</div>
-  <div class="inline-flex items-center gap-1.5"><span class="inline-block w-2.5 h-2.5 rounded-sm" style="background:#22c55e"></span>Виконано</div>
-  <div class="inline-flex items-center gap-1.5"><span class="inline-block w-2.5 h-2.5 rounded-sm" style="background:#ef4444"></span>Не зʼявився</div>
-  <div class="text-gray-400">· Перетягни картку → змінити час · Клік на порожній слот → новий запис</div>
+  <div class="inline-flex items-center gap-1.5"><span class="cal-swatch cal-evt-scheduled"></span>Заплановано</div>
+  <div class="inline-flex items-center gap-1.5"><span class="cal-swatch cal-evt-src-telegram"></span>Сам записався в Telegram — передзвонити</div>
+  <div class="inline-flex items-center gap-1.5"><span class="cal-swatch cal-evt-src-site"></span>Сам записався на сайті — передзвонити</div>
+  <div class="inline-flex items-center gap-1.5"><span class="cal-swatch cal-evt-confirmed"></span>Підтверджено</div>
+  <div class="inline-flex items-center gap-1.5"><span class="cal-swatch cal-evt-completed"></span>Виконано</div>
+  <div class="inline-flex items-center gap-1.5"><span class="cal-swatch cal-evt-no_show"></span>Не зʼявився</div>
+  <div class="text-gray-400">· Передзвонили → статус «Підтверджено» · Перетягни картку → змінити час · Клік на порожній слот → новий запис</div>
 </div>
 
 <script>

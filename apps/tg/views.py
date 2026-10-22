@@ -1143,6 +1143,7 @@ def _cmd_book_create(chat, date_str, time_str, doctor_id=None):
         status='scheduled',
         organization=org,
         notes='Записано через Telegram-бот',
+        source=Appointment.Source.TELEGRAM,
     )
 
     text = (
