@@ -1370,8 +1370,8 @@ def _cmd_passport_for_pet(chat, patient):
     breed = f', <i>{patient.breed}</i>' if patient.breed else ''
     lines.append(f'🐾 Вид: {species}{breed}')
 
-    age = getattr(patient, 'age_display', None)
-    if age:
+    age = patient.age_display()
+    if age and age != '—':
         lines.append(f'📅 Вік: {age}')
 
     sex = getattr(patient, 'get_sex_display', None)
@@ -1381,8 +1381,8 @@ def _cmd_passport_for_pet(chat, patient):
             sex_str += ' (кастр.)'
         lines.append(f'⚧ Стать: {sex_str}')
 
-    if getattr(patient, 'chip_number', None):
-        lines.append(f'🔖 Чіп: <code>{patient.chip_number}</code>')
+    if patient.microchip:
+        lines.append(f'🔖 Чіп: <code>{patient.microchip}</code>')
 
     if getattr(patient, 'color', None):
         lines.append(f'🎨 Масть: {patient.color}')
