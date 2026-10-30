@@ -41,6 +41,7 @@ class QuickClientForm(forms.ModelForm):
                 tail = digits[-9:]
                 existing = Client.objects.filter(
                     organization=org, phone__regex=fr'.*{tail}$',
+                    is_archived=False,  # «видалений» (архівний) клієнт не блокує нового
                 ).exclude(pk=self.instance.pk or 0).first()
                 if existing:
                     raise forms.ValidationError({

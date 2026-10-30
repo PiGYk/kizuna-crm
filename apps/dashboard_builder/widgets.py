@@ -162,7 +162,7 @@ def _chart(canvas_id, chart_type, labels, datasets, options=None):
 )
 def render_kpi_clients_total(request, config):
     from apps.clients.models import Client
-    cnt = Client.objects.count()
+    cnt = Client.objects.filter(is_archived=False).count()  # архівні («видалені») не рахуємо
     return _render_kpi('Клієнтів', cnt, '👥', color='brand-gold')
 
 

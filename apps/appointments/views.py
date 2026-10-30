@@ -471,6 +471,7 @@ def client_by_phone(request):
     tail = digits[-9:]
     existing = Client.objects.filter(
         organization=request.organization, phone__regex=fr'.*{tail}$',
+        is_archived=False,  # архівного не підставляємо в запис
     ).first()
     if not existing:
         return JsonResponse({'exists': False})
