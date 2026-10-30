@@ -312,8 +312,15 @@ def subscribe_checkout(request, plan_key):
     })
 
 
-@login_required
+@csrf_exempt
 def subscribe_success(request):
+    # WayForPay повертає клієнта POST-ом з чужого домену: без csrf_exempt це 403,
+    # а cookie сесії (SameSite=Lax) на такий POST не їде. Тому POST → 303 на GET.
+    if request.method == 'POST':
+        return redirect(request.path)
+    if not request.user.is_authenticated:
+        from django.contrib.auth.views import redirect_to_login
+        return redirect_to_login(request.get_full_path())
     org = request.organization
     plan_key = org.plan if org else ''
     plan_info = PLANS.get(plan_key, {})

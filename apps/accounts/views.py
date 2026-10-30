@@ -90,6 +90,14 @@ class UserUpdateView(AdminRequiredMixin, UpdateView):
         return User.objects.filter(organization=self.request.organization)
 
     def form_valid(self, form):
+        # Захист від самоблокування (ANVAR.VET 30.10.2026: єдиний адмін зняв собі «Активний»).
+        if form.instance.pk == self.request.user.pk:
+            if not form.cleaned_data.get('is_active', True):
+                form.add_error('is_active', 'Не можна деактивувати власний акаунт.')
+                return self.form_invalid(form)
+            if form.cleaned_data.get('role') != User.Role.ADMIN:
+                form.add_error('role', 'Не можна зняти з себе роль адміністратора.')
+                return self.form_invalid(form)
         messages.success(self.request, 'Збережено')
         return super().form_valid(form)
 
