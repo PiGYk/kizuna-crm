@@ -94,6 +94,11 @@
         <label class="block text-sm font-medium text-gray-700 mb-1">Нотатки</label>
         {{ form.notes }}
       </div>
+      <div>
+        <label class="block text-sm font-medium text-red-700 mb-1">⚠ Алергії / хронічні</label>
+        {{ form.allergies }}
+        <p class="text-xs text-gray-400 mt-1">Алергії на препарати, хронічні хвороби — видно на картці червоним.</p>
+      </div>
       <!-- Sticky submit на моб (бо клавіатура iOS закриває звичайну кнопку),
            звичайний flex-блок на десктопі. bottom-16 = висота bottom-nav (~64px). -->
       <div class="md:static fixed bottom-16 left-0 right-0 bg-white border-t border-gray-200 p-4 z-30
