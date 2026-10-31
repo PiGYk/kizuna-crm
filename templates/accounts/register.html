@@ -39,8 +39,12 @@ fbq('track', 'PageView');
       <h2 class="text-2xl font-bold text-brand-dark mb-1">Нова клініка</h2>
       <p class="text-sm text-gray-500 mb-6">Заповніть форму — отримаєте готову CRM</p>
 
-      <form method="post" class="space-y-4">
+      <form method="post" class="space-y-4" id="reg-form" data-ts="{{ form_ts }}">
         {% csrf_token %}
+        <input type="hidden" name="form_ts" value="">
+        <div style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden" aria-hidden="true">
+          <label>Залиште порожнім <input type="text" name="kz_hp" value="" tabindex="-1" autocomplete="off"></label>
+        </div>
 
         {% if form.non_field_errors %}
           <div class="bg-red-50 text-red-700 text-sm px-4 py-3 rounded-lg border border-red-200">
@@ -96,6 +100,13 @@ fbq('track', 'PageView');
           Зареєструватись
         </button>
       </form>
+      <script>
+      // Позначка часу йде у форму лише з браузера: боти, що шлють форму напряму, її не мають.
+      (function () {
+        var f = document.getElementById('reg-form');
+        if (f) f.addEventListener('submit', function () { f.elements['form_ts'].value = f.dataset.ts || ''; });
+      })();
+      </script>
 
       <p class="text-center text-sm text-gray-500 mt-6">
         Вже є акаунт?

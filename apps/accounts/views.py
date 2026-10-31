@@ -1,5 +1,9 @@
+import logging
+import time
+
 from django.contrib import messages
 from django.contrib.auth import login as auth_login
+from django.core import signing
 from django.core.cache import cache
 from django.core.mail import send_mail
 from django.http import HttpResponse
@@ -13,6 +17,60 @@ from django.contrib.auth.decorators import login_required
 from .forms import UserCreateForm, UserUpdateForm, PasswordChangeForm, ClinicRegistrationForm
 from .mixins import AdminRequiredMixin
 from .models import User, EmailVerification
+
+logger = logging.getLogger(__name__)
+
+
+# ── Захист реєстрації від ботів (31.10.2026) ───────────────────────────────
+# З 15.10 боти створювали 3–11 «клінік» на день (102 за два тижні), назва —
+# 10 випадкових літер, пошта — чужа справжня (gmail, hotmail, університети).
+# Кожна така реєстрація змушувала нашу пошту слати лист підтвердження
+# незнайомій людині: класичне «підписне бомбардування», яке б'є по репутації
+# домену, з якого йдуть листи клієнтам.
+_REG_SALT = 'kizuna.register.v1'
+_REG_MIN_SECONDS = 3          # людина не заповнить шість полів швидше
+_REG_MAX_AGE = 3 * 3600       # довше — сторінка застаріла, просимо ще раз
+_HONEYPOT = 'kz_hp'           # невидиме поле: людина його не бачить, бот заповнює
+
+
+def _client_ip(request):
+    """Справжня адреса клієнта. nginx ставить X-Real-IP = $remote_addr і перезаписує
+    те, що прислав клієнт; X-Forwarded-For він лише ДОПИСУЄ, тож перший елемент
+    там підставляє будь-хто — ліміт за ним обходився."""
+    return (request.META.get('HTTP_X_REAL_IP') or request.META.get('REMOTE_ADDR') or '0.0.0.0').strip()
+
+
+def _over_limit(key, limit, window):
+    """Фіксоване вікно в кеші: True — цей запит уже понад ліміт."""
+    cache.add(key, 0, timeout=window)
+    try:
+        n = cache.incr(key)
+    except ValueError:  # ключ протух між add і incr
+        cache.set(key, 1, timeout=window)
+        n = 1
+    return n > limit
+
+
+def _register_token():
+    return signing.dumps(int(time.time()), salt=_REG_SALT)
+
+
+def _register_verdict(request):
+    """None — схоже на людину; 'bot' — тихо відмовити; 'stale'/'nojs' — попросити ще раз."""
+    if (request.POST.get(_HONEYPOT) or '').strip():
+        return 'bot'
+    raw = request.POST.get('form_ts', '')
+    if not raw:
+        return 'nojs'  # токен ставить JS при надсиланні; без нього — бот або вимкнений JS
+    try:
+        started = int(signing.loads(raw, salt=_REG_SALT, max_age=_REG_MAX_AGE))
+    except signing.SignatureExpired:
+        return 'stale'
+    except (signing.BadSignature, ValueError, TypeError):
+        return 'bot'
+    if time.time() - started < _REG_MIN_SECONDS:
+        return 'bot'
+    return None
 
 
 def _send_verification_email(request, user: User, verification: EmailVerification):
@@ -126,24 +184,34 @@ def register(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
 
-    # Rate-limit: не більше 3 спроб реєстрації з однієї IP на годину.
-    # GET (показ форми) пропускаємо, обмежуємо тільки POST.
-    # TODO: nginx стоїть фронтом — додати USE_X_FORWARDED_HOST/SECURE_PROXY або
-    # читати X-Forwarded-For (з whitelist trusted proxies) щоб rate-limit бачив
-    # реальний IP, а не 127.0.0.1.
+    # Ліміти на POST: з однієї адреси — 6 спроб на годину (людині з помилками
+    # в паролі вистачить), на всіх разом — 30 реєстрацій, що пройшли перевірку
+    # на бота, на годину (запобіжник від розподіленого напливу).
     if request.method == 'POST':
-        ip = (
-            request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0].strip()
-            or request.META.get('REMOTE_ADDR', '0.0.0.0')
-        )
-        rl_key = f'register-rl:{ip}'
-        count = cache.get(rl_key, 0)
-        if count >= 3:
+        ip = _client_ip(request)
+        if _over_limit(f'register-rl:{ip}', 6, 3600):
             return HttpResponse(
                 'Забагато спроб реєстрації. Спробуйте через годину.',
                 status=429,
             )
-        cache.set(rl_key, count + 1, timeout=3600)
+        verdict = _register_verdict(request)
+        if verdict == 'bot':
+            # Боту — та сама сторінка «перевірте пошту», щоб не вчився обходити.
+            # Нічого не створюємо і жодного листа не шлемо.
+            logger.warning('register: відсічено бота ip=%s', ip)
+            return render(request, 'accounts/register_pending.html',
+                          {'email': (request.POST.get('email') or '')[:254]})
+        if verdict in ('stale', 'nojs'):
+            form = ClinicRegistrationForm(request.POST)
+            form.is_valid()
+            form.add_error(None, 'Сторінка застаріла — натисніть «Зареєструватися» ще раз.'
+                           if verdict == 'stale' else
+                           'Не вдалося надіслати форму. Оновіть сторінку й спробуйте ще раз '
+                           '(потрібен увімкнений JavaScript).')
+            return render(request, 'accounts/register.html', {'form': form, 'form_ts': _register_token()})
+        if _over_limit('register-rl:all', 30, 3600):
+            logger.error('register: понад 30 реєстрацій за годину — пауза')
+            return HttpResponse('Реєстрація тимчасово призупинена. Спробуйте за годину.', status=429)
 
     form = ClinicRegistrationForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
@@ -156,11 +224,11 @@ def register(request):
             user.organization.delete()
             user.delete()
             messages.error(request, 'Не вдалось надіслати лист верифікації. Спробуйте пізніше або зверніться в підтримку.')
-            return render(request, 'accounts/register.html', {'form': form})
+            return render(request, 'accounts/register.html', {'form': form, 'form_ts': _register_token()})
 
         return render(request, 'accounts/register_pending.html', {'email': user.email})
 
-    return render(request, 'accounts/register.html', {'form': form})
+    return render(request, 'accounts/register.html', {'form': form, 'form_ts': _register_token()})
 
 
 def verify_email(request, token: str):
@@ -190,14 +258,26 @@ def resend_verification(request):
     if request.method != 'POST':
         return redirect('accounts:register')
 
-    email = request.POST.get('email', '').strip()
-    try:
-        user = User.objects.get(email=email, is_active=False)
+    email = request.POST.get('email', '').strip()[:254]
+    # Без лімітів ця кнопка дозволяла будь-кому змусити нашу пошту слати листи
+    # на будь-яку непідтверджену адресу скільки завгодно разів.
+    ip = _client_ip(request)
+    limited = _over_limit(f'resend-rl:ip:{ip}', 5, 3600) or (
+        bool(email) and _over_limit(f'resend-rl:em:{email.lower()}', 3, 86400))
+    user = None
+    if email and not limited:
+        # Боти реєстрували одну адресу кілька разів — get() падав би з 500.
+        user = (User.objects.filter(email__iexact=email, is_active=False)
+                .order_by('-date_joined').first())
+    if user:
         verification = EmailVerification.create_for(user)
-        _send_verification_email(request, user, verification)
-        messages.success(request, 'Лист надіслано повторно.')
-    except User.DoesNotExist:
-        # Не розкриваємо чи існує email
-        messages.success(request, 'Якщо email знайдено — лист надіслано.')
+        try:
+            _send_verification_email(request, user, verification)
+        except Exception:
+            logger.exception('resend_verification: лист не пішов')
+    elif limited:
+        logger.warning('resend_verification: ліміт ip=%s', ip)
+    # Однакова відповідь у всіх випадках: не розкриваємо, чи існує адреса.
+    messages.success(request, 'Якщо адресу знайдено — лист надіслано.')
 
     return render(request, 'accounts/register_pending.html', {'email': email, 'resent': True})

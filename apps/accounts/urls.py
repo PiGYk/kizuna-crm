@@ -9,8 +9,10 @@ urlpatterns = [
     path('login/', auth_views.LoginView.as_view(template_name='accounts/login.html'), name='login'),
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
     path('register/', views.register, name='register'),
-    path('verify/<str:token>/', views.verify_email, name='verify_email'),
+    # resend — ПЕРЕД <token>: інакше «resend» ловився як токен і кнопка
+    # повторного листа ніколи не працювала (знайдено 31.10.2026).
     path('verify/resend/', views.resend_verification, name='resend_verification'),
+    path('verify/<str:token>/', views.verify_email, name='verify_email'),
 
     # Password reset (Django built-in flow)
     path(
