@@ -35,6 +35,11 @@
     .gold { color: #DEAA01; }
 
     .notes { margin-top: 14px; padding: 10px; background: #f8f8f8; border-radius: 4px; font-size: 11px; color: #666; }
+    .pay-table { width: 100%; margin-top: 22px; font-size: 12px; color: #333; }
+    .pay-table td { vertical-align: top; }
+    .pay-table .td-right { text-align: right; }
+    table.items.nodisc col.col-name { width: 60%; }
+    .stamp { display: inline-block; width: 52mm; height: 24mm; border: 1px dashed #bbb; border-radius: 4px; color: #bbb; font-size: 10px; text-align: center; padding-top: 8mm; box-sizing: border-box; }
     .footer { margin-top: 28px; padding-top: 10px; border-top: 1px solid #e5e5e5; font-size: 10px; color: #aaa; text-align: center; }
   </style>
 </head>
@@ -57,18 +62,18 @@
 
 <div class="section">
   <div class="section-title">Позиції</div>
-  <table class="items" cellpadding="0" cellspacing="0">
+  <table class="items{% if not has_line_discount %} nodisc{% endif %}" cellpadding="0" cellspacing="0">
     <col class="col-name">
     <col class="col-qty">
     <col class="col-price">
-    <col class="col-disc">
+    {% if has_line_discount %}<col class="col-disc">{% endif %}
     <col class="col-total">
     <thead>
       <tr>
         <th>Найменування</th>
         <th class="text-right">К-сть</th>
         <th class="text-right">Ціна,&nbsp;₴</th>
-        <th class="text-right">Знижка</th>
+        {% if has_line_discount %}<th class="text-right">Знижка</th>{% endif %}
         <th class="text-right">Сума,&nbsp;₴</th>
       </tr>
     </thead>
@@ -78,21 +83,21 @@
         <td>{% if line.parent_line_id %}&nbsp;&nbsp;&nbsp;↳ {% endif %}{{ line.name }}</td>
         <td class="text-right">{{ line.quantity|floatformat:"-3" }}</td>
         <td class="text-right">{% if line.parent_line_id %}—{% else %}{{ line.unit_price }}{% endif %}</td>
-        <td class="text-right">
+        {% if has_line_discount %}<td class="text-right">
           {% if line.parent_line_id %}—{% elif line.discount %}{{ line.discount }}{% if line.discount_type == 'percent' %}%{% else %}&nbsp;₴{% endif %}{% else %}—{% endif %}
-        </td>
+        </td>{% endif %}
         <td class="text-right">{% if line.parent_line_id %}—{% else %}{{ line.total }}{% endif %}</td>
       </tr>
       {% endfor %}
       {% if invoice.discount %}
       <tr>
-        <td colspan="4" class="text-right" style="color:#888; font-size:11px;">Знижка на чек</td>
+        <td colspan="{% if has_line_discount %}4{% else %}3{% endif %}" class="text-right" style="color:#888; font-size:11px;">Знижка на чек</td>
         <td class="text-right" style="color:#888;">−{{ invoice.discount }}{% if invoice.discount_type == 'percent' %}%{% else %}&nbsp;₴{% endif %}</td>
       </tr>
       {% endif %}
       <tr class="total-row">
-        <td colspan="4" class="text-right">Разом до сплати:</td>
-        <td class="text-right gold">{{ invoice.total }}&nbsp;₴</td>
+        <td colspan="{% if has_line_discount %}4{% else %}3{% endif %}" class="text-right">Разом до сплати:</td>
+        <td class="text-right gold" style="white-space:nowrap">{{ invoice.total }}&nbsp;₴</td>
       </tr>
     </tbody>
   </table>
@@ -101,6 +106,16 @@
 {% if invoice.notes %}
 <div class="notes"><strong>Нотатки:</strong> {{ invoice.notes }}</div>
 {% endif %}
+
+<table class="pay-table" cellpadding="0" cellspacing="0">
+  <tr>
+    <td>
+      {% if invoice.status == 'paid' %}<strong>Оплачено</strong>{% if invoice.payment_method %} · {{ invoice.get_payment_method_display|lower }}{% endif %}{% else %}Статус: {{ invoice.get_status_display|lower }}{% endif %}
+      <div style="margin-top:18px">Підпис ______________________</div>
+    </td>
+    <td class="td-right"><div class="stamp">місце для штампа<br>«СПЛАЧЕНО»</div></td>
+  </tr>
+</table>
 
 <div class="footer">
   {{ clinic.name }}{% with footer_url=clinic.website|default:clinic.bot_base_url %}{% if footer_url %} · {{ footer_url }}{% endif %}{% endwith %}

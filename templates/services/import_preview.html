@@ -48,7 +48,7 @@
       {% for i in to_update %}
       <div class="px-4 py-2.5 flex items-center gap-3 text-sm">
         <div class="flex-1 min-w-0">
-          <div class="truncate text-gray-800">{{ i.name }}</div>
+          <div class="truncate text-gray-800">{% if i.code %}<span class="mr-1 font-mono text-xs text-gray-400">{{ i.code }}</span>{% endif %}{{ i.name }}</div>
           {% if i.component %}<div class="text-xs text-green-700 mt-0.5">🧪 списання: {{ i.component }} × {{ i.component_qty }}</div>{% endif %}
         </div>
         {% if i.price %}
@@ -74,7 +74,7 @@
       {% for i in to_create %}
       <div class="px-4 py-2.5 flex items-center gap-3 text-sm">
         <div class="flex-1 min-w-0">
-          <div class="truncate text-gray-800">{{ i.name }}</div>
+          <div class="truncate text-gray-800">{% if i.code %}<span class="mr-1 font-mono text-xs text-gray-400">{{ i.code }}</span>{% endif %}{{ i.name }}</div>
           {% if i.component %}<div class="text-xs text-green-700 mt-0.5">🧪 списання: {{ i.component }} × {{ i.component_qty }}</div>{% endif %}
         </div>
         {% if i.category %}<div class="shrink-0 text-xs text-gray-400">{{ i.category }}</div>{% endif %}

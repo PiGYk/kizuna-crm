@@ -20,7 +20,8 @@ class ServiceListView(LoginRequiredMixin, ListView):
             qs = qs.filter(is_active=True)
         q = self.request.GET.get('q', '').strip()
         if q:
-            qs = qs.filter(name__icontains=q)
+            from django.db.models import Q
+            qs = qs.filter(Q(name__icontains=q) | Q(code__icontains=q))
         cat = self.request.GET.get('cat', '').strip()
         if cat == 'none':
             qs = qs.filter(category__isnull=True)
@@ -102,6 +103,8 @@ def service_delete(request, pk):
 # вести у звичайній таблиці й заливати сюди цілком.
 
 _SERVICE_ALIASES = {
+    'code': ['код', 'кодифікатор', 'код послуги', 'кодификатор', 'код услуги', 'code',
+             'артикул', 'шифр', 'код за прайсом', '№ за прайсом'],
     'name': ['назва', 'послуга', 'name', 'service', 'найменування', 'наименование'],
     'price': ['ціна', 'вартість', 'price', 'cost', 'цена', 'сума'],
     'category': ['категорія', 'category', 'група', 'группа', 'розділ', 'тип'],
@@ -184,10 +187,10 @@ def service_import(request):
             )
             return redirect('services:import')
 
-        existing = {
-            s.name.strip().lower(): s
-            for s in Service.objects.filter(organization=request.organization)
-        }
+        own = list(Service.objects.filter(organization=request.organization))
+        existing = {s.name.strip().lower(): s for s in own}
+        # Код з прайсу впізнає послугу надійніше за назву (назву могли поправити).
+        existing_by_code = {s.code.strip().lower(): s for s in own if s.code.strip()}
         # Товари складу для резолву колонки списання (назва → товар).
         from apps.inventory.models import Product
         products = {
@@ -202,7 +205,11 @@ def service_import(request):
                 skipped += 1
                 continue
             price = _to_price(row.get(cols['price'])) if 'price' in cols else None
+            code = str(row.get(cols['code'], '') or '').strip()[:50] if 'code' in cols else ''
+            if code.endswith('.0') and code[:-2].isdigit():
+                code = code[:-2]          # Excel віддає числовий код як «101.0»
             item = {
+                'code': code,
                 'name': name,
                 # рядком, а не Decimal: між кроками це лежить у сесії, а вона
                 # серіалізується в JSON — Decimal туди не кладеться
@@ -222,9 +229,10 @@ def service_import(request):
                 else:
                     item['component_missing'] = comp_name
                     comp_missing.append(f'{name}: «{comp_name}»')
-            found = existing.get(name.lower())
+            found = (existing_by_code.get(code.lower()) if code else None) or existing.get(name.lower())
             if found:
                 item['old_price'] = str(found.price)
+                item['old_code'] = found.code
                 item['pk'] = found.pk
                 to_update.append(item)
             else:
@@ -240,6 +248,7 @@ def service_import(request):
             'filename': request.FILES['file'].name,
             'matched': cols,
             'has_component_col': 'component' in cols,
+            'has_code_col': 'code' in cols,
             'comp_missing': comp_missing,
         })
 
@@ -308,6 +317,7 @@ def service_import_execute(request):
     with transaction.atomic():
         for item in to_create:
             svc = Service.objects.create(
+                code=item.get('code', ''),
                 name=item['name'],
                 price=price_of(item) or 0,
                 description=item.get('description', ''),
@@ -335,6 +345,12 @@ def service_import_execute(request):
             if item.get('description') and svc.description != item['description']:
                 svc.description = item['description']
                 changed = True
+            if item.get('code') and svc.code != item['code']:
+                svc.code = item['code']
+                changed = True
+            if svc.name != item['name']:      # знайшли за кодом — назву беремо з прайсу
+                svc.name = item['name']
+                changed = True
             if changed:
                 svc.save()
                 updated += 1
@@ -359,10 +375,10 @@ def service_import_template(request):
     response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
     response['Content-Disposition'] = 'attachment; filename="services_template.csv"'
     writer = _csv.writer(response)
-    writer.writerow(['Назва', 'Ціна', 'Категорія', 'Опис', 'Товар для списання', 'Кількість списання'])
-    writer.writerow(['Первинний прийом', '400', 'Консультації', '', '', ''])
-    writer.writerow(['Вакцинація Nobivac', '350', 'Профілактика', '', 'Nobivac DHPPi', '1'])
-    writer.writerow(['Стерилізація кішки', '3500', 'Хірургія', 'до 5 кг', '', ''])
+    writer.writerow(['Код', 'Назва', 'Ціна', 'Категорія', 'Опис', 'Товар для списання', 'Кількість списання'])
+    writer.writerow(['01.001', 'Первинний прийом', '400', 'Консультації', '', '', ''])
+    writer.writerow(['02.014', 'Вакцинація Nobivac', '350', 'Профілактика', '', 'Nobivac DHPPi', '1'])
+    writer.writerow(['05.120', 'Стерилізація кішки', '3500', 'Хірургія', 'до 5 кг', '', ''])
     return response
 
 
@@ -377,7 +393,7 @@ def service_export(request):
     response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
     response['Content-Disposition'] = 'attachment; filename="services_export.csv"'
     writer = _csv.writer(response)
-    writer.writerow(['Назва', 'Ціна', 'Категорія', 'Опис',
+    writer.writerow(['Код', 'Назва', 'Ціна', 'Категорія', 'Опис',
                      'Товар для списання', 'Кількість списання', 'Наявне списання (довідка)'])
 
     services = (
@@ -393,13 +409,13 @@ def service_export(request):
         if len(comps) == 1:
             # Один компонент — кладемо у редаговані колонки, щоб було видно й можна змінити.
             c = comps[0]
-            writer.writerow([s.name, s.price, cat, s.description,
+            writer.writerow([s.code, s.name, s.price, cat, s.description,
                              c.product.name, _fmt_qty(c.quantity), ''])
         elif not comps:
-            writer.writerow([s.name, s.price, cat, s.description, '', '', ''])
+            writer.writerow([s.code, s.name, s.price, cat, s.description, '', '', ''])
         else:
             # Кілька компонентів у пласку таблицю не влазять: редаговані колонки лишаємо
             # порожніми (імпорт їх не чіпатиме), а склад показуємо довідкою.
             joined = '; '.join(f'{c.product.name}×{_fmt_qty(c.quantity)}' for c in comps)
-            writer.writerow([s.name, s.price, cat, s.description, '', '', joined])
+            writer.writerow([s.code, s.name, s.price, cat, s.description, '', '', joined])
     return response

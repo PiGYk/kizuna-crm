@@ -366,7 +366,7 @@ function searchMobile(key, url, q) {
               + 'data-key="' + key + '" data-id="' + r.id + '" data-name="' + r.name.replace(/"/g, '&quot;') + '" '
               + 'data-components=\'' + JSON.stringify(r.components || []) + '\'>'
               + '<div class="flex items-center justify-between gap-2">'
-              + '<span class="text-sm text-brand-dark break-words">' + r.name + '</span>'
+              + '<span class="text-sm text-brand-dark break-words">' + (r.code ? '<span class="mr-1 font-mono text-xs text-gray-400">' + String(r.code).replace(/[&<>"]/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }) + '</span>' : '') + r.name + '</span>'
               + extra
               + '</div></div>';
           }).join('');

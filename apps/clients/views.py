@@ -358,13 +358,17 @@ def visit_pdf(request, pk):
         from weasyprint import HTML
     except ImportError:
         return HttpResponse('WeasyPrint не встановлено', status=500)
-    html_string = render_to_string('clients/visit_pdf.html', {
-        'visit': visit,
-        'patient': visit.patient,
-        'clinic': request.organization,
-        'request': request,
-    })
-    pdf = HTML(string=html_string, base_url=request.build_absolute_uri('/')).write_pdf()
+    base_url = request.build_absolute_uri('/')
+    ctx = {'visit': visit, 'patient': visit.patient, 'clinic': request.organization, 'request': request}
+    if request.GET.get('copies') == '2':
+        # Два примірники одним файлом (питання ANVAR 31.10): власнику і клініці,
+        # де власник розписується, що отримав рекомендації.
+        docs = [HTML(string=render_to_string('clients/visit_pdf.html', {**ctx, 'copy_label': label}),
+                     base_url=base_url).render()
+                for label in ('Примірник власника', 'Примірник клініки')]
+        pdf = docs[0].copy([page for d in docs for page in d.pages]).write_pdf()
+    else:
+        pdf = HTML(string=render_to_string('clients/visit_pdf.html', ctx), base_url=base_url).write_pdf()
     filename = f"visit-{visit.patient.name}-{visit.date:%d%m%Y}.pdf"
     response = HttpResponse(pdf, content_type='application/pdf')
     response['Content-Disposition'] = f'filename="{filename}"'

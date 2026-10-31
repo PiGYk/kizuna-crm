@@ -518,12 +518,14 @@ def service_search_json(request):
     q = request.GET.get('q', '').strip()
     qs = Service.objects.filter(organization=request.organization, is_active=True).order_by('name')
     if q:
-        qs = qs.filter(name__icontains=q)
+        from django.db.models import Q
+        qs = qs.filter(Q(name__icontains=q) | Q(code__icontains=q))
     qs = qs.prefetch_related('components__product__unit')[:25]
     return JsonResponse({'results': [
         {
             'id': s.pk,
             'name': s.name,
+            'code': s.code,
             'price': str(s.price),
             'components': [
                 {
@@ -1003,10 +1005,13 @@ def invoice_pdf(request, pk):
         return HttpResponse('WeasyPrint не встановлено', status=500)
 
     invoice = get_object_or_404(Invoice, pk=pk, organization=request.organization)
-    lines = invoice.lines.select_related('service', 'product').all()
+    lines = list(invoice.lines.select_related('service', 'product').all())
     html_string = render_to_string('billing/pdf.html', {
         'invoice': invoice,
         'lines': lines,
+        # Колонка «Знижка» — лише коли знижка справді є (клієнт ANVAR 31.10:
+        # порожня колонка підказує покупцю, що знижку можна попросити).
+        'has_line_discount': any(l.discount and not l.parent_line_id for l in lines),
         'clinic': request.organization,
         'request': request,
     })

@@ -196,7 +196,7 @@ function renderUniDrop(items) {
       data-price="${r.price}" data-components="${compsJson}">
       <div class="flex items-center justify-between gap-2">
         <div class="min-w-0 flex-1">
-          ${badge}<span class="text-sm text-brand-dark">${r.name}</span>
+          ${badge}<span class="text-sm text-brand-dark">${r.code ? '<span class="mr-1 font-mono text-xs text-gray-400">' + String(r.code).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])) + '</span>' : ''}${r.name}</span>
         </div>
         ${meta}
       </div>

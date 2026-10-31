@@ -140,9 +140,10 @@
 <table class="signature-table" cellpadding="0" cellspacing="0">
   <tr>
     <td>Підпис лікаря</td>
-    <td>Підпис власника тварини</td>
+    <td>Підпис власника тварини{% if copy_label == 'Примірник клініки' %} (рекомендації отримав(ла)){% endif %}</td>
   </tr>
 </table>
+{% if copy_label %}<div style="margin-top:10px; text-align:right; font-size:10px; color:#888; text-transform:uppercase; letter-spacing:.06em;">{{ copy_label }}</div>{% endif %}
 
 <div class="footer">
   {{ clinic.name }}{% with footer_url=clinic.website|default:clinic.bot_base_url %}{% if footer_url %} · {{ footer_url }}{% endif %}{% endwith %}

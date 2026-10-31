@@ -606,6 +606,8 @@
                    class="block px-4 py-3 text-sm text-brand-dark hover:bg-gray-50">Редагувати</a>
                 <a href="{% url 'clients:visit_pdf' visit.pk %}" target="_blank"
                    class="block px-4 py-3 text-sm text-brand-dark border-t border-gray-100 hover:bg-gray-50">PDF</a>
+                <a href="{% url 'clients:visit_pdf' visit.pk %}?copies=2" target="_blank"
+                   class="block px-4 py-3 text-sm text-brand-dark border-t border-gray-100 hover:bg-gray-50">PDF, 2 примірники</a>
                 <a href="{% url 'clients:prescription_create' visit.pk %}"
                    class="block px-4 py-3 text-sm text-brand-dark border-t border-gray-100 hover:bg-gray-50">Додати призначення</a>
                 <form method="post" action="{% url 'clients:visit_duplicate' visit.pk %}" class="border-t border-gray-100">
@@ -634,6 +636,8 @@
                  class="text-xs text-gray-400 hover:text-brand-gold font-medium py-1">Ред.</a>
               <a href="{% url 'clients:visit_pdf' visit.pk %}" target="_blank"
                  class="text-xs text-gray-400 hover:text-brand-gold font-medium py-1">PDF</a>
+              <a href="{% url 'clients:visit_pdf' visit.pk %}?copies=2" target="_blank" title="Два примірники: власнику і клініці"
+                 class="text-xs text-gray-400 hover:text-brand-gold font-medium py-1">2 прим.</a>
               {% if patient.client.tg_chats.exists %}
               <form method="post" action="{% url 'tg:send_visit_pdf' visit.pk %}" class="inline"
                     onsubmit="var b=this.querySelector('button');b.disabled=true;b.textContent='⏳ TG';">

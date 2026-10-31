@@ -26,6 +26,9 @@ class ServiceCategory(models.Model):
 
 class Service(models.Model):
     name = models.CharField('Назва', max_length=200)
+    # Кодифікатор з прайсу клініки (ANVAR 31.10.2026: «прайс з кодифікатором —
+    # нікуди внести і пошук не знаходить»). Порожньо — як було.
+    code = models.CharField('Код', max_length=50, blank=True, default='', db_index=True)
     description = models.TextField('Опис', blank=True)
     price = models.DecimalField('Ціна', max_digits=10, decimal_places=2, default=0)
     is_active = models.BooleanField('Активна', default=True)

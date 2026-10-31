@@ -50,9 +50,10 @@ class ServiceForm(forms.ModelForm):
 
     class Meta:
         model = Service
-        fields = ('name', 'category', 'description', 'price', 'is_active', 'show_on_website')
+        fields = ('code', 'name', 'category', 'description', 'price', 'is_active', 'show_on_website')
         widgets = {
             'description': forms.Textarea(attrs={'rows': 3}),
+            'code': forms.TextInput(attrs={'placeholder': 'з прайсу, необов\'язково'}),
         }
 
     def __init__(self, *args, org=None, **kwargs):

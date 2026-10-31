@@ -73,7 +73,7 @@
       <a href="{% url 'services:edit' service.pk %}"
          class="bg-white rounded-xl border border-gray-200 p-5 hover:border-brand-gold hover:shadow-sm transition block">
         <div class="flex items-start justify-between mb-2">
-          <div class="font-semibold text-brand-dark">{{ service.name }}</div>
+          <div class="font-semibold text-brand-dark">{% if service.code %}<span class="mr-1 font-mono text-xs font-normal text-gray-400">{{ service.code }}</span>{% endif %}{{ service.name }}</div>
           <div class="text-brand-gold font-bold text-sm ml-2 shrink-0">{{ service.price }} ₴</div>
         </div>
         {% if service.description %}
