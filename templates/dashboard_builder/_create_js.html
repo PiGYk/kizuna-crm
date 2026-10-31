@@ -1,0 +1,22 @@
+<script>
+// «+» і «Створити перший» — сервер приймає лише POST: посилання (GET) давало 405
+// і порожню сторінку «не працює» (скарга клієнта 31.10.2026).
+window.createDashboard = function () {
+  var name = prompt('Назва нового дашборду:', 'Новий дашборд');
+  if (!name || !name.trim()) return;
+  var m = document.cookie.match(/csrftoken=([^;]+)/);
+  var fd = new FormData();
+  fd.append('name', name.trim());
+  fetch("{% url 'dashboard_builder:dashboard_create' %}", {
+    method: 'POST', body: fd, credentials: 'same-origin',
+    headers: { 'X-CSRFToken': m ? m[1] : '', 'X-Requested-With': 'XMLHttpRequest' },
+  })
+  .then(function (r) { return r.json().catch(function () { return { ok: false }; }); })
+  .then(function (d) {
+    if (d && d.ok && d.url) { window.location.href = d.url; return; }
+    var why = { name_exists: 'Дашборд з такою назвою вже є.', name_too_long: 'Назва задовга (до 100 символів).' };
+    alert((d && why[d.error]) || 'Не вдалося створити дашборд.');
+  })
+  .catch(function () { alert('Не вдалося створити дашборд.'); });
+};
+</script>

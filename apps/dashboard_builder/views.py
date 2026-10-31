@@ -218,20 +218,35 @@ def dashboard_view(request, pk=None):
 @login_required
 @require_POST
 def dashboard_create_view(request):
-    """Створити новий пустий дашборд для поточного юзера."""
+    """Створити новий пустий дашборд для поточного юзера.
+
+    Кнопка «+» шле fetch і чекає JSON; форма на порожній сторінці — звичайний
+    POST, їй треба перекинути на новий дашборд, а не показати сирий JSON.
+    """
+    from django.contrib import messages
+    from django.shortcuts import redirect
+    wants_json = (request.headers.get('x-requested-with') == 'XMLHttpRequest'
+                  or (request.content_type or '').startswith('application/json'))
+
+    def fail(code, text, status):
+        if wants_json:
+            return JsonResponse({'ok': False, 'error': code}, status=status)
+        messages.error(request, text)
+        return redirect('dashboard_builder:index')
+
     organization = getattr(request, 'organization', None)
     if organization is None:
-        return JsonResponse({'ok': False, 'error': 'no_organization'}, status=400)
+        return fail('no_organization', 'Організацію не визначено.', 400)
 
     name = _extract_name(request)
     if not name:
-        return JsonResponse({'ok': False, 'error': 'name_required'}, status=400)
+        return fail('name_required', 'Вкажіть назву дашборду.', 400)
     if len(name) > 100:
-        return JsonResponse({'ok': False, 'error': 'name_too_long'}, status=400)
+        return fail('name_too_long', 'Назва задовга (до 100 символів).', 400)
 
     # Унікальність (org, owner, name).
     if Dashboard.objects.filter(owner=request.user, name=name).exists():
-        return JsonResponse({'ok': False, 'error': 'name_exists'}, status=409)
+        return fail('name_exists', 'Дашборд з такою назвою вже є.', 409)
 
     dashboard = Dashboard.objects.create(
         organization=organization,
@@ -241,11 +256,10 @@ def dashboard_create_view(request):
         is_default=False,
         sort_order=0,
     )
-    return JsonResponse({
-        'ok': True,
-        'id': dashboard.id,
-        'url': f"{reverse('dashboard_builder:index')}?id={dashboard.id}",
-    })
+    url = f"{reverse('dashboard_builder:index')}?id={dashboard.id}"
+    if not wants_json:
+        return redirect(url)
+    return JsonResponse({'ok': True, 'id': dashboard.id, 'url': url})
 
 
 @login_required

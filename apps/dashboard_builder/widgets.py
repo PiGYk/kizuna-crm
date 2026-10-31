@@ -295,7 +295,8 @@ def render_kpi_overdue_vaccines(request, config):
 )
 def render_kpi_tg_unread(request, config):
     from apps.tg.models import TelegramMessage
-    cnt = TelegramMessage.objects.filter(direction='in', is_read=False).count()
+    # TelegramMessage без менеджера клініки — фільтр обов'язковий, інакше лічба по ВСІХ клініках (31.10.2026)
+    cnt = TelegramMessage.objects.filter(chat__organization=request.organization, direction='in', is_read=False).count()
     color = 'red-600' if cnt else 'brand-gold'
     return _render_kpi('Непрочитаних TG', cnt, '💬', color=color)
 
@@ -489,7 +490,8 @@ def render_list_top_services_month(request, config):
     period = (config or {}).get('period', 'month')
     start, end = _period_range(period)
     qs = (InvoiceLine.objects
-          .filter(invoice__status=Invoice.Status.PAID,
+          .filter(invoice__organization=request.organization,  # рядки рахунків клініку не фільтрують самі
+                  invoice__status=Invoice.Status.PAID,
                   invoice__created_at__range=(start, end),
                   line_type=InvoiceLine.LineType.SERVICE,
                   service__isnull=False)
@@ -529,7 +531,8 @@ def render_list_top_services_revenue(request, config):
     period = (config or {}).get('period', 'month')
     start, end = _period_range(period)
     qs = (InvoiceLine.objects
-          .filter(invoice__status=Invoice.Status.PAID,
+          .filter(invoice__organization=request.organization,  # рядки рахунків клініку не фільтрують самі
+                  invoice__status=Invoice.Status.PAID,
                   invoice__created_at__range=(start, end),
                   line_type=InvoiceLine.LineType.SERVICE,
                   service__isnull=False)
@@ -729,7 +732,7 @@ def render_shifts_who_works_now(request, config):
     from apps.accounts.models import Shift
     today = timezone.localdate()
     qs = (Shift.objects
-          .filter(date=today)
+          .filter(organization=request.organization, date=today)  # Shift без менеджера клініки
           .select_related('user')
           .order_by('start_time'))
 

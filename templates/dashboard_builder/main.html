@@ -180,10 +180,11 @@ widget_data, widget_catalog, widget_settings).
 {% endblock %}
 
 {% block content %}
+{% include "dashboard_builder/_create_js.html" %}
 {# Якщо немає жодного дашборду — backend має повернути empty.html, але на всяк випадок: #}
 {% if not current_dashboard %}
   <div class="text-center py-16 text-brand-dark/60">
-    <p>Немає дашбордів. <a href="{% url 'dashboard_builder:dashboard_create' %}" class="text-brand-gold underline">Створити перший</a></p>
+    <p>Немає дашбордів. <button type="button" onclick="createDashboard()" class="text-brand-gold underline">Створити перший</button></p>
   </div>
 {% else %}
 
@@ -217,10 +218,10 @@ widget_data, widget_catalog, widget_settings).
             {{ d.name }}{% if d.is_default %}<span class="default-star">★</span>{% endif %}
           </a>
         {% endfor %}
-        <a href="{% url 'dashboard_builder:dashboard_create' %}"
+        <button type="button" onclick="createDashboard()"
            class="dash-tab" title="Створити новий дашборд" aria-label="Новий дашборд">
           +
-        </a>
+        </button>
       </div>
       {% endif %}
     </div>
