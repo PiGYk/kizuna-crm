@@ -1,9 +1,9 @@
 <div id="patient-doctor-block">
-  <div class="flex justify-between items-center gap-2">
-    <dt class="text-gray-500 shrink-0">Лікар</dt>
+  <div class="flex items-center gap-2">
+    <dt class="text-gray-600 shrink-0">Лікар:</dt>
     <dd class="flex items-center gap-1 min-w-0">
       {% if patient.assigned_doctor %}
-        <span class="truncate text-right">{{ patient.assigned_doctor.get_full_name|default:patient.assigned_doctor.username }}</span>
+        <span class="truncate text-gray-800">{{ patient.assigned_doctor.get_full_name|default:patient.assigned_doctor.username }}</span>
         <button type="button" onclick="document.getElementById('doctor-edit-form').classList.toggle('hidden')"
           aria-label="Змінити лікаря"
           class="w-11 h-11 -my-3 -mr-2 md:w-6 md:h-6 md:my-0 md:mr-0 flex items-center justify-center shrink-0 text-gray-300 hover:text-brand-gold transition-colors">
