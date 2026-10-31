@@ -37,8 +37,8 @@
     {% endwith %}
     <a href="{% url 'clients:edit' client.pk %}"
        class="text-sm text-brand-gold hover:text-brand-dark font-medium">Редагувати</a>
-    <a href="{% url 'clients:delete' client.pk %}"
-       class="text-sm text-red-500 hover:text-red-700 font-medium">Видалити</a>
+    {% if user.is_admin %}<a href="{% url 'clients:delete' client.pk %}"
+       class="text-sm text-red-500 hover:text-red-700 font-medium">Видалити</a>{% endif %}
   </div>
 </div>
 

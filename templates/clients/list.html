@@ -14,6 +14,20 @@
   </a>
 </div>
 
+<div class="flex gap-1 mb-5">
+  <a href="{% url 'clients:list' %}"
+     class="px-4 py-2 rounded-lg text-sm font-medium border transition-colors
+       {% if not archived %}bg-brand-gold text-brand-dark border-brand-gold{% else %}border-gray-200 text-gray-500 hover:border-gray-300{% endif %}">
+    Всі клієнти
+  </a>
+  <a href="{% url 'clients:list' %}?archived=1"
+     class="px-4 py-2 rounded-lg text-sm font-medium border transition-colors
+       {% if archived %}bg-brand-gold text-brand-dark border-brand-gold{% else %}border-gray-200 text-gray-500 hover:border-gray-300{% endif %}">
+    Архів
+  </a>
+</div>
+{% include "clients/_archive_note.html" %}
+
 <div class="flex flex-wrap items-center gap-3 mb-3">
   <form method="get" class="flex gap-2 flex-1">
     <input type="text" name="q" value="{{ q }}"

@@ -8,46 +8,47 @@
     <a href="{% url 'clients:detail' client.pk %}" class="text-gray-400 hover:text-gray-600">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
     </a>
-    <h1 class="text-xl font-bold text-gray-900">Видалити клієнта</h1>
+    <h1 class="text-xl font-bold text-gray-900">Видалити клієнта назавжди</h1>
   </div>
 
-  <div class="bg-white rounded-xl border border-red-200 p-6">
-    <div class="flex items-start gap-4">
-      <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-        <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-        </svg>
-      </div>
-      <div>
-        <p class="text-gray-900 font-medium">Ви впевнені?</p>
-        <p class="text-sm text-gray-500 mt-1">
-          Клієнт <strong>{{ client.first_name }} {{ client.last_name }}</strong> та всі пов'язані дані
-          (пацієнти, візити, аналізи) будуть видалені назавжди.
-        </p>
-      </div>
-    </div>
+  <form method="post" class="bg-white rounded-xl border border-red-200 p-6">
+    {% csrf_token %}
+    <p class="text-gray-900 font-medium">{{ client.first_name }} {{ client.last_name }}</p>
+    <p class="text-sm text-gray-500 mt-1">Буде видалено назавжди, відновити неможливо:</p>
+    <ul class="mt-3 space-y-1 text-sm text-gray-700">
+      <li>Тварин: <strong>{{ s.patients }}</strong>, прийомів: <strong>{{ s.visits }}</strong>, файлів (аналізи, фото, документи): <strong>{{ s.files }}</strong></li>
+      <li>Записів у розкладі: <strong>{{ s.appointments }}</strong></li>
+      <li class="text-gray-400">Переписка в Telegram лишиться, але без прив'язки до клієнта.</li>
+    </ul>
 
-    {% if invoices_count %}
-    <div class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-      ⚠️ У клієнта є <strong>{{ invoices_count }}</strong> рахун(ків). Видалення заблоковано —
-      рахунки це фінансові документи, їх потрібно зняти вручну.
-      <a href="{% url 'billing:list' %}?client={{ client.pk }}" class="underline font-medium">
-        Перейти до рахунків →
-      </a>
+    {% if s.invoices %}
+    <div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+      <p>У клієнта <strong>{{ s.invoices }}</strong> рахун(ків){% if s.paid %}, оплачених — <strong>{{ s.paid }}</strong> на <strong>{{ s.paid_sum|floatformat:2 }} ₴</strong>{% endif %}. Вони підуть разом із клієнтом — виторг і каса зменшаться на цю суму.</p>
+      {% if s.fiscal_sent %}<p class="mt-1">Фіскальних чеків Checkbox: <strong>{{ s.fiscal_sent }}</strong> — у податковій вони лишаються.</p>{% endif %}
+      <label class="mt-3 flex items-start gap-2 font-medium">
+        <input type="checkbox" name="with_invoices" value="1" required class="mt-0.5 rounded border-amber-300">
+        Видалити разом із рахунками
+      </label>
+      {% if s.paid_written_off %}
+      <div class="mt-3">
+        <p class="font-medium">Товари з оплачених рахунків:</p>
+        <label class="mt-1 flex items-center gap-2"><input type="radio" name="restore" value="yes" required> повернути на склад (продаж був тестовий)</label>
+        <label class="mt-1 flex items-center gap-2"><input type="radio" name="restore" value="no" required> не повертати (товар справді витрачено)</label>
+      </div>
+      {% endif %}
     </div>
     {% endif %}
 
-    <form method="post" class="mt-6 flex gap-3">
-      {% csrf_token %}
-      <button type="submit" {% if invoices_count %}disabled{% endif %}
-              class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed">
-        Так, видалити
+    <div class="mt-6 flex gap-3">
+      <button type="submit" onclick="return confirm('Видалити клієнта назавжди? Це не можна скасувати.')"
+              class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors">
+        Видалити назавжди
       </button>
       <a href="{% url 'clients:detail' client.pk %}"
          class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors">
         Скасувати
       </a>
-    </form>
-  </div>
+    </div>
+  </form>
 </div>
 {% endblock %}

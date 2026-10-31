@@ -106,6 +106,7 @@ class ClientListView(LoginRequiredMixin, ListView):
         ctx['q'] = self.request.GET.get('q', '')
         ctx['sort'] = self.request.GET.get('sort', '')
         ctx['activity'] = self.request.GET.get('activity', '')
+        ctx['archived'] = self.request.GET.get('archived') == '1'
         return ctx
 
 
@@ -597,34 +598,77 @@ def patients_by_period(request):
     })
 
 
+def _admin_only(request, back):
+    if request.user.is_admin():
+        return None
+    messages.error(request, 'Видаляти назавжди може лише адміністратор.')
+    return redirect(back)
+
+
 @login_required
 def client_delete(request, pk):
-    """Архівувати клієнта (soft-delete). Медичну історію зберігаємо
-    регуляторно ≥5 років — hard delete заборонений."""
+    """Видалити клієнта НАЗАВЖДИ разом із тваринами, медичною історією, файлами й
+    записами в розкладі (наказ Олега 31.10.2026: «видалив — значить видалив»).
+    Рахунки — лише за явним вибором, так само як у розділі «Рахунки»."""
+    from . import purge
     client = get_object_or_404(Client, pk=pk)
-    invoices_count = client.invoices.count()
+    denied = _admin_only(request, reverse('clients:detail', args=[pk]))
+    if denied:
+        return denied
+    summary = purge.client_summary(client)
     if request.method == 'POST':
-        name = f'{client.first_name} {client.last_name}'
-        client.archive()
-        messages.success(request, f'Клієнта {name} та його пацієнтів архівовано')
+        with_invoices = request.POST.get('with_invoices') == '1'
+        restore = request.POST.get('restore')
+        if summary['invoices'] and not with_invoices:
+            messages.error(request, 'У клієнта є рахунки — позначте, що видаляєте разом із ними.')
+            return redirect('clients:delete', pk=pk)
+        if summary['invoices'] and summary['paid_written_off'] and restore not in ('yes', 'no'):
+            messages.error(request, 'Оберіть, чи повертати товари з оплачених рахунків на склад.')
+            return redirect('clients:delete', pk=pk)
+        name = f'{client.first_name} {client.last_name}'.strip()
+        n_patients, n_invoices = purge.delete_client(
+            client, request.user, with_invoices=with_invoices, restore_stock=(restore == 'yes'))
+        tail = f', рахунків: {n_invoices}' if n_invoices else ''
+        messages.success(request, f'Клієнта {name} видалено назавжди (тварин: {n_patients}{tail}).')
         return redirect('clients:list')
-    return render(request, 'clients/confirm_delete.html', {
-        'client': client,
-        'invoices_count': invoices_count,
-    })
+    return render(request, 'clients/confirm_delete.html', {'client': client, 's': summary})
 
 
 @login_required
 def patient_delete(request, pk):
-    """Архівувати пацієнта (soft-delete)."""
+    """Видалити тварину НАЗАВЖДИ з медичною історією і файлами. Рахунки лишаються за клієнтом."""
+    from . import purge
     patient = get_object_or_404(Patient, pk=pk)
-    client_pk = patient.client.pk
+    client_pk = patient.client_id
+    denied = _admin_only(request, reverse('clients:patient_detail', args=[pk]))
+    if denied:
+        return denied
     if request.method == 'POST':
         name = patient.name
-        patient.archive()
-        messages.success(request, f'Пацієнта {name} архівовано')
+        purge.delete_patient(patient)
+        messages.success(request, f'Пацієнта {name} видалено назавжди.')
         return redirect('clients:detail', pk=client_pk)
-    return render(request, 'clients/patient_confirm_delete.html', {'patient': patient})
+    return render(request, 'clients/patient_confirm_delete.html',
+                  {'patient': patient, 's': purge.patient_summary(patient)})
+
+
+@login_required
+def archive_purge(request):
+    """Вичистити архів — те, що до 31.10.2026 «видаляли» в архів."""
+    from . import purge
+    denied = _admin_only(request, reverse('clients:patient_list') + '?archived=1')
+    if denied:
+        return denied
+    org = request.organization
+    if request.method == 'POST':
+        r = purge.purge_archive(org)
+        msg = f'Архів очищено: клієнтів {r["clients"]}, тварин {r["patients"]}.'
+        if r['kept']:
+            msg += (' Лишились клієнти з рахунками (видаляйте по одному, щоб вирішити, що робити з рахунками): '
+                    + ', '.join(f'{c.first_name} {c.last_name}'.strip() for c in r['kept']))
+        messages.success(request, msg)
+        return redirect(reverse('clients:list') + '?archived=1')
+    return render(request, 'clients/archive_purge.html', {'c': purge.archive_counts(org)})
 
 
 @login_required

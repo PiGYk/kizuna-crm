@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+
+{% block title %}Очистити архів — Kizuna CRM{% endblock %}
+
+{% block content %}
+<div class="max-w-lg">
+  <h1 class="text-xl font-bold text-gray-900 mb-6">Очистити архів</h1>
+  <form method="post" class="bg-white rounded-xl border border-red-200 p-6">
+    {% csrf_token %}
+    <p class="text-sm text-gray-700">В архіві: клієнтів <strong>{{ c.clients }}</strong>, тварин <strong>{{ c.patients }}</strong>. Усе це буде видалено назавжди разом із прийомами й файлами.</p>
+    {% if c.clients_with_invoices %}
+    <p class="mt-3 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3">Клієнтів із рахунками ({{ c.clients_with_invoices }}) не чіпаємо — рахунки це виторг і каса. Їх видаляйте по одному: там можна вирішити, що робити з рахунками. Їхніх тварин з архіву приберемо.</p>
+    {% endif %}
+    <div class="mt-6 flex gap-3">
+      <button type="submit" {% if not c.clients and not c.patients %}disabled{% endif %}
+              onclick="return confirm('Видалити все з архіву назавжди?')"
+              class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors disabled:bg-gray-300">
+        Видалити все назавжди
+      </button>
+      <a href="{% url 'clients:list' %}?archived=1"
+         class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors">Скасувати</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

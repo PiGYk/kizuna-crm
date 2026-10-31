@@ -1,0 +1,6 @@
+{% if archived %}
+<div class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+  <span>Тут те, що до 31.10.2026 «видаляли» в архів. Тепер «Видалити» прибирає назавжди — відкрийте запис і видаліть або очистіть архів цілком.</span>
+  {% if user.is_admin %}<a href="{% url 'clients:archive_purge' %}" class="shrink-0 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700">Очистити архів</a>{% endif %}
+</div>
+{% endif %}
