@@ -167,8 +167,6 @@
         <button onclick="document.getElementById('weight-form').classList.toggle('hidden')"
                 class="inline-flex items-center min-h-[44px] px-2 -mr-2 text-xs text-brand-gold hover:text-brand-dark font-medium md:min-h-0 md:px-0 md:mr-0">+ Записати</button>
       </div>
-      <div id="weight-alert" class="hidden mb-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700"></div>
-
       {% if weights %}
         {% with last=weights|last %}
         <div class="flex items-baseline gap-1 mb-3">
@@ -679,21 +677,7 @@
 {% include 'clients/_patient_detail/crop_modals.html' %}
 
 <script>
-fetch('{% url "clients:weight_alert" patient.pk %}')
-  .then(r => r.json())
-  .then(data => {
-    if (data.alert) {
-      const el = document.getElementById('weight-alert');
-      el.textContent = '\u26a0 ' + data.alert.message;
-      el.classList.remove('hidden');
-      if (data.alert.severity === 'danger') {
-        el.classList.replace('bg-amber-50', 'bg-red-50');
-        el.classList.replace('border-amber-200', 'border-red-200');
-        el.classList.replace('text-amber-700', 'text-red-700');
-      }
-    }
-  })
-  .catch(() => {});
+// тривога ваги рахується на сервері і стоїть у смузі тривог під шапкою (apps/clients/alerts.py)
 
 </script>
 {% endblock %}

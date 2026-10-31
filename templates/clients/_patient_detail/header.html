@@ -92,6 +92,15 @@
     <span><span class="font-semibold">{% firstof clinic.visit_labels.allergies "Алергії / хронічні" %}:</span> {{ patient.allergies }}</span>
   </div>
   {% endif %}
+
+  {% if alerts %}
+  <div class="mt-3 flex flex-wrap gap-2" role="status">
+    {% for a in alerts %}
+    {% if a.url %}<a href="{{ a.url }}" class="inline-flex min-h-[44px] items-center rounded-lg border px-3 text-sm underline-offset-2 hover:underline md:min-h-[32px] {% if a.level == 'danger' %}border-red-200 bg-red-50 text-red-800{% elif a.level == 'warning' %}border-amber-200 bg-amber-50 text-amber-900{% else %}border-sky-200 bg-sky-50 text-sky-900{% endif %}">{{ a.text }}</a>
+    {% else %}<span class="inline-flex min-h-[44px] items-center rounded-lg border px-3 text-sm md:min-h-[32px] {% if a.level == 'danger' %}border-red-200 bg-red-50 text-red-800{% elif a.level == 'warning' %}border-amber-200 bg-amber-50 text-amber-900{% else %}border-sky-200 bg-sky-50 text-sky-900{% endif %}">{{ a.text }}</span>{% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
 </div>
 <script>
 // Меню-«details» шапки закриваються кліком поза ними і клавішею Esc

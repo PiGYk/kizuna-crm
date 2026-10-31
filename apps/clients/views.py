@@ -227,6 +227,8 @@ class PatientDetailView(LoginRequiredMixin, DetailView):
         ctx['analysis_form'] = AnalysisForm(initial={'date': date.today()})
         ctx['weight_form'] = WeightForm(initial={'date': date.today()})
         ctx['weights'] = list(self.object.weights.order_by('date').all())
+        from .alerts import patient_alerts
+        ctx['alerts'] = patient_alerts(self.object, list(ctx['vaccines']), ctx['weights'], ctx['invoices'], date.today())
         ctx['doctors'] = get_user_model().objects.filter(
             role__in=['admin', 'doctor'],
             organization=self.request.organization,
