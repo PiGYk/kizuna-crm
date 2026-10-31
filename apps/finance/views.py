@@ -197,6 +197,11 @@ def settings_view(request):
 
 @login_required
 def settings_balance_update(request):
+    # Початковий залишок прямо зсуває «готівку в касі» — це налаштування адміна,
+    # не робота асистента: інакше нестачу в касі можна сховати одним полем.
+    if not request.user.is_admin():
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied
     if request.method == 'POST':
         form = FinanceSettingsForm(request.POST, instance=FinanceSettings.get_for_org(request.organization))
         if form.is_valid():
@@ -204,6 +209,11 @@ def settings_balance_update(request):
             messages.success(request, 'Початкові залишки збережено.')
         else:
             messages.error(request, 'Помилка збереження.')
+    from django.utils.http import url_has_allowed_host_and_scheme
+    nxt = request.POST.get('next', '')
+    if nxt and url_has_allowed_host_and_scheme(nxt, allowed_hosts={request.get_host()},
+                                               require_https=request.is_secure()):
+        return redirect(nxt)
     return redirect('finance:settings')
 
 

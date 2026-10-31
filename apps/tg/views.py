@@ -1030,7 +1030,7 @@ def _cmd_book_choose_date(chat, doctor_id=None):
     from datetime import date, timedelta
     today = date.today()
     org = chat.organization
-    work_days = org.work_days if org and org.work_days else [0, 1, 4, 5, 6]
+    work_days = org.work_days if org and org.work_days else [0, 1, 2, 3, 4]  # як дефолт моделі
 
     rows = []
     candidate = today
@@ -2553,10 +2553,15 @@ def send_analysis_photo(request, analysis_pk):
 @require_POST
 def set_webhook(request):
     """Реєструє webhook поточної організації в Telegram API."""
+    from django.urls import reverse
+    back = reverse('clinic:settings') + '#telegram'
+    if not request.user.is_admin():
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied
     org = request.organization
     if not org or not org.telegram_bot_token:
         messages.error(request, 'Спочатку збережіть Telegram Bot Token у налаштуваннях.')
-        return redirect('clinic:settings')
+        return redirect(back)
 
     base_url = _get_base_url() or request.build_absolute_uri('/').rstrip('/')
     webhook_url = f'{base_url}/tg/webhook/{org.slug}/'
@@ -2566,20 +2571,27 @@ def set_webhook(request):
     secret_token = _secrets.token_hex(32)
 
     token = org.telegram_bot_token
-    resp = requests.post(
-        f'https://api.telegram.org/bot{token}/setWebhook',
-        json={'url': webhook_url, 'secret_token': secret_token},
-        timeout=10,
-    )
-    data = resp.json()
+    try:
+        resp = requests.post(
+            f'https://api.telegram.org/bot{token}/setWebhook',
+            json={'url': webhook_url, 'secret_token': secret_token},
+            timeout=10,
+        )
+        data = resp.json()
+    except (requests.RequestException, ValueError) as exc:
+        logger.warning('set_webhook org=%s: %s', org.pk, type(exc).__name__)
+        messages.error(request, 'Telegram не відповів. Спробуйте ще раз за хвилину.')
+        return redirect(back)
     if data.get('ok'):
         org.webhook_secret = secret_token
         org.save(update_fields=['webhook_secret'])
         messages.success(request, f'Webhook зареєстровано: {webhook_url}')
+    elif data.get('error_code') in (401, 404):
+        messages.error(request, 'Telegram не впізнав токен. Перевірте, що скопіювали його з @BotFather повністю.')
     else:
-        messages.error(request, f'Помилка Telegram: {data.get("description", resp.text)}')
+        messages.error(request, f'Помилка Telegram: {data.get("description", "невідома")}')
 
-    return redirect('clinic:settings')
+    return redirect(back)
 
 
 # ──────────────────────────────────────────────

@@ -1,0 +1,9 @@
+{% if f.errors %}
+<div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+  <div class="font-medium">Не збережено — виправте:</div>
+  <ul class="mt-1 list-disc pl-5 text-xs">
+    {% for e in f.non_field_errors %}<li>{{ e }}</li>{% endfor %}
+    {% for field in f %}{% for e in field.errors %}<li>{{ field.label }}: {{ e }}</li>{% endfor %}{% endfor %}
+  </ul>
+</div>
+{% endif %}

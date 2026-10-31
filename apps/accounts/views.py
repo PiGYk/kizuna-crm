@@ -112,6 +112,10 @@ def user_set_password(request, pk):
     if request.method == 'POST' and form.is_valid():
         user.set_password(form.cleaned_data['password1'])
         user.save()
+        if user.pk == request.user.pk:
+            # Свій пароль: без цього Django викидає адміна з усіх сесій, і поточної теж.
+            from django.contrib.auth import update_session_auth_hash
+            update_session_auth_hash(request, user)
         messages.success(request, f'Пароль для {user.username} змінено')
         return redirect('accounts:users')
     return render(request, 'accounts/set_password.html', {'form': form, 'target_user': user})

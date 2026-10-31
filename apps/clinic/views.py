@@ -16,7 +16,9 @@ from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
 from apps.accounts.mixins import AdminRequiredMixin
-from .forms import OrganizationSettingsForm
+from .forms import (
+    DAY_NAMES, CheckboxForm, ClinicInfoForm, DesignForm, ScheduleForm, TelegramTokenForm,
+)
 from .models import Organization
 from .wayforpay import PLANS, WAYFORPAY_URL, accept_response, build_payment_fields, verify_callback
 
@@ -82,110 +84,123 @@ class PricelistWidgetView(AdminRequiredMixin, View):
         })
 
 
+# Вкладка → форма. Ключ action у POST; назва вкладки = id панелі в шаблоні.
+_SECTIONS = {
+    'save_clinic':   ('clinic',   ClinicInfoForm,    'Дані клініки збережено.'),
+    'save_schedule': ('schedule', ScheduleForm,      'Графік роботи збережено.'),
+    'save_design':   ('design',   DesignForm,        'Дизайн збережено.'),
+    'save_telegram': ('telegram', TelegramTokenForm, 'Токен бота збережено. Тепер натисніть «Зареєструвати webhook».'),
+    'save_checkbox': ('checkbox', CheckboxForm,      'Дані Checkbox збережено.'),
+}
+_FORM_CTX = {'clinic': 'clinic_form', 'schedule': 'schedule_form', 'design': 'design_form',
+             'telegram': 'telegram_form', 'checkbox': 'checkbox_form'}
+
+
+def _settings_url(tab=''):
+    from django.urls import reverse
+    return reverse('clinic:settings') + (f'#{tab}' if tab else '')
+
+
+def _section_action(request):
+    """Яку вкладку зберігають. Сторінка, відкрита до виправлення 31.10, шле форми
+    без action — тоді впізнаємо вкладку за її полями."""
+    action = request.POST.get('action', '')
+    if action in _SECTIONS:
+        return action
+    if action:
+        return None
+    post = request.POST
+    if 'name' in post:
+        return 'save_clinic'
+    if 'primary_color' in post or 'sidebar_color' in post or 'logo' in request.FILES:
+        return 'save_design'
+    if 'telegram_bot_token' in post:
+        return 'save_telegram'
+    if 'checkbox_license_key' in post or 'checkbox_pin' in post:
+        return 'save_checkbox'
+    return None
+
+
+def _errors_text(form):
+    parts = []
+    for name, errs in form.errors.items():
+        label = form.fields[name].label if name in form.fields else ''
+        for e in errs:
+            parts.append(f'{label}: {e}' if label else e)
+    return '; '.join(parts)
+
+
 class ClinicSettingsView(AdminRequiredMixin, View):
-    def _ctx(self, request, form):
+    def _ctx(self, request, bound=None, active_tab=''):
         from apps.accounts.models import User
         from apps.finance.models import FinanceSettings, calculate_balances
         from apps.finance.forms import FinanceSettingsForm
         from apps.clients.tasks import REMIND_DAYS_BEFORE
-
-        users = User.objects.filter(
-            organization=request.organization
-        ).order_by('role', 'last_name', 'first_name')
-
-        fs = FinanceSettings.get_for_org(request.organization)
-        balances = calculate_balances(request.organization)
-
-        from apps.clinic.models import Organization
-        sections = [
-            ('clinic',    'Клініка',       '🏥'),
-            ('design',    'Дизайн',        '🎨'),
-            ('staff',     'Команда',       '👥'),
-            ('finance',   'Фінанси',       '💰'),
-            ('telegram',  'Telegram',      '✈️'),
-            ('reminders', 'Нагадування',   '🔔'),
-            ('inventory', 'Склад',         '📦'),
-            ('fiscal',    'Фіскалізація',  '🧾'),
-            ('menu_access', 'Доступ до меню', '🔐'),
-            ('billing',   'Підписка',      '💳'),
-        ]
+        from apps.tg.models import TelegramChat
 
         org = request.organization
-        from apps.tg.models import TelegramChat
-        tg_chats = TelegramChat.objects.filter(
-            organization=org, receive_leads=True
-        ).select_related('client').order_by('-last_message_at')
+        users = User.objects.filter(organization=org).order_by('role', 'last_name', 'first_name')
+        fs = FinanceSettings.get_for_org(org)
 
-        return {
-            'form': form,
+        ctx = {}
+        for _action, (tab, form_cls, _msg) in _SECTIONS.items():
+            if bound is not None and isinstance(bound, form_cls):
+                ctx[_FORM_CTX[tab]] = bound
+            else:
+                ctx[_FORM_CTX[tab]] = form_cls(instance=org)
+        menu_config = org.get_menu_config() if org else {}
+        ctx.update({
             'users': users,
             'fs': fs,
             'finance_form': FinanceSettingsForm(instance=fs),
-            'balances': balances,
+            'balances': calculate_balances(org),
             'org': org,
-            'tg_chats': tg_chats,
+            'tg_chats': TelegramChat.objects.filter(
+                organization=org, receive_leads=True,
+            ).select_related('client').order_by('-last_message_at'),
             'vaccine_remind_days': REMIND_DAYS_BEFORE,
-            'sections': sections,
             'menu_items': Organization.MENU_ITEMS,
             'menu_roles': Organization.ROLES_WITH_MENU,
-            'menu_config': org.get_menu_config() if org else {},
-            'menu_config_json': json.dumps(org.get_menu_config() if org else {}),
-        }
-
-    def _limit_doctor_queryset(self, form, org):
-        from apps.accounts.models import User
-        form.fields['default_doctor'].queryset = User.objects.filter(
-            organization=org,
-            role__in=['admin', 'doctor'],
-        ).order_by('last_name', 'first_name')
-        form.fields['default_doctor'].empty_label = '— не вибрано —'
+            'menu_config': menu_config,
+            'menu_config_json': json.dumps(menu_config),
+            'schedule_days': ctx['schedule_form'].selected_days(),
+            'day_names': list(enumerate(DAY_NAMES)),
+            'active_tab': active_tab,
+        })
+        return ctx
 
     def get(self, request):
-        form = OrganizationSettingsForm(instance=request.organization)
-        self._limit_doctor_queryset(form, request.organization)
-        return render(request, 'clinic/settings.html', self._ctx(request, form))
+        return render(request, 'clinic/settings.html', self._ctx(request))
 
     def post(self, request):
+        org = request.organization
+        action = request.POST.get('action')
+        if org is None:
+            messages.error(request, 'Організацію не визначено.')
+            return redirect(_settings_url())
+
         # Збереження отримувачів заявок з сайту
-        if request.POST.get('action') == 'save_lead_recipients':
+        if action == 'save_lead_recipients':
             from apps.tg.models import TelegramChat
-            org = request.organization
             selected_ids = set(request.POST.getlist('lead_chat_ids'))
             chats = TelegramChat.objects.filter(organization=org)
             for chat in chats:
                 chat.receive_leads = str(chat.pk) in selected_ids
             TelegramChat.objects.bulk_update(chats, ['receive_leads'])
             messages.success(request, 'Отримувачів заявок збережено.')
-            return redirect('clinic:settings')
-
-        # Збереження графіку роботи
-        if request.POST.get('action') == 'save_schedule':
-            org = request.organization
-            work_days = [d for d in range(7) if request.POST.get(f'work_day_{d}')]
-            form = OrganizationSettingsForm(request.POST, request.FILES, instance=org)
-            self._limit_doctor_queryset(form, org)
-            if form.is_valid():
-                org.work_days = work_days
-                form.save()
-                messages.success(request, 'Графік роботи збережено.')
-            else:
-                messages.error(request, 'Перевірте правильність даних.')
-            return redirect(request.path + '#schedule')
+            return redirect(_settings_url('telegram'))
 
         # Збереження нотифікацій
-        if request.POST.get('action') == 'save_notifications':
-            org = request.organization
+        if action == 'save_notifications':
             org.notify_appointment_24h = request.POST.get('notify_appointment_24h') == 'on'
             org.notify_appointment_2h = request.POST.get('notify_appointment_2h') == 'on'
             org.notify_vaccines = request.POST.get('notify_vaccines') == 'on'
             org.save(update_fields=['notify_appointment_24h', 'notify_appointment_2h', 'notify_vaccines'])
             messages.success(request, 'Налаштування нотифікацій збережено.')
-            return redirect(request.path + '#notifications')
+            return redirect(_settings_url('notifications'))
 
         # Збереження конфігу меню по ролях
-        if request.POST.get('action') == 'save_menu_config':
-            org = request.organization
-            from apps.clinic.models import Organization
+        if action == 'save_menu_config':
             cfg = {}
             for role, _ in Organization.ROLES_WITH_MENU:
                 cfg[role] = {}
@@ -194,19 +209,30 @@ class ClinicSettingsView(AdminRequiredMixin, View):
             org.role_menu_config = cfg
             org.save(update_fields=['role_menu_config'])
             messages.success(request, 'Права доступу до меню збережено.')
-            return redirect('clinic:settings')
+            return redirect(_settings_url('menu_access'))
 
-        form = OrganizationSettingsForm(request.POST, request.FILES, instance=request.organization)
-        self._limit_doctor_queryset(form, request.organization)
+        section = _section_action(request)
+        if section is None:
+            messages.error(request, 'Не вдалося зрозуміти, що зберегти. Оновіть сторінку і спробуйте ще раз.')
+            return redirect(_settings_url())
+
+        tab, form_cls, ok_msg = _SECTIONS[section]
+        # Окрема копія з бази: невдала форма не має чіпати request.organization —
+        # з нього малюється бічна панель, і несправжній колір не має світитися
+        # так, ніби його вже збережено.
+        fresh = Organization.objects.get(pk=org.pk)
+        form = form_cls(request.POST, request.FILES, instance=fresh)
         if form.is_valid():
-            org = form.save(commit=False)
-            if request.POST.get('logo-clear') and org.logo:
-                org.logo.delete(save=False)
-                org.logo = None
-            org.save()
-            messages.success(request, 'Налаштування збережено.')
-            return redirect('clinic:settings')
-        return render(request, 'clinic/settings.html', self._ctx(request, form))
+            obj = form.save(commit=False)
+            fields = list(form._meta.fields)
+            if form_cls is ScheduleForm:
+                fields.append('work_days')
+            obj.save(update_fields=fields)
+            messages.success(request, ok_msg)
+            return redirect(_settings_url(tab))
+
+        messages.error(request, 'Не збережено. ' + _errors_text(form))
+        return render(request, 'clinic/settings.html', self._ctx(request, bound=form, active_tab=tab))
 
 
 # ---------------------------------------------------------------------------

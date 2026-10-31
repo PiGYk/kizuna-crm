@@ -200,7 +200,7 @@ def _overlaps(new_start, new_duration, blocking, default_duration):
 
 def _org_schedule(org):
     """Робочі параметри org з безпечними дефолтами."""
-    work_days = org.work_days if org.work_days else [0, 1, 4, 5, 6]
+    work_days = org.work_days if org.work_days else [0, 1, 2, 3, 4]  # як дефолт моделі, не графік Kizuna
     start_hour = org.work_start if org.work_start else dt_time(10, 0)
     end_hour = org.work_end if org.work_end else dt_time(18, 0)
     duration = org.slot_duration if org.slot_duration else 30
