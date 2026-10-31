@@ -104,7 +104,7 @@
 <hr class="divider">
 
 <div class="section">
-  <div class="section-label">Скарги / Анамнез</div>
+  <div class="section-label">{% firstof clinic.visit_labels.complaint "Скарги / Анамнез" %}</div>
   {% if visit.complaint %}
     <div class="section-body">{{ visit.complaint|safe }}</div>
   {% else %}
@@ -113,7 +113,7 @@
 </div>
 
 <div class="section">
-  <div class="section-label">Діагноз</div>
+  <div class="section-label">{% firstof clinic.visit_labels.diagnosis "Діагноз" %}</div>
   {% if visit.diagnosis %}
     <div class="section-body">{{ visit.diagnosis|safe }}</div>
   {% else %}
@@ -122,7 +122,7 @@
 </div>
 
 <div class="section">
-  <div class="section-label">Лікування / Призначення</div>
+  <div class="section-label">{% firstof clinic.visit_labels.treatment "Лікування / Призначення" %}</div>
   {% if visit.treatment %}
     <div class="section-body">{{ visit.treatment|safe }}</div>
   {% else %}
@@ -132,7 +132,7 @@
 
 {% if visit.notes %}
 <div class="section">
-  <div class="section-label">Нотатки</div>
+  <div class="section-label">{% firstof clinic.visit_labels.notes "Нотатки" %}</div>
   <div class="section-body">{{ visit.notes|safe }}</div>
 </div>
 {% endif %}

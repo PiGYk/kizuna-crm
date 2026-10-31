@@ -197,6 +197,10 @@ class Organization(models.Model):
         default=dict,
         blank=True,
     )
+    visit_labels = models.JSONField(
+        'Свої назви розділів прийому', default=dict, blank=True,
+        help_text='Напр. {"complaint": "Анамнез"}. Порожньо — стандартні назви.',
+    )
 
     def get_menu_config(self):
         """Повертає конфіг з fallback на дефолти.
@@ -212,6 +216,26 @@ class Organization(models.Model):
             if role in saved:
                 cfg[role].update(saved[role])
         return cfg
+
+    # ── Свої назви розділів прийому (31.10.2026, ANVAR) ──
+    # Порожньо — як у всіх. Ключі: complaint, diagnosis, treatment, notes (поля
+    # прийому), documents і documents_hint (блок файлів у формі прийому);
+    # suggest_diagnosis / suggest_drugs — у яке поле чіпляти підказки минулих
+    # діагнозів і препаратів зі складу, якщо клініка пише діагноз не в «Діагноз».
+    VISIT_TEXT_FIELDS = ('complaint', 'diagnosis', 'treatment', 'notes')
+
+    def _visit_suggest(self, kind, default):
+        value = (self.visit_labels or {}).get(f'suggest_{kind}', default)
+        return value if value in self.VISIT_TEXT_FIELDS else default
+
+    @property
+    def visit_suggest_diagnosis(self):
+        return self._visit_suggest('diagnosis', 'diagnosis')
+
+    @property
+    def visit_suggest_drugs(self):
+        drugs = self._visit_suggest('drugs', 'treatment')
+        return 'treatment' if drugs == self.visit_suggest_diagnosis else drugs
 
     def can_see_menu(self, role, item):
         """Чи може роль бачити пункт меню."""

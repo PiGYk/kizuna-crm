@@ -827,12 +827,14 @@ def diagnosis_suggestions(request):
     from collections import Counter
 
     q = request.GET.get('q', '').strip().lower()
+    # Клініка зі своїми назвами розділів може писати діагноз в інше поле (ANVAR — у treatment).
+    field = getattr(request.organization, 'visit_suggest_diagnosis', 'diagnosis')
     raw = (
         Visit.objects
         .filter(patient__client__organization=request.organization)
-        .exclude(diagnosis='')
+        .exclude(**{field: ''})
         .order_by('-date')
-        .values_list('diagnosis', flat=True)[:2000]
+        .values_list(field, flat=True)[:2000]
     )
 
     counter = Counter()

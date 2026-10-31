@@ -1,0 +1,2 @@
+<div id="suggest-{{ field }}" class="suggest-box hidden"></div>
+{% if clinic.visit_suggest_diagnosis|default:"diagnosis" == field %}<p class="text-[11px] text-gray-400 mt-1">Від двох літер підкаже діагнози, які вже ставили в клініці</p>{% elif clinic.visit_suggest_drugs|default:"treatment" == field %}<p class="text-[11px] text-gray-400 mt-1">Від двох літер підкаже препарати зі складу</p>{% endif %}

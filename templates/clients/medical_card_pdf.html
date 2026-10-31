@@ -120,20 +120,26 @@
     {% endif %}
     {% if visit.complaint %}
     <div class="visit-field">
-      <div class="visit-label">Скарги</div>
+      <div class="visit-label">{% firstof clinic.visit_labels.complaint "Скарги" %}</div>
       <div class="visit-value">{{ visit.complaint|striptags }}</div>
     </div>
     {% endif %}
     {% if visit.diagnosis %}
     <div class="visit-field">
-      <div class="visit-label">Діагноз</div>
+      <div class="visit-label">{% firstof clinic.visit_labels.diagnosis "Діагноз" %}</div>
       <div class="visit-value">{{ visit.diagnosis|striptags }}</div>
     </div>
     {% endif %}
     {% if visit.treatment %}
     <div class="visit-field">
-      <div class="visit-label">Лікування</div>
+      <div class="visit-label">{% firstof clinic.visit_labels.treatment "Лікування" %}</div>
       <div class="visit-value">{{ visit.treatment|striptags }}</div>
+    </div>
+    {% endif %}
+    {% if visit.notes and clinic.visit_labels.notes %}
+    <div class="visit-field">
+      <div class="visit-label">{{ clinic.visit_labels.notes }}</div>
+      <div class="visit-value">{{ visit.notes|striptags }}</div>
     </div>
     {% endif %}
   </div>
