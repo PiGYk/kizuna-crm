@@ -1,6 +1,7 @@
 """Protected media serving via nginx X-Accel-Redirect."""
 import logging
 import os
+import re
 from urllib.parse import quote
 
 from django.conf import settings
@@ -29,20 +30,25 @@ def serve_media(request, path):
         raise Http404
 
     # Org-ізоляція для нових шляхів виду org_{pk}/...
-    if safe_path.startswith('org_'):
-        first_segment = safe_path.split('/')[0]  # 'org_5'
-        try:
-            path_org_pk = int(first_segment[4:])  # strip 'org_'
-        except (ValueError, IndexError):
-            raise Http404
-
-        user_org = getattr(request, 'organization', None)
+    user_org = getattr(request, 'organization', None)
+    m = re.match(r'org_(\d+)/', safe_path)
+    if m:
+        path_org_pk = int(m.group(1))
         if user_org is None or user_org.pk != path_org_pk:
             logger.warning(
                 'serve_media: user %s (org=%s) attempted to access org_%s resource: %s',
                 request.user, getattr(user_org, 'pk', None), path_org_pk, safe_path
             )
             raise Http404
+    elif safe_path.startswith('org_logos/'):
+        # Логотипи до 31.10.2026 лягали в спільну теку. Раніше 'org_logos' розбирався
+        # як номер клініки «logos» і падав у 404 — логотип не показувався ніколи.
+        # Віддаємо лише логотип своєї клініки.
+        own = user_org.logo.name if (user_org is not None and user_org.logo) else ''
+        if own != safe_path:
+            raise Http404
+    elif safe_path.startswith('org_'):
+        raise Http404
 
     response = HttpResponse(status=200)
     # quote(): percent-encode шлях (кирилиця/не-ASCII) — інакше Django загортає

@@ -4,6 +4,8 @@ from django.db import models
 from django.utils import timezone
 from django.utils.text import slugify
 
+from .uploads import org_logo_path
+
 
 def _default_work_days():
     """Пн–Пт для щойно створеної клініки. Кожна організація змінює графік під себе
@@ -102,9 +104,12 @@ class Organization(models.Model):
     )
 
     # --- Дизайн ---
+    # Логотип — у теці своєї клініки (org_<pk>/logo.*), як і решта файлів: роздача
+    # /media/ пускає до org_<pk>/ лише працівників цієї клініки. Спільна тека
+    # org_logos/ не проходила цю перевірку — логотип завжди віддавав 404 (31.10.2026).
     logo = models.ImageField(
-        'Логотип', upload_to='org_logos/', null=True, blank=True,
-        help_text='PNG або SVG, рекомендований розмір 200×60 px',
+        'Логотип', upload_to=org_logo_path, null=True, blank=True,
+        help_text='PNG, JPG або WEBP, рекомендований розмір 200×60 px',
     )
     primary_color = models.CharField(
         'Акцентний колір', max_length=7, default='#DEAA01',
