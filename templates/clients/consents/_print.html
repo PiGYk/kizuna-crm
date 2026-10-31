@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ meta.title }}{% if patient %} — {{ patient.name }}{% endif %}</title>
+<style>
+  @page { size: A4; margin: 14mm 14mm 14mm 18mm; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #e9e7e3; font-family: 'Times New Roman', Times, serif; color: #111; }
+  .bar { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+         padding: 10px 16px; background: #12100F; color: #fff; font: 14px system-ui, sans-serif; }
+  .bar a, .bar button { font: 600 14px system-ui, sans-serif; border: 0; border-radius: 8px; padding: 8px 14px;
+         cursor: pointer; text-decoration: none; }
+  .bar .back { background: rgba(255,255,255,.12); color: #fff; }
+  .bar .print { background: #DEAA01; color: #12100F; }
+  .bar .hint { opacity: .7; font-size: 13px; }
+  .sheet { width: 210mm; min-height: 297mm; margin: 18px auto; padding: 14mm 14mm 14mm 18mm; background: #fff;
+           box-shadow: 0 2px 12px rgba(0,0,0,.15); font-size: 12.5pt; line-height: 1.45; outline: none; }
+  .sheet:focus { box-shadow: 0 0 0 2px #DEAA01, 0 2px 12px rgba(0,0,0,.15); }
+  .clinic { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid #111; padding-bottom: 6px;
+            font-size: 10.5pt; }
+  .clinic b { font-size: 12pt; }
+  h1 { text-align: center; font-size: 14.5pt; margin: 16px 0 12px; text-transform: uppercase; letter-spacing: .02em; }
+  p { margin: 6px 0; }
+  ol, ul { margin: 6px 0 6px 20px; padding: 0; }
+  li { margin: 3px 0; }
+  table.animal { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 11.5pt; }
+  table.animal td { border: 1px solid #555; padding: 3px 6px; vertical-align: top; }
+  table.animal td.k { width: 22%; color: #333; }
+  .sign { margin-top: 22px; display: grid; grid-template-columns: 1fr 1fr; gap: 18px 28px; font-size: 11.5pt; }
+  .sign div { border-top: 1px solid #111; padding-top: 3px; }
+  .muted { color: #444; font-size: 10.5pt; }
+  @media print {
+    body { background: #fff; }
+    .bar { display: none; }
+    .sheet { width: auto; min-height: 0; margin: 0; padding: 0; box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+<div class="bar">
+  <a class="back" href="{% url 'clients:consents' %}{% if patient %}?patient={{ patient.pk }}{% endif %}">← Бланки</a>
+  <button class="print" type="button" onclick="window.print()">🖨 Друкувати</button>
+  <span class="hint">Аркуш можна правити прямо тут: клацніть у текст і допишіть перед друком.</span>
+</div>
+<article class="sheet" contenteditable="true" spellcheck="false">
+  <div class="clinic">
+    <div><b>{% firstof org.name "Ветеринарна клініка" %}</b>{% if org.address %}<br>{{ org.address }}{% endif %}</div>
+    <div style="text-align:right">{% if org.phone %}тел. {{ org.phone }}{% endif %}{% if org.email %}<br>{{ org.email }}{% endif %}</div>
+  </div>
+  <h1>{{ meta.title }}</h1>
+  {% block body %}{% endblock %}
+  {% include "clients/consents/_sign.html" %}
+</article>
+</body>
+</html>

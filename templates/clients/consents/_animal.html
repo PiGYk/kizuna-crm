@@ -1,0 +1,6 @@
+<table class="animal">
+  <tr><td class="k">Кличка</td><td>{% firstof patient.name L %}</td><td class="k">Вид</td><td>{% if patient %}{{ patient.get_species_display }}{% else %}{{ L }}{% endif %}</td></tr>
+  <tr><td class="k">Порода</td><td>{% firstof patient.breed L %}</td><td class="k">Стать</td><td>{% if patient %}{{ patient.get_sex_display }}{% if patient.is_neutered %}, стерил./каструв.{% endif %}{% else %}{{ L }}{% endif %}</td></tr>
+  <tr><td class="k">Вік</td><td>{% if patient %}{{ patient.age_display }}{% if patient.date_of_birth %} ({{ patient.date_of_birth|date:"d.m.Y" }}){% endif %}{% else %}{{ L }}{% endif %}</td><td class="k">Масть</td><td>{% firstof patient.color L %}</td></tr>
+  <tr><td class="k">Мікрочіп</td><td>{% firstof patient.microchip L %}</td><td class="k">Вага, кг</td><td>{% if weight %}{{ weight.weight|floatformat:"-2" }} ({{ weight.date|date:"d.m.Y" }}){% else %}{{ L }}{% endif %}</td></tr>
+</table>

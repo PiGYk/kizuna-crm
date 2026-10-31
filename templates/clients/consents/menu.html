@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+
+{% block title %}Бланки згод — Kizuna CRM{% endblock %}
+{% block page_title %}Бланки згод{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl">
+  <h1 class="text-2xl font-bold text-brand-dark mb-1">Бланки згод</h1>
+  <p class="text-sm text-gray-500 mb-5">Оберіть тварину — дані власника, тварини й лікаря підставляться самі. Текст можна доправити прямо на аркуші перед друком.</p>
+
+  {% if patient %}
+  <div class="mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-brand-gold/40 bg-brand-gold/5 px-4 py-3">
+    <div class="flex-1 min-w-0">
+      <div class="font-semibold text-brand-dark">{{ patient.name }} <span class="font-normal text-gray-500">· {{ patient.get_species_display }}</span></div>
+      <div class="text-sm text-gray-500">{{ patient.client.last_name }} {{ patient.client.first_name }}{% if patient.client.phone %} · {{ patient.client.phone }}{% endif %}</div>
+    </div>
+    <a href="{% url 'clients:consents' %}" class="text-sm text-brand-gold hover:text-brand-dark font-medium">Інша тварина</a>
+  </div>
+  {% else %}
+  <form method="get" class="mb-3 flex gap-2">
+    <input type="text" name="q" value="{{ q }}" placeholder="Кличка, прізвище або телефон власника" autofocus
+           class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+    <button class="bg-brand-gold text-brand-dark px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-95">Знайти</button>
+  </form>
+  {% if q %}
+  <div class="mb-6 bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
+    {% for p in results %}
+    <a href="?patient={{ p.pk }}" class="flex items-center justify-between px-4 py-2.5 hover:bg-gray-50">
+      <span class="text-sm font-medium text-brand-dark">{{ p.name }} <span class="font-normal text-gray-400">· {{ p.get_species_display }}</span></span>
+      <span class="text-xs text-gray-500">{{ p.client.last_name }} {{ p.client.first_name }}{% if p.client.phone %} · {{ p.client.phone }}{% endif %}</span>
+    </a>
+    {% empty %}
+    <div class="px-4 py-3 text-sm text-gray-400">Нічого не знайдено</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  <p class="text-xs text-gray-400 mb-2">Або роздрукуйте порожній бланк і заповніть від руки:</p>
+  {% endif %}
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+    {% for c in consents %}
+    <a href="{% if patient %}{% url 'clients:consent_print' c.key patient.pk %}{% else %}{% url 'clients:consent_blank' c.key %}{% endif %}"
+       target="_blank" rel="noopener"
+       class="block rounded-xl border border-gray-200 bg-white px-4 py-3 hover:border-brand-gold hover:bg-brand-gold/5 transition">
+      <div class="text-sm font-semibold text-brand-dark">📝 {{ c.title }}</div>
+      <div class="text-xs text-gray-400 mt-0.5">{{ c.desc }}</div>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

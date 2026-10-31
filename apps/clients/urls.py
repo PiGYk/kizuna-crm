@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views
+from . import views, views_consents
 
 app_name = 'clients'
 
@@ -15,6 +15,9 @@ urlpatterns = [
     path('patients/<int:pk>/edit/', views.patient_update, name='patient_edit'),
     path('patients/<int:pk>/delete/', views.patient_delete, name='patient_delete'),
     path('archive/purge/', views.archive_purge, name='archive_purge'),
+    path('consents/', views_consents.consent_menu, name='consents'),
+    path('consents/<slug:key>/', views_consents.consent_print, name='consent_blank'),
+    path('consents/<slug:key>/<int:patient_pk>/', views_consents.consent_print, name='consent_print'),
     path('patients/<int:patient_pk>/visits/create/', views.visit_create, name='visit_create'),
     path('visits/<int:pk>/edit/', views.visit_update, name='visit_edit'),
     path('visits/<int:pk>/pdf/', views.visit_pdf, name='visit_pdf'),

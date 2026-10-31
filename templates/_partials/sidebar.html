@@ -44,7 +44,7 @@
       </button>
       <div class="sb-group-body">
         <a href="{% url 'clients:list' %}"
-           class="sb-sub {% if an == 'clients' and 'patient' not in un and 'visit' not in un and 'vaccine' not in un and 'hospitalization' not in un and 'analysis' not in un and 'weight' not in un and 'health_diary' not in un and un != 'patients_period' %}sb-sub-active{% endif %}">
+           class="sb-sub {% if an == 'clients' and 'patient' not in un and 'visit' not in un and 'vaccine' not in un and 'hospitalization' not in un and 'analysis' not in un and 'weight' not in un and 'health_diary' not in un and 'consent' not in un and 'archive' not in un and un != 'patients_period' %}sb-sub-active{% endif %}">
           Клієнти
         </a>
         <a href="{% url 'clients:patient_list' %}"
@@ -66,6 +66,10 @@
         <a href="{% url 'clients:visit_templates' %}"
            class="sb-sub {% if an == 'clients' and 'visit_template' in un %}sb-sub-active{% endif %}">
           Шаблони візиту
+        </a>
+        <a href="{% url 'clients:consents' %}"
+           class="sb-sub {% if an == 'clients' and 'consent' in un %}sb-sub-active{% endif %}">
+          Бланки згод
         </a>
       </div>
     </div>

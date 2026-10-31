@@ -37,6 +37,8 @@
              class="block px-4 py-3 text-sm text-blue-500 hover:bg-blue-50 border-t border-gray-100">TG чат</a>
           {% endif %}
           {% endwith %}
+          <a href="{% url 'clients:consents' %}?patient={{ patient.pk }}"
+             class="block px-4 py-3 text-sm text-brand-dark hover:bg-gray-50 border-t border-gray-100">📝 Бланк згоди</a>
           <a href="{% url 'clients:patient_edit' patient.pk %}"
              class="block px-4 py-3 text-sm text-brand-gold hover:bg-gray-50 border-t border-gray-100">Редагувати</a>
           {% if user.is_admin %}<a href="{% url 'clients:patient_delete' patient.pk %}"
@@ -73,6 +75,8 @@
       </a>
       {% endif %}
       {% endwith %}
+      <a href="{% url 'clients:consents' %}?patient={{ patient.pk }}"
+         class="text-sm text-brand-dark hover:text-brand-gold font-medium">📝 Згода</a>
       <a href="{% url 'clients:patient_edit' patient.pk %}"
          class="text-sm text-brand-gold hover:text-brand-dark font-medium">Редагувати</a>
       {% if user.is_admin %}<a href="{% url 'clients:patient_delete' patient.pk %}"

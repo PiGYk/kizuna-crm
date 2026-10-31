@@ -1,0 +1,6 @@
+<p style="margin-top:14px">Зміст документа мені зрозумілий, на мої запитання надано відповіді. Документ підписую добровільно.</p>
+<div class="sign">
+  <div>Власник (представник): {% if client %}{{ client.last_name }} {{ client.first_name }}{% else %}&nbsp;{% endif %}<br><span class="muted">підпис ____________</span></div>
+  <div>Дата: {{ today|date:"d.m.Y" }} &nbsp; Час: ________</div>
+  <div>Лікар ветеринарної медицини: {% firstof doctor_name "" %}<br><span class="muted">підпис ____________</span></div>
+</div>
