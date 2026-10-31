@@ -30,6 +30,18 @@
 @media (min-width: 768px) {
   .visit-preview { display: none !important; }
 }
+/* Розділи медданих — рядками: відступ знизу відкритого розділу; до 1280 px (планшет, ПК з вузьким вікном) вони
+   згорнуті, як на телефоні — інакше одна колонка тягнулась на 11 тис. px (оцінка 31.10.2026). */
+.patient-section .section-content { padding-bottom: 16px; }
+@media (max-width: 1279px) {
+  .patient-section .section-content.kz-m-hide { display: none !important; }
+}
+/* Старші візити на ПК обрізані — внизу м'яке затухання, повний текст кнопкою */
+@media (min-width: 768px) {
+  .visit-clamp { position: relative; }
+  .visit-clamp::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 48px;
+    background: linear-gradient(to bottom, rgba(255,255,255,0), #fff); pointer-events: none; }
+}
 </style>
 
 {# ── Analysis crop modal ──────────────────────────────────────────────────── #}
@@ -183,6 +195,8 @@ const KZ_MOBILE = () => window.matchMedia('(max-width: 767px)').matches
   || window.matchMedia('(max-height: 500px) and (max-width: 1024px)').matches
   || window.matchMedia('(max-height: 500px) and (pointer: coarse)').matches;
 const KZ_KEY = 'kz-patient-sections';
+// Розділи медданих згорнуті не лише на телефоні, а й до 1280 px — стан там теж памʼятаємо
+const KZ_COMPACT = () => window.matchMedia('(max-width: 1279px)').matches || KZ_MOBILE();
 
 function kzSectionState() {
   try { return JSON.parse(localStorage.getItem(KZ_KEY)) || {}; }
@@ -215,7 +229,7 @@ function toggleSection(btn) {
   // питаємо не клас, а справжню видимість — на телефоні ховає CSS
   const open = getComputedStyle(content).display === 'none';
   kzSetSection(btn, open);
-  if (KZ_MOBILE()) kzSaveSection(btn.dataset.section, open);
+  if (KZ_COMPACT()) kzSaveSection(btn.dataset.section, open);
 }
 
 // Плитка підсумків → розгорнути потрібний розділ і підвести до нього екран
@@ -223,7 +237,7 @@ function openSection(name) {
   const btn = document.querySelector('button[data-section="' + name + '"]');
   if (!btn) return;
   const content = btn.nextElementSibling;
-  if (content && content.classList.contains('hidden')) toggleSection(btn);
+  if (content && getComputedStyle(content).display === 'none') toggleSection(btn);
   btn.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 function scrollToHistory() {
@@ -255,7 +269,15 @@ function toggleVisit(btn) {
 // Що згорнуте на старті — вирішує сервер і CSS (див. <style> вище), тому екран
 // не перебудовується після завантаження. Скрипт лише відновлює вибір користувача.
 document.addEventListener('DOMContentLoaded', function() {
-  const mobile = KZ_MOBILE();
+  // короткий старший візит не обрізаний насправді — кнопка «Показати повністю» йому не потрібна
+  document.querySelectorAll('.visit-clamp').forEach(function (b) {
+    if (b.scrollHeight <= b.clientHeight + 4) {
+      b.classList.remove('md:max-h-48', 'md:overflow-hidden', 'visit-clamp');
+      const more = b.nextElementSibling;
+      if (more && more.classList.contains('visit-more')) more.remove();
+    }
+  });
+  const mobile = KZ_COMPACT();
   const st = mobile ? kzSectionState() : {};
   document.querySelectorAll('button[data-section]').forEach(function(btn) {
     const content = btn.nextElementSibling;

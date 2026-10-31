@@ -79,3 +79,13 @@ def rich(value):
     parser.feed(text)
     parser.close()
     return mark_safe(parser.result())
+
+
+@register.filter
+def plain(value):
+    """HTML редактора → чистий текст для прев'ю: без тегів і з розкодованими
+    сутностями. `striptags` лишав «&#39;», і після автоекранування на екрані було
+    «Сечокам&#39;яна» (знайдено критиком 31.10.2026)."""
+    import html as _html
+    from django.utils.html import strip_tags
+    return ' '.join(_html.unescape(strip_tags(value or '')).split())

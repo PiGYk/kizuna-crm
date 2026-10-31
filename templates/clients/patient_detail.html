@@ -6,22 +6,22 @@
 {% block content %}
 {% include 'clients/_patient_detail/header.html' %}
 
-<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<div class="grid grid-cols-1 items-start gap-6 xl:grid-cols-[320px_minmax(0,1fr)] 2xl:grid-cols-[360px_minmax(0,1fr)]">
 
-  <!-- Ліва колонка: інфо + вакцини -->
-  <div class="space-y-4">
+  <!-- Ліва колонка: медичні дані — одна картка, розділи рядками -->
+  <div class="overflow-hidden rounded-xl border border-gray-200 bg-white divide-y divide-gray-100">
 
     <!-- Вакцини -->
-    <div class="patient-section bg-white rounded-xl border border-gray-200 p-5">
-      <div class="mb-4">
+    <div class="patient-section px-4">
+      <div>
         <button type="button" onclick="toggleSection(this)" aria-expanded="true" data-section="vaccines" class="w-full flex items-center justify-between text-left py-3 min-h-[44px]">
-          <h3 class="text-sm font-semibold text-gray-700">💉 Вакцини <span class="text-xs text-gray-400 font-normal ml-1">({{ vaccines|length }})</span></h3>
+          <h3 class="text-sm font-semibold text-brand-dark">Вакцини <span class="text-xs text-gray-500 font-normal ml-1">({{ vaccines|length }})</span></h3>
           <span class="w-11 h-11 -mr-2 flex items-center justify-center shrink-0">
             <svg class="w-5 h-5 text-gray-400 transition-transform section-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
           </span>
         </button>
         <div class="section-content kz-m-hide">
-      <div class="flex items-center justify-between mb-3">
+      <div class="flex items-center justify-between -mt-2 mb-1">
         <span></span>
         <button onclick="document.getElementById('vaccine-form').classList.toggle('hidden')"
                 class="inline-flex items-center min-h-[44px] px-2 -mr-2 text-xs text-brand-gold hover:text-brand-dark font-medium md:min-h-0 md:px-0 md:mr-0">+ Додати</button>
@@ -85,25 +85,25 @@
           {% endfor %}
         </div>
       {% else %}
-        <p class="text-sm text-gray-400">Вакцинацій ще немає</p>
+        <p class="text-sm text-gray-500">Вакцинацій ще немає</p>
       {% endif %}
         </div>{# /section-content #}
       </div>{# /collapsible вакцини #}
     </div>
     <!-- Мікрочіп -->
-    <div class="patient-section bg-white rounded-xl border border-gray-200 p-5">
-      <div class="mb-4">
+    <div class="patient-section px-4">
+      <div>
         <button type="button" onclick="toggleSection(this)" aria-expanded="true" data-section="microchip" class="w-full flex items-center justify-between text-left py-3 min-h-[44px]">
-          <h3 class="text-sm font-semibold text-gray-700">🔖 Мікрочіп
-            {% if patient.microchip %}<span class="text-xs text-gray-400 font-normal ml-1">{{ patient.microchip }}</span>
-            {% else %}<span class="text-xs text-gray-400 font-normal ml-1">немає</span>{% endif %}
+          <h3 class="text-sm font-semibold text-brand-dark">Мікрочіп
+            {% if patient.microchip %}<span class="text-xs text-gray-500 font-normal ml-1">{{ patient.microchip }}</span>
+            {% else %}<span class="text-xs text-gray-500 font-normal ml-1">немає</span>{% endif %}
           </h3>
           <span class="w-11 h-11 -mr-2 flex items-center justify-center shrink-0">
             <svg class="w-5 h-5 text-gray-400 transition-transform section-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
           </span>
         </button>
         <div class="section-content kz-m-hide">
-      <div class="flex items-center justify-between mb-3">
+      <div class="flex items-center justify-between -mt-2 mb-1">
         <span></span>
         <button onclick="document.getElementById('chip-form').classList.toggle('hidden')"
                 class="inline-flex items-center min-h-[44px] px-2 -mr-2 text-xs text-brand-gold hover:text-brand-dark font-medium md:min-h-0 md:px-0 md:mr-0">{% if patient.microchip %}Змінити{% else %}+ Записати{% endif %}</button>
@@ -118,10 +118,10 @@
         {% endif %}
         <p class="text-xs text-gray-400 mt-2">Тварину можна знайти за цим номером у пошуку пацієнтів</p>
       {% else %}
-        <p class="text-sm text-gray-400 mb-3">Чіп не записано</p>
+        <p class="text-sm text-gray-500 mb-3">Чіп не записано</p>
       {% endif %}
 
-      <div id="chip-form" class="{% if patient.microchip %}hidden {% endif %}pt-3 border-t border-gray-100 mt-3">
+      <div id="chip-form" class="hidden pt-3 border-t border-gray-100 mt-3">
         <form method="post" action="{% url 'clients:microchip_save' patient.pk %}">
           {% csrf_token %}
           <div class="space-y-2">
@@ -150,19 +150,19 @@
       </div>{# /collapsible мікрочіп #}
     </div>
     <!-- Вага -->
-    <div class="patient-section bg-white rounded-xl border border-gray-200 p-5">
-      <div class="mb-4">
+    <div class="patient-section px-4">
+      <div>
         <button type="button" onclick="toggleSection(this)" aria-expanded="true" data-section="weight" class="w-full flex items-center justify-between text-left py-3 min-h-[44px]">
-          <h3 class="text-sm font-semibold text-gray-700">⚖️ Вага
-            {% if weights %}{% with last=weights|last %}<span class="text-xs text-gray-400 font-normal ml-1">{{ last.weight }} кг · {{ last.date|date:"d.m.y" }}</span>{% endwith %}
-            {% else %}<span class="text-xs text-gray-400 font-normal ml-1">(0)</span>{% endif %}
+          <h3 class="text-sm font-semibold text-brand-dark">Вага
+            {% if weights %}{% with last=weights|last %}<span class="text-xs text-gray-500 font-normal ml-1">{{ last.weight }} кг · {{ last.date|date:"d.m.y" }}</span>{% endwith %}
+            {% else %}<span class="text-xs text-gray-500 font-normal ml-1">(0)</span>{% endif %}
           </h3>
           <span class="w-11 h-11 -mr-2 flex items-center justify-center shrink-0">
             <svg class="w-5 h-5 text-gray-400 transition-transform section-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
           </span>
         </button>
         <div class="section-content kz-m-hide">
-      <div class="flex items-center justify-between mb-3">
+      <div class="flex items-center justify-between -mt-2 mb-1">
         <span></span>
         <button onclick="document.getElementById('weight-form').classList.toggle('hidden')"
                 class="inline-flex items-center min-h-[44px] px-2 -mr-2 text-xs text-brand-gold hover:text-brand-dark font-medium md:min-h-0 md:px-0 md:mr-0">+ Записати</button>
@@ -194,10 +194,10 @@
           {% endfor %}
         </div>
       {% else %}
-        <p class="text-sm text-gray-400 mb-3">Зважувань ще немає</p>
+        <p class="text-sm text-gray-500 mb-3">Зважувань ще немає</p>
       {% endif %}
 
-      <div id="weight-form" class="{% if not weights %}{% else %}hidden{% endif %} pt-3 border-t border-gray-100 mt-3">
+      <div id="weight-form" class="hidden pt-3 border-t border-gray-100 mt-3">
         <form method="post" action="{% url 'clients:weight_add' patient.pk %}">
           {% csrf_token %}
           <div class="space-y-2">
@@ -227,16 +227,16 @@
     </div>
 
     <!-- Аналізи -->
-    <div class="patient-section bg-white rounded-xl border border-gray-200 p-5">
-      <div class="mb-4">
+    <div class="patient-section px-4">
+      <div>
         <button type="button" onclick="toggleSection(this)" aria-expanded="true" data-section="analyses" class="w-full flex items-center justify-between text-left py-3 min-h-[44px]">
-          <h3 class="text-sm font-semibold text-gray-700">🔬 Аналізи <span class="text-xs text-gray-400 font-normal ml-1">({{ analyses|length }})</span></h3>
+          <h3 class="text-sm font-semibold text-brand-dark">Аналізи <span class="text-xs text-gray-500 font-normal ml-1">({{ analyses|length }})</span></h3>
           <span class="w-11 h-11 -mr-2 flex items-center justify-center shrink-0">
             <svg class="w-5 h-5 text-gray-400 transition-transform section-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
           </span>
         </button>
         <div class="section-content kz-m-hide">
-      <div class="flex items-center justify-between mb-3">
+      <div class="flex items-center justify-between -mt-2 mb-1">
         <span></span>
         <button onclick="document.getElementById('analysis-form').classList.toggle('hidden')"
                 class="inline-flex items-center min-h-[44px] px-2 -mr-2 text-xs text-brand-gold hover:text-brand-dark font-medium md:min-h-0 md:px-0 md:mr-0">+ Додати</button>
@@ -279,57 +279,48 @@
       </div>
 
       {% if analyses %}
-        <div class="grid grid-cols-2 gap-2">
+        {% with has_tg=patient.client.tg_chats.exists %}
+        <div class="divide-y divide-gray-100">
           {% for a in analyses %}
-          <div class="group relative rounded-lg overflow-hidden border border-gray-100">
-            {% if a.is_image %}
-            <a href="{{ a.image.url }}" target="_blank">
-              <img src="{{ a.image.url }}" alt="{{ a.title }}" loading="lazy" decoding="async"
-                   class="w-full h-24 object-cover">
+          <div class="group flex items-center gap-3 py-2{% if forloop.counter > 5 %} hidden analysis-more{% endif %}">
+            <a href="{{ a.image.url }}" target="_blank" rel="noopener" class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-gray-200 bg-gray-50">
+              {% if a.is_image %}<img src="{{ a.image.url }}" alt="" loading="lazy" decoding="async" class="h-full w-full object-cover">
+              {% else %}<span class="text-[10px] font-semibold text-gray-600">{% if a.is_pdf %}PDF{% else %}ФАЙЛ{% endif %}</span>{% endif %}
             </a>
-            {% else %}
-            <a href="{{ a.image.url }}" target="_blank"
-               class="flex items-center justify-center h-24 bg-gray-50 hover:bg-gray-100 transition">
-              <span class="text-4xl">{{ a.file_icon }}</span>
+            <a href="{{ a.image.url }}" target="_blank" rel="noopener" class="min-w-0 flex-1">
+              <div class="truncate text-sm font-medium text-brand-dark">{{ a.title }}</div>
+              <div class="text-xs text-gray-500 tabular-nums">{{ a.date|date:"d.m.Y" }}</div>
             </a>
-            {% endif %}
-            {# дії — під мініатюрою, щоб не закривати саме зображення аналізу #}
-            <div class="px-2 py-1.5 flex flex-col md:flex-row md:items-end md:justify-between gap-1">
-              <div class="min-w-0">
-                <div class="text-xs font-medium text-brand-dark truncate">{{ a.title }}</div>
-                <div class="text-xs text-gray-400">{{ a.date|date:"d.m.Y" }}</div>
-              </div>
-              <div class="flex items-center justify-end shrink-0 -mb-1.5 -mr-1 md:my-0">
-                {% if patient.client.tg_chats.exists %}
-                <form method="post" action="{% url 'tg:send_analysis_photo' a.pk %}"
-                      onsubmit="var b=this.querySelector('button');b.disabled=true;b.textContent='⏳';">
-                  {% csrf_token %}
-                  <button type="submit"
-                          class="w-11 h-11 md:w-7 md:h-7 flex items-center justify-center text-blue-400 hover:text-blue-600 text-xs font-medium"
-                          title="Відправити в Telegram">
-                    TG
-                  </button>
-                </form>
-                {% endif %}
-                <form method="post" action="{% url 'clients:analysis_delete' a.pk %}"
-                      onsubmit="return confirm('Видалити аналіз «{{ a.title }}»?')">
-                  {% csrf_token %}
-                  <button type="submit" aria-label="Видалити аналіз"
-                          class="w-11 h-11 md:w-7 md:h-7 flex items-center justify-center text-red-400 hover:text-red-600 text-xs font-medium">
-                    ✕
-                  </button>
-                </form>
-              </div>
+            <div class="flex shrink-0 items-center opacity-100 md:opacity-0 md:group-hover:opacity-100">
+              {% if has_tg %}
+              <form method="post" action="{% url 'tg:send_analysis_photo' a.pk %}"
+                    onsubmit="var b=this.querySelector('button');b.disabled=true;b.textContent='…';">
+                {% csrf_token %}
+                <button type="submit" class="flex h-11 w-11 items-center justify-center text-xs font-medium text-sky-700 hover:text-sky-900 md:h-8 md:w-8" title="Відправити в Telegram">TG</button>
+              </form>
+              {% endif %}
+              <form method="post" action="{% url 'clients:analysis_delete' a.pk %}"
+                    onsubmit="return confirm('Видалити аналіз «{{ a.title }}»?')">
+                {% csrf_token %}
+                <button type="submit" aria-label="Видалити аналіз" class="flex h-11 w-11 items-center justify-center text-gray-400 hover:text-red-600 md:h-8 md:w-8">
+                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+              </form>
             </div>
           </div>
           {% endfor %}
         </div>
+        {% if analyses|length > 5 %}
+        <button type="button" onclick="document.querySelectorAll('.analysis-more').forEach(function(e){e.classList.remove('hidden')});this.remove()"
+                class="mt-1 inline-flex min-h-[44px] items-center text-xs font-medium text-brand-dark underline decoration-brand-gold underline-offset-2 md:min-h-0">Показати всі ({{ analyses|length }})</button>
+        {% endif %}
+        {% endwith %}
       {% else %}
-        <p class="text-sm text-gray-400">Аналізів ще немає</p>
+        <p class="text-sm text-gray-500">Аналізів ще немає</p>
       {% endif %}
 
       {% if analyses|length >= 2 %}
-      <button type="button" onclick="toggleCompare()" class="inline-flex items-center min-h-[44px] px-2 -ml-2 mt-1 text-xs text-brand-gold hover:text-brand-dark font-medium md:min-h-0 md:px-0 md:ml-0 md:mt-2">🔍 Порівняти</button>
+      <button type="button" onclick="toggleCompare()" class="inline-flex items-center min-h-[44px] px-2 -ml-2 mt-1 text-xs text-brand-gold hover:text-brand-dark font-medium md:min-h-0 md:px-0 md:ml-0 md:mt-2">Порівняти аналізи</button>
       <div id="compare-panel" class="hidden mt-2 grid grid-cols-2 gap-2 bg-gray-50 rounded-xl p-3">
         <div>
           <select id="compare-left" class="w-full text-xs border border-gray-200 rounded-lg px-2 py-1 mb-2" onchange="loadCompareImg('left')">
@@ -357,10 +348,10 @@
     </div>
 
     <!-- Документи -->
-    <div class="patient-section bg-white rounded-xl border border-gray-200 p-5">
-      <div class="mb-4">
+    <div class="patient-section px-4">
+      <div>
         <button type="button" onclick="toggleSection(this)" aria-expanded="true" data-section="documents" class="w-full flex items-center justify-between text-left py-3 min-h-[44px]">
-          <h3 class="text-sm font-semibold text-gray-700">📎 Документи <span class="text-xs text-gray-400 font-normal ml-1">({{ patient.documents.count }})</span></h3>
+          <h3 class="text-sm font-semibold text-brand-dark">Документи <span class="text-xs text-gray-500 font-normal ml-1">({{ patient.documents.count }})</span></h3>
           <span class="w-11 h-11 -mr-2 flex items-center justify-center shrink-0">
             <svg class="w-5 h-5 text-gray-400 transition-transform section-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
           </span>
@@ -370,7 +361,7 @@
           <div class="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0 group">
             <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0
               {% if doc.is_pdf %}bg-red-50 text-red-400{% elif doc.is_image %}bg-blue-50 text-blue-400{% else %}bg-gray-50 text-gray-400{% endif %}">
-              {% if doc.is_pdf %}📄{% elif doc.is_image %}🖼{% else %}📁{% endif %}
+              <span class="text-[10px] font-semibold">{% if doc.is_pdf %}PDF{% elif doc.is_image %}ФОТО{% else %}ФАЙЛ{% endif %}</span>
             </div>
             <div class="flex-1 min-w-0">
               <a href="{{ doc.file.url }}" target="_blank" class="text-sm text-brand-dark hover:text-brand-gold font-medium truncate block">{{ doc.title }}</a>
@@ -383,7 +374,7 @@
             </form>
           </div>
           {% empty %}
-          <div class="text-xs text-gray-300 py-2">Немає документів</div>
+          <div class="text-sm text-gray-500 py-2">Немає документів</div>
           {% endfor %}
           <a href="{% url 'clients:document_upload' patient.pk %}" class="inline-flex items-center min-h-[44px] px-2 -ml-2 mt-1 text-xs text-brand-gold hover:text-brand-dark font-medium md:min-h-0 md:px-0 md:ml-0 md:mt-2">+ Завантажити документ</a>
         </div>
@@ -393,10 +384,10 @@
     <!-- Протоколи УЗД -->
     {% with ultrasounds=patient.ultrasounds.all|slice:":5" %}
     {% if ultrasounds %}
-    <div class="patient-section bg-white rounded-xl border border-gray-200 p-5">
-      <div class="mb-4">
+    <div class="patient-section px-4">
+      <div>
         <button type="button" onclick="toggleSection(this)" aria-expanded="true" data-section="ultrasounds" class="w-full flex items-center justify-between text-left py-3 min-h-[44px]">
-          <h3 class="text-sm font-semibold text-gray-700">📋 Протоколи УЗД <span class="text-xs text-gray-400 font-normal ml-1">({{ patient.ultrasounds.count }})</span></h3>
+          <h3 class="text-sm font-semibold text-brand-dark">Протоколи УЗД <span class="text-xs text-gray-500 font-normal ml-1">({{ patient.ultrasounds.count }})</span></h3>
           <span class="w-11 h-11 -mr-2 flex items-center justify-center shrink-0">
             <svg class="w-5 h-5 text-gray-400 transition-transform section-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
           </span>
@@ -424,10 +415,10 @@
     <!-- Опитування здоров'я -->
     {% with health_checks=patient.health_checks.all|slice:":5" %}
     {% if health_checks %}
-    <div class="patient-section bg-white rounded-xl border border-gray-200 p-5">
-      <div class="mb-4">
+    <div class="patient-section px-4">
+      <div>
         <button type="button" onclick="toggleSection(this)" aria-expanded="true" data-section="health" class="w-full flex items-center justify-between text-left py-3 min-h-[44px]">
-          <h3 class="text-sm font-semibold text-gray-700">🩺 Опитування здоров'я <span class="text-xs text-gray-400 font-normal ml-1">({{ patient.health_checks.count }})</span></h3>
+          <h3 class="text-sm font-semibold text-brand-dark">Опитування здоров'я <span class="text-xs text-gray-500 font-normal ml-1">({{ patient.health_checks.count }})</span></h3>
           <span class="w-11 h-11 -mr-2 flex items-center justify-center shrink-0">
             <svg class="w-5 h-5 text-gray-400 transition-transform section-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
           </span>
@@ -457,17 +448,13 @@
   </div>
 
   <!-- Права колонка: повна хронологія маніпуляцій -->
-  <div class="md:col-span-2" id="history-block">
+  <div class="min-w-0" id="history-block">
     <div class="flex items-center justify-between mb-3">
-      <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide">Історія маніпуляцій</h2>
-      <div class="flex items-center gap-3">
-        <button type="button" onclick="document.getElementById('quick-visit-modal').classList.remove('hidden')"
-          class="inline-flex items-center whitespace-nowrap min-h-[44px] px-1 text-xs text-gray-400 hover:text-brand-gold font-medium md:min-h-0 md:px-0">
-          ⚡ Швидкий візит
-        </button>
-        <a href="{% url 'clients:visit_create' patient.pk %}"
-           class="inline-flex items-center whitespace-nowrap min-h-[44px] px-2 -mr-2 text-sm text-brand-gold hover:text-brand-dark font-medium md:min-h-0 md:px-0 md:mr-0">+ Візит</a>
-      </div>
+      <h2 class="text-sm font-semibold uppercase tracking-wide text-gray-600">Історія</h2>
+      <button type="button" onclick="document.getElementById('quick-visit-modal').classList.remove('hidden')"
+        class="inline-flex min-h-[44px] items-center whitespace-nowrap text-sm font-medium text-brand-dark underline decoration-brand-gold underline-offset-2 md:min-h-0">
+        Швидкий візит
+      </button>
     </div>
 
     {% if visits or invoices %}
@@ -478,21 +465,21 @@
 
       {# Телефон: рахунки згорнуті в один рядок-підсумок замість трьох екранів карток #}
       {% if invoices %}
-      <div id="invoices-mobile" class="bg-white rounded-xl border border-gray-200 px-3 md:hidden">
+      <div id="invoices-mobile" class="bg-white rounded-xl border border-gray-200 px-3 md:px-4">
         <button type="button" onclick="toggleSection(this)" aria-expanded="true" data-section="invoices"
                 class="w-full flex items-center justify-between text-left py-3 min-h-[44px]">
-          <h3 class="text-sm font-semibold text-gray-700">💵 Рахунки
+          <h3 class="text-sm font-semibold text-brand-dark">Рахунки
             <span class="text-xs text-gray-600 font-normal ml-1">{{ invoices|length }} · {{ invoices_total|floatformat:0 }} ₴</span>
           </h3>
           <span class="w-11 h-11 -mr-2 flex items-center justify-center shrink-0">
             <svg class="w-5 h-5 text-gray-400 transition-transform section-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
           </span>
         </button>
-        <div class="section-content kz-m-hide pb-2">
+        <div class="section-content kz-m-hide hidden pb-2">
           {% for inv in invoices|dictsortreversed:"created_at" %}
           <a href="{% url 'billing:detail' inv.pk %}"
              class="flex items-center gap-2 min-h-[44px] py-1 border-t border-gray-50 text-sm">
-            <span class="text-gray-600 shrink-0">{{ inv.created_at|date:"d.m.y" }}</span>
+            <span class="text-gray-600 shrink-0 tabular-nums">{{ inv.created_at|date:"d.m.y" }}</span>
             <span class="flex-1 min-w-0 truncate text-xs text-gray-600">
               {% for line in inv.lines.all %}{{ line.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
             </span>
@@ -521,9 +508,9 @@
             {% endif %}
             {# згорнутий вигляд: суть візиту одним рядком #}
             <div class="visit-preview ml-4 mt-0.5 text-xs text-gray-600 truncate{% if forloop.first %} kz-m-hide{% endif %}">
-              {% if visit.diagnosis %}{{ visit.diagnosis|striptags|truncatechars:70 }}
-              {% elif visit.complaint %}{{ visit.complaint|striptags|truncatechars:70 }}
-              {% elif visit.treatment %}{{ visit.treatment|striptags|truncatechars:70 }}
+              {% if visit.diagnosis %}{{ visit.diagnosis|plain|truncatechars:70 }}
+              {% elif visit.complaint %}{{ visit.complaint|plain|truncatechars:70 }}
+              {% elif visit.treatment %}{{ visit.treatment|plain|truncatechars:70 }}
               {% else %}—{% endif %}
             </div>
           </button>
@@ -581,7 +568,7 @@
             </div>
           </div>
         </div>
-        <div class="visit-body ml-4 space-y-2 text-sm{% if not forloop.first %} kz-m-hide{% endif %}">
+        <div class="visit-body ml-4 space-y-2 text-sm{% if not forloop.first %} kz-m-hide md:max-h-48 md:overflow-hidden visit-clamp{% endif %}">
           {% if visit.complaint %}
           <div>
             <span class="text-xs font-semibold text-gray-400 uppercase">{% firstof clinic.visit_labels.complaint "Скарги" %}:</span>
@@ -615,46 +602,13 @@
           </div>
           {% endif %}
           {# на телефоні ця дія живе в меню «⋯» — тут лишається тільки для ПК #}
-          <a href="{% url 'clients:prescription_create' visit.pk %}" class="hidden md:inline-block text-xs text-gray-400 hover:text-brand-gold mt-1">+ Призначення</a>
+          <a href="{% url 'clients:prescription_create' visit.pk %}" class="hidden md:inline-block text-xs text-gray-600 hover:text-brand-dark mt-1">+ Призначення</a>
         </div>
+        {% if not forloop.first %}<button type="button" onclick="var b=this.previousElementSibling;b.classList.remove('md:max-h-48','md:overflow-hidden','visit-clamp');this.remove()" class="visit-more ml-4 mt-2 hidden text-xs font-medium text-brand-dark underline decoration-brand-gold underline-offset-2 md:inline-flex">Показати повністю</button>{% endif %}
       </div>
       {% endfor %}
 
-      {# ПК: рахунки картками як раніше — на телефоні їх замінює рядок-підсумок вище #}
-      <div id="invoices-desktop" class="hidden md:block space-y-3">
-      {% for inv in invoices %}
-      <div class="bg-white rounded-xl border border-gray-200 p-5">
-        <div class="flex items-start justify-between">
-          <div>
-            <div class="flex items-center gap-2">
-              <span class="inline-block w-2 h-2 rounded-full bg-green-400"></span>
-              <span class="font-semibold text-brand-dark text-sm">{{ inv.created_at|date:"d.m.Y H:i" }}</span>
-              <span class="text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded-full">Рахунок #{{ inv.pk }}</span>
-            </div>
-            {% if inv.doctor %}
-              <div class="text-xs text-gray-400 ml-4">{{ inv.doctor.get_full_name|default:inv.doctor.username }}</div>
-            {% endif %}
-          </div>
-          <div class="flex items-center gap-3 shrink-0">
-            <span class="font-bold text-brand-gold text-base md:text-sm">{{ inv.total }} ₴</span>
-            <a href="{% url 'billing:detail' inv.pk %}"
-               class="inline-flex items-center min-h-[44px] px-2 -mr-2 text-sm text-gray-400 hover:text-brand-gold font-medium md:min-h-0 md:px-0 md:mr-0 md:py-1 md:text-xs">Відкрити</a>
-          </div>
-        </div>
-        {% with lines=inv.lines.all %}
-        {% if lines %}
-        <div class="ml-4 mt-2">
-          <div class="flex flex-wrap gap-1">
-            {% for line in lines %}
-              <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{{ line.name }}</span>
-            {% endfor %}
-          </div>
-        </div>
-        {% endif %}
-        {% endwith %}
-      </div>
-      {% endfor %}
-      </div>{# /рахунки ПК #}
+
 
     </div>
     {% else %}
