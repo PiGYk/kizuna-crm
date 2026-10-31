@@ -1,4 +1,4 @@
-{% load appt_tags %}
+{% load appt_tags clinic_html %}
 {# Шапка картки (перебудова 31.10.2026, docs/patient-card/OCINKA-2026-10-31.md): компактна тотожність + власник + 3 дії #}
 <div class="mb-6">
   <form method="post" action="{% url 'clients:patient_photo_upload' patient.pk %}" enctype="multipart/form-data" id="photo-form" class="hidden">
@@ -58,6 +58,11 @@
           {% endif %}{% endwith %}
         </div>
         <dl class="mt-2 text-sm">{% include 'clients/partials/patient_doctor.html' %}</dl>
+        {% if visits %}{% with lv=visits.0 %}
+        <button type="button" onclick="scrollToHistory()" class="mt-1 block max-w-full truncate text-left text-sm text-gray-700 xl:hidden">
+          <span class="text-gray-600">Останній візит:</span> <span class="tabular-nums">{{ lv.date|date:"d.m.Y" }}</span>{% with dx=lv.diagnosis|plain %}{% if dx %} · {{ dx|truncatechars:60 }}{% endif %}{% endwith %}
+        </button>
+        {% endwith %}{% endif %}
       </div>
     </div>
 
