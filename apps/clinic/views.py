@@ -92,6 +92,12 @@ _SECTIONS = {
     'save_telegram': ('telegram', TelegramTokenForm, 'Токен бота збережено. Тепер натисніть «Зареєструвати webhook».'),
     'save_checkbox': ('checkbox', CheckboxForm,      'Дані Checkbox збережено.'),
 }
+# Чим тарифи різняться (функції однакові — лише супровід); як на лендингу.
+_PLAN_NOTES = {
+    'start':   'Уся система без обмежень',
+    'clinic':  'Плюс особистий супровід: перенесення даних, навчання',
+    'network': 'Плюс кілька філій, свої звіти, домовлений час реакції',
+}
 _FORM_CTX = {'clinic': 'clinic_form', 'schedule': 'schedule_form', 'design': 'design_form',
              'telegram': 'telegram_form', 'checkbox': 'checkbox_form'}
 
@@ -164,6 +170,7 @@ class ClinicSettingsView(AdminRequiredMixin, View):
             'menu_config': menu_config,
             'menu_config_json': json.dumps(menu_config),
             'schedule_days': ctx['schedule_form'].selected_days(),
+            'plans': [(k, dict(Organization.PLAN_CHOICES)[k], _PLAN_NOTES[k]) for k in Organization.CURRENT_PLANS],
             'day_names': list(enumerate(DAY_NAMES)),
             'active_tab': active_tab,
         })

@@ -48,7 +48,8 @@
 
     // 1) наявні gtag-події дублюємо в Мету (одна точка замість правок у 8 місцях)
     var MAP = Object();
-    MAP['generate_lead']      = 'Lead';
+    // generate_lead СЮДИ НЕ МАПИМО: форма контакту вже дає Lead нижче,
+    // по відповіді сервера. Інакше на одну заявку Мета рахує два ліди.
     MAP['begin_registration'] = 'InitiateCheckout';
     MAP['open_demo']          = 'ViewContent';
     var g = window.gtag;
@@ -509,7 +510,7 @@
            class="kzh-btn-ghost">Зайти в демо</a>
       </div>
 
-      <p class="kzh-note"><b>900 ₴ на місяць за всю клініку</b> · без картки · без обмежень функцій</p>
+      <p class="kzh-note"><b>від 990 ₴ на місяць за всю клініку</b> · без картки · без обмежень функцій</p>
     </div>
 
     <!-- живий сценарій: клієнт → пацієнт → новий візит (розмітка з реальної CRM) -->
@@ -1277,15 +1278,15 @@
 
     <div class="kzp-arg">
       <p>Більшість ветеринарних програм в Україні беруть плату <strong>за кожного лікаря</strong>: близько 300 ₴ на місяць за одного. Клініка з шістьма лікарями віддає 1 800 ₴ — і платить більше щоразу, коли наймає людину.
-        <span class="hit">У нас — 900 ₴ за всю клініку. Наймайте скільки треба, платіж не зростає.</span>
+        <span class="hit">У нас — від 990 ₴ за всю клініку. Наймайте скільки треба, платіж не зростає.</span>
       </p>
     </div>
 
     <div class="kzp-grid">
     <div class="kzp-card">
-      <div class="kzp-name">База</div>
-      <div class="kzp-price">₴900<i>/міс</i></div>
-      <div class="kzp-year">₴720/міс при оплаті за рік</div>
+      <div class="kzp-name">Старт</div>
+      <div class="kzp-price">₴990<i>/міс</i></div>
+      <div class="kzp-year">₴792/міс при оплаті за рік</div>
       <p class="kzp-desc">Уся система без обмежень. Для клініки, яка сама дає собі раду.</p>
       <ul class="kzp-list">
         <li>Лікарів — скільки завгодно</li>
@@ -1295,40 +1296,40 @@
         <li>Telegram-бот для клієнтів</li>
         <li>Аналітика, зарплати, фінанси</li>
       </ul>
-      <a href="https://crm.kizuna.com.ua/register/" onclick="gtag('event','begin_registration',{event_category:'pricing',event_label:'base'})" class="kzp-btn ghost">Почати безкоштовно →</a>
+      <a href="https://crm.kizuna.com.ua/register/" onclick="gtag('event','begin_registration',{event_category:'pricing',event_label:'start'})" class="kzp-btn ghost">Почати безкоштовно →</a>
     </div>
 
     <div class="kzp-card dark">
       <div class="kzp-badge">Обирають найчастіше</div>
-      <div class="kzp-name">Підтримка</div>
-      <div class="kzp-price">₴1 300<i>/міс</i></div>
-      <div class="kzp-year">₴1 040/міс при оплаті за рік</div>
+      <div class="kzp-name">Клініка</div>
+      <div class="kzp-price">₴1 990<i>/міс</i></div>
+      <div class="kzp-year">₴1 592/міс при оплаті за рік</div>
       <p class="kzp-desc">Коли не хочеться розбиратися самим — я веду вас особисто.</p>
       <ul class="kzp-list">
-        <li>Усе з «Бази»</li>
+        <li>Усе зі «Старту»</li>
         <li>Перенесення даних зі старої програми</li>
         <li>Навчання адміністраторів і лікарів</li>
         <li>Особистий контакт, не служба підтримки</li>
         <li>Налаштування під ваші процеси</li>
         <li>Ваші побажання — у першу чергу</li>
       </ul>
-      <a href="https://crm.kizuna.com.ua/register/" onclick="gtag('event','begin_registration',{event_category:'pricing',event_label:'support'})" class="kzp-btn gold">Спробувати</a>
+      <a href="https://crm.kizuna.com.ua/register/" onclick="gtag('event','begin_registration',{event_category:'pricing',event_label:'clinic'})" class="kzp-btn gold">Спробувати</a>
     </div>
 
     <div class="kzp-card">
-      <div class="kzp-name">Індивідуальний</div>
-      <div class="kzp-price">від ₴5 000<i>/міс</i></div>
-      <div class="kzp-year">Вартість — після розмови про задачі</div>
+      <div class="kzp-name">Мережа</div>
+      <div class="kzp-price">₴3 990<i>/міс</i></div>
+      <div class="kzp-year">₴3 192/міс при оплаті за рік</div>
       <p class="kzp-desc">Коли клініка працює інакше, ніж усі — систему підганяємо під неї.</p>
       <ul class="kzp-list">
-        <li>Усе з «Підтримки»</li>
+        <li>Усе з «Клініки»</li>
         <li>Заводимо накладні за вас — скидаєте, вносимо з вашими цінами</li>
         <li>Інтеграція з Checkbox і будь-якою платіжкою</li>
         <li>Кілька філій в одній системі</li>
         <li>Домовлений час реакції</li>
         <li>Свої звіти й документи</li>
       </ul>
-      <a href="https://crm.kizuna.com.ua/register/" onclick="gtag('event','begin_registration',{event_category:'pricing',event_label:'custom'})" class="kzp-btn ghost">Обговорити</a>
+      <a href="https://crm.kizuna.com.ua/register/" onclick="gtag('event','begin_registration',{event_category:'pricing',event_label:'network'})" class="kzp-btn ghost">Обговорити</a>
     </div>
     </div>
 
@@ -1398,7 +1399,7 @@
       </details>
       <details class="kzf-i">
         <summary><span>Скільки це коштує?</span><i aria-hidden="true"></i></summary>
-        <div class="kzf-a"><div><p>База — 900 ₴ на місяць за всю клініку, без плати за кожного лікаря чи робоче місце. Пакет з підтримкою — 1300 ₴. Індивідуальний — від 5000 ₴. Перші 30 днів безкоштовно, без картки.</p></div></div>
+        <div class="kzf-a"><div><p>Старт — 990 ₴ на місяць за всю клініку, без плати за кожного лікаря чи робоче місце. Клініка (з особистим супроводом: перенесення даних, навчання) — 1990 ₴. Мережа (кілька філій, свої звіти) — 3990 ₴. Перші 30 днів безкоштовно, без картки.</p></div></div>
       </details>
       <details class="kzf-i">
         <summary><span>Що буде після 30 днів безкоштовного періоду?</span><i aria-hidden="true"></i></summary>
@@ -1968,7 +1969,7 @@
       "name": "Скільки це коштує?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "База — 900 грн на місяць за всю клініку, без плати за кожного лікаря. Пакет з підтримкою — 1300 грн. Індивідуальний — від 5000 грн. Перші 30 днів безкоштовно, без картки."
+        "text": "Старт — 990 грн на місяць за всю клініку, без плати за кожного лікаря чи робоче місце. Клініка (з особистим супроводом: перенесення даних, навчання) — 1990 грн. Мережа (кілька філій, свої звіти) — 3990 грн. Перші 30 днів безкоштовно, без картки."
       }
     },
     {

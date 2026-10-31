@@ -657,17 +657,16 @@
     <p class="text-sm text-gray-500 mb-5">Оберіть тарифний план. На кожному тарифі — уся система без обмежень: Telegram, Checkbox, будь-яка кількість лікарів. Тарифи відрізняються рівнем супроводу.</p>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-      {% for plan_key, plan_label in org.PLAN_CHOICES %}
+      {% for plan_key, plan_label, plan_note in plans %}
       <div class="border rounded-xl p-4 {% if org.plan == plan_key %}border-brand-gold bg-brand-gold/5{% else %}border-gray-200{% endif %}">
         <div class="font-semibold text-sm text-brand-dark mb-1">
           {% if org.plan == plan_key %}&#10003; {% endif %}{{ plan_label }}
         </div>
-        {% if org.plan != plan_key %}
+        <div class="text-xs text-gray-400">{{ plan_note }}</div>
         <a href="{% url 'subscribe_checkout' plan_key %}"
            class="mt-3 block text-center text-xs bg-brand-gold text-brand-dark rounded-lg px-3 py-1.5 hover:brightness-95 font-medium">
-          Перейти
+          {% if org.plan == plan_key %}Продовжити на місяць{% else %}Перейти{% endif %}
         </a>
-        {% endif %}
       </div>
       {% endfor %}
     </div>
