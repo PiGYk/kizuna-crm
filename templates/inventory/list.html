@@ -122,10 +122,7 @@
   </div>
   <div class="bg-white rounded-xl border border-gray-200 px-4 py-3">
     <div class="text-[11px] text-gray-400 uppercase tracking-wide">Потенц. прибуток</div>
-    <div class="text-2xl font-bold text-green-600 mt-0.5">
-      {% widthratio 1 1 0 as zero %}
-      {{ total_sell|add:"-0"|floatformat:0|default:"0" }}
-    </div>
+    <div class="text-2xl font-bold mt-0.5 tabular-nums {% if total_profit > 0 %}text-green-700{% elif total_profit < 0 %}text-red-700{% else %}text-brand-dark{% endif %}">{{ total_profit|floatformat:0 }} ₴</div>
   </div>
 </div>
 

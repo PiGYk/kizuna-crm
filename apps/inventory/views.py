@@ -110,6 +110,9 @@ class ProductListView(LoginRequiredMixin, ListView):
         )
         ctx['total_buy'] = totals['total_buy'] or 0
         ctx['total_sell'] = totals['total_sell'] or 0
+        # потенційний прибуток = продаж − закупівля; до 01.11.2026 плитка показувала саму суму продажу,
+        # ще й без копійок (ANVAR: «по вхідній 8834, по вихідній 8834, прибуток 8833»)
+        ctx['total_profit'] = ctx['total_sell'] - ctx['total_buy']
         return ctx
 
 
