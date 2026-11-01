@@ -208,7 +208,11 @@ class PatientDetailView(LoginRequiredMixin, DetailView):
             .filter(status='paid')
             .all()
         )
-        ctx['analyses'] = self.object.analyses.all()
+        ctx['analyses'] = list(self.object.analyses.all())
+        ctx['lab_results'] = list(self.object.lab_results.select_related('doctor'))
+        ctx['analyses_total'] = len(ctx['analyses']) + len(ctx['lab_results'])
+        from .models import LabResult
+        ctx['lab_panels'] = LabResult.Panel.choices
         # Підсумок рахунків — на телефоні перелік згорнутий у рядок «N · сума ₴»
         ctx['invoices'] = list(ctx['invoices'])
         ctx['invoices_total'] = sum((inv.total or 0) for inv in ctx['invoices'])

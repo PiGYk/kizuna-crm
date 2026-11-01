@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views, views_consents
+from . import views, views_consents, views_lab
 
 app_name = 'clients'
 
@@ -27,6 +27,10 @@ urlpatterns = [
     path('patients/<int:pk>/set-doctor/', views.patient_set_doctor, name='patient_set_doctor'),
     path('patients/<int:patient_pk>/analyses/create/', views.analysis_create, name='analysis_create'),
     path('analyses/<int:pk>/delete/', views.analysis_delete, name='analysis_delete'),
+    path('patients/<int:patient_pk>/lab/new/', views_lab.lab_create, name='lab_create'),
+    path('lab/<int:pk>/', views_lab.lab_edit, name='lab_edit'),
+    path('lab/<int:pk>/pdf/', views_lab.lab_pdf, name='lab_pdf'),
+    path('lab/<int:pk>/delete/', views_lab.lab_delete, name='lab_delete'),
     path('search/', views.client_search, name='search'),
     path('patients/<int:patient_pk>/microchip/', views.microchip_save, name='microchip_save'),
     path('patients/<int:patient_pk>/weights/add/', views.weight_add, name='weight_add'),

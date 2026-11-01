@@ -228,16 +228,23 @@
     <div class="patient-section px-4">
       <div>
         <button type="button" onclick="toggleSection(this)" aria-expanded="true" data-section="analyses" class="w-full flex items-center justify-between text-left py-2 min-h-[48px]">
-          <h3 class="text-sm font-semibold text-brand-dark">Аналізи <span class="text-xs text-gray-500 font-normal ml-1">({{ analyses|length }})</span></h3>
+          <h3 class="text-sm font-semibold text-brand-dark">Аналізи <span class="text-xs text-gray-500 font-normal ml-1">({{ analyses_total }})</span></h3>
           <span class="w-8 h-8 -mr-1 flex items-center justify-center shrink-0">
             <svg class="w-5 h-5 text-gray-500 transition-transform section-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
           </span>
         </button>
         <div class="section-content kz-m-hide">
-      <div class="flex items-center justify-between -mt-2 mb-1">
-        <span></span>
+      <div class="flex items-center justify-end gap-4 -mt-2 mb-1">
+        <details data-menu class="relative">
+          <summary class="inline-flex items-center min-h-[44px] list-none cursor-pointer text-xs text-brand-dark underline decoration-brand-gold underline-offset-2 hover:decoration-brand-dark font-medium md:min-h-0 [&::-webkit-details-marker]:hidden">+ Бланк<svg class="ml-0.5 h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></summary>
+          <div class="absolute right-0 z-20 mt-1 w-60 overflow-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+            {% for value, label in lab_panels %}
+            <a href="{% url 'clients:lab_create' patient.pk %}?panel={{ value }}" class="block px-4 py-2.5 text-sm text-brand-dark hover:bg-gray-50">{{ label }}</a>
+            {% endfor %}
+          </div>
+        </details>
         <button onclick="document.getElementById('analysis-form').classList.toggle('hidden')"
-                class="inline-flex items-center min-h-[44px] px-2 -mr-2 text-xs text-brand-dark underline decoration-brand-gold underline-offset-2 hover:decoration-brand-dark font-medium md:min-h-0 md:px-0 md:mr-0">+ Додати</button>
+                class="inline-flex items-center min-h-[44px] px-2 -mr-2 text-xs text-brand-dark underline decoration-brand-gold underline-offset-2 hover:decoration-brand-dark font-medium md:min-h-0 md:px-0 md:mr-0">+ Файл</button>
       </div>
 
       <div id="analysis-form" class="hidden mb-4 pb-4 border-b border-gray-100">
@@ -276,6 +283,20 @@
         </form>
       </div>
 
+      {% if lab_results %}
+        <div class="divide-y divide-gray-100{% if analyses %} mb-1 border-b border-gray-100{% endif %}">
+          {% for lab in lab_results %}
+          <div class="group flex items-center gap-3 py-2">
+            <a href="{% url 'clients:lab_edit' lab.pk %}" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-white text-[10px] font-semibold text-brand-dark">{{ lab.short }}</a>
+            <a href="{% url 'clients:lab_edit' lab.pk %}" class="min-w-0 flex-1">
+              <div class="truncate text-sm font-medium text-brand-dark">{{ lab.display_title }}</div>
+              <div class="text-xs text-gray-500 tabular-nums">{{ lab.date|date:"d.m.Y" }}{% with n=lab.out_of_range %}{% if n %} · <span class="font-medium text-red-700">поза нормою: {{ n }}</span>{% endif %}{% endwith %}</div>
+            </a>
+            <a href="{% url 'clients:lab_pdf' lab.pk %}" target="_blank" rel="noopener" class="flex h-11 shrink-0 items-center px-2 text-xs font-medium text-brand-dark underline decoration-brand-gold underline-offset-2 md:h-8" title="Друк">PDF</a>
+          </div>
+          {% endfor %}
+        </div>
+      {% endif %}
       {% if analyses %}
         {% with has_tg=patient.client.tg_chats.exists %}
         <div class="divide-y divide-gray-100">
@@ -313,7 +334,7 @@
                 class="mt-1 inline-flex min-h-[44px] items-center text-xs font-medium text-brand-dark underline decoration-brand-gold underline-offset-2 md:min-h-0">Показати всі ({{ analyses|length }})</button>
         {% endif %}
         {% endwith %}
-      {% else %}
+      {% elif not lab_results %}
         <p class="text-sm text-gray-500">Аналізів ще немає</p>
       {% endif %}
 

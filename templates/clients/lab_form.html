@@ -1,0 +1,184 @@
+{% extends 'base.html' %}
+{% block title %}{{ lab.display_title }} — {{ patient.name }}{% endblock %}
+{% block content %}
+<div class="max-w-3xl">
+  <div class="mb-5 flex flex-wrap items-start justify-between gap-3">
+    <div class="min-w-0">
+      <a href="{% url 'clients:patient_detail' patient.pk %}" class="text-sm text-gray-600 hover:text-brand-dark">← {{ patient.name }}</a>
+      <h1 class="mt-1 text-xl font-bold text-brand-dark md:text-2xl">{{ lab.display_title }}</h1>
+      <p class="text-sm text-gray-600">{{ patient.get_species_display }}{% if patient.breed %} · {{ patient.breed }}{% endif %}{% if patient.date_of_birth %} · {{ patient.age_display }}{% endif %} · {{ patient.client.full_name }}</p>
+    </div>
+  </div>
+
+  <div class="sticky top-0 z-20 -mx-4 mb-3 flex items-center gap-2 border-b border-gray-200 bg-gray-50/95 px-4 py-2 backdrop-blur md:mx-0 md:rounded-lg md:border md:px-3">
+    <span id="lab-out" class="mr-auto text-sm font-medium" aria-live="polite"></span>
+    {% if lab.pk %}
+    <a id="lab-print" href="{% url 'clients:lab_pdf' lab.pk %}" target="_blank" rel="noopener"
+       class="inline-flex h-11 items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-brand-dark hover:bg-gray-50 md:h-10">
+      <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+      Друк
+    </a>
+    {% endif %}
+    <button type="submit" form="lab-form" class="h-11 rounded-lg bg-brand-gold px-5 text-sm font-semibold text-brand-dark hover:brightness-95 md:h-10">Зберегти</button>
+  </div>
+
+  {% include 'clinic/_form_errors.html' with f=form %}
+  <form method="post" id="lab-form" class="rounded-xl border border-gray-200 bg-white">
+    {% csrf_token %}
+    <input type="hidden" name="panel" value="{{ lab.panel }}">
+    <div class="grid grid-cols-2 gap-3 border-b border-gray-100 p-4 sm:grid-cols-3 sm:gap-4 md:p-5">
+      <div>
+        <label for="id_date" class="text-xs font-medium uppercase tracking-wide text-gray-600">Дата</label>
+        <div class="mt-1">{{ form.date }}</div>
+      </div>
+      <div>
+        <label for="lab-doctor" class="text-xs font-medium uppercase tracking-wide text-gray-600">Лікар</label>
+        <select id="lab-doctor" name="doctor" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-brand-gold md:text-sm">
+          <option value="">— не вказано —</option>
+          {% for d in doctors %}<option value="{{ d.pk }}"{% if doctor_value == d.pk|stringformat:"d" %} selected{% endif %}>{{ d.get_full_name|default:d.username }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-span-2 sm:col-span-1">
+        <label for="id_material" class="text-xs font-medium uppercase tracking-wide text-gray-600">Матеріал</label>
+        <div class="mt-1">{{ form.material }}</div>
+      </div>
+    </div>
+
+    <div id="lab-table" class="{% if descriptive and not rows %}hidden{% endif %} border-b border-gray-100 px-4 pb-2 pt-3 md:px-5">
+      <div class="hidden grid-cols-[minmax(0,1fr)_7rem_1.5rem_11rem] gap-x-3 pb-1 text-xs font-medium text-gray-600 md:grid">
+        <span>Показник</span><span class="text-right">Результат</span><span></span><span>Норма, від – до</span>
+      </div>
+      <div id="lab-rows" class="divide-y divide-gray-200">
+        {% for r in rows %}
+        <div class="lab-row -mx-2 grid grid-cols-[minmax(0,1fr)_6.5rem_1.5rem] items-center gap-x-3 gap-y-1 rounded-md px-2 py-2 focus-within:bg-amber-50/60 md:grid-cols-[minmax(0,1fr)_7rem_1.5rem_11rem] md:py-1.5">
+          <input type="hidden" name="row_code" value="{{ r.code }}">
+          {% if r.code %}
+          <div class="order-1 min-w-0 text-sm text-brand-dark">{{ r.name }} <span class="text-xs text-gray-500">{{ r.unit }}</span>
+            <input type="hidden" name="row_name" value="{{ r.name }}"><input type="hidden" name="row_unit" value="{{ r.unit }}"></div>
+          {% else %}
+          <div class="order-1 flex min-w-0 gap-2">
+            <input type="text" name="row_name" value="{{ r.name }}" maxlength="80" placeholder="Показник" aria-label="Назва показника" class="min-w-0 flex-1 rounded-md border border-gray-300 px-2 py-1.5 text-sm">
+            <input type="text" name="row_unit" value="{{ r.unit }}" maxlength="20" placeholder="од." aria-label="Одиниця" class="w-16 rounded-md border border-gray-300 px-2 py-1.5 text-sm">
+          </div>
+          {% endif %}
+          <input type="text" name="row_value" value="{{ r.value }}" maxlength="30" inputmode="decimal" aria-label="Результат: {{ r.name|default:'показник' }}"
+                 class="lab-value order-2 h-11 w-full rounded-md border border-gray-300 bg-white px-2 text-right text-base tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-gold md:h-8 md:text-sm">
+          <span class="lab-flag order-3 flex items-center justify-center" aria-live="polite"></span>
+          <div class="order-4 col-span-3 flex items-center gap-1.5 text-xs text-gray-600 md:col-span-1">
+            <span class="md:hidden">Норма</span>
+            <input type="text" name="row_low" value="{{ r.low }}" maxlength="15" inputmode="decimal" aria-label="Норма від" class="lab-low h-9 w-16 rounded-md border border-gray-200 bg-white px-1.5 text-right text-xs tabular-nums text-gray-700 md:h-7">
+            <span>–</span>
+            <input type="text" name="row_high" value="{{ r.high }}" maxlength="15" inputmode="decimal" aria-label="Норма до" class="lab-high h-9 w-16 rounded-md border border-gray-200 bg-white px-1.5 text-right text-xs tabular-nums text-gray-700 md:h-7">
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <p class="py-2 text-xs text-gray-500">
+        {% if has_norms %}Норми — типові для виду «{{ patient.get_species_display|lower }}» або збережені клінікою; змініть під свій аналізатор — клініка запам'ятає.{% else %}Для виду «{{ patient.get_species_display|lower }}» типових норм нема — впишіть норми свого аналізатора, клініка запам'ятає.{% endif %}
+        Порожні показники не зберігаються.
+      </p>
+    </div>
+    <div class="border-b border-gray-100 px-4 py-2 md:px-5">
+      <button type="button" onclick="kzLabAddRow()" class="inline-flex min-h-[44px] items-center text-sm font-medium text-brand-dark underline decoration-brand-gold underline-offset-2 md:min-h-0 md:py-1">+ Показник</button>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 p-4 md:p-5">
+      <div>
+        <label for="id_title" class="text-xs font-medium uppercase tracking-wide text-gray-600">Назва <span class="normal-case tracking-normal text-gray-600">— необов'язково, інакше «{{ lab.get_panel_display }}»</span></label>
+        <div class="mt-1">{{ form.title }}</div>
+      </div>
+      <div>
+        <label for="id_description" class="text-xs font-medium uppercase tracking-wide text-gray-600">{% if descriptive %}Опис (мікроскопічна картина){% else %}Коментар{% endif %}</label>
+        <div class="mt-1">{{ form.description }}</div>
+      </div>
+      <div>
+        <label for="id_conclusion" class="text-xs font-medium uppercase tracking-wide text-gray-600">Висновок</label>
+        <div class="mt-1">{{ form.conclusion }}</div>
+      </div>
+      <div class="flex flex-wrap items-center gap-3">
+        <button type="submit" class="h-11 rounded-lg bg-brand-gold px-6 text-sm font-semibold text-brand-dark hover:brightness-95">Зберегти</button>
+        <a href="{% url 'clients:patient_detail' patient.pk %}" class="inline-flex h-11 items-center rounded-lg border border-gray-200 px-5 text-sm text-gray-700 hover:bg-gray-50">До картки</a>
+      </div>
+    </div>
+  </form>
+
+  {% if lab.pk %}
+  <form method="post" action="{% url 'clients:lab_delete' lab.pk %}" class="mt-3 text-right"
+        onsubmit="return confirm('Видалити «{{ lab.display_title|escapejs }}» від {{ lab.date|date:'d.m.Y' }}?')">
+    {% csrf_token %}
+    <button type="submit" class="inline-flex min-h-[44px] items-center text-sm text-red-700 hover:text-red-800 md:min-h-0">Видалити бланк</button>
+  </form>
+  {% endif %}
+</div>
+
+<template id="lab-row-custom">
+  <div class="lab-row -mx-2 grid grid-cols-[minmax(0,1fr)_6.5rem_1.5rem] items-center gap-x-3 gap-y-1 rounded-md px-2 py-2 focus-within:bg-amber-50/60 md:grid-cols-[minmax(0,1fr)_7rem_1.5rem_11rem] md:py-1.5">
+    <input type="hidden" name="row_code" value="">
+    <div class="order-1 flex min-w-0 gap-2">
+      <input type="text" name="row_name" maxlength="80" placeholder="Показник" aria-label="Назва показника" class="min-w-0 flex-1 rounded-md border border-gray-300 px-2 py-1.5 text-sm">
+      <input type="text" name="row_unit" maxlength="20" placeholder="од." aria-label="Одиниця" class="w-16 rounded-md border border-gray-300 px-2 py-1.5 text-sm">
+    </div>
+    <input type="text" name="row_value" maxlength="30" inputmode="decimal" aria-label="Результат" class="lab-value order-2 h-11 w-full rounded-md border border-gray-300 bg-white px-2 text-right text-base tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-gold md:h-8 md:text-sm">
+    <span class="lab-flag order-3 flex items-center justify-center" aria-live="polite"></span>
+    <div class="order-4 col-span-3 flex items-center gap-1.5 text-xs text-gray-600 md:col-span-1">
+      <span class="md:hidden">Норма</span>
+      <input type="text" name="row_low" maxlength="15" inputmode="decimal" aria-label="Норма від" class="lab-low h-9 w-16 rounded-md border border-gray-200 bg-white px-1.5 text-right text-xs tabular-nums text-gray-700 md:h-7">
+      <span>–</span>
+      <input type="text" name="row_high" maxlength="15" inputmode="decimal" aria-label="Норма до" class="lab-high h-9 w-16 rounded-md border border-gray-200 bg-white px-1.5 text-right text-xs tabular-nums text-gray-700 md:h-7">
+    </div>
+  </div>
+</template>
+
+<script>
+(function () {
+  // ↑/↓ поруч із результатом, коли він за межами норми (та сама логіка, що й у друці: apps/clients/lab_panels.py:flag)
+  function num(text) {
+    var t = String(text || '').trim().replace(',', '.').replace(/\s+/g, '');
+    return /^-?\d+(\.\d+)?$/.test(t) ? parseFloat(t) : null;
+  }
+  var UP = '<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>';
+  var DOWN = '<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>';
+  var HIGH = ['border-red-600', 'bg-red-50', 'text-red-800', 'font-semibold'], LOW = ['border-blue-600', 'bg-blue-50', 'text-blue-800', 'font-semibold'];
+  function mark(row) {
+    var input = row.querySelector('.lab-value'), f = row.querySelector('.lab-flag');
+    var v = num(input.value), lo = num(row.querySelector('.lab-low').value), hi = num(row.querySelector('.lab-high').value);
+    var flag = v === null ? '' : (hi !== null && v > hi ? 'high' : (lo !== null && v < lo ? 'low' : ''));
+    row.dataset.flag = flag;
+    f.innerHTML = flag === 'high' ? UP : (flag === 'low' ? DOWN : '');
+    f.title = flag === 'high' ? 'Вище норми' : (flag === 'low' ? 'Нижче норми' : '');
+    f.className = 'lab-flag order-3 flex items-center justify-center ' + (flag === 'high' ? 'text-red-700' : 'text-blue-700');
+    HIGH.forEach(function (c) { input.classList.toggle(c, flag === 'high'); });
+    LOW.forEach(function (c) { if (c !== 'font-semibold') input.classList.toggle(c, flag === 'low'); });
+    if (flag === 'low') input.classList.add('font-semibold');
+    input.classList.toggle('border-gray-300', !flag);
+    input.classList.toggle('bg-white', !flag);
+  }
+  function count() {
+    var rows = form.querySelectorAll('.lab-row'), out = 0, filled = 0;
+    rows.forEach(function (r) { if (r.querySelector('.lab-value').value.trim()) filled++; if (r.dataset.flag) out++; });
+    var el = document.getElementById('lab-out');
+    el.textContent = out ? 'Поза нормою: ' + out : (filled ? 'Усе в межах норми' : '');
+    el.className = 'mr-auto text-sm font-medium ' + (out ? 'text-red-800' : 'text-green-800');
+  }
+  var form = document.getElementById('lab-form'), dirty = false;
+  form.querySelectorAll('.lab-row').forEach(mark);
+  count();
+  form.addEventListener('input', function (e) {
+    dirty = true;
+    var row = e.target.closest('.lab-row');
+    if (row) { mark(row); count(); }
+  });
+  form.addEventListener('submit', function () { dirty = false; });
+  var print = document.getElementById('lab-print');
+  if (print) print.addEventListener('click', function (e) {
+    if (dirty && !confirm('Є незбережені зміни. Друк покаже останній збережений бланк — спершу натисніть «Зберегти». Друкувати все одно?')) e.preventDefault();
+  });
+  window.kzLabAddRow = function () {
+    var node = document.getElementById('lab-row-custom').content.firstElementChild.cloneNode(true);
+    document.getElementById('lab-rows').appendChild(node);
+    document.getElementById('lab-table').classList.remove('hidden');
+    node.querySelector('[name=row_name]').focus();
+  };
+})();
+</script>
+{% endblock %}

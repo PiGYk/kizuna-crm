@@ -602,3 +602,6 @@ class UltrasoundReport(models.Model):
 
     def __str__(self):
         return f'УЗД {self.patient.name} — {self.date:%d.%m.%Y}'
+
+
+from .models_lab import LabResult  # noqa: E402, F401

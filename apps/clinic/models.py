@@ -201,6 +201,9 @@ class Organization(models.Model):
         default=dict,
         blank=True,
     )
+    # Норми бланків аналізів, які клініка змінила під свій аналізатор: {вид: {код: [від, до]}}.
+    # Порожньо — типові (apps/clients/lab_panels.py). Запам'ятовуються з бланку самі.
+    lab_norms = models.JSONField('Свої норми аналізів', default=dict, blank=True)
     visit_labels = models.JSONField(
         'Свої назви розділів прийому', default=dict, blank=True,
         help_text='Напр. {"complaint": "Анамнез"}. Порожньо — стандартні назви.',

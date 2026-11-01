@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from .models import (
     Client, Patient, Visit, Vaccine, PatientAnalysis, WeightRecord,
     VisitTemplate, Prescription, PatientDocument, Hospitalization,
-    UltrasoundReport,
+    UltrasoundReport, LabResult,
 )
 
 FIELD_CLASS = (
@@ -266,6 +266,21 @@ class DischargeForm(forms.ModelForm):
             raise forms.ValidationError('Виписка не може бути раніше за надходження.')
         return value
 
+
+class LabResultForm(forms.ModelForm):
+    """Поля бланку аналізу; показники (rows) і лікаря збирає view — вони рядками й списком."""
+    class Meta:
+        model = LabResult
+        fields = ('date', 'title', 'material', 'description', 'conclusion')
+        widgets = {
+            'date': forms.DateInput(format='%Y-%m-%d', attrs={'type': 'date'}),
+            'description': forms.Textarea(attrs={'rows': 4}),
+            'conclusion': forms.Textarea(attrs={'rows': 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        _apply_field_class(self)
 
 class UltrasoundForm(forms.ModelForm):
     class Meta:

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    @font-face { font-family: 'Fixel'; src: url('{{ font_dir }}/FixelText-Regular.woff2'); font-weight: 400; }
+    @font-face { font-family: 'Fixel'; src: url('{{ font_dir }}/FixelText-SemiBold.woff2'); font-weight: 600; }
+    @font-face { font-family: 'Fixel'; src: url('{{ font_dir }}/FixelText-Bold.woff2'); font-weight: 700; }
+    @page { size: A4; margin: 15mm 18mm; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Fixel', Arial, sans-serif; font-size: 12px; color: #12100F; }
+
+    .header-table { width: 100%; border-bottom: 2px solid #DEAA01; padding-bottom: 12px; margin-bottom: 18px; }
+    .header-table td { vertical-align: top; }
+    .clinic-name { font-size: 18px; font-weight: bold; }
+    .clinic-sub  { font-size: 10px; color: #555; margin-top: 3px; }
+    .doc-title   { font-size: 16px; font-weight: bold; text-align: right; }
+    .doc-date    { font-size: 11px; color: #555; text-align: right; margin-top: 4px; }
+
+    .patient-box { background: #fafafa; border: 1px solid #eee; border-radius: 5px; padding: 9px 12px; margin-bottom: 12px; }
+    .patient-box table { width: 100%; border-collapse: collapse; }
+    .patient-box td { padding: 2px 10px 2px 0; vertical-align: top; }
+    .p-label { font-size: 9.5px; color: #555; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 2px; }
+    .p-value { font-size: 12px; font-weight: bold; }
+
+    .meta { font-size: 11px; color: #444; margin-bottom: 12px; }
+    .meta strong { color: #12100F; }
+
+    table.results { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+    .results th { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.04em; color: #444; text-align: left;
+                  border-bottom: 1.5px solid #12100F; padding: 5px 6px; }
+    .results td { padding: 5px 6px; border-bottom: 1px solid #e6e6e6; font-size: 11.5px; vertical-align: top; }
+    .results .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .results .unit, .results .norm { color: #555; white-space: nowrap; }
+    .results tr.out td { background: #fde8e6; }
+    .results tr.out td:first-child { border-left: 3px solid #b42318; }
+    .results tr.out.low td { background: #e8eefd; }
+    .results tr.out.low td:first-child { border-left-color: #1d4ed8; }
+    .results tr.out .num { font-weight: bold; }
+    .arrow { font-weight: bold; text-align: center; width: 18px; }
+    .arrow.high { color: #b42318; }
+    .arrow.low { color: #1d4ed8; }
+    .legend { font-size: 9.5px; color: #555; margin-bottom: 14px; }
+
+    .section { margin-bottom: 14px; }
+    .section-label { font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.06em; color: #7a5c00; margin-bottom: 4px; }
+    .section-body { font-size: 12px; line-height: 1.55; white-space: pre-line; }
+
+    .signature-table { width: 100%; margin-top: 26px; border-collapse: collapse; }
+    .signature-table td { width: 50%; padding-top: 4px; font-size: 10px; color: #444; vertical-align: top; }
+    .sign-line { display: inline-block; width: 48mm; border-bottom: 1px solid #333; height: 14px; }
+    .stamp { display: inline-block; margin-left: 10mm; color: #555; }
+    .footer { margin-top: 22px; padding-top: 8px; border-top: 1px solid #e5e5e5; font-size: 9.5px; color: #555; text-align: center; }
+  </style>
+</head>
+<body>
+
+<table class="header-table" cellpadding="0" cellspacing="0">
+  <tr>
+    <td>
+      <div class="clinic-name">{{ clinic.name }}</div>
+      {% if clinic.address %}<div class="clinic-sub">{{ clinic.address }}</div>{% endif %}
+      {% if clinic.phone %}<div class="clinic-sub">{{ clinic.phone }}</div>{% endif %}
+    </td>
+    <td>
+      <div class="doc-title">{{ lab.display_title }}</div>
+      <div class="doc-date">{{ lab.date|date:"d.m.Y" }}</div>
+    </td>
+  </tr>
+</table>
+
+<div class="patient-box">
+  <table cellpadding="0" cellspacing="0">
+    <tr>
+      <td><div class="p-label">Пацієнт</div><div class="p-value">{{ patient.name }}</div></td>
+      <td><div class="p-label">Вид / порода</div><div class="p-value">{{ patient.get_species_display }}{% if patient.breed %}, {{ patient.breed }}{% endif %}</div></td>
+      <td><div class="p-label">Вік</div><div class="p-value">{{ patient.age_display|default:"—" }}</div></td>
+      <td><div class="p-label">Стать</div><div class="p-value">{{ patient.get_sex_display }}{% if patient.is_neutered %} (кастр.){% endif %}</div></td>
+      <td><div class="p-label">Власник</div><div class="p-value">{{ patient.client.full_name }}</div></td>
+    </tr>
+  </table>
+</div>
+
+<div class="meta">
+  {% if lab.material %}Матеріал: <strong>{{ lab.material }}</strong>{% endif %}
+  {% if lab.material and lab.doctor %} · {% endif %}
+  {% if lab.doctor %}Лікар: <strong>{{ lab.doctor.get_full_name|default:lab.doctor.username }}</strong>{% endif %}
+</div>
+
+{% if rows %}
+<table class="results" cellpadding="0" cellspacing="0">
+  <thead>
+    <tr><th>Показник</th><th class="num">Результат</th><th></th><th>Од. виміру</th><th>Норма</th></tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+    <tr class="{% if r.flag %}out {{ r.flag }}{% endif %}">
+      <td>{{ r.name }}</td>
+      <td class="num">{{ r.value_uk }}</td>
+      <td class="arrow {{ r.flag }}">{% if r.flag == 'high' %}↑{% elif r.flag == 'low' %}↓{% endif %}</td>
+      <td class="unit">{{ r.unit }}</td>
+      <td class="norm">{% if r.low or r.high %}{{ r.low_uk|default:"…" }} – {{ r.high_uk|default:"…" }}{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<div class="legend">↑ вище норми · ↓ нижче норми. Норми — референтні інтервали, прийняті клінікою.</div>
+{% endif %}
+
+{% if lab.description %}
+<div class="section">
+  <div class="section-label">{% if descriptive %}Опис (мікроскопічна картина){% else %}Коментар{% endif %}</div>
+  <div class="section-body">{{ lab.description }}</div>
+</div>
+{% endif %}
+
+{% if lab.conclusion %}
+<div class="section">
+  <div class="section-label">Висновок</div>
+  <div class="section-body">{{ lab.conclusion }}</div>
+</div>
+{% endif %}
+
+<table class="signature-table" cellpadding="0" cellspacing="0">
+  <tr>
+    <td>Лікар{% if lab.doctor %}: <strong>{{ lab.doctor.get_full_name|default:lab.doctor.username }}</strong>{% endif %}</td>
+    <td style="text-align:right">Підпис <span class="sign-line"></span><span class="stamp">М.П.</span></td>
+  </tr>
+</table>
+
+<div class="footer">
+  {{ clinic.name }}{% with footer_url=clinic.website|default:clinic.bot_base_url %}{% if footer_url %} · {{ footer_url }}{% endif %}{% endwith %}
+</div>
+</body>
+</html>
