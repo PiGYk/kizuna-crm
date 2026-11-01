@@ -8,6 +8,12 @@
           <label class="text-xs text-gray-500 block mb-1">{% firstof clinic.visit_labels.complaint "Скарги / причина" %}</label>
           <input type="text" name="complaint" value="Плановий огляд" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
         </div>
+        {% if clinic.uses_visit_exam %}
+        <div>
+          <label class="text-xs text-gray-500 block mb-1">{{ clinic.visit_labels.exam }}</label>
+          <input type="text" name="exam" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+        </div>
+        {% endif %}
         <div>
           <label class="text-xs text-gray-500 block mb-1">{% firstof clinic.visit_labels.diagnosis "Діагноз" %}</label>
           <input type="text" name="diagnosis" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">

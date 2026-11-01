@@ -109,10 +109,11 @@ class PatientForm(forms.ModelForm):
 class VisitForm(forms.ModelForm):
     class Meta:
         model = Visit
-        fields = ('date', 'doctor', 'complaint', 'diagnosis', 'treatment', 'notes', 'follow_up_date')
+        fields = ('date', 'doctor', 'complaint', 'exam', 'diagnosis', 'treatment', 'notes', 'follow_up_date')
         widgets = {
             'date': forms.DateTimeInput(format='%Y-%m-%dT%H:%M', attrs={'type': 'datetime-local'}),
             'complaint': forms.Textarea(attrs={'rows': 2}),
+            'exam': forms.Textarea(attrs={'rows': 2}),
             'diagnosis': forms.Textarea(attrs={'rows': 2}),
             'treatment': forms.Textarea(attrs={'rows': 2}),
             'notes': forms.Textarea(attrs={'rows': 2}),
@@ -128,6 +129,10 @@ class VisitForm(forms.ModelForm):
             ).order_by('last_name', 'first_name')
         else:
             self.fields['doctor'].queryset = User.objects.none()
+        # «Клінічний огляд» — лише клінікам, що його ввімкнули; інакше поля нема у формі взагалі
+        # (і збереження не зачепить його значення)
+        if not (org is not None and org.uses_visit_exam):
+            self.fields.pop('exam', None)
         _apply_field_class(self)
 
 
@@ -311,14 +316,17 @@ class UltrasoundForm(forms.ModelForm):
 class VisitTemplateForm(forms.ModelForm):
     class Meta:
         model = VisitTemplate
-        fields = ('name', 'complaint', 'diagnosis', 'treatment', 'notes')
+        fields = ('name', 'complaint', 'exam', 'diagnosis', 'treatment', 'notes')
         widgets = {
             'complaint': forms.Textarea(attrs={'rows': 3}),
+            'exam': forms.Textarea(attrs={'rows': 3}),
             'diagnosis': forms.Textarea(attrs={'rows': 3}),
             'treatment': forms.Textarea(attrs={'rows': 3}),
             'notes': forms.Textarea(attrs={'rows': 2}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, org=None, **kwargs):
         super().__init__(*args, **kwargs)
+        if not (org is not None and org.uses_visit_exam):
+            self.fields.pop('exam', None)
         _apply_field_class(self)

@@ -327,6 +327,7 @@ def visit_duplicate(request, pk):
         doctor=default_doc,
         date=timezone.now(),
         complaint=original.complaint,
+        exam=original.exam,
         diagnosis=original.diagnosis,
         treatment=original.treatment,
         notes=original.notes,
@@ -888,6 +889,7 @@ def quick_visit(request, patient_pk):
             doctor=default_doc,
             date=timezone.now(),
             complaint=request.POST.get('complaint', '').strip() or 'Плановий огляд',
+            exam=request.POST.get('exam', '').strip(),
             diagnosis=request.POST.get('diagnosis', '').strip(),
             treatment=request.POST.get('treatment', '').strip(),
             notes=request.POST.get('notes', '').strip(),
@@ -1115,6 +1117,7 @@ def visit_templates_json(request):
             'id': t.pk,
             'name': t.name,
             'complaint': t.complaint,
+            'exam': t.exam,
             'diagnosis': t.diagnosis,
             'treatment': t.treatment,
             'notes': t.notes,
@@ -1134,13 +1137,13 @@ def visit_template_manage(request):
     if request.method == 'POST':
         action = request.POST.get('action')
         if action == 'create':
-            form = VisitTemplateForm(request.POST)
+            form = VisitTemplateForm(request.POST, org=org)
             if form.is_valid():
                 t = form.save(commit=False)
                 t.organization = org
                 # Текст із форми йде звичайними рядками, а в прийом його вставляє
                 # редактор розмітки — без обгортки всі рядки злипаються в один.
-                for field in ('complaint', 'diagnosis', 'treatment', 'notes'):
+                for field in ('complaint', 'exam', 'diagnosis', 'treatment', 'notes'):
                     setattr(t, field, _plain_to_html(getattr(t, field, '')))
                 t.save()
                 messages.success(request, f'Шаблон «{t.name}» створено.')
@@ -1150,7 +1153,7 @@ def visit_template_manage(request):
             messages.success(request, 'Шаблон видалено.')
         return redirect('clients:visit_templates')
 
-    form = VisitTemplateForm()
+    form = VisitTemplateForm(org=org)
     return render(request, 'clients/visit_templates.html', {
         'templates': templates, 'form': form,
     })

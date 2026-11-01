@@ -112,6 +112,17 @@
   {% endif %}
 </div>
 
+{% if clinic.uses_visit_exam or visit.exam %}
+<div class="section">
+  <div class="section-label">{% firstof clinic.visit_labels.exam "Клінічний огляд" %}</div>
+  {% if visit.exam %}
+    <div class="section-body">{{ visit.exam|safe }}</div>
+  {% else %}
+    <div class="section-empty">не вказано</div>
+  {% endif %}
+</div>
+{% endif %}
+
 <div class="section">
   <div class="section-label">{% firstof clinic.visit_labels.diagnosis "Діагноз" %}</div>
   {% if visit.diagnosis %}

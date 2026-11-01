@@ -124,6 +124,12 @@
       <div class="visit-value">{{ visit.complaint|striptags }}</div>
     </div>
     {% endif %}
+    {% if visit.exam %}
+    <div class="visit-field">
+      <div class="visit-label">{% firstof clinic.visit_labels.exam "Клінічний огляд" %}</div>
+      <div class="visit-value">{{ visit.exam|striptags }}</div>
+    </div>
+    {% endif %}
     {% if visit.diagnosis %}
     <div class="visit-field">
       <div class="visit-label">{% firstof clinic.visit_labels.diagnosis "Діагноз" %}</div>

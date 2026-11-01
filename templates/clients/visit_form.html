@@ -6,7 +6,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css">
 <style>
   /* Приховуємо оригінальні textarea — дані підставляємо через JS перед сабмітом */
-  #id_complaint, #id_diagnosis, #id_treatment, #id_notes { display: none !important; }
+  #id_complaint, #id_exam, #id_diagnosis, #id_treatment, #id_notes { display: none !important; }
 
   .ql-toolbar { border-radius: 8px 8px 0 0 !important; border-color: #d1d5db !important; background: #fafafa; }
   .ql-container { border-radius: 0 0 8px 8px !important; border-color: #d1d5db !important; font-size: 1rem; font-family: inherit; min-height: 200px; }
@@ -106,6 +106,14 @@
         <div id="editor-complaint"></div>
         {% include "clients/_visit_suggest_hint.html" with field="complaint" %}
       </div>
+      {% if form.exam %}
+      <div class="relative">
+        <label class="block text-sm font-medium text-gray-700 mb-1">{% firstof clinic.visit_labels.exam "Клінічний огляд" %}</label>
+        {{ form.exam }}
+        <div id="editor-exam"></div>
+        {% include "clients/_visit_suggest_hint.html" with field="exam" %}
+      </div>
+      {% endif %}
       <div class="relative">
         <label class="block text-sm font-medium text-gray-700 mb-1">{% firstof clinic.visit_labels.diagnosis "Діагноз" %}</label>
         {{ form.diagnosis }}
@@ -239,7 +247,8 @@
     ? [['bold', 'italic', 'underline'], [{ list: 'ordered' }, { list: 'bullet' }]]
     : [['bold', 'italic'], [{ list: 'ordered' }, { list: 'bullet' }], ['clean']];
 
-  const FIELDS = ['complaint', 'diagnosis', 'treatment', 'notes'];
+  // «Клінічний огляд» — лише там, де клініка його ввімкнула (поле є на сторінці)
+  const FIELDS = ['complaint', 'exam', 'diagnosis', 'treatment', 'notes'].filter(function (f) { return document.getElementById('editor-' + f); });
 
   window._visitEditors = {};
   const editors = window._visitEditors;
@@ -388,7 +397,7 @@ function applyTemplate() {
   if (!sel.value) return;
   const t = JSON.parse(sel.value);
   const editors = window._visitEditors || {};
-  ['complaint', 'diagnosis', 'treatment', 'notes'].forEach(field => {
+  ['complaint', 'exam', 'diagnosis', 'treatment', 'notes'].forEach(field => {
     if (!t[field]) return;
     const ed = editors[field];
     if (ed && ed.quill) {

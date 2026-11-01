@@ -594,6 +594,12 @@
             <div class="text-gray-700 mt-0.5 visit-html">{{ visit.complaint|rich }}</div>
           </div>
           {% endif %}
+          {% if visit.exam %}
+          <div>
+            <span class="text-xs font-semibold text-gray-500 uppercase">{% firstof clinic.visit_labels.exam "Клінічний огляд" %}:</span>
+            <div class="text-gray-700 mt-0.5 visit-html">{{ visit.exam|rich }}</div>
+          </div>
+          {% endif %}
           {% if visit.diagnosis %}
           <div>
             <span class="text-xs font-semibold text-gray-500 uppercase">{% firstof clinic.visit_labels.diagnosis "Діагноз" %}:</span>

@@ -175,6 +175,10 @@ class Visit(models.Model):
     )
     date = models.DateTimeField('Дата прийому')
     complaint = models.TextField('Скарги', blank=True)
+    # Окремий розділ «Клінічний огляд» (ANVAR 01.11.2026): раніше клініка перейменовувала під нього
+    # поле «Діагноз», і діагноз опинявся в «Лікуванні» — шапка картки, підказки й звіти показували
+    # не те. Розділ видно лише клінікам, які ввімкнули його у visit_labels['exam'].
+    exam = models.TextField('Клінічний огляд', blank=True)
     diagnosis = models.TextField('Діагноз', blank=True)
     treatment = models.TextField('Лікування', blank=True)
     notes = models.TextField('Нотатки', blank=True)
@@ -209,6 +213,7 @@ class VisitTemplate(models.Model):
     """Шаблон для швидкого створення типового візиту."""
     name = models.CharField('Назва шаблону', max_length=200)
     complaint = models.TextField('Скарги', blank=True)
+    exam = models.TextField('Клінічний огляд', blank=True)
     diagnosis = models.TextField('Діагноз', blank=True)
     treatment = models.TextField('Лікування', blank=True)
     notes = models.TextField('Нотатки', blank=True)

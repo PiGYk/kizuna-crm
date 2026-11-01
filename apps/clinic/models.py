@@ -229,7 +229,7 @@ class Organization(models.Model):
     # прийому), documents і documents_hint (блок файлів у формі прийому);
     # suggest_diagnosis / suggest_drugs — у яке поле чіпляти підказки минулих
     # діагнозів і препаратів зі складу, якщо клініка пише діагноз не в «Діагноз».
-    VISIT_TEXT_FIELDS = ('complaint', 'diagnosis', 'treatment', 'notes')
+    VISIT_TEXT_FIELDS = ('complaint', 'exam', 'diagnosis', 'treatment', 'notes')
 
     def _visit_suggest(self, kind, default):
         value = (self.visit_labels or {}).get(f'suggest_{kind}', default)
@@ -243,6 +243,11 @@ class Organization(models.Model):
     def visit_suggest_drugs(self):
         drugs = self._visit_suggest('drugs', 'treatment')
         return 'treatment' if drugs == self.visit_suggest_diagnosis else drugs
+
+    @property
+    def uses_visit_exam(self):
+        """Окремий розділ «Клінічний огляд» у прийомі — лише якщо клініка дала йому назву."""
+        return bool((self.visit_labels or {}).get('exam'))
 
     def can_see_menu(self, role, item):
         """Чи може роль бачити пункт меню. Головний адміністратор бачить усе; кожна роль із
