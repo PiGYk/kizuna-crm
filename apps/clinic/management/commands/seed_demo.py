@@ -844,7 +844,9 @@ class Command(BaseCommand):
                 notes='Оплата очікується',
             )
 
-        self.stdout.write(f'  Invoices: {total_inv} paid + 8 draft')
+        # каса рахує платежі (з 01.11.2026) — оплаченим демо-рахункам потрібні й платежі
+        from apps.billing.payments import backfill_missing
+        self.stdout.write(f'  Invoices: {total_inv} paid + 8 draft, платежів: {backfill_missing(org)}')
 
     # ─────────────────────────────────────────────────────────────────
     # ФІНАНСИ (витрати, каса)

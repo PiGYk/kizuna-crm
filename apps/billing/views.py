@@ -30,6 +30,7 @@ from apps.services.models import Service
 from apps.tg.utils import is_mobile
 
 from .models import Invoice, InvoiceLine
+from .payments import pay_rest
 
 
 def _lines_render(request, invoice):
@@ -588,6 +589,7 @@ def pay_invoice(request, pk):
     invoice.status = Invoice.Status.PAID
     invoice.payment_method = payment_method
     invoice.save(update_fields=['status', 'payment_method'])
+    pay_rest(invoice, payment_method, request.user)
 
     return redirect('billing:detail', pk=pk)
 
@@ -693,8 +695,16 @@ def update_payment_method(request, pk):
     invoice = get_object_or_404(Invoice, pk=pk, status=Invoice.Status.PAID)
     method = request.POST.get('payment_method')
     if method in Invoice.PaymentMethod.values:
+        from .models import InvoicePayment
+        pays = list(InvoicePayment._base_manager.filter(invoice=invoice))
+        if len(pays) > 1:
+            messages.error(request, 'Оплата з кількох платежів — змініть спосіб у самих платежах.')
+            return redirect('billing:detail', pk=pk)
+        if pays:
+            InvoicePayment._base_manager.filter(pk=pays[0].pk).update(method=method)
         invoice.payment_method = method
         invoice.save(update_fields=['payment_method'])
+        invoice.refresh_paid()
     return redirect('billing:detail', pk=pk)
 
 
@@ -784,6 +794,7 @@ def fiscalize_invoice(request, pk):
 
             invoice.status = Invoice.Status.PAID
             invoice.save(update_fields=['fiscal_receipt_id', 'fiscal_status', 'payment_method', 'status'])
+            pay_rest(invoice, Invoice.PaymentMethod.CASH, request.user)
             messages.success(request, 'Готівковий чек пробито, рахунок закрито.')
 
         else:
@@ -869,6 +880,7 @@ def confirm_checkbox_payment(request, pk):
             invoice.status = Invoice.Status.PAID
             invoice.payment_method = Invoice.PaymentMethod.CARD
             invoice.save(update_fields=['fiscal_receipt_id', 'fiscal_status', 'status', 'payment_method'])
+            pay_rest(invoice, Invoice.PaymentMethod.CARD, request.user)
 
             if fiscal_warn:
                 messages.warning(request, f'Оплату прийнято, але фіскальний чек не пробився: {fiscal_warn}')

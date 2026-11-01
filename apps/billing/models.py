@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
 from decimal import Decimal
 from apps.clinic.managers import OrgManager
 
@@ -54,6 +55,9 @@ class Invoice(models.Model):
         verbose_name='Спосіб оплати'
     )
     notes = models.TextField(blank=True, verbose_name='Нотатки')
+    # Сума платежів (InvoicePayment) — зберігається, щоб борг рахувався запитом. Оплачений
+    # рахунок із amount_paid < total = закритий з боргом (ANVAR 01.11.2026).
+    amount_paid = models.DecimalField('Сплачено', max_digits=10, decimal_places=2, default=0)
     fiscal_receipt_id = models.CharField(max_length=100, null=True, blank=True, verbose_name='ID чеку Checkbox')
     fiscal_page_url = models.URLField(max_length=500, null=True, blank=True, verbose_name='Посилання на оплату')
     fiscal_status = models.CharField(
@@ -114,6 +118,62 @@ class Invoice(models.Model):
     def save_total(self):
         self.total = self.calc_total()
         self.save(update_fields=['total'])
+
+    @property
+    def balance_due(self):
+        """Скільки ще не сплачено (для чернетки — до закриття, для оплаченого — борг)."""
+        return max((self.total or Decimal('0')) - (self.amount_paid or Decimal('0')), Decimal('0'))
+
+    @property
+    def has_debt(self):
+        return self.status == self.Status.PAID and self.balance_due > 0
+
+    def refresh_paid(self):
+        """Перерахувати amount_paid із платежів; оплаченому — основний спосіб (де сплачено найбільше),
+        щоб підписи й старі звіти лишались осмисленими й при змішаній оплаті."""
+        from django.db.models import Sum
+        # _base_manager: OrgManager без клініки в контексті (фонові задачі) віддає порожньо — і «сплачено» стало б 0
+        mine = InvoicePayment._base_manager.filter(invoice=self)
+        self.amount_paid = mine.aggregate(s=Sum('amount'))['s'] or Decimal('0')
+        fields = ['amount_paid']
+        if self.status == self.Status.PAID:
+            top = mine.values('method').annotate(s=Sum('amount')).order_by('-s').first()
+            if top:
+                self.payment_method = top['method']
+                fields.append('payment_method')
+        self.save(update_fields=fields)
+
+    @property
+    def is_mixed_payment(self):
+        return InvoicePayment._base_manager.filter(invoice=self).values('method').distinct().count() > 1
+
+
+class InvoicePayment(models.Model):
+    """Платіж за рахунком: частинами, змішано готівкою й карткою, погашення боргу (ANVAR 01.11.2026).
+    До того рахунок знав один спосіб і вважався сплаченим цілком. Каса (finance.calculate_balances)
+    рахує саме платежі — гроші, що реально надійшли."""
+    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name='payments', verbose_name='Рахунок')
+    organization = models.ForeignKey(
+        'clinic.Organization', on_delete=models.CASCADE, related_name='invoice_payments', verbose_name='Організація',
+    )
+    amount = models.DecimalField('Сума', max_digits=10, decimal_places=2)
+    method = models.CharField('Спосіб', max_length=10, choices=Invoice.PaymentMethod.choices)
+    paid_at = models.DateTimeField('Коли', default=timezone.now)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = OrgManager()
+
+    class Meta:
+        ordering = ('paid_at', 'pk')
+        verbose_name = 'Платіж'
+        verbose_name_plural = 'Платежі'
+        indexes = [models.Index(fields=['organization', 'method'], name='invpay_org_method_idx')]
+
+    def __str__(self):
+        return f'{self.amount} ₴ {self.get_method_display()} — рахунок #{self.invoice_id}'
 
 
 class InvoiceLine(models.Model):

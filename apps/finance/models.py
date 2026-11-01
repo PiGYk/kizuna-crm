@@ -64,9 +64,12 @@ def calculate_balances(org=None):
         # Без org немає за чим рахувати — повертаємо нулі.
         return {'cash': fs.initial_cash, 'card': fs.initial_card}
 
-    inv_agg = Invoice.objects.filter(status='paid', organization=org).aggregate(
-        cash=Sum('total', filter=Q(payment_method='cash')),
-        card=Sum('total', filter=Q(payment_method='card')),
+    # гроші, що реально надійшли: платежі за рахунками (з 01.11.2026 — частинами й змішано).
+    # Раніше — суми оплачених рахунків одним способом; міграція billing 0011 переклала їх у платежі 1:1.
+    from apps.billing.models import InvoicePayment
+    inv_agg = InvoicePayment._base_manager.filter(organization=org).aggregate(
+        cash=Sum('amount', filter=Q(method='cash')),
+        card=Sum('amount', filter=Q(method='card')),
     )
     income_cash = inv_agg['cash'] or zero
     income_card = inv_agg['card'] or zero
