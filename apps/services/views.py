@@ -1,3 +1,4 @@
+import re
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -7,6 +8,18 @@ from django.urls import reverse
 
 from .forms import ServiceForm, ComponentFormSet
 from .models import Service, ServiceCategory
+
+
+_CODE_IN_DESCRIPTION = re.compile(r'^\s*(?:код|code|шифр)(?![A-Za-zА-ЯІЇЄҐа-яіїєґ])\s*[:№#]?\s*(?=\S*\d)([0-9A-Za-zА-ЯІЇЄҐа-яіїєґ][0-9A-Za-zА-ЯІЇЄҐа-яіїєґ.\-/]{0,48}?)\s*[.:;,–—-]?(?:\s+(.*))?$',
+                                 re.IGNORECASE | re.DOTALL)
+
+
+def split_code_from_description(description):
+    """«Код 0108. Розбір документації…» → ('0108', 'Розбір документації…'); інакше ('', опис)."""
+    m = _CODE_IN_DESCRIPTION.match(description or '')
+    if not m:
+        return '', description
+    return m.group(1).rstrip('.'), (m.group(2) or '').strip()
 
 
 class ServiceListView(LoginRequiredMixin, ListView):
@@ -208,6 +221,11 @@ def service_import(request):
             code = str(row.get(cols['code'], '') or '').strip()[:50] if 'code' in cols else ''
             if code.endswith('.0') and code[:-2].isdigit():
                 code = code[:-2]          # Excel віддає числовий код як «101.0»
+            description = str(row.get(cols['description'], '') or '').strip() if 'description' in cols else ''
+            if not code:
+                # код на початку опису («Код 0108. Розбір…») — так прийшов прайс ANVAR 01.11: 312 послуг
+                # без коду в колонці, і пошук за кодом нічого не знаходив
+                code, description = split_code_from_description(description)
             item = {
                 'code': code,
                 'name': name,
@@ -215,7 +233,7 @@ def service_import(request):
                 # серіалізується в JSON — Decimal туди не кладеться
                 'price': str(price) if price is not None else None,
                 'category': str(row.get(cols['category'], '') or '').strip() if 'category' in cols else '',
-                'description': str(row.get(cols['description'], '') or '').strip() if 'description' in cols else '',
+                'description': description,
             }
             # Колонка списання: заповнена → чіпаємо склад послуги; порожня → лишаємо як є.
             comp_name = str(row.get(cols['component'], '') or '').strip() if 'component' in cols else ''
