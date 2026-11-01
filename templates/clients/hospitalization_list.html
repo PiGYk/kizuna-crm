@@ -12,12 +12,12 @@
     {% if active %}<span class="ml-2 bg-red-100 text-red-700 text-xs rounded-full px-2 py-0.5">{{ active|length }}</span>{% endif %}
   </h2>
   {% if active %}
-  <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+  <div class="bg-white rounded-xl border border-gray-200 overflow-x-auto">
     <table class="w-full text-sm">
       <thead class="bg-gray-50 border-b border-gray-200">
         <tr>
           <th class="px-4 py-3 text-left font-medium text-gray-600">Пацієнт</th>
-          <th class="px-4 py-3 text-left font-medium text-gray-600">Хазяїн</th>
+          <th class="px-4 py-3 text-left font-medium text-gray-600 hidden sm:table-cell">Хазяїн</th>
           <th class="px-4 py-3 text-left font-medium text-gray-600 hidden md:table-cell">Лікар</th>
           <th class="px-4 py-3 text-left font-medium text-gray-600 hidden md:table-cell">Причина</th>
           <th class="px-4 py-3 text-left font-medium text-gray-600">Надійшов</th>
@@ -29,8 +29,9 @@
         <tr class="hover:bg-gray-50">
           <td class="px-4 py-3">
             <a href="{% url 'clients:patient_detail' h.patient.pk %}" class="font-semibold text-brand-dark hover:text-brand-gold">{{ h.patient.name }}</a>
+            <div class="text-xs text-gray-500 sm:hidden">{{ h.patient.client.full_name }}</div>
           </td>
-          <td class="px-4 py-3 text-gray-700">
+          <td class="px-4 py-3 text-gray-700 hidden sm:table-cell">
             <a href="{% url 'clients:detail' h.patient.client.pk %}" class="hover:text-brand-gold">{{ h.patient.client.full_name }}</a>
           </td>
           <td class="px-4 py-3 text-gray-500 hidden md:table-cell">
@@ -43,7 +44,7 @@
           </td>
           <td class="px-4 py-3 text-right">
             <a href="{% url 'clients:hospitalization_discharge' h.pk %}"
-               class="text-xs bg-green-50 text-green-700 border border-green-200 rounded-lg px-3 py-1 hover:bg-green-100 transition">
+               class="inline-block whitespace-nowrap text-xs bg-green-50 text-green-800 border border-green-200 rounded-lg px-3 py-2 hover:bg-green-100 transition">
               Виписати
             </a>
           </td>
@@ -128,12 +129,12 @@
         <tr>
           <td class="px-4 py-2.5 font-medium text-brand-dark">{{ r.name }}</td>
           <td class="px-3 py-2.5 text-right">{{ r.total }}</td>
-          <td class="px-3 py-2.5 text-right text-green-800">{{ r.good }}</td>
+          <td class="px-3 py-2.5 text-right{% if r.good %} text-green-800{% endif %}">{{ r.good }}</td>
           <td class="px-3 py-2.5 text-right">{{ r.same }}</td>
-          <td class="px-3 py-2.5 text-right text-amber-800">{{ r.refused }}</td>
+          <td class="px-3 py-2.5 text-right{% if r.refused %} text-amber-800{% endif %}">{{ r.refused }}</td>
           <td class="px-3 py-2.5 text-right">{{ r.euthanasia }}</td>
           <td class="px-3 py-2.5 text-right {% if r.died %}font-semibold text-red-700{% endif %}">{{ r.died }}</td>
-          <td class="px-3 py-2.5 text-right text-gray-500">{{ r.none }}</td>
+          <td class="px-3 py-2.5 text-right{% if r.none %} font-medium text-gray-700{% else %} text-gray-500{% endif %}">{{ r.none }}</td>
         </tr>
         {% endfor %}
       </tbody>
