@@ -10,6 +10,35 @@ from django.http import Http404, HttpResponse
 
 logger = logging.getLogger(__name__)
 
+# Старі шляхи без org_{pk}/ (файли до переходу на теки клінік, а документи пацієнтів — і досі
+# до 01.11.2026). Раніше їх віддавали будь-кому, хто увійшов, — тобто і чужій клініці: 01.11
+# користувач ANVAR відкрив документ пацієнта Kizuna за прямою адресою. Тепер власника шукаємо
+# в базі: файл віддаємо, лише якщо на нього посилається запис своєї клініки.
+_LEGACY_OWNERS = {
+    'patients/': (('clients.PatientDocument', 'file', 'patient__client__organization_id'),
+                  ('clients.Patient', 'photo', 'client__organization_id')),
+    'analyses/': (('clients.PatientAnalysis', 'image', 'patient__client__organization_id'),),
+    'tg_media/': (('tg.TelegramMessage', 'media_file', 'chat__organization_id'),),
+    'expenses/': (('finance.Expense', 'receipt_photo', 'organization_id'),),
+    'health_checks/': (('clients.HealthCheck', 'response_photo', 'organization_id'),),
+}
+# картинки довідки — спільні для всіх клінік
+_SHARED_PREFIXES = ('help-screens/',)
+
+
+def _legacy_owner_pk(path):
+    """Номер клініки, чий запис посилається на файл; None — не знайдено або шлях невідомий."""
+    from django.apps import apps
+    for prefix, sources in _LEGACY_OWNERS.items():
+        if path.startswith(prefix):
+            for label, field, org_field in sources:
+                owner = (apps.get_model(label)._base_manager.filter(**{field: path})
+                         .values_list(org_field, flat=True).first())
+                if owner:
+                    return owner
+            return None
+    return None
+
 
 @login_required
 def serve_media(request, path):
@@ -17,8 +46,8 @@ def serve_media(request, path):
     Захищена роздача медіафайлів через nginx X-Accel-Redirect.
 
     Nginx повинен мати location /media/ з директивою internal;
-    Для нових шляхів (org_{pk}/...) перевіряє приналежність до поточного тенанта.
-    Для старих шляхів (patients/, analyses/ тощо) — достатньо login_required.
+    Шляхи org_{pk}/... — лише своїй клініці. Старі шляхи (patients/, analyses/ тощо) — лише
+    клініці, чий запис у базі на файл посилається. Невідомі шляхи — лише суперкористувачу.
     """
     # Захист від path traversal
     safe_path = os.path.normpath(path)
@@ -49,6 +78,16 @@ def serve_media(request, path):
             raise Http404
     elif safe_path.startswith('org_'):
         raise Http404
+    elif safe_path.startswith(_SHARED_PREFIXES):
+        pass
+    elif not request.user.is_superuser:
+        owner = _legacy_owner_pk(safe_path)
+        if user_org is None or owner != user_org.pk:
+            logger.warning(
+                'serve_media: user %s (org=%s) denied legacy resource (owner org=%s): %s',
+                request.user, getattr(user_org, 'pk', None), owner, safe_path
+            )
+            raise Http404
 
     response = HttpResponse(status=200)
     # quote(): percent-encode шлях (кирилиця/не-ASCII) — інакше Django загортає

@@ -329,7 +329,10 @@ class PatientAnalysis(models.Model):
 
 
 def patient_document_path(instance, filename):
-    return f'patients/{instance.patient.client_id}/{instance.patient_id}/docs/{filename}'
+    # у теці клініки, як решта файлів: старий шлях patients/… віддається лише за власником з бази
+    # (apps/clinic/media_serve.py), новий перевіряється одразу за номером клініки
+    org_pk = instance.patient.client.organization_id or 0
+    return f'org_{org_pk}/patients/{instance.patient.client_id}/{instance.patient_id}/docs/{filename}'
 
 
 class PatientDocument(models.Model):
