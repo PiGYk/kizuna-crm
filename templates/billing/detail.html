@@ -13,7 +13,9 @@
     <div>
       <h1 class="text-2xl font-bold text-brand-dark inline-flex items-center gap-2">
         Рахунок <span class="text-gray-400 font-mono">#{{ invoice.pk }}</span>
-        {% if invoice.status == 'paid' %}
+        {% if invoice.status == 'paid' and invoice.has_debt %}
+          <span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium bg-red-50 text-red-800">Борг {{ invoice.balance_due|floatformat:0 }} ₴</span>
+        {% elif invoice.status == 'paid' %}
           <span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium bg-green-100 text-green-700">Оплачено</span>
         {% elif invoice.status == 'draft' %}
           <span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium bg-yellow-100 text-yellow-700">Чернетка</span>
@@ -107,7 +109,9 @@
     </div>
     <div class="col-span-2 lg:col-span-2">
       <div class="text-[11px] uppercase tracking-wide text-gray-500 font-medium mb-1">Спосіб оплати</div>
-      {% if invoice.status == 'paid' %}
+      {% if invoice.status == 'paid' and payments|length > 1 %}
+      {% include 'billing/partials/payments_list.html' %}
+      {% elif invoice.status == 'paid' and payments %}
       <form method="post" action="{% url 'billing:update_payment' invoice.pk %}" class="flex gap-1.5 mt-0.5">
         {% csrf_token %}
         <button type="submit" name="payment_method" value="cash"
@@ -144,6 +148,10 @@
     {% endif %}
   </div>
 </div>
+
+{% if invoice.has_debt %}
+<div class="mb-4">{% include 'billing/partials/debt_box.html' %}</div>
+{% endif %}
 
 <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
   <div class="divide-y divide-gray-50">
@@ -279,5 +287,3 @@ document.addEventListener('keydown', e => {
 });
 </script>
 {% endblock %}
-</content>
-</invoke>

@@ -1,0 +1,72 @@
+{% load l10n %}{# Рядки «спосіб + сума» (ANVAR 01.11.2026: частинами, змішано). Обгортка .pay-box з data-due — у формі, що включає цей шматок; mode=debt — погашення боргу (без закриття рахунку). #}
+<div class="pay-rows space-y-2">
+  <div class="pay-row grid grid-cols-[minmax(0,1fr)_8.5rem_2.75rem] items-center gap-2">
+    <select name="pay_method" aria-label="Спосіб оплати"
+      class="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-base text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-gold md:text-sm">
+      <option value="cash">Готівка</option>
+      <option value="card">Картка</option>
+    </select>
+    <input name="pay_amount" type="text" inputmode="decimal" autocomplete="off" aria-label="Сума, ₴" value="{{ due|unlocalize }}"
+      class="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-right text-base tabular-nums text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-gold md:text-sm">
+    <button type="button" class="pay-del invisible flex h-11 w-11 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-red-700" aria-label="Прибрати цей рядок оплати" title="Прибрати рядок">
+      <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+    </button>
+  </div>
+</div>
+<button type="button" class="pay-add mt-2 inline-flex min-h-[44px] items-center text-sm font-medium text-brand-dark underline decoration-brand-gold underline-offset-2 md:min-h-0 md:py-1">+ Ще спосіб оплати</button>
+<div class="pay-sum mt-2 rounded-lg bg-gray-50 px-3 py-2 text-sm tabular-nums text-gray-700" aria-live="polite"></div>
+<script>
+(function () {
+  function num(v) { v = String(v || '').replace(/\s/g, '').replace(',', '.'); return /^\d+(\.\d{1,2})?$/.test(v) ? parseFloat(v) : NaN; }
+  function fmt(n) { return n.toLocaleString('uk-UA', {minimumFractionDigits: 2, maximumFractionDigits: 2}); }
+  // кнопки форми стоять ПІСЛЯ цього шматка — запускаємось, коли сторінку дочитано
+  function init() { document.querySelectorAll('.pay-box:not([data-ready])').forEach(function (box) {
+    box.dataset.ready = '1';
+    var due = parseFloat(box.dataset.due) || 0, rows = box.querySelector('.pay-rows'), out = box.querySelector('.pay-sum');
+    var form = box.closest('form'), submits = form.querySelectorAll('button[type=submit]'),
+        closeBtn = form.querySelector('button[value=close]'), debt = box.dataset.mode === 'debt';
+    if (closeBtn) closeBtn.dataset.label = closeBtn.textContent;
+    function update() {
+      var total = 0, bad = false, inputs = rows.querySelectorAll('[name=pay_amount]');
+      inputs.forEach(function (i) {
+        if (!i.value.trim()) { i.classList.remove('border-red-600'); return; }
+        var n = num(i.value);
+        if (isNaN(n) || n <= 0) { bad = true; i.classList.add('border-red-600'); } else { total += n; i.classList.remove('border-red-600'); }
+      });
+      var rest = Math.round((due - total) * 100) / 100, over = rest < 0;
+      if (over) inputs.forEach(function (i) { if (i.value.trim()) i.classList.add('border-red-600'); });
+      box.dataset.rest = rest; box.dataset.bad = (bad || over) ? '1' : '';
+      var cls = 'pay-sum mt-2 rounded-lg px-3 py-2 text-sm tabular-nums ', msg;
+      if (bad) { cls += 'bg-red-50 text-red-800 font-semibold'; msg = 'Перевірте суми: кожна має бути більше нуля'; }
+      else if (over) { cls += 'bg-red-50 text-red-800 font-semibold'; msg = 'Забагато на ' + fmt(-rest) + ' ₴ — до сплати лише ' + fmt(due) + ' ₴'; }
+      else if (rest > 0) { cls += 'bg-amber-50 text-amber-900'; msg = 'Разом ' + fmt(total) + ' ₴ · <b>' + (debt ? 'після погашення борг лишиться ' : 'залишок ') + fmt(rest) + ' ₴</b>' + (debt ? '' : ' — якщо закрити, стане боргом'); }
+      else { cls += 'bg-green-50 text-green-900'; msg = 'Разом ' + fmt(total) + ' ₴ · <b>' + (debt ? 'після погашення борг 0 ₴' : 'сплачено повністю') + '</b>'; }
+      out.className = cls; out.innerHTML = msg;
+      submits.forEach(function (b) { b.disabled = bad || over; b.classList.add('disabled:opacity-40', 'disabled:cursor-not-allowed'); });
+      if (closeBtn) closeBtn.textContent = (!bad && !over && rest > 0) ? 'Закрити з боргом ' + fmt(rest) + ' ₴' : closeBtn.dataset.label;
+      var many = rows.children.length > 1;
+      rows.querySelectorAll('.pay-del').forEach(function (b) { b.classList.toggle('invisible', !many); });
+    }
+    // Enter у полі суми не відправляє форму — щоб рахунок не закрився випадково
+    rows.addEventListener('keydown', function (e) { if (e.key === 'Enter') e.preventDefault(); });
+    box.querySelector('.pay-add').addEventListener('click', function () {
+      var first = rows.firstElementChild, row = first.cloneNode(true), rest = parseFloat(box.dataset.rest) || 0;
+      row.querySelector('select').value = first.querySelector('select').value === 'cash' ? 'card' : 'cash';
+      row.querySelector('[name=pay_amount]').value = rest > 0 ? rest.toFixed(2) : '';
+      rows.appendChild(row); update(); row.querySelector('[name=pay_amount]').focus();
+    });
+    rows.addEventListener('click', function (e) {
+      var b = e.target.closest('.pay-del');
+      if (b && rows.children.length > 1) { b.closest('.pay-row').remove(); update(); }
+    });
+    rows.addEventListener('input', update);
+    box.closest('form').addEventListener('submit', function (e) {
+      if (box.dataset.bad) { e.preventDefault(); alert('Перевірте суми: кожна більше нуля, разом — не більше, ніж до сплати.'); return; }
+      var rest = parseFloat(box.dataset.rest) || 0, action = e.submitter ? e.submitter.value : '';
+      if (action === 'close' && rest > 0 && !confirm('Залишок ' + fmt(rest) + ' ₴ стане боргом клієнта. Закрити рахунок?')) e.preventDefault();
+    });
+    update();
+  }); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+</script>

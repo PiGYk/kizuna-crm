@@ -1,4 +1,4 @@
-{% load static %}
+{% load static l10n %}
 <div id="lines-section" class="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-4 items-start">
 
   <div class="space-y-2.5 min-w-0">
@@ -37,13 +37,13 @@
             {% csrf_token %}
             <div class="flex items-center gap-1.5">
               <span class="text-[11px] uppercase tracking-wide text-gray-400 font-medium">К-сть</span>
-              <input type="number" name="quantity" value="{{ line.quantity|floatformat:'-3' }}"
+              <input type="number" name="quantity" value="{{ line.quantity|floatformat:'-3u' }}"
                 inputmode="decimal" min="0" step="any"
                 class="w-20 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm text-center tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-gold">
             </div>
             <div class="flex items-center gap-1.5">
               <span class="text-[11px] uppercase tracking-wide text-gray-400 font-medium">Ціна</span>
-              <input type="number" name="unit_price" value="{{ line.unit_price }}"
+              <input type="number" name="unit_price" value="{{ line.unit_price|unlocalize }}"
                 inputmode="decimal" min="0" step="0.01"
                 class="w-24 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm text-center tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-gold">
             </div>
@@ -68,7 +68,7 @@
                     class="flex items-center gap-1 shrink-0">
                 {% csrf_token %}
                 <input type="hidden" name="unit_price" value="0">
-                <input type="number" name="quantity" value="{{ child.quantity|floatformat:'-3' }}"
+                <input type="number" name="quantity" value="{{ child.quantity|floatformat:'-3u' }}"
                   inputmode="decimal" min="0" step="any"
                   class="w-[4.5rem] border border-gray-200 rounded-lg px-2 py-1 text-xs text-center tabular-nums bg-white focus:outline-none focus:ring-1 focus:ring-brand-gold">
               </form>
@@ -201,7 +201,7 @@
         {% csrf_token %}
         <div class="text-[11px] uppercase tracking-wide text-gray-500 font-medium mb-2">Знижка на чек і нотатки</div>
         <div class="flex gap-2 mb-2">
-          <input type="number" name="discount" value="{{ invoice.discount }}" min="0" step="0.01"
+          <input type="number" name="discount" value="{{ invoice.discount|unlocalize }}" min="0" step="0.01"
             class="flex-1 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-gold">
           <select name="discount_type"
             class="w-16 border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
@@ -227,15 +227,22 @@
         </div>
         {% endif %}
       </div>
+      {% if invoice.amount_paid %}
+      <div class="px-4 pt-3 space-y-1 text-sm">
+        <div class="flex justify-between text-gray-700"><span>Сума рахунку</span><span class="tabular-nums">{{ invoice.total|floatformat:2 }}&nbsp;₴</span></div>
+        <div class="flex justify-between text-green-800"><span>Внесено</span><span class="tabular-nums">−{{ invoice.amount_paid|floatformat:2 }}&nbsp;₴</span></div>
+      </div>
+      {% endif %}
       <div class="px-4 py-3 bg-brand-gold/5 flex items-center justify-between">
         <span class="font-semibold text-brand-dark">До сплати</span>
-        <span class="text-2xl font-bold text-brand-gold tabular-nums">{{ invoice.total|floatformat:2 }}&nbsp;₴</span>
+        <span class="text-2xl font-bold text-brand-dark tabular-nums">{{ invoice.balance_due|floatformat:2 }}&nbsp;₴</span>
       </div>
       <div class="p-3 space-y-2">
-        <button type="button" onclick="openFiscalModal()" {% if not lines %}disabled{% endif %}
+        <button type="button" onclick="openFiscalModal()" {% if not lines or invoice.amount_paid %}disabled{% endif %}
           class="w-full bg-brand-gold text-brand-dark py-2.5 rounded-lg text-sm font-semibold hover:brightness-95 disabled:opacity-40 disabled:cursor-not-allowed transition inline-flex items-center justify-center gap-2">
           <span>🧾</span> Розрахувати (фіскальний чек)
         </button>
+        {% if invoice.amount_paid %}<p class="text-xs text-gray-600">Частину вже внесено, а фіскальний чек пробивається лише на всю суму. Решту прийміть через «Оплатити без чека».</p>{% endif %}
         <div class="grid grid-cols-2 gap-2">
           <button type="button" onclick="openPayModal()" {% if not lines %}disabled{% endif %}
             class="border-2 border-brand-gold text-brand-dark py-2 rounded-lg text-sm font-medium hover:bg-brand-gold/10 disabled:opacity-40 disabled:cursor-not-allowed">
@@ -253,5 +260,3 @@
 
   </aside>
 </div>
-</content>
-</invoke>

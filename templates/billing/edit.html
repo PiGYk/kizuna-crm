@@ -87,6 +87,12 @@
 </div>
 {% endfor %}
 
+{% if payments %}
+<div class="mb-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3">
+  <div class="mb-1 text-sm text-green-900">Внесено <b class="tabular-nums">{{ invoice.amount_paid }} ₴</b> · до сплати <b class="tabular-nums">{{ invoice.balance_due }} ₴</b></div>
+  {% include 'billing/partials/payments_list.html' %}
+</div>
+{% endif %}
 {% include 'billing/partials/lines_table.html' %}
 
 <div id="fiscal-modal" class="fixed inset-0 bg-black/50 hidden z-50 items-center justify-center p-4">
@@ -115,26 +121,23 @@
 </div>
 
 <div id="pay-modal" class="fixed inset-0 bg-black/50 hidden z-50 items-center justify-center p-4">
-  <div class="bg-white rounded-xl p-6 max-w-sm w-full shadow-xl">
-    <h2 class="text-lg font-bold text-brand-dark mb-1">Оплата без фіскалізації</h2>
-    <p class="text-sm text-gray-500 mb-5">Чек не пробивається у Checkbox. Склад спишеться, дохід занесеться до аналітики.</p>
+  <div class="bg-white rounded-xl p-6 max-w-md w-full shadow-xl">
+    <h2 class="text-lg font-bold text-brand-dark mb-1">Оплата</h2>
+    <p class="text-sm text-gray-600 mb-4">
+      Сума <b class="tabular-nums">{{ invoice.total }} ₴</b>{% if invoice.amount_paid %} · уже внесено <b class="tabular-nums">{{ invoice.amount_paid }} ₴</b>{% endif %}.
+      {% if clinic.can_use_checkbox %}Без фіскального чека.{% endif %} Можна частинами й різними способами. Закриття списує товари зі складу.
+    </p>
     <form method="post" action="{% url 'billing:pay' invoice.pk %}">
       {% csrf_token %}
-      <input type="hidden" name="payment_method" id="pay-method-input" value="cash">
-      <div class="grid grid-cols-2 gap-2 mb-5">
-        <button type="button" id="btn-cash" onclick="selectPayMethod('cash')"
-          class="py-2.5 rounded-lg text-sm font-medium border-2 border-brand-gold bg-brand-gold/10 text-brand-dark flex items-center justify-center gap-1.5">
-          <span>💵</span> Готівка
-        </button>
-        <button type="button" id="btn-card" onclick="selectPayMethod('card')"
-          class="py-2.5 rounded-lg text-sm font-medium border-2 border-gray-200 text-gray-500 hover:border-gray-300 flex items-center justify-center gap-1.5">
-          <span>💳</span> Картка
-        </button>
+      <div class="pay-box" data-due="{{ invoice.balance_due|stringformat:'s' }}">
+        {% include 'billing/partials/pay_rows.html' with due=invoice.balance_due %}
       </div>
-      <div class="flex gap-3">
-        <button type="submit" class="flex-1 bg-brand-gold text-brand-dark py-2.5 rounded-lg text-sm font-semibold hover:brightness-95">Оплатити</button>
-        <button type="button" onclick="closePayModal()" class="flex-1 border border-gray-300 text-gray-700 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50">Скасувати</button>
+      <div class="mt-5 flex flex-col gap-2">
+        <button type="submit" name="action" value="close" class="h-11 rounded-lg bg-brand-gold text-sm font-semibold text-brand-dark hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40">Оплатити й закрити рахунок</button>
+        <button type="submit" name="action" value="keep_open" class="h-11 rounded-lg border border-gray-300 text-sm font-medium text-brand-dark hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40">Лише внести — рахунок лишиться відкритим</button>
+        <button type="button" onclick="closePayModal()" class="h-10 rounded-lg text-sm text-gray-600 hover:bg-gray-50">Скасувати</button>
       </div>
+      <p class="mt-3 text-xs text-gray-600">Закрити з меншою сумою — решта стане боргом клієнта й з'явиться в «Боржниках».</p>
     </form>
   </div>
 </div>
@@ -367,19 +370,5 @@ function selectFiscalType(type) {
 }
 function openPayModal() { const m = document.getElementById('pay-modal'); m.classList.remove('hidden'); m.classList.add('flex'); }
 function closePayModal() { const m = document.getElementById('pay-modal'); m.classList.add('hidden'); m.classList.remove('flex'); }
-function selectPayMethod(method) {
-  document.getElementById('pay-method-input').value = method;
-  const btnCash = document.getElementById('btn-cash');
-  const btnCard = document.getElementById('btn-card');
-  if (method === 'cash') {
-    btnCash.className = 'py-2.5 rounded-lg text-sm font-medium border-2 border-brand-gold bg-brand-gold/10 text-brand-dark flex items-center justify-center gap-1.5';
-    btnCard.className = 'py-2.5 rounded-lg text-sm font-medium border-2 border-gray-200 text-gray-500 hover:border-gray-300 flex items-center justify-center gap-1.5';
-  } else {
-    btnCard.className = 'py-2.5 rounded-lg text-sm font-medium border-2 border-brand-gold bg-brand-gold/10 text-brand-dark flex items-center justify-center gap-1.5';
-    btnCash.className = 'py-2.5 rounded-lg text-sm font-medium border-2 border-gray-200 text-gray-500 hover:border-gray-300 flex items-center justify-center gap-1.5';
-  }
-}
 </script>
 {% endblock %}
-</content>
-</invoke>

@@ -30,7 +30,7 @@ from apps.services.models import Service
 from apps.tg.utils import is_mobile
 
 from .models import Invoice, InvoiceLine
-from .payments import pay_rest
+from .payments import add_payment, parse_payment_rows, pay_rest
 
 
 def _lines_render(request, invoice):
@@ -342,6 +342,11 @@ def _today_appointment(invoice):
     )
 
 
+def _payments_of(invoice):
+    from .models import InvoicePayment
+    return list(InvoicePayment._base_manager.filter(invoice=invoice).select_related('created_by'))
+
+
 @login_required
 def invoice_edit(request, pk):
     invoice = get_object_or_404(Invoice, pk=pk)
@@ -357,6 +362,7 @@ def invoice_edit(request, pk):
     appt = _today_appointment(invoice)
     ctx['today_appointment'] = appt
     ctx['today_appointment_visit'] = appt.visits.first() if appt else None
+    ctx['payments'] = _payments_of(invoice)
     template = 'billing/edit_mobile.html' if is_mobile(request) else 'billing/edit.html'
     return render(request, template, ctx)
 
@@ -570,7 +576,40 @@ def product_search_json(request):
 @require_POST
 @transaction.atomic
 def pay_invoice(request, pk):
+    """Оплата рахунку (ANVAR 01.11.2026): кілька рядків «спосіб + сума» (pay_method / pay_amount).
+    action=close — закрити рахунок (склад списується; недоплачене стає боргом клієнта);
+    action=keep_open — лише внести оплату (аванс), рахунок лишається відкритим.
+    Стара форма з одним payment_method — оплата всього залишку цим способом."""
     invoice = get_object_or_404(Invoice, pk=pk, status=Invoice.Status.DRAFT)
+    invoice.refresh_paid()
+    try:
+        rows = parse_payment_rows(request.POST)
+    except ValueError as exc:
+        messages.error(request, f'Оплата не прийнята: {exc}.')
+        return redirect('billing:edit', pk=pk)
+    if not rows and 'pay_method' not in request.POST:
+        method = request.POST.get('payment_method', Invoice.PaymentMethod.CASH)
+        if method not in Invoice.PaymentMethod.values:
+            method = Invoice.PaymentMethod.CASH
+        if invoice.balance_due > 0:
+            rows = [(method, invoice.balance_due)]
+    paying = sum((amount for _, amount in rows), Decimal('0'))
+    if paying > invoice.balance_due:
+        messages.error(request, f'Платежі ({paying} ₴) більші за залишок до сплати ({invoice.balance_due} ₴).')
+        return redirect('billing:edit', pk=pk)
+
+    if request.POST.get('action') == 'keep_open':
+        if invoice.fiscal_status == Invoice.FiscalStatus.PENDING:
+            # QR-код на термінал уже виставлено на всю суму — аванс зверху дав би переплату
+            messages.error(request, 'Клієнт зараз оплачує всю суму за QR-кодом — аванс не вноситься. Скасуйте очікування оплати або дочекайтесь її.')
+            return redirect('billing:edit', pk=pk)
+        if not rows:
+            messages.error(request, 'Вкажіть суму, яку внесли.')
+            return redirect('billing:edit', pk=pk)
+        for method, amount in rows:
+            add_payment(invoice, amount, method, request.user)
+        messages.success(request, f'Внесено {paying} ₴. Рахунок відкритий, до сплати ще {invoice.balance_due} ₴.')
+        return redirect('billing:edit', pk=pk)
 
     try:
         _writeoff_stock(invoice, request.user)
@@ -583,15 +622,57 @@ def pay_invoice(request, pk):
         )
         return redirect('billing:edit', pk=pk)
 
-    payment_method = request.POST.get('payment_method', Invoice.PaymentMethod.CASH)
-    if payment_method not in Invoice.PaymentMethod.values:
-        payment_method = Invoice.PaymentMethod.CASH
+    for method, amount in rows:
+        add_payment(invoice, amount, method, request.user)
     invoice.status = Invoice.Status.PAID
-    invoice.payment_method = payment_method
+    if not invoice.payment_method:
+        invoice.payment_method = rows[0][0] if rows else Invoice.PaymentMethod.CASH
     invoice.save(update_fields=['status', 'payment_method'])
-    pay_rest(invoice, payment_method, request.user)
-
+    invoice.refresh_paid()
+    if invoice.has_debt:
+        messages.warning(request, f'Рахунок закрито з боргом {invoice.balance_due} ₴ — він у розділі «Боржники».')
     return redirect('billing:detail', pk=pk)
+
+
+@login_required
+@require_POST
+@transaction.atomic
+def pay_debt(request, pk):
+    """Погасити борг за закритим рахунком — повністю або частинами, будь-яким способом."""
+    invoice = get_object_or_404(Invoice, pk=pk, status=Invoice.Status.PAID)
+    invoice.refresh_paid()
+    try:
+        rows = parse_payment_rows(request.POST)
+    except ValueError as exc:
+        messages.error(request, f'Оплата не прийнята: {exc}.')
+        return redirect('billing:detail', pk=pk)
+    paying = sum((amount for _, amount in rows), Decimal('0'))
+    if not rows:
+        messages.error(request, 'Вкажіть суму.')
+    elif paying > invoice.balance_due:
+        messages.error(request, f'Платежі ({paying} ₴) більші за борг ({invoice.balance_due} ₴).')
+    else:
+        for method, amount in rows:
+            add_payment(invoice, amount, method, request.user)
+        messages.success(request, 'Борг погашено.' if not invoice.has_debt
+                         else f'Внесено {paying} ₴, борг ще {invoice.balance_due} ₴.')
+    return redirect('billing:detail', pk=pk)
+
+
+@login_required
+@require_POST
+@transaction.atomic
+def delete_payment(request, pk, payment_id):
+    """Прибрати помилковий платіж (лише адміністратор): сума повертається в борг / до сплати."""
+    from .models import InvoicePayment
+    invoice = get_object_or_404(Invoice, pk=pk)
+    if not request.user.is_admin():
+        messages.error(request, 'Платежі прибирає лише адміністратор.')
+    else:
+        InvoicePayment._base_manager.filter(pk=payment_id, invoice=invoice).delete()
+        invoice.refresh_paid()
+        messages.success(request, 'Платіж прибрано.')
+    return redirect('billing:detail' if invoice.status == Invoice.Status.PAID else 'billing:edit', pk=pk)
 
 
 # ── детальний вигляд (рецепт/чек) ───────────────────────────────────────────
@@ -613,6 +694,7 @@ def invoice_detail(request, pk):
         'lines': lines,
         'prev_pk': prev_invoice,
         'next_pk': next_invoice,
+        'payments': _payments_of(invoice),
     })
 
 
@@ -622,6 +704,9 @@ def invoice_detail(request, pk):
 @require_POST
 def cancel_invoice(request, pk):
     invoice = get_object_or_404(Invoice, pk=pk, status=Invoice.Status.DRAFT)
+    if invoice.amount_paid > 0:
+        messages.error(request, f'На рахунку внесено {invoice.amount_paid} ₴ — спершу приберіть платежі (поверніть гроші клієнту).')
+        return redirect('billing:edit', pk=pk)
     invoice.status = Invoice.Status.CANCELLED
     invoice.save(update_fields=['status'])
     return redirect('billing:list')
@@ -639,6 +724,9 @@ def delete_invoice(request, pk):
     invoice = get_object_or_404(Invoice, pk=pk)
 
     if invoice.status in (Invoice.Status.DRAFT, Invoice.Status.CANCELLED):
+        if invoice.amount_paid > 0:
+            messages.error(request, f'На рахунку внесено {invoice.amount_paid} ₴ — спершу приберіть платежі (поверніть гроші клієнту).')
+            return redirect('billing:edit', pk=pk)
         invoice.delete()
         return redirect('billing:list')
 
@@ -765,6 +853,11 @@ def fiscalize_invoice(request, pk):
         return redirect('billing:edit', pk=pk)
 
     invoice = get_object_or_404(Invoice, pk=pk, status=Invoice.Status.DRAFT)
+    invoice.refresh_paid()
+    if invoice.amount_paid > 0:
+        # Чек і QR на термінал Checkbox — завжди на всю суму рахунку: з авансом клієнт заплатив би його вдруге
+        messages.error(request, f'По рахунку вже внесено {invoice.amount_paid} ₴ — фіскальний чек пробивається лише на всю суму. Решту прийміть через «Оплатити».')
+        return redirect('billing:edit', pk=pk)
     payment_type = request.POST.get('payment_type', 'card')
 
     from .checkbox_service import CheckboxService

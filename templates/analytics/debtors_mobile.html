@@ -28,12 +28,12 @@
     <!-- 2 KPI -->
     <div class="px-3 pt-3 grid grid-cols-2 gap-2">
       <div class="fin-kpi">
-        <div class="text-[11px] text-gray-400 uppercase tracking-wide">Клієнтів</div>
+        <div class="text-[11px] text-gray-600 uppercase tracking-wide">Клієнтів</div>
         <div class="text-2xl font-bold text-brand-dark mt-0.5">{{ count }}</div>
       </div>
       <div class="fin-kpi">
-        <div class="text-[11px] text-gray-400 uppercase tracking-wide">Заборгованість</div>
-        <div class="text-2xl font-bold text-red-600 mt-0.5">{{ grand_total|floatformat:0 }} ₴</div>
+        <div class="text-[11px] text-gray-600 uppercase tracking-wide">Заборгованість</div>
+        <div class="text-2xl font-bold text-red-700 mt-0.5">{{ grand_total|floatformat:0 }} ₴</div>
       </div>
     </div>
 
@@ -42,15 +42,15 @@
       {% for d in debtors %}
       <details class="bg-white rounded-2xl border border-gray-100">
         <summary class="px-3 py-3 flex items-start gap-3 cursor-pointer list-none active:bg-gray-50">
-          <div class="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0 font-bold text-sm">
+          <div class="w-10 h-10 rounded-full bg-red-100 text-red-700 flex items-center justify-center shrink-0 font-bold text-sm">
             {{ d.client.last_name|default:d.client.first_name|slice:":1"|upper }}
           </div>
           <div class="flex-1 min-w-0">
             <div class="flex items-baseline justify-between gap-2">
               <div class="font-semibold text-brand-dark text-[15px] truncate">{{ d.client }}</div>
-              <div class="font-bold text-red-600 text-[15px] whitespace-nowrap">{{ d.total|floatformat:0 }} ₴</div>
+              <div class="font-bold text-red-700 text-[15px] whitespace-nowrap">{{ d.total|floatformat:0 }} ₴</div>
             </div>
-            <div class="text-[11px] text-gray-400 mt-0.5">
+            <div class="text-[11px] text-gray-600 mt-0.5">
               {% if d.client.phone %}{{ d.client.phone }} · {% endif %}{{ d.invoices|length }} чек(ів)
             </div>
           </div>
@@ -65,11 +65,11 @@
              class="flex items-center gap-3 px-4 py-2.5 active:bg-gray-50">
             <div class="flex-1 min-w-0">
               <div class="text-sm text-brand-dark">Чек #{{ inv.pk }}</div>
-              <div class="text-[11px] text-gray-400">
+              <div class="text-[11px] text-gray-600">
                 {{ inv.created_at|date:"d.m.Y" }}{% if inv.patient %} · {{ inv.patient.name }}{% endif %}
               </div>
             </div>
-            <div class="text-sm font-semibold text-red-600 whitespace-nowrap">{{ inv.total|floatformat:0 }} ₴</div>
+            <div class="text-sm font-semibold text-red-700 whitespace-nowrap">{{ inv.balance_due|floatformat:0 }} ₴{% if inv.status == 'paid' %} <span class="ml-1 whitespace-nowrap rounded bg-red-50 px-1.5 py-0.5 text-[11px] font-medium text-red-800">борг</span>{% else %} <span class="ml-1 whitespace-nowrap rounded bg-amber-50 px-1.5 py-0.5 text-[11px] font-medium text-amber-900">не оплачено</span>{% endif %}</div>
             <svg class="w-4 h-4 text-gray-300 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
             </svg>
@@ -78,7 +78,7 @@
         </div>
       </details>
       {% empty %}
-      <div class="text-center text-sm text-gray-400 py-16">
+      <div class="text-center text-sm text-gray-600 py-16">
         <div class="text-4xl mb-2">✅</div>
         Боржників немає.
       </div>

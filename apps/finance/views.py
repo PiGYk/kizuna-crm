@@ -276,8 +276,13 @@ def report_data(request):
         created_at__date__lte=end,
     )
     income_total = invoices.aggregate(t=Sum('total'))['t'] or Decimal('0')
-    income_cash = invoices.filter(payment_method='cash').aggregate(t=Sum('total'))['t'] or Decimal('0')
-    income_card = invoices.filter(payment_method='card').aggregate(t=Sum('total'))['t'] or Decimal('0')
+    # готівка/картка — за платежами (частинами й змішано з 01.11.2026; історія переведена 1:1)
+    from django.db.models import Q
+    from apps.billing.models import InvoicePayment
+    pay = InvoicePayment._base_manager.filter(invoice__in=invoices).aggregate(
+        cash=Sum('amount', filter=Q(method='cash')), card=Sum('amount', filter=Q(method='card')))
+    income_cash = pay['cash'] or Decimal('0')
+    income_card = pay['card'] or Decimal('0')
 
     # Витрати
     expenses = Expense.objects.filter(date__gte=start, date__lte=end)

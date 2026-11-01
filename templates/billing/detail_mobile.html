@@ -26,10 +26,11 @@
     </a>
     <h1 class="flex-1 font-semibold text-brand-dark text-base truncate">Чек #{{ invoice.pk }}</h1>
     <span class="text-xs px-2 py-0.5 rounded-full font-medium
-      {% if invoice.status == 'paid' %}bg-green-100 text-green-700
+      {% if invoice.has_debt %}bg-red-50 text-red-800
+      {% elif invoice.status == 'paid' %}bg-green-100 text-green-700
       {% elif invoice.status == 'draft' %}bg-yellow-100 text-yellow-700
       {% else %}bg-gray-100 text-gray-500{% endif %}">
-      {% if invoice.status == 'paid' %}Оплачено{% elif invoice.status == 'draft' %}Чернетка{% else %}Скасовано{% endif %}
+      {% if invoice.has_debt %}Борг {{ invoice.balance_due|floatformat:0 }} ₴{% elif invoice.status == 'paid' %}Оплачено{% elif invoice.status == 'draft' %}Чернетка{% else %}Скасовано{% endif %}
     </span>
   </header>
 
@@ -76,7 +77,9 @@
           <span class="text-lg shrink-0">💳</span>
           <div class="flex-1 min-w-0">
             <div class="text-[11px] text-gray-400 uppercase">Оплата</div>
-            {% if invoice.status == 'paid' %}
+            {% if invoice.status == 'paid' and payments|length > 1 %}
+              {% include 'billing/partials/payments_list.html' %}
+            {% elif invoice.status == 'paid' and payments %}
               <form method="post" action="{% url 'billing:update_payment' invoice.pk %}" class="flex gap-1.5 mt-0.5">
                 {% csrf_token %}
                 <button type="submit" name="payment_method" value="cash"
@@ -101,6 +104,10 @@
         </div>
       </div>
     </div>
+
+    {% if invoice.has_debt %}
+    <div class="px-3 pt-3">{% include 'billing/partials/debt_box.html' %}</div>
+    {% endif %}
 
     <!-- Lines -->
     <div class="px-3 pt-3">

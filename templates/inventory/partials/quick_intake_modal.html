@@ -1,4 +1,4 @@
-<div id="quick-intake-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+{% load l10n %}<div id="quick-intake-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
   <div class="bg-white rounded-xl p-6 max-w-sm w-full shadow-xl">
     <h2 class="text-lg font-bold text-brand-dark mb-1">Прихід товару</h2>
     <p class="text-sm text-gray-500 mb-4">{{ product.name }} <span class="text-gray-400">(залишок: {{ product.quantity|floatformat:"-3" }} {{ product.unit.short|default:"" }})</span></p>
@@ -14,7 +14,7 @@
         </div>
         <div>
           <label class="text-xs text-gray-500 block mb-1">Ціна закуп.</label>
-          <input type="number" name="price" min="0" step="0.01" value="{{ product.buy_price }}"
+          <input type="number" name="price" min="0" step="0.01" value="{{ product.buy_price|unlocalize }}"
             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
         </div>
       </div>

@@ -1,0 +1,14 @@
+{# Борг за закритим рахунком: скільки, платежі, «Погасити» (ANVAR 01.11.2026) #}
+<div class="rounded-xl border border-red-200 bg-red-50 p-4">
+  <div class="flex flex-wrap items-baseline justify-between gap-2">
+    <div class="text-sm font-semibold text-red-800">Борг {{ invoice.balance_due }} ₴</div>
+    <div class="text-xs tabular-nums text-red-900">сплачено {{ invoice.amount_paid }} з {{ invoice.total }} ₴</div>
+  </div>
+  <form method="post" action="{% url 'billing:pay_debt' invoice.pk %}" class="mt-3">
+    {% csrf_token %}
+    <div class="pay-box" data-mode="debt" data-due="{{ invoice.balance_due|stringformat:'s' }}">
+      {% include 'billing/partials/pay_rows.html' with due=invoice.balance_due %}
+    </div>
+    <button type="submit" class="mt-3 h-11 w-full rounded-lg bg-brand-gold text-sm font-semibold text-brand-dark hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:px-6">Погасити</button>
+  </form>
+</div>

@@ -73,20 +73,22 @@ def analytics_data(request):
 
     # KPIs — об'єднано у 1 aggregate (раніше було 6 окремих).
     from django.db.models import Q
-    agg = qs.aggregate(
-        revenue=Sum('total'),
-        count=Count('id'),
-        cash=Sum('total', filter=Q(payment_method='cash')),
-        cash_cnt=Count('id', filter=Q(payment_method='cash')),
-        card=Sum('total', filter=Q(payment_method='card')),
-        card_cnt=Count('id', filter=Q(payment_method='card')),
+    agg = qs.aggregate(revenue=Sum('total'), count=Count('id'))
+    # готівка/картка — за платежами (з 01.11.2026 рахунок можна сплатити частинами й змішано);
+    # історію міграція billing 0011 переклала в платежі 1:1, тож старі цифри ті самі
+    from apps.billing.models import InvoicePayment
+    pay = InvoicePayment._base_manager.filter(invoice__in=qs).aggregate(
+        cash=Sum('amount', filter=Q(method='cash')),
+        cash_cnt=Count('invoice', filter=Q(method='cash'), distinct=True),
+        card=Sum('amount', filter=Q(method='card')),
+        card_cnt=Count('invoice', filter=Q(method='card'), distinct=True),
     )
     revenue = agg['revenue'] or 0
     count = agg['count'] or 0
-    cash = agg['cash'] or 0
-    cash_cnt = agg['cash_cnt'] or 0
-    card = agg['card'] or 0
-    card_cnt = agg['card_cnt'] or 0
+    cash = pay['cash'] or 0
+    cash_cnt = pay['cash_cnt'] or 0
+    card = pay['card'] or 0
+    card_cnt = pay['card_cnt'] or 0
     avg_check = (revenue / count) if count else 0
     delta_days = (end - start).days + 1
     active_days = qs.annotate(day=TruncDate('created_at')).values('day').distinct().count()
@@ -142,11 +144,16 @@ def analytics_data(request):
     )
 
     # Payment methods
-    pay_map = {'cash': 'Готівка', 'card': 'Картка', None: 'Не вказано'}
-    pay_methods = list(
-        qs.values('payment_method')
-        .annotate(total=Sum('total'), cnt=Count('id'))
-    )
+    pay_map = {'cash': 'Готівка', 'card': 'Картка', 'debt': 'Борг (не сплачено)', None: 'Не вказано'}
+    pay_methods = [
+        {'payment_method': p['method'], 'total': p['total'], 'cnt': p['cnt']}
+        for p in InvoicePayment._base_manager.filter(invoice__in=qs).values('method')
+        .annotate(total=Sum('amount'), cnt=Count('invoice', distinct=True))
+    ]
+    debt = (revenue or 0) - (cash or 0) - (card or 0)
+    if debt > 0:
+        pay_methods.append({'payment_method': 'debt', 'total': debt,
+                            'cnt': qs.filter(amount_paid__lt=F('total')).count()})
 
     # By doctor
     by_doctor = list(
@@ -206,9 +213,13 @@ def debtors_view(request):
     from apps.billing.models import Invoice
     from collections import defaultdict
 
+    from django.db.models import F
+    # неоплачені чернетки й рахунки, закриті з боргом (ANVAR 01.11.2026: частинами й змішано);
+    # рахуємо залишок до сплати, а не всю суму — внесене вже не борг
     drafts = Invoice.objects.filter(
-        status='draft',
+        status__in=('draft', 'paid'),
         total__gt=0,
+        amount_paid__lt=F('total'),
         organization=request.organization,
     ).select_related('client', 'patient', 'doctor').order_by('client', '-created_at')
 
@@ -217,7 +228,7 @@ def debtors_view(request):
         g = client_map[inv.client_id]
         g['client'] = inv.client
         g['invoices'].append(inv)
-        g['total'] += float(inv.total)
+        g['total'] += float(inv.balance_due)
 
     debtors = sorted(client_map.values(), key=lambda x: x['total'], reverse=True)
     grand_total = sum(d['total'] for d in debtors)

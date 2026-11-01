@@ -4,7 +4,7 @@
 <div class="flex items-center justify-between mb-6">
   <div>
     <h1 class="text-2xl font-bold text-brand-dark">Боржники</h1>
-    <p class="text-sm text-gray-500 mt-0.5">Неоплачені рахунки (статус: чернетка)</p>
+    <p class="text-sm text-gray-600 mt-0.5">Неоплачені чернетки й рахунки, закриті з боргом — залишок до сплати</p>
   </div>
 </div>
 
@@ -12,17 +12,17 @@
 <!-- KPI -->
 <div class="grid grid-cols-2 gap-4 mb-5">
   <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-    <div class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Клієнтів-боржників</div>
+    <div class="text-xs font-medium text-gray-600 uppercase tracking-wide mb-1">Клієнтів-боржників</div>
     <div class="text-2xl font-bold text-brand-dark">{{ count }}</div>
   </div>
   <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-    <div class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Загальна заборгованість</div>
-    <div class="text-2xl font-bold text-red-500">{{ grand_total|floatformat:0 }} ₴</div>
+    <div class="text-xs font-medium text-gray-600 uppercase tracking-wide mb-1">Загальна заборгованість</div>
+    <div class="text-2xl font-bold text-red-700">{{ grand_total|floatformat:0 }} ₴</div>
   </div>
 </div>
 
 <!-- Таблиця -->
-<div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+<div class="bg-white rounded-xl border border-gray-200 overflow-x-auto">
   <table class="w-full text-sm">
     <thead class="bg-gray-50 border-b border-gray-200">
       <tr>
@@ -44,14 +44,14 @@
           <!-- Рахунки (accordion-like sub-rows) -->
           <div class="mt-1 space-y-0.5">
             {% for inv in debtor.invoices %}
-            <div class="text-xs text-gray-400 flex items-center gap-2">
+            <div class="text-xs text-gray-600 flex items-center gap-2">
               <span class="text-gray-300">#</span>
-              <a href="{% url 'billing:detail' inv.pk %}" class="text-brand-gold hover:underline">
+              <a href="{% url 'billing:detail' inv.pk %}" class="text-brand-dark underline decoration-brand-gold underline-offset-2">
                 {{ inv.pk }}
               </a>
               <span>{{ inv.created_at|date:"d.m.Y" }}</span>
-              <span class="font-medium text-gray-600">{{ inv.total|floatformat:0 }} ₴</span>
-              {% if inv.patient %}<span class="text-gray-400">· {{ inv.patient.name }}</span>{% endif %}
+              <span class="font-medium text-gray-600">{{ inv.balance_due|floatformat:0 }} ₴{% if inv.status == 'paid' %} <span class="ml-1 whitespace-nowrap rounded bg-red-50 px-1.5 py-0.5 text-[11px] font-medium text-red-800">борг</span>{% else %} <span class="ml-1 whitespace-nowrap rounded bg-amber-50 px-1.5 py-0.5 text-[11px] font-medium text-amber-900">не оплачено</span>{% endif %}</span>
+              {% if inv.patient %}<span class="text-gray-600">· {{ inv.patient.name }}</span>{% endif %}
             </div>
             {% endfor %}
           </div>
@@ -60,7 +60,7 @@
           {{ debtor.client.phone|default:"—" }}
         </td>
         <td class="px-4 py-3 text-right text-gray-500">{{ debtor.invoices|length }}</td>
-        <td class="px-4 py-3 text-right font-semibold text-red-500">{{ debtor.total|floatformat:0 }} ₴</td>
+        <td class="px-4 py-3 text-right font-semibold text-red-700">{{ debtor.total|floatformat:0 }} ₴</td>
         <td class="px-4 py-3 text-center">
           {% if oldest %}
           <a href="{% url 'billing:detail' oldest.pk %}"
@@ -79,7 +79,7 @@
     <tfoot class="border-t-2 border-red-200 bg-red-50">
       <tr>
         <td colspan="3" class="px-4 py-3 text-right font-bold text-gray-700">Разом:</td>
-        <td class="px-4 py-3 text-right font-bold text-red-500 text-base">{{ grand_total|floatformat:0 }} ₴</td>
+        <td class="px-4 py-3 text-right font-bold text-red-700 text-base">{{ grand_total|floatformat:0 }} ₴</td>
         <td></td>
       </tr>
     </tfoot>
@@ -91,7 +91,7 @@
   <svg class="w-12 h-12 text-green-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
   </svg>
-  <p class="text-gray-400 font-medium">Боржників немає</p>
+  <p class="text-gray-600 font-medium">Боржників немає</p>
   <p class="text-sm text-gray-300 mt-1">Всі клієнти розрахувались. Приємна новина.</p>
 </div>
 {% endif %}

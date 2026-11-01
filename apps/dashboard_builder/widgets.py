@@ -461,6 +461,8 @@ def render_list_recent_invoices(request, config):
         ts = timezone.localtime(inv.created_at).strftime('%d.%m %H:%M')
         client = escape(str(inv.client))
         method = escape(inv.get_payment_method_display() if inv.payment_method else '—')
+        if inv.has_debt:
+            method += f' · борг {_money(inv.balance_due)}'
         rows.append(f'''
           <tr class="border-b border-gray-100 hover:bg-gray-50">
             <td class="py-2 px-2 text-xs font-mono text-gray-500">#{inv.pk}</td>

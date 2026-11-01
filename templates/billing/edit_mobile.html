@@ -95,6 +95,13 @@
   </div>
   {% endif %}
 
+  {% if payments %}
+  <div class="mx-3 mt-3 shrink-0 rounded-xl border border-green-200 bg-green-50 px-3 py-2">
+    <div class="mb-1 text-sm text-green-900">Внесено <b class="tabular-nums">{{ invoice.amount_paid }} ₴</b> · до сплати <b class="tabular-nums">{{ invoice.balance_due }} ₴</b></div>
+    {% include 'billing/partials/payments_list.html' %}
+  </div>
+  {% endif %}
+
   <!-- Lines area -->
   <div class="flex-1 overflow-y-auto px-3 pt-3 pb-28" style="-webkit-overflow-scrolling: touch; background: #f7f7f8;">
     {% include 'billing/partials/mobile_lines.html' %}
@@ -272,6 +279,11 @@
     <div class="text-sm font-semibold text-brand-dark">Розрахувати (Checkbox)</div>
     <div class="text-[11px] text-gray-400 mt-0.5">Фіскальний чек буде відправлено в ДПС</div>
   </div>
+  {% if invoice.amount_paid %}
+  <div class="tg-mobile-sheet-body px-4 py-3 text-sm text-gray-700">
+    По рахунку вже внесено <b class="tabular-nums">{{ invoice.amount_paid|floatformat:2 }}&nbsp;₴</b>. Фіскальний чек пробивається лише на всю суму рахунку, тому решту прийміть через «Оплатити».
+  </div>
+  {% else %}
   <form method="post" action="{% url 'billing:fiscalize' invoice.pk %}" class="tg-mobile-sheet-body px-4 py-3 space-y-2">
     {% csrf_token %}
     <label>
@@ -290,32 +302,24 @@
       Розрахувати
     </button>
   </form>
+  {% endif %}
 </div>
 
-<!-- Pay sheet (no fiscalize) -->
+<!-- Pay sheet: частинами й змішано (ANVAR 01.11.2026) -->
 <div id="mob-pay-sheet" class="tg-mobile-sheet">
   <div class="tg-mobile-sheet-handle"></div>
   <div class="px-4 py-3 border-b border-gray-100">
-    <div class="text-sm font-semibold text-brand-dark">Оплата без фіскалізації</div>
-    <div class="text-[11px] text-gray-400 mt-0.5">Закриє рахунок і спише товари зі складу</div>
+    <div class="text-sm font-semibold text-brand-dark">Оплата</div>
+    <div class="text-xs text-gray-600 mt-0.5">Сума {{ invoice.total }} ₴{% if invoice.amount_paid %} · уже внесено {{ invoice.amount_paid }} ₴{% endif %}{% if clinic.can_use_checkbox %} · без фіскального чека{% endif %}</div>
   </div>
-  <form method="post" action="{% url 'billing:pay' invoice.pk %}" class="tg-mobile-sheet-body px-4 py-3 space-y-2">
+  <form method="post" action="{% url 'billing:pay' invoice.pk %}" class="tg-mobile-sheet-body px-4 py-3">
     {% csrf_token %}
-    <label>
-      <input type="radio" name="payment_method" value="cash" class="hidden peer" checked>
-      <span class="block px-4 py-3 rounded-xl border-2 border-gray-200 text-sm bg-white peer-checked:border-brand-gold peer-checked:bg-brand-gold/10 peer-checked:text-brand-dark">
-        💵 Готівка
-      </span>
-    </label>
-    <label>
-      <input type="radio" name="payment_method" value="card" class="hidden peer">
-      <span class="block px-4 py-3 rounded-xl border-2 border-gray-200 text-sm bg-white peer-checked:border-brand-gold peer-checked:bg-brand-gold/10 peer-checked:text-brand-dark">
-        💳 Картка
-      </span>
-    </label>
-    <button type="submit" class="mt-2 w-full py-3 rounded-xl text-sm font-semibold bg-brand-gold text-brand-dark active:opacity-80">
-      Оплатити
-    </button>
+    <div class="pay-box" data-due="{{ invoice.balance_due|stringformat:'s' }}">
+      {% include 'billing/partials/pay_rows.html' with due=invoice.balance_due %}
+    </div>
+    <button type="submit" name="action" value="close" class="mt-4 w-full py-3 rounded-xl text-sm font-semibold bg-brand-gold text-brand-dark active:opacity-80 disabled:opacity-40">Оплатити й закрити рахунок</button>
+    <button type="submit" name="action" value="keep_open" class="mt-2 w-full py-3 rounded-xl text-sm font-medium border border-gray-300 text-brand-dark active:bg-gray-50 disabled:opacity-40">Лише внести — рахунок відкритий</button>
+    <p class="mt-2 text-xs text-gray-600">Закрити з меншою сумою — решта стане боргом клієнта.</p>
   </form>
 </div>
 
