@@ -98,8 +98,8 @@ class PatientForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         User = get_user_model()
         if org is not None:
-            self.fields['assigned_doctor'].queryset = User.objects.filter(
-                organization=org, role__in=['admin', 'doctor'],
+            self.fields['assigned_doctor'].queryset = User.practitioners(
+                org, keep=self.instance.assigned_doctor_id,
             ).order_by('last_name', 'first_name')
         else:
             self.fields['assigned_doctor'].queryset = User.objects.none()
@@ -123,8 +123,8 @@ class VisitForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         User = get_user_model()
         if org is not None:
-            self.fields['doctor'].queryset = User.objects.filter(
-                organization=org, role__in=['admin', 'doctor'],
+            self.fields['doctor'].queryset = User.practitioners(
+                org, keep=self.instance.doctor_id,
             ).order_by('last_name', 'first_name')
         else:
             self.fields['doctor'].queryset = User.objects.none()
@@ -149,8 +149,8 @@ class VaccineForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         User = get_user_model()
         if org is not None:
-            self.fields['doctor'].queryset = User.objects.filter(
-                organization=org, role__in=['admin', 'doctor'],
+            self.fields['doctor'].queryset = User.practitioners(
+                org, keep=self.instance.doctor_id,
             ).order_by('last_name', 'first_name')
         else:
             self.fields['doctor'].queryset = User.objects.none()

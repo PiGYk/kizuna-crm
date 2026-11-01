@@ -20,6 +20,15 @@
       <!-- Основні поля (без salary_*) -->
       {% for field in form %}
         {% if 'salary' not in field.name %}
+        {% if field.field.widget.input_type == 'checkbox' %}
+        <label for="{{ field.id_for_label }}" class="flex items-start gap-3 cursor-pointer">
+          <span class="pt-0.5">{{ field }}</span>
+          <span>
+            <span class="block text-sm font-medium text-gray-700">{{ field.label }}</span>
+            {% if field.help_text %}<span class="block text-xs text-gray-500">{{ field.help_text }}</span>{% endif %}
+          </span>
+        </label>
+        {% else %}
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">{{ field.label }}</label>
           {{ field }}
@@ -27,6 +36,7 @@
             <p class="text-red-500 text-xs mt-1">{{ field.errors|join:", " }}</p>
           {% endif %}
         </div>
+        {% endif %}
         {% endif %}
       {% endfor %}
 
@@ -70,4 +80,15 @@
     </form>
   </div>
 </div>
+<script>
+(function () {
+  // рецепція зазвичай не веде прийоми, лікар — веде; галочку можна змінити руками
+  var role = document.getElementById('id_role'), visits = document.getElementById('id_takes_visits');
+  if (!role || !visits) return;
+  role.addEventListener('change', function () {
+    if (role.value === 'reception') visits.checked = false;
+    if (role.value === 'doctor') visits.checked = true;
+  });
+})();
+</script>
 {% endblock %}

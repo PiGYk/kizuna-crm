@@ -69,7 +69,7 @@ class ClinicInfoForm(_OrgSectionForm):
         org = self.instance
         # Лише свої активні лікарі й адміни; уже вибраного лишаємо, навіть якщо
         # його вимкнули, — інакше форма мовчки скинула б його при збереженні.
-        active = Q(is_active=True)
+        active = Q(is_active=True, takes_visits=True)
         if org.default_doctor_id:
             active |= Q(pk=org.default_doctor_id)
         field = self.fields['default_doctor']

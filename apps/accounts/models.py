@@ -11,6 +11,8 @@ class User(AbstractUser):
         ADMIN = 'admin', 'Адміністратор'
         DOCTOR = 'doctor', 'Лікар'
         ASSISTANT = 'assistant', 'Асистент'
+        # рецепція: доступ до розділів налаштовує головний адміністратор (ANVAR 01.11)
+        RECEPTION = 'reception', 'Адміністратор рецепції'
 
     role = models.CharField(
         max_length=20,
@@ -55,8 +57,27 @@ class User(AbstractUser):
     # і далі не змінюється: людину впізнають за кольором, не читаючи імені.
     shift_color = models.CharField('Колір у графіку', max_length=16, blank=True, default='')
 
+    # ANVAR 01.11: власник — адміністратор, не лікар, а його пропонувало лікарем у прийомах.
+    takes_visits = models.BooleanField(
+        'Веде прийоми', default=True,
+        help_text='Показувати серед лікарів і виконавців у прийомах, розкладі й стаціонарі',
+    )
+
     def is_admin(self):
         return self.role == self.Role.ADMIN
+
+    @classmethod
+    def practitioners(cls, org, keep=None, roles=('admin', 'doctor')):
+        """Хто веде прийоми в клініці: потрібні ролі з галочкою «Веде прийоми». keep — id
+        людини, яку лишити в списку без галочки (вона вже стоїть у записі, що редагують);
+        roles=None — усі ролі (виконавець у розкладі)."""
+        from django.db.models import Q
+        q = Q(organization=org, takes_visits=True)
+        if roles:
+            q &= Q(role__in=roles)
+        if keep:
+            q |= Q(organization=org, pk=keep)
+        return cls.objects.filter(q)
 
     def __str__(self):
         return f"{self.get_full_name() or self.username} ({self.get_role_display()})"

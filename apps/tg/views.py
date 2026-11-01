@@ -2598,11 +2598,18 @@ def set_webhook(request):
 # Broadcast (розсилка)
 # ──────────────────────────────────────────────
 
+def _can_broadcast(request):
+    """Розсилки — адміністратор або роль із галочкою «Розсилки» в «Доступі до меню»
+    (до 01.11.2026 галочка нічого не робила: розсилки відкривались лише адміну)."""
+    org = request.organization
+    return request.user.is_admin() or (org is not None and org.can_see_menu(request.user.role, 'broadcast'))
+
+
 @login_required
 def broadcast_list(request):
     from django.http import HttpResponseForbidden
-    if not request.user.is_admin():
-        return HttpResponseForbidden('Тільки адмін')
+    if not _can_broadcast(request):
+        return HttpResponseForbidden('Немає доступу до розсилок')
     from .models import Broadcast, TelegramChat
     org = request.organization
     broadcasts = Broadcast.objects.filter(organization=org).select_related('created_by')
@@ -2616,8 +2623,8 @@ def broadcast_list(request):
 @login_required
 def broadcast_create(request):
     from django.http import HttpResponseForbidden
-    if not request.user.is_admin():
-        return HttpResponseForbidden('Тільки адмін')
+    if not _can_broadcast(request):
+        return HttpResponseForbidden('Немає доступу до розсилок')
     from .models import Broadcast, TelegramChat
     org = request.organization
     chat_count = TelegramChat.objects.filter(organization=org).count()
@@ -2658,8 +2665,8 @@ def broadcast_create(request):
 @login_required
 def broadcast_detail(request, pk):
     from django.http import HttpResponseForbidden
-    if not request.user.is_admin():
-        return HttpResponseForbidden('Тільки адмін')
+    if not _can_broadcast(request):
+        return HttpResponseForbidden('Немає доступу до розсилок')
     from .models import Broadcast, BroadcastRecipient
     broadcast = get_object_or_404(Broadcast, pk=pk, organization=request.organization)
     skipped = broadcast.recipients.filter(status=BroadcastRecipient.Status.SKIPPED).count()
@@ -2673,8 +2680,8 @@ def broadcast_detail(request, pk):
 def broadcast_send(request, pk):
     """Відправити вже збережену чернетку."""
     from django.http import HttpResponseForbidden
-    if not request.user.is_admin():
-        return HttpResponseForbidden('Тільки адмін')
+    if not _can_broadcast(request):
+        return HttpResponseForbidden('Немає доступу до розсилок')
     from .models import Broadcast, TelegramChat
     if request.method != 'POST':
         return redirect('tg:broadcast_detail', pk=pk)

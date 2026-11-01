@@ -17,7 +17,7 @@
   <!-- Sticky header -->
   <div class="tg-mobile-header sticky top-0 z-20 bg-white border-b border-gray-100 flex items-center gap-2 px-4 py-3">
     <h1 class="text-xl font-bold text-brand-dark flex-1">Чати</h1>
-    {% if user.role == 'admin' %}
+    {% if user_menu.broadcast %}
     <a href="{% url 'tg:broadcast_list' %}"
        class="tg-mobile-tap text-brand-dark active:opacity-70"
        aria-label="Розсилки"

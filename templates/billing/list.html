@@ -8,7 +8,7 @@
     <h1 class="text-2xl font-bold text-brand-dark">Рахунки</h1>
     <div class="text-[11px] uppercase tracking-wide text-gray-400 font-medium mt-1">
       {{ total_count }} {% if date_from or date_to %}за період{% else %}всього{% endif %}
-      {% if request.user.role == 'doctor' %} · тільки мої{% endif %}
+      {% if only_own %} · тільки мої{% endif %}
     </div>
   </div>
   <div class="flex items-center gap-2 shrink-0">

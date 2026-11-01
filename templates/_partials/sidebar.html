@@ -156,7 +156,7 @@
     </a>
 
     {# ── Аналітика group ────────────────────────────────────────────────── #}
-    {% if user_menu.analytics or not request.organization %}
+    {% if user_menu.analytics or user_menu.revenue or user_menu.debtors or not request.organization %}
     <div class="sb-group" data-group="analytics" {% if an == 'analytics' %}data-active="true"{% endif %}>
       <button type="button" class="sb-group-head">
         <svg class="sb-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
@@ -164,11 +164,11 @@
         <svg class="sb-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
       </button>
       <div class="sb-group-body">
-        <a href="{% url 'analytics:index' %}" class="sb-sub {% if an == 'analytics' and un == 'index' %}sb-sub-active{% endif %}">Огляд</a>
-        <a href="{% url 'analytics:services' %}" class="sb-sub {% if an == 'analytics' and un == 'services' %}sb-sub-active{% endif %}">Доходність послуг</a>
-        <a href="{% url 'analytics:profit' %}" class="sb-sub {% if an == 'analytics' and 'profit' in un %}sb-sub-active{% endif %}">Чистий прибуток</a>
-        <a href="{% url 'analytics:usage' %}" class="sb-sub {% if an == 'analytics' and 'usage' in un %}sb-sub-active{% endif %}">Використання</a>
-        <a href="{% url 'analytics:debtors' %}" class="sb-sub {% if an == 'analytics' and un == 'debtors' %}sb-sub-active{% endif %}">Боржники</a>
+        {% if user_menu.analytics or not request.organization %}<a href="{% url 'analytics:index' %}" class="sb-sub {% if an == 'analytics' and un == 'index' %}sb-sub-active{% endif %}">Огляд</a>{% endif %}
+        {% if user_menu.revenue or not request.organization %}<a href="{% url 'analytics:services' %}" class="sb-sub {% if an == 'analytics' and un == 'services' %}sb-sub-active{% endif %}">Доходність послуг</a>{% endif %}
+        {% if user_menu.analytics or not request.organization %}<a href="{% url 'analytics:profit' %}" class="sb-sub {% if an == 'analytics' and 'profit' in un %}sb-sub-active{% endif %}">Чистий прибуток</a>
+        <a href="{% url 'analytics:usage' %}" class="sb-sub {% if an == 'analytics' and 'usage' in un %}sb-sub-active{% endif %}">Використання</a>{% endif %}
+        {% if user_menu.debtors or not request.organization %}<a href="{% url 'analytics:debtors' %}" class="sb-sub {% if an == 'analytics' and un == 'debtors' %}sb-sub-active{% endif %}">Боржники</a>{% endif %}
       </div>
     </div>
     {% endif %}

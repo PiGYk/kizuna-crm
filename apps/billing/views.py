@@ -85,6 +85,14 @@ def _lines_context(invoice):
 
 # ── список рахунків ──────────────────────────────────────────────────────────
 
+def _only_own_invoices(request):
+    """«Рахунки (всі)» у «Доступі до меню»: без цієї галочки роль бачить лише свої рахунки.
+    До 01.11.2026 так було завжди й лише для лікаря, а галочка нічого не робила."""
+    org = request.organization
+    return (not request.user.is_admin() and org is not None
+            and not org.can_see_menu(request.user.role, 'billing'))
+
+
 @login_required
 def invoice_list(request):
     from datetime import datetime, time, timedelta
@@ -95,8 +103,9 @@ def invoice_list(request):
     base = Invoice.objects.select_related('client', 'patient', 'doctor').filter(
         organization=request.organization
     )
-    # Лікар бачить тільки свої рахунки
-    if request.user.role == 'doctor':
+    # без «Рахунки (всі)» — лише свої
+    only_own = _only_own_invoices(request)
+    if only_own:
         base = base.filter(doctor=request.user)
 
     q = request.GET.get('q', '').strip()
@@ -167,7 +176,7 @@ def invoice_list(request):
         from apps.accounts.models import User as UserModel
         doctors = UserModel.objects.filter(
             organization=request.organization,
-            role__in=(UserModel.Role.DOCTOR, UserModel.Role.ADMIN, UserModel.Role.ASSISTANT),
+            role__in=(UserModel.Role.DOCTOR, UserModel.Role.ADMIN, UserModel.Role.ASSISTANT, UserModel.Role.RECEPTION),
         ).order_by('first_name', 'last_name', 'username')
 
     paginator = Paginator(invoices_qs, per_page)
@@ -177,6 +186,7 @@ def invoice_list(request):
     return render(request, template, {
         'invoices': page,
         'payment_filter': payment,
+        'only_own': only_own,
         'status_filter': status,
         'doctor_filter': doctor_id,
         'q': q,
@@ -590,7 +600,7 @@ def invoice_detail(request, pk):
     lines = invoice.lines.select_related('service', 'product').all()
 
     base_nav = Invoice.objects.filter(organization=request.organization)
-    if request.user.role == 'doctor':
+    if _only_own_invoices(request):
         base_nav = base_nav.filter(doctor=request.user)
     prev_invoice = base_nav.filter(pk__lt=invoice.pk).order_by('-pk').values_list('pk', flat=True).first()
     next_invoice = base_nav.filter(pk__gt=invoice.pk).order_by('pk').values_list('pk', flat=True).first()

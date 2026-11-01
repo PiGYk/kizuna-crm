@@ -88,14 +88,16 @@ class AppointmentForm(forms.ModelForm):
         # не лише лікарі й адміни: процедуру може вести асистент (прохання
         # Ірпеня 10.08). Лікарі показуються першими, далі решта за прізвищем.
         from django.contrib.auth import get_user_model
-        from django.db.models import Case, When, IntegerField as _IntField
+        from django.db.models import Case, Q, When, IntegerField as _IntField
         from apps.clients.models import Client, Patient
         from apps.services.models import Service
         User = get_user_model()
         self.fields['doctor'].label = 'Виконавець'
         if org is not None:
+            # без тих, хто не веде прийоми (галочка в «Користувачах»); того, хто вже в записі, лишаємо
             self.fields['doctor'].queryset = User.objects.filter(
-                organization=org, is_active=True,
+                Q(organization=org, is_active=True, takes_visits=True)
+                | Q(organization=org, pk=getattr(self.instance, 'doctor_id', None) or 0),
             ).annotate(
                 _role_rank=Case(
                     When(role='doctor', then=0),

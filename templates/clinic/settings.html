@@ -312,7 +312,7 @@
             </td>
             <td class="px-4 py-3">
               <span class="text-xs px-2 py-0.5 rounded-full
-                {% if u.role == 'admin' %}bg-purple-50 text-purple-700{% elif u.role == 'doctor' %}bg-sky-50 text-sky-700{% else %}bg-gray-100 text-gray-500{% endif %}">
+                {% if u.role == 'admin' %}bg-purple-50 text-purple-700{% elif u.role == 'doctor' %}bg-sky-50 text-sky-700{% elif u.role == 'reception' %}bg-amber-50 text-amber-800{% else %}bg-gray-100 text-gray-500{% endif %}">
                 {{ u.get_role_display }}
               </span>
             </td>
@@ -607,7 +607,7 @@
 <div id="panel-menu_access" class="tab-panel hidden">
   <div class="bg-white rounded-xl border border-gray-200 p-6 max-w-2xl">
     <h2 class="text-lg font-bold text-brand-dark mb-1">Доступ до меню</h2>
-    <p class="text-sm text-gray-500 mb-5">Що бачать лікарі та асистенти в боковому меню. Адміністратор завжди бачить усі пункти.</p>
+    <p class="text-sm text-gray-500 mb-5">Що бачать лікарі, асистенти й адміністратори рецепції в боковому меню. Закритий розділ не відкривається і за прямим посиланням. Головний адміністратор завжди бачить усе.</p>
 
     <form method="post">
       {% csrf_token %}

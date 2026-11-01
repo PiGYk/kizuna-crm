@@ -173,7 +173,9 @@ class Organization(models.Model):
     notify_vaccines = models.BooleanField('Нагадування про вакцини', default=True)
 
     # Конфігурація видимості меню по ролях
-    # Структура: {"doctor": {"telegram": false, ...}, "assistant": {...}}
+    # Структура: {"doctor": {"telegram": false, ...}, "assistant": {...}, "reception": {...}}
+    # З 01.11.2026 кожен пункт діє і на вході в розділ (apps/accounts/menu_access.py), а «Рахунки (всі)» —
+    # чи бачить роль усі рахунки, чи лише свої (до того лікар завжди бачив лише свої, решта — всі).
     MENU_ITEMS = [
         ('telegram',   'Telegram чати'),
         ('broadcast',  'Розсилки'),
@@ -187,10 +189,12 @@ class Organization(models.Model):
     ROLES_WITH_MENU = [
         ('doctor',    'Лікар'),
         ('assistant', 'Асистент'),
+        ('reception', 'Адміністратор рецепції'),
     ]
     DEFAULT_MENU_CONFIG = {
-        'doctor':    {'telegram': False, 'broadcast': False, 'analytics': False, 'debtors': False, 'revenue': False, 'finance': False, 'billing': True,  'shifts': True},
+        'doctor':    {'telegram': False, 'broadcast': False, 'analytics': False, 'debtors': False, 'revenue': False, 'finance': False, 'billing': False, 'shifts': True},
         'assistant': {'telegram': True,  'broadcast': False, 'analytics': False, 'debtors': False, 'revenue': False, 'finance': True,  'billing': True,  'shifts': True},
+        'reception': {'telegram': True,  'broadcast': False, 'analytics': False, 'debtors': True,  'revenue': False, 'finance': True,  'billing': True,  'shifts': True},
     }
     role_menu_config = models.JSONField(
         'Доступ до меню по ролях',
@@ -238,8 +242,9 @@ class Organization(models.Model):
         return 'treatment' if drugs == self.visit_suggest_diagnosis else drugs
 
     def can_see_menu(self, role, item):
-        """Чи може роль бачити пункт меню."""
-        if role not in ('doctor', 'assistant'):
+        """Чи може роль бачити пункт меню. Головний адміністратор бачить усе; кожна роль із
+        ROLES_WITH_MENU — за налаштуваннями клініки (нова роль без цього бачила б усе, як адмін)."""
+        if role not in self.DEFAULT_MENU_CONFIG:
             return True  # admin бачить все
         return self.get_menu_config().get(role, {}).get(item, True)
 

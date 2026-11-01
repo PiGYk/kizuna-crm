@@ -33,6 +33,7 @@
           <span class="px-2 py-1 rounded-full text-xs font-medium
             {% if u.role == 'admin' %}bg-purple-100 text-purple-700
             {% elif u.role == 'doctor' %}bg-blue-100 text-blue-700
+            {% elif u.role == 'reception' %}bg-amber-100 text-amber-800
             {% else %}bg-gray-100 text-gray-700{% endif %}">
             {{ u.get_role_display }}
           </span>

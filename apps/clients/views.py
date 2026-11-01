@@ -229,9 +229,8 @@ class PatientDetailView(LoginRequiredMixin, DetailView):
         ctx['weights'] = list(self.object.weights.order_by('date').all())
         from .alerts import patient_alerts
         ctx['alerts'] = patient_alerts(self.object, list(ctx['vaccines']), ctx['weights'], ctx['invoices'], date.today())
-        ctx['doctors'] = get_user_model().objects.filter(
-            role__in=['admin', 'doctor'],
-            organization=self.request.organization,
+        ctx['doctors'] = get_user_model().practitioners(
+            self.request.organization, keep=self.object.assigned_doctor_id,
         ).order_by('last_name', 'first_name')
         return ctx
 
@@ -432,9 +431,8 @@ def patient_set_doctor(request, pk):
         else:
             patient.assigned_doctor = None
         patient.save(update_fields=['assigned_doctor'])
-    doctors = get_user_model().objects.filter(
-        role__in=['admin', 'doctor'],
-        organization=request.organization,
+    doctors = get_user_model().practitioners(
+        request.organization, keep=patient.assigned_doctor_id,
     ).order_by('last_name', 'first_name')
     return render(request, 'clients/partials/patient_doctor.html', {
         'patient': patient,
@@ -736,9 +734,7 @@ def hospitalization_create(request, patient_pk):
     patient = get_object_or_404(
         Patient, pk=patient_pk, client__organization=request.organization
     )
-    doctors = get_user_model().objects.filter(
-        role__in=['admin', 'doctor'], organization=request.organization
-    ).order_by('last_name', 'first_name')
+    doctors = get_user_model().practitioners(request.organization).order_by('last_name', 'first_name')
     if request.method == 'POST':
         form = HospitalizationForm(request.POST)
         if form.is_valid():

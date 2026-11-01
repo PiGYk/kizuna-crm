@@ -124,12 +124,15 @@ class ClinicRegistrationForm(forms.Form):
 class UserCreateForm(UserCreationForm):
     class Meta:
         model = User
-        fields = ('username', 'first_name', 'last_name', 'email', 'role', 'is_active',
+        fields = ('username', 'first_name', 'last_name', 'email', 'role', 'takes_visits', 'is_active',
                   'salary_type', 'salary_fixed', 'salary_percent', 'salary_per_shift', 'salary_hourly')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
+            if isinstance(field.widget, forms.CheckboxInput):
+                field.widget.attrs['class'] = 'h-4 w-4 accent-brand-gold cursor-pointer'
+                continue
             field.widget.attrs['class'] = (
                 'w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm '
                 'focus:outline-none focus:ring-2 focus:ring-brand-gold focus:border-transparent'
@@ -139,12 +142,15 @@ class UserCreateForm(UserCreationForm):
 class UserUpdateForm(forms.ModelForm):
     class Meta:
         model = User
-        fields = ('username', 'first_name', 'last_name', 'email', 'role', 'is_active',
+        fields = ('username', 'first_name', 'last_name', 'email', 'role', 'takes_visits', 'is_active',
                   'salary_type', 'salary_fixed', 'salary_percent', 'salary_per_shift', 'salary_hourly')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
+            if isinstance(field.widget, forms.CheckboxInput):
+                field.widget.attrs['class'] = 'h-4 w-4 accent-brand-gold cursor-pointer'
+                continue
             field.widget.attrs['class'] = (
                 'w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm '
                 'focus:outline-none focus:ring-2 focus:ring-brand-gold focus:border-transparent'
