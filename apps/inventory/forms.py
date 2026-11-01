@@ -20,8 +20,11 @@ class ProductForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         if org:
             from django.db.models import Q
+            # без стандартних одиниць, які клініка прибрала зі свого списку (поточну товару лишаємо)
+            hidden = Unit.hidden_for.through.objects.filter(organization=org).values('unit_id')
+            current = Q(pk=self.instance.unit_id) if self.instance.pk and self.instance.unit_id else Q(pk__in=[])
             self.fields['unit'].queryset = Unit.objects.filter(
-                Q(organization__isnull=True) | Q(organization=org)
+                ((Q(organization__isnull=True) | Q(organization=org)) & ~Q(pk__in=hidden)) | current
             ).order_by('name')
             # Категорія — той самий фікс, що й у послугах (22.08): Django рахує
             # queryset поля при імпорті модуля, коли клініки ще не видно, і

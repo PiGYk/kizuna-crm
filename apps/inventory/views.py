@@ -682,11 +682,18 @@ def _categories_with_count():
 
 
 def _units_with_count(org=None):
-    from django.db.models import Count
+    """Одиниці клініки з кількістю ЇЇ товарів. Стандартні одиниці спільні для всіх клінік,
+    і без фільтра лічильник рахував товари всіх клінік: ANVAR 01.11 на порожньому складі бачив
+    «Ампула · 67», і видалити її не давало. Прибрану стандартну одиницю показуємо знову лише
+    тоді, коли нею користується свій товар (імпорт її бачить)."""
+    from django.db.models import Count, Exists
     qs = Unit.objects.filter(
         Q(organization__isnull=True) | Q(organization=org)
-    ).annotate(product_count=Count('product')).order_by('name')
-    return qs
+    ).annotate(
+        product_count=Count('product', filter=Q(product__organization=org)),
+        hidden=Exists(Unit.hidden_for.through.objects.filter(unit_id=OuterRef('pk'), organization=org)),
+    ).order_by('name')
+    return [u for u in qs if not u.hidden or u.product_count]
 
 
 @login_required
@@ -718,29 +725,38 @@ def unit_create(request):
         short = request.POST.get('short', '').strip()
         if name and short:
             org = request.organization
-            # Перевірити чи немає глобальної з такою назвою
-            if not Unit.objects.filter(name=name, organization__isnull=True).exists():
+            standard = Unit.objects.filter(name__iexact=name, organization__isnull=True).first()
+            if standard is None:
                 Unit.objects.get_or_create(
                     name=name, organization=org,
                     defaults={'short': short},
                 )
+            elif standard.hidden_for.filter(pk=org.pk).exists():
+                standard.hidden_for.remove(org)
+                messages.success(request, f'Стандартну одиницю «{standard.name}» повернуто у ваш список.')
             else:
-                messages.info(request, f'Одиниця «{name}» вже існує як стандартна.')
+                messages.info(request, f'Одиниця «{standard.name}» вже є серед стандартних.')
     return redirect('inventory:settings')
 
 
 @login_required
 def unit_delete(request, pk):
     if request.method == 'POST':
-        unit = get_object_or_404(Unit, pk=pk)
-        if unit.organization is None:
-            messages.error(request, f'Одиницю «{unit.short}» не можна видалити — вона стандартна.')
+        org = request.organization
+        # лише стандартна або своя: раніше за номером можна було видалити одиницю іншої клініки
+        unit = get_object_or_404(Unit, Q(organization__isnull=True) | Q(organization=org), pk=pk)
+        used = Product._base_manager.filter(unit=unit, organization=org).count()
+        if used:
+            messages.error(request, f'«{unit.name}» стоїть у ваших товарах ({used}) — спершу змініть їм одиницю.')
+        elif unit.organization_id is None:
+            unit.hidden_for.add(org)
+            messages.success(request, f'Одиницю «{unit.name}» прибрано з вашого списку.')
         else:
             try:
                 unit.delete()
-                messages.success(request, f'Одиницю «{unit.short}» видалено.')
+                messages.success(request, f'Одиницю «{unit.name}» видалено.')
             except Exception:
-                messages.error(request, f'Одиницю «{unit.short}» не можна видалити — вона використовується в товарах.')
+                messages.error(request, f'Одиницю «{unit.name}» не можна видалити — вона використовується в товарах.')
     return redirect('inventory:settings')
 
 

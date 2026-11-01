@@ -89,3 +89,20 @@ def plain(value):
     import html as _html
     from django.utils.html import strip_tags
     return ' '.join(_html.unescape(strip_tags(value or '')).split())
+
+
+@register.filter
+def uk_plural(value, forms):
+    """Українська множина: {{ n|uk_plural:"товар,товари,товарів" }} → 1 товар · 3 товари · 5 товарів.
+    Вбудований `pluralize` бере лише дві форми, а з трьома мовчки віддає порожнє — так і
+    виходило «68 товар» (ANVAR 01.11)."""
+    try:
+        n = abs(int(value))
+    except (TypeError, ValueError):
+        return ''
+    one, few, many = (str(forms).split(',') + ['', '', ''])[:3]
+    if n % 10 == 1 and n % 100 != 11:
+        return one
+    if 2 <= n % 10 <= 4 and not 12 <= n % 100 <= 14:
+        return few
+    return many

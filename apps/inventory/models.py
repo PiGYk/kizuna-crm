@@ -36,6 +36,13 @@ class Unit(models.Model):
         verbose_name='Організація',
         help_text='Порожнє = глобальна (доступна всім)',
     )
+    # Стандартна одиниця спільна для всіх клінік, тож видалити її клініка не може —
+    # лише прибрати зі свого списку (ANVAR 01.11: «Грам/Ампула не потрібні, а не видаляються»).
+    hidden_for = models.ManyToManyField(
+        'clinic.Organization', blank=True, related_name='hidden_units',
+        verbose_name='Прибрали зі списку',
+        help_text='Клініки, які прибрали цю стандартну одиницю зі свого списку',
+    )
 
     class Meta:
         verbose_name = 'Одиниця виміру'

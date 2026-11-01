@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load clinic_html %}
 
 {% block title %}Налаштування складу — Kizuna CRM{% endblock %}
 
@@ -43,13 +44,13 @@
       <div class="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-50 group">
         <div>
           <span class="text-sm font-medium text-brand-dark">{{ cat.name }}</span>
-          <span class="text-xs text-gray-400 ml-2">{{ cat.product_count }} товар{{ cat.product_count|pluralize:",,ів" }}</span>
+          <span class="text-xs text-gray-500 ml-2">{{ cat.product_count }} {{ cat.product_count|uk_plural:"товар,товари,товарів" }}</span>
         </div>
         <form method="post" action="{% url 'inventory:category_delete' cat.pk %}"
               onsubmit="return confirm('Видалити категорію «{{ cat.name }}»?')">
           {% csrf_token %}
-          <button type="submit"
-            class="text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all">
+          <button type="submit" title="Видалити категорію" aria-label="Видалити категорію «{{ cat.name }}»"
+            class="p-2 -m-2 text-gray-400 hover:text-red-500 opacity-100 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100 transition-all">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
@@ -86,15 +87,15 @@
       <div class="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-50 group">
         <div>
           <span class="text-sm font-medium text-brand-dark">{{ unit.name }}</span>
-          <span class="inline-block ml-2 px-1.5 py-0.5 bg-gray-100 text-gray-500 text-xs rounded">{{ unit.short }}</span>
-          <span class="text-xs text-gray-400 ml-1">· {{ unit.product_count }} товар{{ unit.product_count|pluralize:",,ів" }}</span>
+          <span class="inline-block ml-2 px-1.5 py-0.5 bg-gray-100 text-gray-600 text-xs rounded">{{ unit.short }}</span>
+          <span class="text-xs text-gray-500 ml-1">· {{ unit.product_count }} {{ unit.product_count|uk_plural:"товар,товари,товарів" }}</span>
         </div>
         <form method="post" action="{% url 'inventory:unit_delete' unit.pk %}"
-              onsubmit="return confirm('Видалити одиницю «{{ unit.name }}»?')">
+              onsubmit="return confirm('{% if unit.organization_id %}Видалити одиницю «{{ unit.name }}»?{% else %}Прибрати стандартну одиницю «{{ unit.name }}» зі свого списку?{% endif %}')">
           {% csrf_token %}
-          <button type="submit"
-            class="text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
-            {% if unit.product_count > 0 %}title="Використовується в товарах — видалити не можна" disabled{% endif %}>
+          <button type="submit" aria-label="{% if unit.organization_id %}Видалити{% else %}Прибрати{% endif %} одиницю «{{ unit.name }}»"
+            class="p-2 -m-2 text-gray-400 hover:text-red-500 opacity-100 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100 transition-all disabled:opacity-30 disabled:hover:text-gray-400"
+            {% if unit.product_count > 0 %}title="Стоїть у ваших товарах — спершу змініть їм одиницю" disabled{% elif unit.organization_id %}title="Видалити"{% else %}title="Прибрати зі свого списку"{% endif %}>
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
