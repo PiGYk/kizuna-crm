@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.utils import timezone
 from apps.clinic.managers import OrgManager, RelatedOrgManager
 from apps.clinic.uploads import patient_photo_path, analysis_image_path
 
@@ -467,11 +468,24 @@ class Hospitalization(models.Model):
     diagnosis = models.TextField('Діагноз', blank=True)
     treatment = models.TextField('Призначення', blank=True)
     notes = models.TextField('Нотатки', blank=True)
+    class Outcome(models.TextChoices):
+        RECOVERED = 'recovered', 'Одужав'
+        IMPROVED = 'improved', 'Покращення'
+        NO_CHANGE = 'no_change', 'Без змін'
+        REFUSED = 'refused', 'Відмова від подальшого лікування'
+        TRANSFERRED = 'transferred', 'Переведено в іншу клініку'
+        EUTHANASIA = 'euthanasia', 'Евтаназія'
+        DIED = 'died', 'Помер'
+
     status = models.CharField(
         'Статус', max_length=20, choices=Status.choices, default=Status.ACTIVE
     )
-    admitted_at = models.DateTimeField('Дата надходження', auto_now_add=True)
+    # Час надходження вводить лікар (ANVAR 01.11: «записувати з часом»); раніше ставився сам у
+    # момент створення запису і змінити його було не можна.
+    admitted_at = models.DateTimeField('Дата надходження', default=timezone.now)
     discharged_at = models.DateTimeField('Дата виписки', null=True, blank=True)
+    outcome = models.CharField('Результат', max_length=20, choices=Outcome.choices, blank=True)
+    discharge_condition = models.CharField('Стан на момент виписки', max_length=200, blank=True)
     discharge_notes = models.TextField('Нотатки при виписці', blank=True)
 
     objects = RelatedOrgManager('patient__client__organization')

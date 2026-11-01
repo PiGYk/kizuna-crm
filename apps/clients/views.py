@@ -677,6 +677,39 @@ def archive_purge(request):
     return render(request, 'clients/archive_purge.html', {'c': purge.archive_counts(org)})
 
 
+def _dt_local(value):
+    """Значення для <input type="datetime-local"> у часовому поясі клініки."""
+    from django.utils import timezone
+    return timezone.localtime(value).strftime('%Y-%m-%dT%H:%M') if value else ''
+
+
+_HOSP_PERIODS = (30, 90, 365)
+
+
+def _hospital_stats(days):
+    """Підсумки виписок за період по лікарях (ANVAR 01.11: «якщо в одного лікаря всі вмирають —
+    будуть питання»). Рахуємо за датою виписки; без результату — окремою колонкою."""
+    from datetime import timedelta
+    from django.db.models import Count, Q
+    from django.utils import timezone
+    O = Hospitalization.Outcome
+    groups = {
+        'good': [O.RECOVERED, O.IMPROVED], 'same': [O.NO_CHANGE, O.TRANSFERRED],
+        'refused': [O.REFUSED], 'euthanasia': [O.EUTHANASIA], 'died': [O.DIED], 'none': [''],
+    }
+    rows = (Hospitalization.objects
+            .filter(status='discharged', discharged_at__gte=timezone.now() - timedelta(days=days))
+            .values('doctor_id', 'doctor__first_name', 'doctor__last_name', 'doctor__username')
+            .annotate(total=Count('id'), **{k: Count('id', filter=Q(outcome__in=v)) for k, v in groups.items()})
+            .order_by('-total'))
+    rows = list(rows)
+    for r in rows:
+        name = f"{r['doctor__first_name'] or ''} {r['doctor__last_name'] or ''}".strip()
+        r['name'] = name or r['doctor__username'] or 'Лікаря не вказано'
+    totals = {k: sum(r[k] for r in rows) for k in ['total', *groups]}
+    return rows, totals
+
+
 @login_required
 def hospitalization_list(request):
     active = Hospitalization.objects.filter(status='active').select_related(
@@ -684,11 +717,17 @@ def hospitalization_list(request):
     )
     recent = Hospitalization.objects.filter(status='discharged').select_related(
         'patient__client', 'doctor'
-    )[:20]
-    return render(request, 'clients/hospitalization_list.html', {
-        'active': active,
-        'recent': recent,
-    })
+    ).order_by('-discharged_at')[:20]
+    ctx = {'active': active, 'recent': recent}
+    if request.user.is_admin():
+        try:
+            days = int(request.GET.get('days', 90))
+        except ValueError:
+            days = 90
+        days = days if days in _HOSP_PERIODS else 90
+        ctx['stats'], ctx['stats_total'] = _hospital_stats(days)
+        ctx['stats_days'], ctx['stats_periods'] = days, _HOSP_PERIODS
+    return render(request, 'clients/hospitalization_list.html', ctx)
 
 
 @login_required
@@ -718,25 +757,40 @@ def hospitalization_create(request, patient_pk):
             return redirect('clients:hospitalization_list')
     else:
         form = HospitalizationForm()
+    from django.utils import timezone
     return render(request, 'clients/hospitalization_form.html', {
         'patient': patient, 'doctors': doctors, 'form': form,
+        'admitted_value': request.POST.get('admitted_at') or _dt_local(timezone.now()),
+        'now_value': _dt_local(timezone.now()),
+        'doctor_value': request.POST.get('doctor', ''),
     })
 
 
 @login_required
 def hospitalization_discharge(request, pk):
+    """Виписка — або результат давнішої виписки (тоді статус уже «виписаний», правимо поля)."""
+    from django.utils import timezone
+    from .forms import DischargeForm
     hosp = get_object_or_404(
         Hospitalization, pk=pk, patient__client__organization=request.organization
     )
     if request.method == 'POST':
-        from django.utils import timezone
-        hosp.status = 'discharged'
-        hosp.discharged_at = timezone.now()
-        hosp.discharge_notes = request.POST.get('discharge_notes', '').strip()
-        hosp.save(update_fields=['status', 'discharged_at', 'discharge_notes'])
-        messages.success(request, f'{hosp.patient.name} виписано')
-        return redirect('clients:hospitalization_list')
-    return render(request, 'clients/hospitalization_discharge.html', {'hosp': hosp})
+        form = DischargeForm(request.POST, instance=hosp)
+        if form.is_valid():
+            hosp = form.save(commit=False)
+            was_active = hosp.status != 'discharged'
+            hosp.status = 'discharged'
+            hosp.save(update_fields=['status', 'discharged_at', 'outcome', 'discharge_condition', 'discharge_notes'])
+            messages.success(request, f'{hosp.patient.name} виписано' if was_active else 'Результат виписки збережено')
+            return redirect('clients:hospitalization_list')
+        discharged_value = request.POST.get('discharged_at', '')
+    else:
+        form = DischargeForm(instance=hosp)
+        discharged_value = _dt_local(hosp.discharged_at or timezone.now())
+    return render(request, 'clients/hospitalization_discharge.html', {
+        'hosp': hosp, 'form': form, 'discharged_value': discharged_value,
+        'now_value': _dt_local(timezone.now()), 'admitted_value': _dt_local(hosp.admitted_at),
+    })
 
 
 @login_required

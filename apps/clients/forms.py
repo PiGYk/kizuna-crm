@@ -212,10 +212,24 @@ class PatientDocumentForm(forms.ModelForm):
         _apply_field_class(self)
 
 
+_DT_LOCAL = ['%Y-%m-%dT%H:%M', '%Y-%m-%d %H:%M']
+_DT_SLACK = 10  # хвилин: годинник телефона може трохи бігти вперед
+
+
+def _not_in_future(value, what):
+    from datetime import timedelta
+    from django.utils import timezone
+    if value and value > timezone.now() + timedelta(minutes=_DT_SLACK):
+        raise forms.ValidationError(f'{what} не може бути в майбутньому.')
+    return value
+
+
 class HospitalizationForm(forms.ModelForm):
+    admitted_at = forms.DateTimeField(label='Надійшов', input_formats=_DT_LOCAL)
+
     class Meta:
         model = Hospitalization
-        fields = ('reason', 'diagnosis', 'treatment', 'notes')
+        fields = ('admitted_at', 'reason', 'diagnosis', 'treatment', 'notes')
         widgets = {
             'reason': forms.Textarea(attrs={'rows': 2}),
             'diagnosis': forms.Textarea(attrs={'rows': 2}),
@@ -226,6 +240,31 @@ class HospitalizationForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         _apply_field_class(self)
+
+    def clean_admitted_at(self):
+        return _not_in_future(self.cleaned_data.get('admitted_at'), 'Час надходження')
+
+
+class DischargeForm(forms.ModelForm):
+    """Виписка зі стаціонару: коли, з яким результатом і в якому стані (ANVAR 01.11 — для
+    статистики лікаря й клініки). Цією ж формою дописують результат давнішим випискам."""
+    discharged_at = forms.DateTimeField(label='Виписаний', input_formats=_DT_LOCAL)
+
+    class Meta:
+        model = Hospitalization
+        fields = ('discharged_at', 'outcome', 'discharge_condition', 'discharge_notes')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['outcome'].required = True
+        self.fields['outcome'].choices = [('', '— оберіть —')] + list(Hospitalization.Outcome.choices)
+        _apply_field_class(self)
+
+    def clean_discharged_at(self):
+        value = _not_in_future(self.cleaned_data.get('discharged_at'), 'Час виписки')
+        if value and self.instance.admitted_at and value < self.instance.admitted_at:
+            raise forms.ValidationError('Виписка не може бути раніше за надходження.')
+        return value
 
 
 class UltrasoundForm(forms.ModelForm):

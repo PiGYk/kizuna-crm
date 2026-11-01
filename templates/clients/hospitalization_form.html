@@ -3,37 +3,45 @@
 {% block content %}
 <div class="max-w-xl mx-auto">
   <div class="flex items-center gap-3 mb-6">
-    <a href="{% url 'clients:patient_detail' patient.pk %}" class="text-gray-400 hover:text-brand-dark">← {{ patient.name }}</a>
+    <a href="{% url 'clients:patient_detail' patient.pk %}" class="text-gray-500 hover:text-brand-dark">← {{ patient.name }}</a>
     <h1 class="text-xl font-bold text-brand-dark">Госпіталізація</h1>
   </div>
+  {% include 'clinic/_form_errors.html' with f=form %}
   <form method="post" class="bg-white rounded-xl border border-gray-200 p-6 flex flex-col gap-4">
     {% csrf_token %}
-    <div>
-      <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Лікар</label>
-      <select name="doctor" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
-        <option value="">— не вказано —</option>
-        {% for d in doctors %}<option value="{{ d.pk }}">{{ d.get_full_name|default:d.username }}</option>{% endfor %}
-      </select>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div>
+        <label for="h-admitted" class="text-xs font-medium text-gray-600 uppercase tracking-wide">Надійшов *</label>
+        <input id="h-admitted" type="datetime-local" name="admitted_at" value="{{ admitted_value }}" max="{{ now_value }}" required
+          class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+      </div>
+      <div>
+        <label for="h-doctor" class="text-xs font-medium text-gray-600 uppercase tracking-wide">Лікар</label>
+        <select id="h-doctor" name="doctor" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+          <option value="">— не вказано —</option>
+          {% for d in doctors %}<option value="{{ d.pk }}"{% if doctor_value == d.pk|stringformat:"d" %} selected{% endif %}>{{ d.get_full_name|default:d.username }}</option>{% endfor %}
+        </select>
+      </div>
     </div>
     <div>
-      <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Причина госпіталізації *</label>
-      <textarea name="reason" rows="3" required class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"></textarea>
+      <label for="h-reason" class="text-xs font-medium text-gray-600 uppercase tracking-wide">Причина госпіталізації *</label>
+      <textarea id="h-reason" name="reason" rows="3" required class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">{{ form.reason.value|default:'' }}</textarea>
     </div>
     <div>
-      <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Діагноз</label>
-      <textarea name="diagnosis" rows="2" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"></textarea>
+      <label for="h-diagnosis" class="text-xs font-medium text-gray-600 uppercase tracking-wide">Діагноз</label>
+      <textarea id="h-diagnosis" name="diagnosis" rows="2" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">{{ form.diagnosis.value|default:'' }}</textarea>
     </div>
     <div>
-      <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Призначення</label>
-      <textarea name="treatment" rows="2" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"></textarea>
+      <label for="h-treatment" class="text-xs font-medium text-gray-600 uppercase tracking-wide">Призначення</label>
+      <textarea id="h-treatment" name="treatment" rows="2" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">{{ form.treatment.value|default:'' }}</textarea>
     </div>
     <div>
-      <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Нотатки</label>
-      <textarea name="notes" rows="2" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"></textarea>
+      <label for="h-notes" class="text-xs font-medium text-gray-600 uppercase tracking-wide">Нотатки</label>
+      <textarea id="h-notes" name="notes" rows="2" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">{{ form.notes.value|default:'' }}</textarea>
     </div>
     <div class="flex gap-3 pt-2">
       <button type="submit" class="bg-brand-gold text-brand-dark px-5 py-2 rounded-lg text-sm font-semibold hover:brightness-95">Госпіталізувати</button>
-      <a href="{% url 'clients:patient_detail' patient.pk %}" class="px-5 py-2 rounded-lg text-sm border border-gray-200 text-gray-500 hover:bg-gray-50">Скасувати</a>
+      <a href="{% url 'clients:patient_detail' patient.pk %}" class="px-5 py-2 rounded-lg text-sm border border-gray-200 text-gray-600 hover:bg-gray-50">Скасувати</a>
     </div>
   </form>
 </div>

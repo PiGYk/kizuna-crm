@@ -2,21 +2,49 @@
 {% block title %}Виписка — {{ hosp.patient.name }}{% endblock %}
 {% block content %}
 <div class="max-w-xl mx-auto">
-  <h1 class="text-xl font-bold text-brand-dark mb-6">Виписка: {{ hosp.patient.name }}</h1>
-  <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-6 text-sm text-gray-600">
+  <h1 class="text-xl font-bold text-brand-dark mb-6">
+    {% if hosp.status == 'discharged' %}Результат виписки{% else %}Виписка{% endif %}: {{ hosp.patient.name }}
+  </h1>
+  <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-6 text-sm text-gray-700 space-y-0.5">
     <div><strong>Надійшов:</strong> {{ hosp.admitted_at|date:"d.m.Y H:i" }}</div>
+    <div><strong>Лікар:</strong> {% if hosp.doctor %}{{ hosp.doctor.get_full_name|default:hosp.doctor.username }}{% else %}не вказано{% endif %}</div>
     <div><strong>Причина:</strong> {{ hosp.reason }}</div>
     {% if hosp.diagnosis %}<div><strong>Діагноз:</strong> {{ hosp.diagnosis }}</div>{% endif %}
   </div>
+  {% include 'clinic/_form_errors.html' with f=form %}
   <form method="post" class="bg-white rounded-xl border border-gray-200 p-6 flex flex-col gap-4">
     {% csrf_token %}
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div>
+        <label for="d-at" class="text-xs font-medium text-gray-600 uppercase tracking-wide">Виписаний *</label>
+        <input id="d-at" type="datetime-local" name="discharged_at" value="{{ discharged_value }}" min="{{ admitted_value }}" max="{{ now_value }}" required
+          class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+      </div>
+      <div>
+        <label for="d-outcome" class="text-xs font-medium text-gray-600 uppercase tracking-wide">Результат *</label>
+        <select id="d-outcome" name="outcome" required
+          class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+          {% for value, label in form.fields.outcome.choices %}
+          <option value="{{ value }}"{% if form.outcome.value == value %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
     <div>
-      <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Нотатки при виписці</label>
-      <textarea name="discharge_notes" rows="4" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold"></textarea>
+      <label for="d-condition" class="text-xs font-medium text-gray-600 uppercase tracking-wide">Стан на момент виписки</label>
+      <input id="d-condition" type="text" name="discharge_condition" maxlength="200" value="{{ form.discharge_condition.value|default:'' }}"
+        placeholder="напр. задовільний, апетит є, рана чиста"
+        class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">
+    </div>
+    <div>
+      <label for="d-notes" class="text-xs font-medium text-gray-600 uppercase tracking-wide">Нотатки й рекомендації при виписці</label>
+      <textarea id="d-notes" name="discharge_notes" rows="4" class="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-gold">{{ form.discharge_notes.value|default:'' }}</textarea>
     </div>
     <div class="flex gap-3">
-      <button type="submit" class="bg-green-500 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:brightness-95">Виписати</button>
-      <a href="{% url 'clients:hospitalization_list' %}" class="px-5 py-2 rounded-lg text-sm border border-gray-200 text-gray-500 hover:bg-gray-50">Скасувати</a>
+      <button type="submit" class="bg-green-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:brightness-95">
+        {% if hosp.status == 'discharged' %}Зберегти{% else %}Виписати{% endif %}
+      </button>
+      <a href="{% url 'clients:hospitalization_list' %}" class="px-5 py-2 rounded-lg text-sm border border-gray-200 text-gray-600 hover:bg-gray-50">Скасувати</a>
     </div>
   </form>
 </div>

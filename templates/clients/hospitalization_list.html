@@ -37,7 +37,10 @@
             {% if h.doctor %}{{ h.doctor.get_full_name|default:h.doctor.username }}{% else %}—{% endif %}
           </td>
           <td class="px-4 py-3 text-gray-500 hidden md:table-cell truncate max-w-xs">{{ h.reason|truncatechars:60 }}</td>
-          <td class="px-4 py-3 text-gray-500">{{ h.admitted_at|date:"d.m.Y H:i" }}</td>
+          <td class="px-4 py-3 text-gray-600 tabular-nums">
+            {{ h.admitted_at|date:"d.m.Y H:i" }}
+            <div class="text-xs text-gray-500">{{ h.admitted_at|timesince }}</div>
+          </td>
           <td class="px-4 py-3 text-right">
             <a href="{% url 'clients:hospitalization_discharge' h.pk %}"
                class="text-xs bg-green-50 text-green-700 border border-green-200 rounded-lg px-3 py-1 hover:bg-green-100 transition">
@@ -64,8 +67,9 @@
         <tr>
           <th class="px-4 py-3 text-left font-medium text-gray-600">Пацієнт</th>
           <th class="px-4 py-3 text-left font-medium text-gray-600 hidden md:table-cell">Лікар</th>
-          <th class="px-4 py-3 text-left font-medium text-gray-600">Надійшов</th>
+          <th class="px-4 py-3 text-left font-medium text-gray-600 hidden sm:table-cell">Надійшов</th>
           <th class="px-4 py-3 text-left font-medium text-gray-600">Виписаний</th>
+          <th class="px-4 py-3 text-left font-medium text-gray-600">Результат</th>
         </tr>
       </thead>
       <tbody class="divide-y divide-gray-100">
@@ -73,18 +77,86 @@
         <tr class="hover:bg-gray-50">
           <td class="px-4 py-3">
             <a href="{% url 'clients:patient_detail' h.patient.pk %}" class="font-semibold text-brand-dark hover:text-brand-gold">{{ h.patient.name }}</a>
-            <div class="text-xs text-gray-400">{{ h.patient.client.full_name }}</div>
+            <div class="text-xs text-gray-500">{{ h.patient.client.full_name }}</div>
           </td>
-          <td class="px-4 py-3 text-gray-500 hidden md:table-cell">
+          <td class="px-4 py-3 text-gray-600 hidden md:table-cell">
             {% if h.doctor %}{{ h.doctor.get_full_name|default:h.doctor.username }}{% else %}—{% endif %}
           </td>
-          <td class="px-4 py-3 text-gray-500">{{ h.admitted_at|date:"d.m.Y" }}</td>
-          <td class="px-4 py-3 text-gray-500">{{ h.discharged_at|date:"d.m.Y"|default:"—" }}</td>
+          <td class="px-4 py-3 text-gray-600 tabular-nums hidden sm:table-cell">{{ h.admitted_at|date:"d.m.Y H:i" }}</td>
+          <td class="px-4 py-3 text-gray-600 tabular-nums">{{ h.discharged_at|date:"d.m.Y H:i"|default:"—" }}</td>
+          <td class="px-4 py-3">
+            {% include 'clients/_hosp_outcome.html' %}
+            {% if h.discharge_condition %}<div class="mt-1 max-w-[16rem] truncate text-xs text-gray-600" title="{{ h.discharge_condition }}">{{ h.discharge_condition }}</div>{% endif %}
+            {% if h.outcome %}<a href="{% url 'clients:hospitalization_discharge' h.pk %}" class="text-xs text-gray-500 hover:text-brand-dark">змінити</a>{% endif %}
+          </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+</div>
+{% endif %}
+
+{% if stats_days %}
+<!-- Підсумки по лікарях (лише адміністратор) -->
+<div class="mt-8">
+  <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+    <h2 class="text-sm font-semibold uppercase text-gray-600 tracking-wide">Підсумки виписок по лікарях</h2>
+    <div class="flex gap-1 text-xs">
+      {% for d in stats_periods %}
+      <a href="?days={{ d }}" class="rounded-lg border px-2.5 py-1 {% if d == stats_days %}border-brand-dark bg-brand-dark text-white{% else %}border-gray-200 text-gray-700 hover:bg-gray-50{% endif %}">{% if d == 365 %}рік{% else %}{{ d }} днів{% endif %}</a>
+      {% endfor %}
+    </div>
+  </div>
+  {% if stats %}
+  <div class="overflow-x-auto bg-white rounded-xl border border-gray-200">
+    <table class="w-full text-sm tabular-nums">
+      <thead class="bg-gray-50 border-b border-gray-200 text-xs text-gray-600">
+        <tr>
+          <th class="px-4 py-3 text-left font-medium">Лікар</th>
+          <th class="px-3 py-3 text-right font-medium">Виписано</th>
+          <th class="px-3 py-3 text-right font-medium">Одужання, покращення</th>
+          <th class="px-3 py-3 text-right font-medium">Без змін, переведено</th>
+          <th class="px-3 py-3 text-right font-medium">Відмова</th>
+          <th class="px-3 py-3 text-right font-medium">Евтаназія</th>
+          <th class="px-3 py-3 text-right font-medium">Помер</th>
+          <th class="px-3 py-3 text-right font-medium">Без результату</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for r in stats %}
+        <tr>
+          <td class="px-4 py-2.5 font-medium text-brand-dark">{{ r.name }}</td>
+          <td class="px-3 py-2.5 text-right">{{ r.total }}</td>
+          <td class="px-3 py-2.5 text-right text-green-800">{{ r.good }}</td>
+          <td class="px-3 py-2.5 text-right">{{ r.same }}</td>
+          <td class="px-3 py-2.5 text-right text-amber-800">{{ r.refused }}</td>
+          <td class="px-3 py-2.5 text-right">{{ r.euthanasia }}</td>
+          <td class="px-3 py-2.5 text-right {% if r.died %}font-semibold text-red-700{% endif %}">{{ r.died }}</td>
+          <td class="px-3 py-2.5 text-right text-gray-500">{{ r.none }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      {% if stats|length > 1 %}
+      <tfoot class="border-t border-gray-200 bg-gray-50 font-semibold">
+        <tr>
+          <td class="px-4 py-2.5">Разом</td>
+          <td class="px-3 py-2.5 text-right">{{ stats_total.total }}</td>
+          <td class="px-3 py-2.5 text-right">{{ stats_total.good }}</td>
+          <td class="px-3 py-2.5 text-right">{{ stats_total.same }}</td>
+          <td class="px-3 py-2.5 text-right">{{ stats_total.refused }}</td>
+          <td class="px-3 py-2.5 text-right">{{ stats_total.euthanasia }}</td>
+          <td class="px-3 py-2.5 text-right">{{ stats_total.died }}</td>
+          <td class="px-3 py-2.5 text-right">{{ stats_total.none }}</td>
+        </tr>
+      </tfoot>
+      {% endif %}
+    </table>
+  </div>
+  <p class="mt-2 text-xs text-gray-500">За датою виписки. Бачить лише адміністратор.</p>
+  {% else %}
+  <div class="bg-white rounded-xl border border-gray-200 px-4 py-6 text-center text-gray-500 text-sm">За цей період виписок нема</div>
+  {% endif %}
 </div>
 {% endif %}
 {% endblock %}
