@@ -118,7 +118,8 @@ class ScheduleForm(_OrgSectionForm):
 
 class DesignForm(_OrgSectionForm):
     class Meta(_OrgSectionForm.Meta):
-        fields = ('logo', 'primary_color', 'sidebar_color')
+        fields = ('logo', 'primary_color', 'sidebar_color', 'page_background')
+        widgets = {**_WIDGETS, 'page_background': forms.RadioSelect}
 
     def _clean_color(self, name):
         value = (self.cleaned_data.get(name) or '').strip()

@@ -8,7 +8,8 @@ from django.template.loader import render_to_string
 from django.views.decorators.http import require_POST
 
 from .forms import LabResultForm
-from .lab_panels import DESCRIPTIVE, PANELS, learn_norms, merge_rows, rows_from_post, template_rows
+from .lab_panels import (DESCRIPTIVE, PANELS, learn_norms, merge_rows, rows_from_post, template_from_post,
+                         template_rows)
 from .models import LabResult, Patient
 
 
@@ -32,6 +33,8 @@ def _render_form(request, lab, form, rows):
         'lab': lab, 'patient': lab.patient, 'form': form, 'rows': rows,
         'descriptive': lab.panel in DESCRIPTIVE,
         'has_norms': species in ('dog', 'cat') or bool((org.lab_norms or {}).get(species)),
+        'own_template': bool((org.lab_templates or {}).get(lab.panel, {}).get(species)),
+        'typical_only': request.GET.get('typovyi') == '1',
         'doctors': get_user_model().practitioners(org, keep=lab.doctor_id).order_by('last_name', 'first_name'),
         'doctor_value': request.POST.get('doctor', str(lab.doctor_id or '')),
     })
@@ -51,6 +54,12 @@ def _save(request, lab, form):
     if learned is not None:
         org.lab_norms = learned
         org.save(update_fields=['lab_norms'])
+    if request.POST.get('remember_template') and lab.patient.species:
+        # Галочка «запам'ятати як бланк клініки»: наступні бланки цієї панелі для виду — з цим переліком
+        templates = {p: dict(v) for p, v in (org.lab_templates or {}).items()}
+        templates.setdefault(lab.panel, {})[lab.patient.species] = template_from_post(request.POST)
+        org.lab_templates = templates
+        org.save(update_fields=['lab_templates'])
     return lab
 
 
@@ -72,7 +81,8 @@ def lab_create(request, patient_pk):
         rows = rows_from_post(request.POST, keep_empty=True)
     else:
         form = LabResultForm(instance=lab)
-        rows = template_rows(panel, patient.species, org.lab_norms)
+        own = None if request.GET.get('typovyi') == '1' else org.lab_templates   # «відкрити типовий бланк»
+        rows = template_rows(panel, patient.species, org.lab_norms, own)
     return _render_form(request, lab, form, rows)
 
 
@@ -88,7 +98,8 @@ def lab_edit(request, pk):
         rows = rows_from_post(request.POST, keep_empty=True)
     else:
         form = LabResultForm(instance=lab)
-        rows = merge_rows(lab.panel, lab.patient.species, lab.rows, request.organization.lab_norms)
+        org = request.organization
+        rows = merge_rows(lab.panel, lab.patient.species, lab.rows, org.lab_norms, org.lab_templates)
     return _render_form(request, lab, form, rows)
 
 

@@ -119,6 +119,9 @@ class Organization(models.Model):
         'Колір бічної панелі', max_length=7, default='#12100F',
         help_text='Фон меню. HEX, наприклад #12100F',
     )
+    # ANVAR 02.11: «серый — глаза не так устают, как от белого»
+    PAGE_BACKGROUNDS = [('light', 'Світлий'), ('gray', 'Сірий — мʼякший для очей')]
+    page_background = models.CharField('Фон сторінок', max_length=10, choices=PAGE_BACKGROUNDS, default='light')
 
     # --- Контакти ---
     address = models.CharField('Адреса', max_length=300, blank=True, default='')
@@ -204,6 +207,9 @@ class Organization(models.Model):
     # Норми бланків аналізів, які клініка змінила під свій аналізатор: {вид: {код: [від, до]}}.
     # Порожньо — типові (apps/clients/lab_panels.py). Запам'ятовуються з бланку самі.
     lab_norms = models.JSONField('Свої норми аналізів', default=dict, blank=True)
+    # Свій перелік показників бланку (ANVAR 02.11: «у різних аналізаторів різні показники»):
+    # {панель: {вид: [{code, name, unit, low, high}, …]}}; зберігається галочкою на бланку.
+    lab_templates = models.JSONField('Свої бланки аналізів', default=dict, blank=True)
     visit_labels = models.JSONField(
         'Свої назви розділів прийому', default=dict, blank=True,
         help_text='Напр. {"complaint": "Анамнез"}. Порожньо — стандартні назви.',

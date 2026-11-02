@@ -45,22 +45,17 @@
     </div>
 
     <div id="lab-table" class="{% if descriptive and not rows %}hidden{% endif %} border-b border-gray-100 px-4 pb-2 pt-3 md:px-5">
-      <div class="hidden grid-cols-[minmax(0,1fr)_7rem_1.5rem_11rem] gap-x-3 pb-1 text-xs font-medium text-gray-600 md:grid">
+      <div class="hidden grid-cols-[minmax(0,1fr)_7rem_1.5rem_13rem] gap-x-3 pb-1 text-xs font-medium text-gray-600 md:grid">
         <span>Показник</span><span class="text-right">Результат</span><span></span><span>Норма, від – до</span>
       </div>
       <div id="lab-rows" class="divide-y divide-gray-200">
         {% for r in rows %}
-        <div class="lab-row -mx-2 grid grid-cols-[minmax(0,1fr)_6.5rem_1.5rem] items-center gap-x-3 gap-y-1 rounded-md px-2 py-2 focus-within:bg-amber-50/60 md:grid-cols-[minmax(0,1fr)_7rem_1.5rem_11rem] md:py-1.5">
+        <div class="lab-row -mx-2 grid grid-cols-[minmax(0,1fr)_6.5rem_1.5rem] items-center gap-x-3 gap-y-1 rounded-md px-2 py-2 focus-within:bg-amber-50/60 md:grid-cols-[minmax(0,1fr)_7rem_1.5rem_13rem] md:py-1.5">
           <input type="hidden" name="row_code" value="{{ r.code }}">
-          {% if r.code %}
-          <div class="order-1 min-w-0 text-sm text-brand-dark">{{ r.name }} <span class="text-xs text-gray-500">{{ r.unit }}</span>
-            <input type="hidden" name="row_name" value="{{ r.name }}"><input type="hidden" name="row_unit" value="{{ r.unit }}"></div>
-          {% else %}
-          <div class="order-1 flex min-w-0 gap-2">
-            <input type="text" name="row_name" value="{{ r.name }}" maxlength="80" placeholder="Показник" aria-label="Назва показника" class="min-w-0 flex-1 rounded-md border border-gray-300 px-2 py-1.5 text-sm">
-            <input type="text" name="row_unit" value="{{ r.unit }}" maxlength="20" placeholder="од." aria-label="Одиниця" class="w-16 rounded-md border border-gray-300 px-2 py-1.5 text-sm">
+          <div class="order-1 flex min-w-0 gap-1">
+            <input type="text" name="row_name" value="{{ r.name }}" maxlength="80" placeholder="Показник" aria-label="Назва показника" class="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1.5 text-sm text-brand-dark hover:border-gray-200 focus:border-gray-300 focus:bg-white focus:outline-none">
+            <input type="text" name="row_unit" value="{{ r.unit }}" maxlength="20" placeholder="од." aria-label="Одиниця" class="w-[4.5rem] shrink-0 rounded-md border border-transparent bg-transparent px-1 py-1.5 text-xs text-gray-600 hover:border-gray-200 focus:border-gray-300 focus:bg-white focus:outline-none">
           </div>
-          {% endif %}
           <input type="text" name="row_value" value="{{ r.value }}" maxlength="30" inputmode="decimal" aria-label="Результат: {{ r.name|default:'показник' }}"
                  class="lab-value order-2 h-11 w-full rounded-md border border-gray-300 bg-white px-2 text-right text-base tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-gold md:h-8 md:text-sm">
           <span class="lab-flag order-3 flex items-center justify-center" aria-live="polite"></span>
@@ -69,17 +64,26 @@
             <input type="text" name="row_low" value="{{ r.low }}" maxlength="15" inputmode="decimal" aria-label="Норма від" class="lab-low h-9 w-16 rounded-md border border-gray-200 bg-white px-1.5 text-right text-xs tabular-nums text-gray-700 md:h-7">
             <span>–</span>
             <input type="text" name="row_high" value="{{ r.high }}" maxlength="15" inputmode="decimal" aria-label="Норма до" class="lab-high h-9 w-16 rounded-md border border-gray-200 bg-white px-1.5 text-right text-xs tabular-nums text-gray-700 md:h-7">
+            <button type="button" class="lab-del ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-red-700 md:h-7 md:w-7" aria-label="Прибрати показник" title="Прибрати показник"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
           </div>
         </div>
         {% endfor %}
       </div>
       <p class="py-2 text-xs text-gray-500">
         {% if has_norms %}Норми — типові для виду «{{ patient.get_species_display|lower }}» або збережені клінікою; змініть під свій аналізатор — клініка запам'ятає.{% else %}Для виду «{{ patient.get_species_display|lower }}» типових норм нема — впишіть норми свого аналізатора, клініка запам'ятає.{% endif %}
-        Порожні показники не зберігаються.
+        Назву й одиницю теж можна змінити, зайвий показник — прибрати ×. Порожні показники не зберігаються.
       </p>
     </div>
-    <div class="border-b border-gray-100 px-4 py-2 md:px-5">
+    <div class="flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-gray-100 px-4 py-2 md:px-5">
       <button type="button" onclick="kzLabAddRow()" class="inline-flex min-h-[44px] items-center text-sm font-medium text-brand-dark underline decoration-brand-gold underline-offset-2 md:min-h-0 md:py-1">+ Показник</button>
+      {# ANVAR 02.11: свій перелік показників під аналізатор клініки — наступні бланки відкриваються з ним #}
+      <label class="inline-flex min-h-[44px] cursor-pointer items-center gap-2 text-sm text-gray-700 md:min-h-0">
+        <input type="checkbox" name="remember_template" value="1" class="h-4 w-4 shrink-0">
+        Запамʼятати перелік і норми як бланк клініки{% if patient.species %} («{{ patient.get_species_display|lower }}»){% endif %}
+      </label>
+      {% if own_template and not typical_only and not lab.pk %}
+      <span class="text-xs text-gray-600">Відкрито свій бланк клініки · <a href="?panel={{ lab.panel }}&amp;typovyi=1" class="underline decoration-brand-gold underline-offset-2 hover:text-brand-dark">типовий</a></span>
+      {% endif %}
     </div>
 
     <div class="grid grid-cols-1 gap-4 p-4 md:p-5">
@@ -112,21 +116,23 @@
 </div>
 
 <template id="lab-row-custom">
-  <div class="lab-row -mx-2 grid grid-cols-[minmax(0,1fr)_6.5rem_1.5rem] items-center gap-x-3 gap-y-1 rounded-md px-2 py-2 focus-within:bg-amber-50/60 md:grid-cols-[minmax(0,1fr)_7rem_1.5rem_11rem] md:py-1.5">
-    <input type="hidden" name="row_code" value="">
-    <div class="order-1 flex min-w-0 gap-2">
-      <input type="text" name="row_name" maxlength="80" placeholder="Показник" aria-label="Назва показника" class="min-w-0 flex-1 rounded-md border border-gray-300 px-2 py-1.5 text-sm">
-      <input type="text" name="row_unit" maxlength="20" placeholder="од." aria-label="Одиниця" class="w-16 rounded-md border border-gray-300 px-2 py-1.5 text-sm">
-    </div>
-    <input type="text" name="row_value" maxlength="30" inputmode="decimal" aria-label="Результат" class="lab-value order-2 h-11 w-full rounded-md border border-gray-300 bg-white px-2 text-right text-base tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-gold md:h-8 md:text-sm">
-    <span class="lab-flag order-3 flex items-center justify-center" aria-live="polite"></span>
-    <div class="order-4 col-span-3 flex items-center gap-1.5 text-xs text-gray-600 md:col-span-1">
-      <span class="md:hidden">Норма</span>
-      <input type="text" name="row_low" maxlength="15" inputmode="decimal" aria-label="Норма від" class="lab-low h-9 w-16 rounded-md border border-gray-200 bg-white px-1.5 text-right text-xs tabular-nums text-gray-700 md:h-7">
-      <span>–</span>
-      <input type="text" name="row_high" maxlength="15" inputmode="decimal" aria-label="Норма до" class="lab-high h-9 w-16 rounded-md border border-gray-200 bg-white px-1.5 text-right text-xs tabular-nums text-gray-700 md:h-7">
-    </div>
-  </div>
+  <div class="lab-row -mx-2 grid grid-cols-[minmax(0,1fr)_6.5rem_1.5rem] items-center gap-x-3 gap-y-1 rounded-md px-2 py-2 focus-within:bg-amber-50/60 md:grid-cols-[minmax(0,1fr)_7rem_1.5rem_13rem] md:py-1.5">
+          <input type="hidden" name="row_code" value="">
+          <div class="order-1 flex min-w-0 gap-1">
+            <input type="text" name="row_name" maxlength="80" placeholder="Показник" aria-label="Назва показника" class="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1.5 text-sm text-brand-dark hover:border-gray-200 focus:border-gray-300 focus:bg-white focus:outline-none">
+            <input type="text" name="row_unit" maxlength="20" placeholder="од." aria-label="Одиниця" class="w-[4.5rem] shrink-0 rounded-md border border-transparent bg-transparent px-1 py-1.5 text-xs text-gray-600 hover:border-gray-200 focus:border-gray-300 focus:bg-white focus:outline-none">
+          </div>
+          <input type="text" name="row_value" maxlength="30" inputmode="decimal" aria-label="Результат"
+                 class="lab-value order-2 h-11 w-full rounded-md border border-gray-300 bg-white px-2 text-right text-base tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-gold md:h-8 md:text-sm">
+          <span class="lab-flag order-3 flex items-center justify-center" aria-live="polite"></span>
+          <div class="order-4 col-span-3 flex items-center gap-1.5 text-xs text-gray-600 md:col-span-1">
+            <span class="md:hidden">Норма</span>
+            <input type="text" name="row_low" maxlength="15" inputmode="decimal" aria-label="Норма від" class="lab-low h-9 w-16 rounded-md border border-gray-200 bg-white px-1.5 text-right text-xs tabular-nums text-gray-700 md:h-7">
+            <span>–</span>
+            <input type="text" name="row_high" maxlength="15" inputmode="decimal" aria-label="Норма до" class="lab-high h-9 w-16 rounded-md border border-gray-200 bg-white px-1.5 text-right text-xs tabular-nums text-gray-700 md:h-7">
+            <button type="button" class="lab-del ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-red-700 md:h-7 md:w-7" aria-label="Прибрати показник" title="Прибрати показник"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+          </div>
+        </div>
 </template>
 
 <script>
@@ -172,6 +178,14 @@
   var print = document.getElementById('lab-print');
   if (print) print.addEventListener('click', function (e) {
     if (dirty && !confirm('Є незбережені зміни. Друк покаже останній збережений бланк — спершу натисніть «Зберегти». Друкувати все одно?')) e.preventDefault();
+  });
+  // × у рядку — прибрати показник із цього бланку (ANVAR 02.11: «не только добавить, а и удалить»)
+  document.getElementById('lab-rows').addEventListener('click', function (e) {
+    var b = e.target.closest('.lab-del');
+    if (!b) return;
+    b.closest('.lab-row').remove();
+    dirty = true;
+    count();
   });
   window.kzLabAddRow = function () {
     var node = document.getElementById('lab-row-custom').content.firstElementChild.cloneNode(true);

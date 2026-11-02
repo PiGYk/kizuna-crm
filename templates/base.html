@@ -51,10 +51,16 @@
     /* Меню прокручується, але без смуги: інакше середина вужча за шапку й низ (ANVAR 02.11) */
     .kz-no-scrollbar{scrollbar-width:none;-ms-overflow-style:none}
     .kz-no-scrollbar::-webkit-scrollbar{display:none}
+    /* «Сірий» фон (Налаштування → Дизайн, ANVAR 02.11): сторінка й картки приглушені, поля світліші за картки */
+    body.kz-fon-siryi,.kz-fon-siryi .bg-brand-cream{background-color:#dfe2e6}
+    .kz-fon-siryi .bg-white,.kz-fon-siryi .tg-mobile-sheet,.kz-fon-siryi .fin-kpi{background-color:#eef0f2}
+    .kz-fon-siryi .bg-gray-50{background-color:#e6e8eb}
+    .kz-fon-siryi input:not([type=checkbox]):not([type=radio]):not([type=submit]):not([type=button]):not(.bg-transparent),
+    .kz-fon-siryi select,.kz-fon-siryi textarea,.kz-fon-siryi .ql-container{background-color:#f7f8f9}
   </style>
 </head>
 {# spellcheck=false: браузер перевіряв українські тексти чужим словником і підкреслював усе червоним (ANVAR 02.11) #}
-<body class="bg-brand-cream text-brand-dark" spellcheck="false">
+<body class="bg-brand-cream text-brand-dark{% if clinic.page_background == 'gray' %} kz-fon-siryi{% endif %}" spellcheck="false">
 
 {% if user.is_authenticated %}
 <div class="flex h-screen overflow-hidden">

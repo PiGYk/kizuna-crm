@@ -66,9 +66,25 @@ MAX_ROWS = 80
 _LIMITS = {'code': 20, 'name': 80, 'unit': 20, 'value': 30, 'low': 15, 'high': 15}
 
 
-def template_rows(panel, species, clinic_norms=None):
-    """Порожні рядки бланку з нормами: спершу норма клініки для цього виду, далі типова."""
+def template_rows(panel, species, clinic_norms=None, clinic_templates=None):
+    """Порожні рядки бланку. Перелік показників — свій клініки (Organization.lab_templates, ANVAR 02.11:
+    «у різних аналізаторів різні показники й норми»): для цього виду, інакше перелік з іншого виду;
+    нема свого — типовий. Норма: збережена клінікою для виду → зі свого бланку → типова."""
     own = (clinic_norms or {}).get(species, {})
+    typical = {code: norms.get(species, ('', '')) for code, _, _, norms in PANELS.get(panel, [])}
+    tpl = (clinic_templates or {}).get(panel) or {}
+    if tpl:
+        base = tpl.get(species)
+        same_species = base is not None
+        if not same_species:
+            base = next(iter(tpl.values()))
+        rows = []
+        for r in base:
+            code = r.get('code', '')
+            stored = (r.get('low', ''), r.get('high', '')) if same_species else ('', '')
+            low, high = own.get(code) or (stored if any(stored) else typical.get(code, ('', '')))
+            rows.append({'code': code, 'name': r.get('name', ''), 'unit': r.get('unit', ''), 'value': '', 'low': low, 'high': high})
+        return rows
     rows = []
     for code, name, unit, norms in PANELS.get(panel, []):
         low, high = own.get(code) or norms.get(species, ('', ''))
@@ -76,11 +92,17 @@ def template_rows(panel, species, clinic_norms=None):
     return rows
 
 
-def merge_rows(panel, species, saved, clinic_norms=None):
+def merge_rows(panel, species, saved, clinic_norms=None, clinic_templates=None):
     """Для редагування: збережені рядки + незаповнені показники бланку, щоб їх можна було дописати."""
-    have = {r.get('code') for r in saved if r.get('code')}
-    extra = [r for r in template_rows(panel, species, clinic_norms) if r['code'] not in have]
+    have = {r.get('code') or r.get('name') for r in saved}
+    extra = [r for r in template_rows(panel, species, clinic_norms, clinic_templates)
+             if (r['code'] or r['name']) not in have]
     return list(saved) + extra
+
+
+def template_from_post(post):
+    """Перелік показників для «запам'ятати як бланк клініки»: назви, одиниці, норми — без результатів."""
+    return [{k: r[k] for k in ('code', 'name', 'unit', 'low', 'high')} for r in rows_from_post(post, keep_empty=True)]
 
 
 def rows_from_post(post, keep_empty=False):

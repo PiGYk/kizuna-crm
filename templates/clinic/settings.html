@@ -251,6 +251,23 @@
         </div>
       </div>
 
+      <!-- Фон сторінок (ANVAR 02.11) -->
+      <div class="mb-6">
+        <label class="block text-xs text-gray-500 mb-3">Фон сторінок</label>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {% for value, label in design_form.fields.page_background.choices %}
+          <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 p-3 hover:bg-gray-50 has-[:checked]:border-brand-gold has-[:checked]:ring-1 has-[:checked]:ring-brand-gold">
+            <input type="radio" name="page_background" value="{{ value }}"{% if design_form.page_background.value == value %} checked{% endif %} class="h-4 w-4 shrink-0">
+            <span class="flex h-10 w-14 shrink-0 items-center justify-center rounded-md border border-gray-200 {% if value == 'gray' %}bg-[#dfe2e6]{% else %}bg-[#FFF7F3]{% endif %}" aria-hidden="true">
+              <span class="block h-5 w-9 rounded-sm border border-gray-200 {% if value == 'gray' %}bg-[#eef0f2]{% else %}bg-white{% endif %}"></span>
+            </span>
+            <span class="text-sm font-medium text-gray-700">{{ label }}</span>
+          </label>
+          {% endfor %}
+        </div>
+        <p class="mt-2 text-xs text-gray-600">Для всієї клініки, на всіх пристроях.</p>
+      </div>
+
       <!-- Прев'ю -->
       <div class="mb-6">
         <label class="block text-xs text-gray-500 mb-2">Прев'ю</label>
