@@ -329,6 +329,7 @@ class UltrasoundForm(forms.ModelForm):
             'bladder_notes': forms.Textarea(attrs={'rows': 2}),
             'gi_notes': forms.Textarea(attrs={'rows': 3}),
             'reproductive_notes': forms.Textarea(attrs={'rows': 2}),
+            'other_notes': forms.Textarea(attrs={'rows': 2}),
             'conclusion': forms.Textarea(attrs={'rows': 3}),
             'recommendations': forms.Textarea(attrs={'rows': 3}),
         }
@@ -339,6 +340,9 @@ class UltrasoundForm(forms.ModelForm):
         for field in self.fields.values():
             field.required = False
         self.fields['date'].required = True
+        # Спільні для обох нирок поля — лише в давніх протоколах, де вони заповнені (ANVAR 02.11)
+        if not (self.instance.kidney_echogenicity or self.instance.kidney_pelvis):
+            del self.fields['kidney_echogenicity'], self.fields['kidney_pelvis']
 
 
 class VisitTemplateForm(forms.ModelForm):

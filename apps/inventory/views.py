@@ -94,6 +94,11 @@ class ProductListView(LoginRequiredMixin, ListView):
         ctx['categories'] = Category.objects.filter(organization=self.request.organization)
         ctx['per_page'] = self.get_paginate_by(None)
         ctx['per_page_choices'] = self.PER_PAGE_CHOICES
+        # Адреса для сортування заголовками. Раніше збиралась у шаблоні фільтром add, а «текст + число
+        # (per_page)» у ньому дає порожньо → посилання «&sort=…» вело на /inventory/&sort=… = 404 (ANVAR 02.11)
+        from urllib.parse import urlencode
+        keep = {k: ctx[k] for k in ('q', 'cat', 'stock', 'expiry', 'per_page') if ctx.get(k)}
+        ctx['base_qs'] = '?' + urlencode(keep)
 
         # суми по всьому складу (незалежно від поточних фільтрів) — лише для своєї org
         money_field = DecimalField(max_digits=14, decimal_places=2)

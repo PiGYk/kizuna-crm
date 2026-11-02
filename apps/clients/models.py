@@ -210,6 +210,15 @@ class Visit(models.Model):
             models.Index(fields=['date'], name='visit_date_idx'),
         ]
 
+    @property
+    def is_blank(self):
+        """Порожній прийом: ані тексту, ані призначень (відкрили випадково / двічі — ANVAR 02.11)."""
+        import re as _re
+        for f in ('complaint', 'exam', 'diagnosis', 'treatment', 'notes'):
+            if _re.sub(r'<[^>]+>|&nbsp;|\s', '', getattr(self, f) or ''):
+                return False
+        return not len(self.prescriptions.all())
+
     def __str__(self):
         return f"{self.patient.name} — {self.date:%d.%m.%Y}"
 
@@ -581,8 +590,14 @@ class UltrasoundReport(models.Model):
     kidney_left_cortex = models.CharField('Кірковий шар лівої', max_length=50, blank=True, help_text='мм')
     kidney_right_size = models.CharField('Права нирка розмір', max_length=50, blank=True, help_text='Довжина × ширина мм')
     kidney_right_cortex = models.CharField('Кірковий шар правої', max_length=50, blank=True, help_text='мм')
-    kidney_echogenicity = models.CharField('Ехогенність нирок', max_length=50, blank=True)
-    kidney_pelvis = models.CharField('Ниркова миска', max_length=100, blank=True, help_text='Не розширена / розширена до ___ мм')
+    # ANVAR 02.11: ехогенність і миска — окремо для кожної нирки. Спільні два поля лишаються для давніх протоколів
+    # (у 76 із 79 заповнені) і не копіюються на обидві сторони: «з ознаками гідронефрозу» могло стосуватися однієї.
+    kidney_left_echogenicity = models.CharField('Ехогенність лівої', max_length=50, blank=True)
+    kidney_left_pelvis = models.CharField('Ниркова миска лівої', max_length=100, blank=True, help_text='Не розширена / розширена до ___ мм')
+    kidney_right_echogenicity = models.CharField('Ехогенність правої', max_length=50, blank=True)
+    kidney_right_pelvis = models.CharField('Ниркова миска правої', max_length=100, blank=True, help_text='Не розширена / розширена до ___ мм')
+    kidney_echogenicity = models.CharField('Ехогенність нирок (обидві, давнє)', max_length=50, blank=True)
+    kidney_pelvis = models.CharField('Ниркова миска (обидві, давнє)', max_length=100, blank=True, help_text='Не розширена / розширена до ___ мм')
     kidney_notes = models.TextField('Коментар (нирки)', blank=True)
 
     # ── Сечовий міхур ──
@@ -599,6 +614,9 @@ class UltrasoundReport(models.Model):
 
     # ── Вільна рідина ──
     free_fluid = models.CharField('Вільна рідина', max_length=100, blank=True, help_text='Відсутня / присутня (локалізація, об\'єм)')
+
+    # ── Інше (ANVAR 02.11) ──
+    other_notes = models.TextField('Інше', blank=True)
 
     # ── Висновок ──
     conclusion = models.TextField('Висновок', blank=True)

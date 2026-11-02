@@ -553,6 +553,13 @@
                   {% csrf_token %}
                   <button type="submit" class="block w-full text-left px-4 py-3 text-sm text-brand-dark hover:bg-gray-50">Зробити копію</button>
                 </form>
+                {% if visit.is_blank or user.is_admin or user.is_superuser %}
+                <form method="post" action="{% url 'clients:visit_delete' visit.pk %}" class="border-t border-gray-100"
+                      onsubmit="return confirm('{% if visit.is_blank %}Видалити порожній прийом {{ visit.date|date:'d.m.Y H:i' }}?{% else %}Видалити прийом {{ visit.date|date:'d.m.Y H:i' }} разом із записами й призначеннями? Повернути не вийде.{% endif %}')">
+                  {% csrf_token %}
+                  <button type="submit" class="block w-full text-left px-4 py-3 text-sm text-red-700 hover:bg-red-50">Видалити прийом</button>
+                </form>
+                {% endif %}
                 {% if patient.client.tg_chats.exists %}
                 <form method="post" action="{% url 'tg:send_visit_pdf' visit.pk %}" class="border-t border-gray-100"
                       onsubmit="var b=this.querySelector('button');b.disabled=true;b.textContent='⏳ Надсилаю…';">
@@ -577,6 +584,13 @@
                  class="text-xs text-gray-500 hover:text-brand-gold font-medium py-1">PDF</a>
               <a href="{% url 'clients:visit_pdf' visit.pk %}?copies=2" target="_blank" title="Два примірники: власнику і клініці"
                  class="text-xs text-gray-500 hover:text-brand-gold font-medium py-1">2 прим.</a>
+              {% if visit.is_blank or user.is_admin or user.is_superuser %}
+              <form method="post" action="{% url 'clients:visit_delete' visit.pk %}" class="inline"
+                    onsubmit="return confirm('{% if visit.is_blank %}Видалити порожній прийом {{ visit.date|date:'d.m.Y H:i' }}?{% else %}Видалити прийом {{ visit.date|date:'d.m.Y H:i' }} разом із записами й призначеннями? Повернути не вийде.{% endif %}')">
+                {% csrf_token %}
+                <button type="submit" class="text-xs text-red-700 hover:text-red-800 font-medium py-1" title="Видалити прийом">Видалити</button>
+              </form>
+              {% endif %}
               {% if patient.client.tg_chats.exists %}
               <form method="post" action="{% url 'tg:send_visit_pdf' visit.pk %}" class="inline"
                     onsubmit="var b=this.querySelector('button');b.disabled=true;b.textContent='⏳ TG';">

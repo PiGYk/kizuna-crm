@@ -85,14 +85,32 @@
         <span class="w-6 h-6 rounded bg-blue-50 text-blue-600 flex items-center justify-center text-xs">5</span>
         Нирки
       </h2>
-      <div class="grid grid-cols-2 gap-3">
-        <div><label class="text-xs text-gray-500 block mb-1">Ліва -- розмір (см)</label>{{ form.kidney_left_size }}</div>
-        <div><label class="text-xs text-gray-500 block mb-1">Ліва -- кірковий шар (см)</label>{{ form.kidney_left_cortex }}</div>
-        <div><label class="text-xs text-gray-500 block mb-1">Права -- розмір (см)</label>{{ form.kidney_right_size }}</div>
-        <div><label class="text-xs text-gray-500 block mb-1">Права -- кірковий шар (см)</label>{{ form.kidney_right_cortex }}</div>
-        <div><label class="text-xs text-gray-500 block mb-1">Ехогенність</label>{{ form.kidney_echogenicity }}</div>
-        <div><label class="text-xs text-gray-500 block mb-1">Ниркова миска</label>{{ form.kidney_pelvis }}</div>
+      {# ANVAR 02.11: ехогенність і миска — для кожної нирки окремо #}
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div class="space-y-3">
+          <div class="text-xs font-semibold uppercase tracking-wide text-gray-600">Ліва нирка</div>
+          <div><label class="text-xs text-gray-500 block mb-1">Розмір (см)</label>{{ form.kidney_left_size }}</div>
+          <div><label class="text-xs text-gray-500 block mb-1">Кірковий шар (см)</label>{{ form.kidney_left_cortex }}</div>
+          <div><label class="text-xs text-gray-500 block mb-1">Ехогенність</label>{{ form.kidney_left_echogenicity }}</div>
+          <div><label class="text-xs text-gray-500 block mb-1">Ниркова миска</label>{{ form.kidney_left_pelvis }}</div>
+        </div>
+        <div class="space-y-3">
+          <div class="text-xs font-semibold uppercase tracking-wide text-gray-600">Права нирка</div>
+          <div><label class="text-xs text-gray-500 block mb-1">Розмір (см)</label>{{ form.kidney_right_size }}</div>
+          <div><label class="text-xs text-gray-500 block mb-1">Кірковий шар (см)</label>{{ form.kidney_right_cortex }}</div>
+          <div><label class="text-xs text-gray-500 block mb-1">Ехогенність</label>{{ form.kidney_right_echogenicity }}</div>
+          <div><label class="text-xs text-gray-500 block mb-1">Ниркова миска</label>{{ form.kidney_right_pelvis }}</div>
+        </div>
       </div>
+      {% if form.kidney_echogenicity %}
+      <div class="mt-3 rounded-lg bg-gray-50 p-3">
+        <div class="mb-2 text-xs text-gray-600">Записано раніше для обох нирок разом:</div>
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div><label class="text-xs text-gray-500 block mb-1">Ехогенність (обидві)</label>{{ form.kidney_echogenicity }}</div>
+          <div><label class="text-xs text-gray-500 block mb-1">Ниркова миска (обидві)</label>{{ form.kidney_pelvis }}</div>
+        </div>
+      </div>
+      {% endif %}
       <div class="mt-3"><label class="text-xs text-gray-500 block mb-1">Коментар</label>{{ form.kidney_notes }}</div>
     </div>
 
@@ -110,17 +128,34 @@
       <div class="mt-3"><label class="text-xs text-gray-500 block mb-1">Коментар</label>{{ form.bladder_notes }}</div>
     </div>
 
-    <!-- ШКТ + Репродуктивна -->
+    <!-- ШКТ, репродуктивна система, вільна рідина, інше — окремими розділами (ANVAR 02.11) -->
     <div class="bg-white rounded-xl border border-gray-200 p-5 mb-4">
       <h2 class="text-sm font-bold text-brand-dark mb-3 flex items-center gap-2">
         <span class="w-6 h-6 rounded bg-orange-50 text-orange-600 flex items-center justify-center text-xs">7</span>
-        ШКТ / Репродуктивна система / Рідина
+        ШКТ
       </h2>
-      <div class="space-y-3">
-        <div><label class="text-xs text-gray-500 block mb-1">Шлунок / кишківник</label>{{ form.gi_notes }}</div>
-        <div><label class="text-xs text-gray-500 block mb-1">Матка / простата / яєчники</label>{{ form.reproductive_notes }}</div>
-        <div><label class="text-xs text-gray-500 block mb-1">Вільна рідина</label>{{ form.free_fluid }}</div>
-      </div>
+      <div><label class="text-xs text-gray-500 block mb-1">Шлунок / кишківник</label>{{ form.gi_notes }}</div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 p-5 mb-4">
+      <h2 class="text-sm font-bold text-brand-dark mb-3 flex items-center gap-2">
+        <span class="w-6 h-6 rounded bg-pink-50 text-pink-600 flex items-center justify-center text-xs">8</span>
+        Репродуктивна система
+      </h2>
+      <div><label class="text-xs text-gray-500 block mb-1">Матка / простата / яєчники</label>{{ form.reproductive_notes }}</div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 p-5 mb-4">
+      <h2 class="text-sm font-bold text-brand-dark mb-3 flex items-center gap-2">
+        <span class="w-6 h-6 rounded bg-sky-50 text-sky-600 flex items-center justify-center text-xs">9</span>
+        Вільна рідина
+      </h2>
+      {{ form.free_fluid }}
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 p-5 mb-4">
+      <h2 class="text-sm font-bold text-brand-dark mb-3 flex items-center gap-2">
+        <span class="w-6 h-6 rounded bg-gray-100 text-gray-600 flex items-center justify-center text-xs">10</span>
+        Інше
+      </h2>
+      {{ form.other_notes }}
     </div>
 
     <!-- Висновок -->

@@ -197,7 +197,6 @@
                  title="Виділити всі на сторінці">
         </th>
         {% endif %}
-        {% with base_qs="?"|add:"q="|add:q|add:"&cat="|add:cat|add:"&stock="|add:stock|add:"&expiry="|add:expiry|add:"&per_page="|add:per_page|stringformat:"s" %}
         <th class="px-4 py-3 text-left font-medium text-gray-500 text-xs uppercase tracking-wide">
           <a href="{{ base_qs }}&sort=name&dir={% if sort == 'name' and dir == 'asc' %}desc{% else %}asc{% endif %}" class="hover:text-brand-gold inline-flex items-center gap-1">
             Назва {% if sort == 'name' %}<span class="text-brand-gold">{% if dir == 'asc' %}↑{% else %}↓{% endif %}</span>{% endif %}
@@ -223,7 +222,6 @@
             Вихідна {% if sort == 'sell_price' %}<span class="text-brand-gold">{% if dir == 'asc' %}↑{% else %}↓{% endif %}</span>{% endif %}
           </a>
         </th>
-        {% endwith %}
         <th class="px-4 py-3 text-left font-medium text-gray-500 text-xs uppercase tracking-wide hidden lg:table-cell">Термін</th>
         <th class="px-3 py-3 w-20"></th>
       </tr>

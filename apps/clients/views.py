@@ -315,6 +315,25 @@ def _recent_analyses(patient, limit=8):
 
 @login_required
 @require_POST
+def visit_delete(request, pk):
+    """Видалити прийом (ANVAR 02.11: «открыл приём два раза и не могу удалить»). Порожній — будь-хто, хто
+    бачить картку; із записами чи призначеннями — лише адміністратор. Призначення видаляються разом із прийомом,
+    документи, УЗД і записи щоденника лишаються в картці (на прийом вони посилаються з SET_NULL).
+    Видалення пише журнал аудиту (сигнал post_delete)."""
+    from django.utils import timezone
+    visit = get_object_or_404(Visit, pk=pk, patient__client__organization=request.organization)
+    patient_pk = visit.patient_id
+    if not visit.is_blank and not (request.user.is_superuser or request.user.is_admin()):
+        messages.error(request, 'Прийом із записами може видалити лише адміністратор.')
+        return redirect('clients:patient_detail', pk=patient_pk)
+    when = timezone.localtime(visit.date).strftime('%d.%m.%Y %H:%M')
+    visit.delete()
+    messages.success(request, f'Прийом {when} видалено.')
+    return redirect('clients:patient_detail', pk=patient_pk)
+
+
+@login_required
+@require_POST
 def visit_duplicate(request, pk):
     from django.utils import timezone
     original = get_object_or_404(

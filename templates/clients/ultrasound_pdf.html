@@ -87,15 +87,19 @@
 {% if report.pancreas_notes %}<div class="comment">{{ report.pancreas_notes }}</div>{% endif %}
 {% endif %}
 
-{% if report.kidney_left_size or report.kidney_right_size or report.kidney_echogenicity or report.kidney_pelvis or report.kidney_notes %}
+{% if report.kidney_left_size or report.kidney_right_size or report.kidney_left_echogenicity or report.kidney_right_echogenicity or report.kidney_left_pelvis or report.kidney_right_pelvis or report.kidney_echogenicity or report.kidney_pelvis or report.kidney_notes %}
 <h2>Нирки</h2>
 <table class="params">
   {% if report.kidney_left_size %}<tr><td class="label">Ліва нирка — розмір</td><td class="value">{{ report.kidney_left_size }}</td></tr>{% endif %}
   {% if report.kidney_left_cortex %}<tr><td class="label">Ліва — кірковий шар</td><td class="value">{{ report.kidney_left_cortex }} см</td></tr>{% endif %}
+  {% if report.kidney_left_echogenicity %}<tr><td class="label">Ліва — ехогенність</td><td class="value">{{ report.kidney_left_echogenicity }}</td></tr>{% endif %}
+  {% if report.kidney_left_pelvis %}<tr><td class="label">Ліва — ниркова миска</td><td class="value">{{ report.kidney_left_pelvis }}</td></tr>{% endif %}
   {% if report.kidney_right_size %}<tr><td class="label">Права нирка — розмір</td><td class="value">{{ report.kidney_right_size }}</td></tr>{% endif %}
   {% if report.kidney_right_cortex %}<tr><td class="label">Права — кірковий шар</td><td class="value">{{ report.kidney_right_cortex }} см</td></tr>{% endif %}
-  {% if report.kidney_echogenicity %}<tr><td class="label">Ехогенність</td><td class="value">{{ report.kidney_echogenicity }}</td></tr>{% endif %}
-  {% if report.kidney_pelvis %}<tr><td class="label">Ниркова миска</td><td class="value">{{ report.kidney_pelvis }}</td></tr>{% endif %}
+  {% if report.kidney_right_echogenicity %}<tr><td class="label">Права — ехогенність</td><td class="value">{{ report.kidney_right_echogenicity }}</td></tr>{% endif %}
+  {% if report.kidney_right_pelvis %}<tr><td class="label">Права — ниркова миска</td><td class="value">{{ report.kidney_right_pelvis }}</td></tr>{% endif %}
+  {% if report.kidney_echogenicity %}<tr><td class="label">Ехогенність{% if report.kidney_left_echogenicity or report.kidney_right_echogenicity %} (обидві){% endif %}</td><td class="value">{{ report.kidney_echogenicity }}</td></tr>{% endif %}
+  {% if report.kidney_pelvis %}<tr><td class="label">Ниркова миска{% if report.kidney_left_pelvis or report.kidney_right_pelvis %} (обидві){% endif %}</td><td class="value">{{ report.kidney_pelvis }}</td></tr>{% endif %}
 </table>
 {% if report.kidney_notes %}<div class="comment">{{ report.kidney_notes }}</div>{% endif %}
 {% endif %}
@@ -126,6 +130,12 @@
 {% if report.free_fluid %}
 <h2>Вільна рідина</h2>
 <div class="comment">{{ report.free_fluid }}</div>
+{% endif %}
+
+<!-- Інше (ANVAR 02.11) -->
+{% if report.other_notes %}
+<h2>Інше</h2>
+<div class="comment">{{ report.other_notes }}</div>
 {% endif %}
 
 <!-- Висновок -->
