@@ -265,11 +265,26 @@
             <input type="text" id="patient-search-input" placeholder="Кличка або порода…"
                    autocomplete="off"
                    oninput="searchPatientAppt(this.value)"
+                   onfocus="if (!this.value && hiddenClient.value) loadClientPets(hiddenClient.value, true)"
                    class="af-input">
             <div id="patient-search-drop" class="srch-drop hidden"></div>
           </div>
           <div id="patient-selected" class="hidden mt-2"></div>
-          <p class="text-[11px] text-gray-400 mt-1">Якщо тваринку обрано — клієнт автозаповниться</p>
+          <p id="patient-hint" class="text-[11px] text-gray-500 mt-1">Якщо тваринку обрано — клієнт автозаповниться</p>
+          <button type="button" id="np-open" onclick="npOpen()" class="hidden mt-1 text-[11px] text-brand-gold font-semibold hover:text-brand-dark">+ Нова тварина цього клієнта</button>
+          {# ANVAR 02.11: тварину до вже обраного клієнта — тут же, без окремої картки #}
+          <div id="np-box" class="hidden mt-2 rounded-lg border border-gray-200 p-3 space-y-2">
+            <div class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_5.5rem] gap-2">
+              <input type="text" id="np-name" placeholder="Кличка" maxlength="100" autocomplete="off" class="af-input">
+              <select id="np-species" class="af-input" aria-label="Вид"></select>
+              <input type="text" id="np-age" placeholder="Вік" maxlength="30" autocomplete="off" aria-label="Вік — скільки років, напр. 5 або 6 міс." title="Скільки років: 5 — роки, 6 міс — місяці" class="af-input">
+            </div>
+            <p id="np-err" class="hidden text-xs text-red-700"></p>
+            <div class="flex gap-2">
+              <button type="button" onclick="npSave()" id="np-save" class="h-9 rounded-lg bg-brand-gold px-4 text-sm font-semibold text-brand-dark hover:brightness-95">Додати й обрати</button>
+              <button type="button" onclick="npClose()" class="h-9 rounded-lg border border-gray-300 px-4 text-sm text-gray-700 hover:bg-gray-50">Скасувати</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -563,11 +578,30 @@ function pickClient(id, label, phone) {
       </button>
     </div>
   `;
-  // Patient search автоматично шукатиме серед пацієнтів цього клієнта (через hidden-client)
+  // Тварини клієнта — одразу (ANVAR 02.11): одна — обирається сама, кілька — список
+  document.getElementById('np-open').classList.remove('hidden');
+  if (!hiddenPatient.value) loadClientPets(id);
+}
+
+function loadClientPets(cid, showAll) {
+  fetch('{% url "appointments:patient_search" %}?client_id=' + encodeURIComponent(cid))
+    .then(r => r.json())
+    .then(d => {
+      if (String(hiddenClient.value) !== String(cid) || hiddenPatient.value) return;
+      const res = d.results || [];
+      if (res.length === 1 && !showAll) {
+        const r = res[0];
+        pickPatient(r.id, r.name, r.species_emoji, r.photo || '', r.client_label, r.client_phone || '', r.client_id);
+        return;
+      }
+      renderPatientDrop(res, true);
+    });
 }
 
 function clearClient() {
   hiddenClient.value = '';
+  document.getElementById('np-open').classList.add('hidden');
+  npClose();
   document.getElementById('client-search-wrap').classList.remove('hidden');
   document.getElementById('client-selected').classList.add('hidden');
   document.getElementById('client-search-input').value = '';
@@ -650,11 +684,18 @@ function searchPatientAppt(q) {
     if (hiddenClient.value) url += '&client_id=' + hiddenClient.value;
     fetch(url)
       .then(r => r.json())
-      .then(d => {
-        if (!d.results.length) {
-          drop.innerHTML = '<div class="px-3 py-3 text-sm text-gray-400 text-center">Нічого не знайдено</div>';
+      .then(d => renderPatientDrop(d.results || [], !!hiddenClient.value));
+  }, 220);
+}
+
+function renderPatientDrop(results, forClient) {
+  const drop = document.getElementById('patient-search-drop');
+        if (!results.length) {
+          drop.innerHTML = forClient
+            ? '<div class="px-3 py-3 text-sm text-gray-600 text-center">Не знайдено — <button type="button" class="font-semibold text-brand-dark underline decoration-brand-gold" onmousedown="event.preventDefault(); npOpen()">додати тварину цьому клієнту</button></div>'
+            : '<div class="px-3 py-3 text-sm text-gray-500 text-center">Нічого не знайдено</div>';
         } else {
-          drop.innerHTML = d.results.map(r => `
+          drop.innerHTML = results.map(r => `
             <div class="srch-item"
                  data-pid="${r.id}" data-cid="${r.client_id}"
                  data-name="${r.name.replace(/"/g,'&quot;')}"
@@ -675,8 +716,46 @@ function searchPatientAppt(q) {
           `).join('');
         }
         drop.classList.remove('hidden');
-      });
-  }, 220);
+}
+
+// Нова тварина для вже обраного клієнта
+function npOpen() {
+  const box = document.getElementById('np-box'), sp = document.getElementById('np-species');
+  if (!sp.options.length) sp.innerHTML = document.querySelector('#qc-modal select[name=pet_species]').innerHTML;
+  document.getElementById('patient-search-drop').classList.add('hidden');
+  box.classList.remove('hidden');
+  document.getElementById('np-name').value = document.getElementById('patient-search-input').value;
+  document.getElementById('np-name').focus();
+}
+function npClose() {
+  document.getElementById('np-box').classList.add('hidden');
+  document.getElementById('np-err').classList.add('hidden');
+}
+function npSave() {
+  const err = document.getElementById('np-err'), btn = document.getElementById('np-save');
+  const data = new FormData();
+  data.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+  data.append('client_id', hiddenClient.value);
+  data.append('pet_name', document.getElementById('np-name').value);
+  data.append('pet_species', document.getElementById('np-species').value);
+  data.append('pet_age', document.getElementById('np-age').value);
+  btn.disabled = true;
+  fetch('{% url "appointments:quick_patient" %}', {method: 'POST', body: data, headers: {'X-Requested-With': 'XMLHttpRequest'}})
+    .then(r => r.json().then(j => ({ok: r.ok, body: j})))
+    .then(({ok, body}) => {
+      btn.disabled = false;
+      if (!ok) {
+        const e = body.errors || {};
+        err.textContent = (e.name ? 'Вкажіть кличку. ' : '') + (e.species ? 'Оберіть вид. ' : '') + (e.client ? e.client[0] : '') || 'Не вдалося додати тварину.';
+        err.classList.remove('hidden');
+        return;
+      }
+      const p = body.patient;
+      ['np-name', 'np-age'].forEach(id => document.getElementById(id).value = '');
+      npClose();
+      pickPatient(p.id, p.name, p.species_emoji, '', p.client_label, p.client_phone, p.client_id);
+    })
+    .catch(() => { btn.disabled = false; err.textContent = 'Немає звʼязку з сервером — спробуйте ще раз.'; err.classList.remove('hidden'); });
 }
 
 // Delegated mousedown handler — picks both
@@ -816,14 +895,11 @@ document.addEventListener('keydown', function (e) {
         }
         // Парсимо label — формат "ПІП · phone"
         const parts = body.client.label.split(' · ');
+        if (body.patient) hiddenPatient.value = body.patient.id;
         pickClient(body.client.id, parts[0], parts[1] || '');
         if (body.patient) {
-          hiddenPatient.value = body.patient.id;
-          // Маленький delay щоб patient-options встиг завантажитись
-          setTimeout(() => {
-            const sel = document.getElementById('id_patient');
-            if (sel) sel.value = body.patient.id;
-          }, 400);
+          pickPatient(body.patient.id, body.patient.name || body.patient.label, body.patient.species_emoji || '🐾', '',
+                      parts[0], parts[1] || '', body.client.id);
         }
         form.reset();
         _existingClient = null;

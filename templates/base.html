@@ -43,9 +43,18 @@
   <link rel="stylesheet" href="{% static 'css/mobile-overrides.css' %}">
   <link rel="stylesheet" href="{% static 'css/tg-mobile.css' %}">
   {% block extra_head %}{% endblock %}
-  <style>body{font-family:'Fixel',system-ui,-apple-system,sans-serif;}</style>
+  <style>
+    body{font-family:'Fixel',system-ui,-apple-system,sans-serif;}
+    /* У Fixel цифри однакової ширини (tnum) мають нуль із рискою — «ніби двоїться» (ANVAR 02.11).
+       Іншого рівноширокого нуля шрифт не має, тож лишаємо звичайні цифри. */
+    .tabular-nums{font-variant-numeric:normal!important}
+    /* Меню прокручується, але без смуги: інакше середина вужча за шапку й низ (ANVAR 02.11) */
+    .kz-no-scrollbar{scrollbar-width:none;-ms-overflow-style:none}
+    .kz-no-scrollbar::-webkit-scrollbar{display:none}
+  </style>
 </head>
-<body class="bg-brand-cream text-brand-dark">
+{# spellcheck=false: браузер перевіряв українські тексти чужим словником і підкреслював усе червоним (ANVAR 02.11) #}
+<body class="bg-brand-cream text-brand-dark" spellcheck="false">
 
 {% if user.is_authenticated %}
 <div class="flex h-screen overflow-hidden">

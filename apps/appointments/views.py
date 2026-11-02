@@ -387,7 +387,8 @@ def patient_search(request):
     q = request.GET.get('q', '').strip()
     client_id = request.GET.get('client_id', '').strip()
     results = []
-    if q and len(q) >= 1:
+    # без q, але з клієнтом — усі тварини клієнта (підтягнути їх одразу після вибору власника)
+    if q or client_id.isdigit():
         qs = (
             Patient._meta.base_manager
             .select_related('client')
@@ -396,12 +397,14 @@ def patient_search(request):
                 client__is_archived=False,
                 is_archived=False,
             )
-            .filter(Q(name__icontains=q) | Q(breed__icontains=q))
-            .order_by('name')[:15]
         )
-        if client_id and client_id.isdigit():
+        # ⚡фільтр — ДО зрізу [:15]: після зрізу Django падає («Cannot filter a query once a slice has
+        # been taken»), і з обраним клієнтом пошук тварини повертав 500 (ANVAR 02.11)
+        if client_id.isdigit():
             qs = qs.filter(client_id=int(client_id))
-        for p in qs:
+        if q:
+            qs = qs.filter(Q(name__icontains=q) | Q(breed__icontains=q))
+        for p in qs.order_by('name')[:15]:
             results.append({
                 'id': p.pk,
                 'name': p.name,
@@ -539,10 +542,44 @@ def quick_create_client_patient(request):
             'label': f'{client} · {client.phone}',
         },
         'patient': (
-            {'id': patient.pk, 'label': f'{patient.name} ({patient.get_species_display()})'}
+            {'id': patient.pk, 'label': f'{patient.name} ({patient.get_species_display()})',
+             'name': patient.name, 'species_emoji': _SPECIES_EMOJI.get(patient.species, '🐾')}
             if patient else None
         ),
     })
+
+
+@login_required
+@require_POST
+def quick_create_patient(request):
+    """POST /appointments/quick-patient/ → нова тварина для ВЖЕ обраного клієнта
+    (ANVAR 02.11: «по человеку животное не подтянуть и не вбить, если знаешь кличку»).
+    Тіло: client_id, pet_name, pet_species (+ pet_age, pet_breed, pet_sex)."""
+    from apps.clients.models import Client
+    from .forms_quick import QuickPatientForm
+
+    cid = request.POST.get('client_id', '').strip()
+    if not cid.isdigit():
+        return JsonResponse({'ok': False, 'errors': {'client': ['Спершу оберіть клієнта.']}}, status=400)
+    client = get_object_or_404(Client, pk=int(cid), organization=request.organization, is_archived=False)
+    form = QuickPatientForm({
+        'name': request.POST.get('pet_name', '').strip(),
+        'species': request.POST.get('pet_species', '').strip(),
+        'breed': request.POST.get('pet_breed', '').strip(),
+        'sex': request.POST.get('pet_sex', '').strip() or 'unknown',
+        'date_of_birth': None,
+        'age': request.POST.get('pet_age', '').strip(),
+    })
+    if not form.is_valid():
+        return JsonResponse({'ok': False, 'errors': form.errors}, status=400)
+    patient = form.save(commit=False)
+    patient.client = client
+    patient.save()
+    return JsonResponse({'ok': True, 'patient': {
+        'id': patient.pk, 'name': patient.name,
+        'species_emoji': _SPECIES_EMOJI.get(patient.species, '🐾'),
+        'client_id': client.pk, 'client_label': str(client), 'client_phone': client.phone or '',
+    }})
 
 
 # ── API: перемістити запис (drag & drop) ────────────────────────────────────

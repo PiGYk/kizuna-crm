@@ -15,6 +15,7 @@ urlpatterns = [
     path('<int:pk>/move/', views.appointment_move, name='move'),
     path('client-by-phone/', views.client_by_phone, name='client_by_phone'),
     path('quick-client/', views.quick_create_client_patient, name='quick_client'),
+    path('quick-patient/', views.quick_create_patient, name='quick_patient'),
     path('patient-search/', views.patient_search, name='patient_search'),
     path('client-search/', views.client_search, name='client_search'),
 ]
