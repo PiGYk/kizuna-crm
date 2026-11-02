@@ -139,13 +139,14 @@ def _errors_text(form):
 class ClinicSettingsView(AdminRequiredMixin, View):
     def _ctx(self, request, bound=None, active_tab=''):
         from apps.accounts.models import User
+        from apps.accounts.staff import fired_users
         from apps.finance.models import FinanceSettings, calculate_balances
         from apps.finance.forms import FinanceSettingsForm
         from apps.clients.tasks import REMIND_DAYS_BEFORE
         from apps.tg.models import TelegramChat
 
         org = request.organization
-        users = User.objects.filter(organization=org).order_by('role', 'last_name', 'first_name')
+        users = User.objects.filter(organization=org, is_active=True).order_by('role', 'last_name', 'first_name')
         fs = FinanceSettings.get_for_org(org)
 
         ctx = {}
@@ -157,6 +158,7 @@ class ClinicSettingsView(AdminRequiredMixin, View):
         menu_config = org.get_menu_config() if org else {}
         ctx.update({
             'users': users,
+            'fired': fired_users(org),
             'fs': fs,
             'finance_form': FinanceSettingsForm(instance=fs),
             'balances': calculate_balances(org),

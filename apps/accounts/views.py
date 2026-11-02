@@ -13,10 +13,14 @@ from django.urls import reverse_lazy
 from django.views.generic import ListView, CreateView, UpdateView
 
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
+from django.utils.http import url_has_allowed_host_and_scheme
+from django.views.decorators.http import require_POST
 
 from .forms import UserCreateForm, UserUpdateForm, PasswordChangeForm, ClinicRegistrationForm
 from .mixins import AdminRequiredMixin
 from .models import User, EmailVerification
+from .staff import fired_users, seats_left, user_history
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +110,13 @@ class UserListView(AdminRequiredMixin, ListView):
     ordering = ('last_name', 'first_name')
 
     def get_queryset(self):
-        return User.objects.filter(organization=self.request.organization)
+        # Звільнені — окремим згорнутим списком під таблицею (ANVAR 01.11)
+        return User.objects.filter(organization=self.request.organization, is_active=True).order_by(*self.ordering)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['fired'] = fired_users(self.request.organization)
+        return ctx
 
 
 class UserCreateView(AdminRequiredMixin, CreateView):
@@ -120,8 +130,8 @@ class UserCreateView(AdminRequiredMixin, CreateView):
         if org and not request.user.is_superuser:
             limit = org.max_doctors
             if limit is not None:
-                current = User.objects.filter(organization=org).count()
-                if current >= limit:
+                # місце в тарифі займають лише активні — звільнені ні
+                if seats_left(org) <= 0:
                     messages.error(
                         request,
                         f'Ваш тариф «{org.get_plan_display() or "Старт"}» дозволяє максимум '
@@ -156,8 +166,94 @@ class UserUpdateView(AdminRequiredMixin, UpdateView):
             if form.cleaned_data.get('role') != User.Role.ADMIN:
                 form.add_error('role', 'Не можна зняти з себе роль адміністратора.')
                 return self.form_invalid(form)
+        # повернення звільненого галочкою «Активний» — теж у межах тарифу
+        org = self.request.organization
+        was_active = User.objects.filter(pk=form.instance.pk).values_list('is_active', flat=True).first()
+        left = seats_left(org) if org and not self.request.user.is_superuser else None
+        if form.cleaned_data.get('is_active') and not was_active and left is not None and left <= 0:
+            form.add_error('is_active', f'Тариф дозволяє {org.max_doctors} активних користувачів — місць нема.')
+            return self.form_invalid(form)
         messages.success(self.request, 'Збережено')
         return super().form_valid(form)
+
+
+def _back(request):
+    nxt = request.POST.get('next', '')
+    if nxt and url_has_allowed_host_and_scheme(nxt, allowed_hosts={request.get_host()}, require_https=request.is_secure()):
+        return redirect(nxt)
+    return redirect('accounts:users')
+
+
+def _name(u):
+    return u.get_full_name() or u.username
+
+
+@login_required
+@require_POST
+def user_dismiss(request, pk):
+    """«Звільнити»: не входить, зникає з вибору лікаря/виконавця й зі списку команди,
+    звільняє місце в тарифі; прийоми й рахунки з його ім'ям лишаються."""
+    if not request.user.is_admin():
+        raise PermissionDenied
+    org = request.organization
+    user = get_object_or_404(User, pk=pk, organization=org, is_active=True)
+    if user.pk == request.user.pk or user.is_superuser:
+        messages.error(request, 'Цього користувача звільнити не можна.')
+        return _back(request)
+    if user.is_admin() and not User.objects.filter(
+            organization=org, role=User.Role.ADMIN, is_active=True).exclude(pk=user.pk).exists():
+        messages.error(request, 'Це єдиний адміністратор клініки — спершу призначте іншого.')
+        return _back(request)
+    user.is_active = False
+    user.save(update_fields=['is_active'])
+    note = ''
+    if org.default_doctor_id == user.pk:
+        org.default_doctor = None
+        org.save(update_fields=['default_doctor'])
+        note = ' Він був лікарем за замовчуванням — оберіть іншого в налаштуваннях.'
+    messages.success(request, f'{_name(user)} звільнено: не входить у CRM і не пропонується у виборі лікаря чи виконавця. '
+                              f'Прийоми й рахунки з його ім\'ям лишаються.{note}')
+    return _back(request)
+
+
+@login_required
+@require_POST
+def user_restore(request, pk):
+    if not request.user.is_admin():
+        raise PermissionDenied
+    org = request.organization
+    user = get_object_or_404(User, pk=pk, organization=org, is_active=False)
+    left = seats_left(org)
+    if left is not None and left <= 0 and not request.user.is_superuser:
+        messages.error(request, f'Тариф дозволяє {org.max_doctors} активних користувачів — спершу звільніть когось або перейдіть на вищий тариф.')
+        return _back(request)
+    user.is_active = True
+    user.save(update_fields=['is_active'])
+    messages.success(request, f'{_name(user)} знову в команді.')
+    return _back(request)
+
+
+@login_required
+@require_POST
+def user_delete(request, pk):
+    """Назавжди — лише звільненого й лише без історії (створений помилково). Інакше каскад
+    знищив би його зміни й зарплати, а в прийомах і рахунках лікар став би порожнім."""
+    if not request.user.is_admin():
+        raise PermissionDenied
+    user = get_object_or_404(User, pk=pk, organization=request.organization, is_active=False)
+    if user.pk == request.user.pk or user.is_superuser:
+        messages.error(request, 'Цього користувача видалити не можна.')
+        return _back(request)
+    history = user_history(user)
+    if history:
+        what = ', '.join(f'{name.lower()} {n}' for name, n in history[:3])
+        messages.error(request, f'{_name(user)} не видалити: за ним історія ({what}). Звільнений нікому не заважає — '
+                                f'не входить і не показується у виборі лікаря чи виконавця.')
+        return _back(request)
+    name = _name(user)
+    user.delete()
+    messages.success(request, f'{name} видалено назавжди.')
+    return _back(request)
 
 
 @login_required

@@ -1,0 +1,30 @@
+{% load clinic_html %}{# Звільнені — згорнутим списком під командою (ANVAR 01.11): повернути, а без історії — видалити назавжди #}
+{% if fired %}
+<details class="mt-4 rounded-xl border border-gray-200 bg-white">
+  <summary class="cursor-pointer select-none rounded-xl px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50">Звільнені · {{ fired|length }}</summary>
+  <ul class="divide-y divide-gray-100 border-t border-gray-100">
+    {% for u in fired %}
+    <li class="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
+      <div class="min-w-0 flex-1">
+        <div class="text-sm font-medium text-gray-700">{{ u.get_full_name|default:u.username }}</div>
+        <div class="text-xs text-gray-600">{{ u.get_role_display }} · {{ u.username }}</div>
+      </div>
+      <form method="post" action="{% url 'accounts:user_restore' u.pk %}">
+        {% csrf_token %}<input type="hidden" name="next" value="{{ next|default:request.get_full_path }}">
+        <button type="submit" class="min-h-[44px] rounded-lg border border-gray-300 px-3 text-xs font-medium text-gray-700 hover:bg-gray-50 md:min-h-[32px]">Повернути</button>
+      </form>
+      {% if u.history_total %}
+      <span class="text-xs text-gray-600">{{ u.history_total }} {{ u.history_total|uk_plural:"запис,записи,записів" }} в історії — лишається звільненим</span>
+      {% else %}
+      <form method="post" action="{% url 'accounts:user_delete' u.pk %}"
+            onsubmit="return confirm('Видалити {{ u.get_full_name|default:u.username|escapejs }} назавжди? Повернути вже не вийде.')">
+        {% csrf_token %}<input type="hidden" name="next" value="{{ next|default:request.get_full_path }}">
+        <button type="submit" class="min-h-[44px] rounded-lg px-3 text-xs font-medium text-red-700 hover:bg-red-50 md:min-h-[32px]">Видалити назавжди</button>
+      </form>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  <p class="border-t border-gray-100 px-4 py-2.5 text-xs text-gray-600">Звільнені не входять у CRM і не показуються у виборі лікаря чи виконавця. Назавжди видаляється лише той, за ким нема прийомів, рахунків, змін чи зарплат.</p>
+</details>
+{% endif %}

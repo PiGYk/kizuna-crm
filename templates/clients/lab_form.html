@@ -6,7 +6,7 @@
     <div class="min-w-0">
       <a href="{% url 'clients:patient_detail' patient.pk %}" class="text-sm text-gray-600 hover:text-brand-dark">← {{ patient.name }}</a>
       <h1 class="mt-1 text-xl font-bold text-brand-dark md:text-2xl">{{ lab.display_title }}</h1>
-      <p class="text-sm text-gray-600">{{ patient.get_species_display }}{% if patient.breed %} · {{ patient.breed }}{% endif %}{% if patient.date_of_birth %} · {{ patient.age_display }}{% endif %} · {{ patient.client.full_name }}</p>
+      <p class="text-sm text-gray-600">{{ patient.get_species_display }}{% if patient.breed %} · {{ patient.breed }}{% endif %}{% if patient.age or patient.date_of_birth %} · {{ patient.age_display }}{% endif %} · {{ patient.client.full_name }}</p>
     </div>
   </div>
 

@@ -82,6 +82,23 @@ class ClientForm(forms.ModelForm):
         return cleaned
 
 
+_AGE_MONTHS = re.compile(r'^(\d{1,2})\s*(м|міс|мiс|мес|мiсяц\w*|місяц\w*|месяц\w*)\.?$', re.I)
+_AGE_YEARS = re.compile(r'^(\d{1,2}(?:[.,]\d{1,2})?)\s*(р|рік|роки|років|г|год|лет|года|y)?\.?$', re.I)
+
+
+def normalize_age(raw):
+    """Вік зі слів (ANVAR 01.11: по телефону дату не пам'ятають — «скільки років? 5»):
+    «5» / «5р» / «5 років» → «5 р.», «6м» / «6 міс» → «6 міс.»; інше лишається, як ввели."""
+    s = ' '.join((raw or '').split())
+    m = _AGE_MONTHS.match(s)
+    if m:
+        return f'{m.group(1)} міс.'
+    m = _AGE_YEARS.match(s)
+    if m:
+        return f"{m.group(1).replace('.', ',')} р."
+    return s
+
+
 class PatientForm(forms.ModelForm):
     class Meta:
         model = Patient
@@ -103,7 +120,18 @@ class PatientForm(forms.ModelForm):
             ).order_by('last_name', 'first_name')
         else:
             self.fields['assigned_doctor'].queryset = User.objects.none()
+        self.fields['age'].help_text = 'Якщо точної дати не знають: «5» — роки, «6 міс» — місяці'
         _apply_field_class(self)
+
+    def clean_age(self):
+        return normalize_age(self.cleaned_data.get('age'))
+
+    def clean(self):
+        data = super().clean()
+        # Вік зі слів — тимчасовий: на прийомі вписали точну дату → далі вік рахується з неї (ANVAR 01.11)
+        if data.get('date_of_birth') and 'date_of_birth' in self.changed_data and 'age' not in self.changed_data:
+            data['age'] = ''
+        return data
 
 
 class VisitForm(forms.ModelForm):

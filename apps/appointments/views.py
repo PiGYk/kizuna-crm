@@ -491,7 +491,7 @@ def quick_create_client_patient(request):
     """POST /appointments/quick-client/ → створює Client (+ Patient опційно).
 
     Тіло form-data: first_name, last_name, phone, email, discount_percent +
-                    (опц.) pet_name, species, breed, sex, date_of_birth.
+                    (опц.) pet_name, species, breed, sex, date_of_birth, age («5» — роки).
     Якщо pet_name або species пустий — patient НЕ створюється.
     Дублі телефону блокуються у QuickClientForm.clean().
     """
@@ -508,6 +508,7 @@ def quick_create_client_patient(request):
         'breed': request.POST.get('pet_breed', '').strip(),
         'sex': request.POST.get('pet_sex', '').strip(),
         'date_of_birth': request.POST.get('pet_date_of_birth', '').strip() or None,
+        'age': request.POST.get('pet_age', '').strip(),
     }
     has_pet = bool(pet_data['name'] and pet_data['species'])
     patient_form = QuickPatientForm(pet_data) if has_pet else None

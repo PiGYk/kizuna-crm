@@ -299,7 +299,6 @@
             <th class="px-4 py-3 text-left font-medium text-gray-500">Ім'я</th>
             <th class="px-4 py-3 text-left font-medium text-gray-500">Роль</th>
             <th class="px-4 py-3 text-left font-medium text-gray-500 hidden md:table-cell">Зарплата</th>
-            <th class="px-4 py-3 text-left font-medium text-gray-500 hidden md:table-cell">Статус</th>
             <th class="px-4 py-3"></th>
           </tr>
         </thead>
@@ -325,28 +324,23 @@
                 {{ u.salary_fixed }} ₴ + {{ u.salary_percent }}%
               {% else %}—{% endif %}
             </td>
-            <td class="px-4 py-3 hidden md:table-cell">
-              {% if u.is_active %}
-                <span class="text-xs text-green-600">Активний</span>
-              {% else %}
-                <span class="text-xs text-gray-400">Неактивний</span>
-              {% endif %}
-            </td>
             <td class="px-4 py-3 text-right">
               <div class="flex gap-2 justify-end">
                 <a href="{% url 'accounts:user_edit' u.pk %}"
                    class="text-xs text-brand-gold hover:text-brand-dark font-medium">Ред.</a>
                 <a href="{% url 'accounts:user_password' u.pk %}"
                    class="text-xs text-gray-400 hover:text-brand-dark">Пароль</a>
+                {% include 'accounts/_dismiss_button.html' with next=request.get_full_path|add:'#staff' %}
               </div>
             </td>
           </tr>
           {% empty %}
-          <tr><td colspan="5" class="px-4 py-8 text-center text-gray-400">Немає користувачів</td></tr>
+          <tr><td colspan="4" class="px-4 py-8 text-center text-gray-400">Немає користувачів</td></tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
+    {% include 'accounts/_fired_users.html' with next=request.get_full_path|add:'#staff' %}
 
     <div class="mt-4">
       <a href="{% url 'analytics:payroll' %}" class="text-xs text-brand-gold hover:text-brand-dark font-medium">

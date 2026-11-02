@@ -55,7 +55,7 @@ class QuickPatientForm(forms.ModelForm):
 
     class Meta:
         model = Patient
-        fields = ('name', 'species', 'breed', 'sex', 'date_of_birth')
+        fields = ('name', 'species', 'breed', 'sex', 'date_of_birth', 'age')
         widgets = {
             'date_of_birth': forms.DateInput(format='%Y-%m-%d', attrs={'type': 'date'}),
         }
@@ -65,3 +65,9 @@ class QuickPatientForm(forms.ModelForm):
         self.fields['breed'].required = False
         self.fields['sex'].required = False
         self.fields['date_of_birth'].required = False
+        self.fields['age'].required = False
+
+    def clean_age(self):
+        # «скільки років? — 5»: точну дату уточнять на прийомі (ANVAR 01.11)
+        from apps.clients.forms import normalize_age
+        return normalize_age(self.cleaned_data.get('age'))

@@ -72,7 +72,7 @@ class User(AbstractUser):
         людини, яку лишити в списку без галочки (вона вже стоїть у записі, що редагують);
         roles=None — усі ролі (виконавець у розкладі)."""
         from django.db.models import Q
-        q = Q(organization=org, takes_visits=True)
+        q = Q(organization=org, takes_visits=True, is_active=True)   # звільнених не пропонуємо
         if roles:
             q &= Q(role__in=roles)
         if keep:

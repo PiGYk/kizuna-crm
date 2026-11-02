@@ -426,7 +426,7 @@
 
       <div class="border-t border-gray-100 pt-3">
         <div class="text-xs font-semibold text-gray-600 mb-2">🐾 Тваринка <span class="font-normal text-gray-400">(опційно)</span></div>
-        <div class="grid grid-cols-2 gap-3 mb-2">
+        <div class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_5.5rem] gap-3 mb-2">
           <input type="text" name="pet_name" placeholder="Кличка" class="af-input">
           <select name="pet_species" class="af-input">
             <option value="">— Вид —</option>
@@ -445,6 +445,7 @@
             <option value="hedgehog">🦔 Їжак</option>
             <option value="other">Інше</option>
           </select>
+          <input type="text" name="pet_age" placeholder="Вік" maxlength="30" autocomplete="off" aria-label="Вік — скільки років, напр. 5 або 6 міс." title="Скільки років: 5 — роки, 6 міс — місяці. Точну дату можна вписати пізніше" class="af-input">
         </div>
         <details>
           <summary class="text-xs text-gray-500 cursor-pointer select-none">Більше полів</summary>
@@ -455,7 +456,7 @@
               <option value="male">♂ Самець</option>
               <option value="female">♀ Самиця</option>
             </select>
-            <input type="date" name="pet_date_of_birth" class="col-span-2 af-input">
+            <label class="col-span-2 block"><span class="af-label">Дата народження — якщо знають точно</span><input type="date" name="pet_date_of_birth" class="af-input"></label>
           </div>
         </details>
       </div>

@@ -55,6 +55,9 @@ urlpatterns = [
     path('users/create/', views.UserCreateView.as_view(), name='user_create'),
     path('users/<int:pk>/edit/', views.UserUpdateView.as_view(), name='user_edit'),
     path('users/<int:pk>/password/', views.user_set_password, name='user_password'),
+    path('users/<int:pk>/dismiss/', views.user_dismiss, name='user_dismiss'),
+    path('users/<int:pk>/restore/', views.user_restore, name='user_restore'),
+    path('users/<int:pk>/delete/', views.user_delete, name='user_delete'),
 
     # Shifts & Payroll
     path('shifts/', views_payroll.shift_list, name='shifts'),

@@ -1,0 +1,8 @@
+{# Кнопка «Звільнити» в рядку команди (ANVAR 01.11); next — куди повернутись після дії #}
+{% if u.pk != request.user.pk and not u.is_superuser %}
+<form method="post" action="{% url 'accounts:user_dismiss' u.pk %}" class="inline"
+      onsubmit="return confirm('Звільнити {{ u.get_full_name|default:u.username|escapejs }}? Не зможе входити в CRM і зникне з вибору лікаря та виконавця. Прийоми й рахунки з його імʼям лишаться.')">
+  {% csrf_token %}<input type="hidden" name="next" value="{{ next|default:request.get_full_path }}">
+  <button type="submit" class="text-xs font-medium text-red-700 hover:text-red-800 hover:underline">Звільнити</button>
+</form>
+{% endif %}

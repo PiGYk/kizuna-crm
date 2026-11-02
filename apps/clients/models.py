@@ -1,9 +1,13 @@
+import re
+
 from django.db import models
 from django.conf import settings
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 from apps.clinic.managers import OrgManager, RelatedOrgManager
 from apps.clinic.uploads import patient_photo_path, analysis_image_path
+
+_BARE_AGE = re.compile(r'^\d{1,2}(?:[.,]\d{1,2})?$')
 
 
 class Client(models.Model):
@@ -150,7 +154,8 @@ class Patient(models.Model):
 
     def age_display(self):
         if self.age:
-            return self.age
+            # «5» зі слів по телефону — роки (ANVAR 01.11; у базі й раніше бували голі числа)
+            return f'{self.age} р.' if _BARE_AGE.match(self.age.strip()) else self.age
         if not self.date_of_birth:
             return '—'
         from datetime import date
