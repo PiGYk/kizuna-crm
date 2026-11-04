@@ -45,10 +45,13 @@ _ASSISTANT_LAYOUT = [
 
 # Рецепція (04.11): записи, рахунки, боржники, вакцини — без виручки й аналітики.
 _RECEPTION_LAYOUT = [
-    {'type': 'kpi_appointments_today',  'widget_id': _wid(), 'x': 0, 'y': 0, 'w': 3, 'h': 2, 'config': {}},
-    {'type': 'kpi_invoices_today',      'widget_id': _wid(), 'x': 3, 'y': 0, 'w': 3, 'h': 2, 'config': {}},
-    {'type': 'kpi_unpaid_invoices',     'widget_id': _wid(), 'x': 6, 'y': 0, 'w': 3, 'h': 2, 'config': {}},
-    {'type': 'kpi_overdue_vaccines',    'widget_id': _wid(), 'x': 9, 'y': 0, 'w': 3, 'h': 2, 'config': {}},
+    # 04.11: R порівнював з адміном — «клієнтів / пацієнтів» рецепції теж треба; шість плиток в один ряд
+    {'type': 'kpi_clients_total',       'widget_id': _wid(), 'x': 0, 'y': 0, 'w': 2, 'h': 2, 'config': {}},
+    {'type': 'kpi_patients_total',      'widget_id': _wid(), 'x': 2, 'y': 0, 'w': 2, 'h': 2, 'config': {}},
+    {'type': 'kpi_appointments_today',  'widget_id': _wid(), 'x': 4, 'y': 0, 'w': 2, 'h': 2, 'config': {}},
+    {'type': 'kpi_invoices_today',      'widget_id': _wid(), 'x': 6, 'y': 0, 'w': 2, 'h': 2, 'config': {}},
+    {'type': 'kpi_unpaid_invoices',     'widget_id': _wid(), 'x': 8, 'y': 0, 'w': 2, 'h': 2, 'config': {}},
+    {'type': 'kpi_overdue_vaccines',    'widget_id': _wid(), 'x': 10, 'y': 0, 'w': 2, 'h': 2, 'config': {}},
     {'type': 'list_today_appointments', 'widget_id': _wid(), 'x': 0, 'y': 2, 'w': 6, 'h': 4, 'config': {}},
     {'type': 'list_recent_invoices',    'widget_id': _wid(), 'x': 6, 'y': 2, 'w': 6, 'h': 4, 'config': {}},
     {'type': 'list_debtors',            'widget_id': _wid(), 'x': 0, 'y': 6, 'w': 6, 'h': 4, 'config': {}},
