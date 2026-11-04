@@ -53,7 +53,7 @@
       else if (over) { cls += 'bg-red-50 text-red-800 font-semibold'; msg = 'Забагато на ' + fmt(-rest) + ' ₴ — до сплати лише ' + fmt(due) + ' ₴'; }
       else if (rest > 0) { cls += 'bg-amber-50 text-amber-900'; msg = 'Разом ' + fmt(total) + ' ₴ · <b>' + (debt ? 'після погашення борг лишиться ' : 'залишок ') + fmt(rest) + ' ₴</b>' + (debt ? '' : ' — якщо закрити, стане боргом'); }
       else { cls += 'bg-green-50 text-green-900'; msg = 'Разом ' + fmt(total) + ' ₴ · <b>' + (debt ? 'після погашення борг 0 ₴' : 'сплачено повністю') + '</b>'; }
-      if (fromDep > 0 && !bad && !depOver) msg += '<br>З депозиту ' + fmt(fromDep) + ' ₴ — на ньому лишиться ' + fmt(Math.round((dep - fromDep) * 100) / 100) + ' ₴';
+      if (fromDep > 0 && !bad && !depOver) msg += '<br>З депозиту ' + fmt(fromDep) + '&nbsp;₴ — на ньому лишиться <span class="whitespace-nowrap">' + fmt(Math.round((dep - fromDep) * 100) / 100) + '&nbsp;₴</span>';
       out.className = cls; out.innerHTML = msg;
       submits.forEach(function (b) { b.disabled = bad || over || depOver; b.classList.add('disabled:opacity-40', 'disabled:cursor-not-allowed'); });
       if (closeBtn) closeBtn.textContent = (!bad && !over && !depOver && rest > 0) ? 'Закрити з боргом ' + fmt(rest) + ' ₴' : closeBtn.dataset.label;

@@ -88,7 +88,7 @@
     <p class="mt-1 text-xs text-gray-600">Гроші наперед: ними оплачують рахунки клієнта у вікні оплати.</p>
     {% if user_menu.deposits %}
     <details class="group mt-3" {% if not deposit_history %}open{% endif %}>
-      <summary class="flex h-11 cursor-pointer list-none items-center justify-between gap-2 rounded-lg border border-gray-300 px-3 text-sm font-medium text-brand-dark hover:bg-gray-50 [&::-webkit-details-marker]:hidden">
+      <summary class="flex min-h-[44px] cursor-pointer list-none items-center justify-between gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-brand-dark hover:bg-gray-50 [&::-webkit-details-marker]:hidden">
         Внести або повернути
         <svg class="h-4 w-4 shrink-0 text-gray-600 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
       </summary>
