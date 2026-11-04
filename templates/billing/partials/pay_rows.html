@@ -1,8 +1,8 @@
 {% load l10n %}{# Рядки «спосіб + сума» (ANVAR 01.11.2026: частинами, змішано). Обгортка .pay-box з data-due — у формі, що включає цей шматок; mode=debt — погашення боргу (без закриття рахунку). deposit — залишок депозиту клієнта (ANVAR 04.11.2026): є гроші — з'являється спосіб «З депозиту». #}
 {% if deposit > 0 %}
 <div class="pay-dep mb-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-900">
-  <span>На депозиті клієнта <b class="whitespace-nowrap">{{ deposit|floatformat:"-2g" }} ₴</b></span>
-  <button type="button" class="pay-dep-use min-h-[36px] rounded-md px-2 text-sm font-semibold text-green-900 underline decoration-green-700 underline-offset-2 hover:bg-green-100">Оплатити з депозиту</button>
+  <span>На депозиті клієнта <b class="whitespace-nowrap">{{ deposit|floatformat:"-2g" }}&nbsp;₴</b></span>
+  <button type="button" class="pay-dep-use -mx-2 min-h-[44px] rounded-md px-2 text-sm font-semibold text-green-900 underline decoration-green-700 underline-offset-2 hover:bg-green-100 md:mx-0 md:min-h-[36px]">Використати депозит</button>
 </div>
 {% endif %}
 <div class="pay-rows space-y-2" data-deposit="{% if deposit > 0 %}{{ deposit|stringformat:'s' }}{% else %}0{% endif %}">
@@ -53,6 +53,7 @@
       else if (over) { cls += 'bg-red-50 text-red-800 font-semibold'; msg = 'Забагато на ' + fmt(-rest) + ' ₴ — до сплати лише ' + fmt(due) + ' ₴'; }
       else if (rest > 0) { cls += 'bg-amber-50 text-amber-900'; msg = 'Разом ' + fmt(total) + ' ₴ · <b>' + (debt ? 'після погашення борг лишиться ' : 'залишок ') + fmt(rest) + ' ₴</b>' + (debt ? '' : ' — якщо закрити, стане боргом'); }
       else { cls += 'bg-green-50 text-green-900'; msg = 'Разом ' + fmt(total) + ' ₴ · <b>' + (debt ? 'після погашення борг 0 ₴' : 'сплачено повністю') + '</b>'; }
+      if (fromDep > 0 && !bad && !depOver) msg += '<br>З депозиту ' + fmt(fromDep) + ' ₴ — на ньому лишиться ' + fmt(Math.round((dep - fromDep) * 100) / 100) + ' ₴';
       out.className = cls; out.innerHTML = msg;
       submits.forEach(function (b) { b.disabled = bad || over || depOver; b.classList.add('disabled:opacity-40', 'disabled:cursor-not-allowed'); });
       if (closeBtn) closeBtn.textContent = (!bad && !over && !depOver && rest > 0) ? 'Закрити з боргом ' + fmt(rest) + ' ₴' : closeBtn.dataset.label;

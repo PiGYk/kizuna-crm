@@ -6,7 +6,7 @@
     <span class="flex-1 text-brand-dark">{{ p.get_method_display }}</span>
     <span class="tabular-nums font-medium text-brand-dark">{{ p.amount }} ₴</span>
     {% if user.is_admin %}
-    <form method="post" action="{% url 'billing:delete_payment' invoice.pk p.pk %}" onsubmit="return confirm('Видалити помилковий платіж {{ p.amount }} ₴? {% if invoice.status == 'paid' %}Сума стане боргом клієнта.{% else %}Сума повернеться до сплати.{% endif %}')">
+    <form method="post" action="{% url 'billing:delete_payment' invoice.pk p.pk %}" onsubmit="return confirm('Видалити помилковий платіж {{ p.amount }} ₴? {% if p.method == 'deposit' %}Гроші повернуться на депозит клієнта, а {% if invoice.status == 'paid' %}сума стане боргом.{% else %}сума — до сплати.{% endif %}{% elif invoice.status == 'paid' %}Сума стане боргом клієнта.{% else %}Сума повернеться до сплати.{% endif %}')">
       {% csrf_token %}
       <button type="submit" class="flex h-11 w-11 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-red-700 md:h-9 md:w-9" title="Видалити помилковий платіж" aria-label="Видалити помилковий платіж {{ p.amount }} ₴">
         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>

@@ -1,28 +1,26 @@
-{# Рух депозиту: внесення, повернення, оплати рахунків (apps/billing/deposits.py::_entries). show_client — у загальному списку; pad — відступ рядка під картку, де список стоїть. Адміністратор прибирає помилкове внесення/повернення; платіж рахунку прибирається в самому рахунку. #}
+{# Рух депозиту: внесення, повернення, оплати рахунків (apps/billing/deposits.py::_entries). show_client — у загальному списку; pad — відступ рядка під картку, де список стоїть. Два поверхи: що (і × для адміністратора) / коли + сума під правим краєм — так суми стоять стовпчиком і у вузькій картці. Платіж рахунку прибирається в самому рахунку. #}
 <ul class="divide-y divide-gray-100 text-sm">
   {% for e in entries %}
-  <li class="flex items-start gap-3 {{ pad|default:'px-4' }} py-2.5">
-    <div class="min-w-0 flex-1">
-      <div class="text-gray-800">
+  <li class="{{ pad|default:'px-4' }} py-2.5">
+    <div class="flex items-start gap-2">
+      <div class="min-w-0 flex-1 text-gray-800">
         {% if show_client %}<a href="{% url 'clients:detail' e.client.pk %}" class="font-medium text-brand-dark hover:underline">{{ e.client.full_name }}</a> · {% endif %}
         {% if e.kind == 'spent' %}<a href="{% url 'billing:detail' e.invoice_id %}" class="text-brand-dark underline decoration-brand-gold underline-offset-2">{{ e.label }}</a>{% else %}{{ e.label }}{% if e.method %} · {{ e.method|lower }}{% endif %}{% endif %}
       </div>
-      <div class="mt-0.5 text-xs text-gray-600">{{ e.at|date:"d.m.Y H:i" }}{% if e.note %} · {{ e.note }}{% endif %}</div>
-    </div>
-    <div class="whitespace-nowrap pt-px font-semibold {% if e.sign > 0 %}text-green-800{% else %}text-brand-dark{% endif %}">{% if e.sign > 0 %}+{% else %}−{% endif %}{{ e.amount|floatformat:"-2g" }} ₴</div>
-    {% if user.is_admin %}
-    <div class="-my-1.5 w-9 shrink-0">
-      {% if e.op %}
-      <form method="post" action="{% url 'billing:deposit_delete' e.op.pk %}" onsubmit="return confirm('Прибрати помилковий запис «{{ e.label|escapejs }} {{ e.amount|floatformat:'-2g'|escapejs }} ₴»?')">
+      {% if user.is_admin and e.op %}
+      <form method="post" action="{% url 'billing:deposit_delete' e.op.pk %}" class="-my-2 -mr-2 shrink-0" onsubmit="return confirm('Прибрати помилковий запис «{{ e.label|escapejs }} {{ e.amount|floatformat:'-2g'|escapejs }} ₴»?')">
         {% csrf_token %}
         <input type="hidden" name="next" value="{{ request.get_full_path }}">
-        <button type="submit" class="flex h-9 w-9 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-red-700" title="Прибрати помилковий запис" aria-label="Прибрати помилковий запис {{ e.amount }} ₴">
+        <button type="submit" class="flex h-11 w-11 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-red-700 md:h-9 md:w-9" title="Прибрати помилковий запис" aria-label="Прибрати помилковий запис {{ e.amount }} ₴">
           <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
       </form>
       {% endif %}
     </div>
-    {% endif %}
+    <div class="mt-0.5 flex items-baseline justify-between gap-3">
+      <span class="min-w-0 text-xs text-gray-600">{{ e.at|date:"d.m.Y H:i" }}{% if e.note %} · {{ e.note }}{% endif %}</span>
+      <span class="shrink-0 whitespace-nowrap font-semibold {% if e.sign > 0 %}text-green-800{% else %}text-brand-dark{% endif %}">{% if e.sign > 0 %}+{% else %}−{% endif %}{{ e.amount|floatformat:"-2g" }} ₴</span>
+    </div>
   </li>
   {% endfor %}
 </ul>

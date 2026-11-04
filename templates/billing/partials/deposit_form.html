@@ -1,4 +1,4 @@
-{# Внести на депозит / повернути клієнту (ANVAR 04.11.2026). client — клієнт відомий (картка клієнта); без нього — пошук клієнта (picked — уже обраний). next — куди повернутись після збереження. #}
+{# Внести на депозит / повернути клієнту (ANVAR 04.11.2026). client — клієнт відомий (картка клієнта); без нього — пошук клієнта (picked — уже обраний). next — куди повернутись після збереження. Поля одне під одним — форма живе й у вузькій колонці картки. #}
 <form method="post" action="{% url 'billing:deposit_add' %}" class="dep-form space-y-3">
   {% csrf_token %}
   <input type="hidden" name="next" value="{{ next }}">
@@ -10,70 +10,75 @@
     <input type="hidden" name="client" value="{{ picked.pk|default:'' }}" class="dep-client-id">
     <div class="dep-chosen {% if not picked %}hidden{% endif %} flex min-h-[44px] items-center justify-between gap-2 rounded-lg border border-brand-gold/50 bg-brand-gold/10 px-3 py-2">
       <span class="dep-chosen-name text-sm font-medium text-brand-dark">{% if picked %}{{ picked.full_name }} · {{ picked.phone }}{% endif %}</span>
-      <button type="button" class="dep-change text-sm font-medium text-brand-dark underline decoration-brand-gold underline-offset-2">Змінити</button>
+      <button type="button" class="dep-change min-h-[44px] shrink-0 px-1 text-sm font-medium text-brand-dark underline decoration-brand-gold underline-offset-2 md:min-h-0">Змінити</button>
     </div>
     <div class="dep-search {% if picked %}hidden{% endif %}">
       <input id="dep-q" type="search" name="q" autocomplete="off" placeholder="Прізвище, ім'я або телефон"
              hx-get="{% url 'clients:search' %}?mode=deposit" hx-trigger="input changed delay:300ms, search" hx-target="#dep-results"
-             class="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-base text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-gold md:text-sm">
+             class="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-base text-brand-dark placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-gold md:text-sm">
+      <p class="dep-need hidden mt-1 text-sm font-medium text-red-700" role="alert">Оберіть клієнта зі списку.</p>
       <div id="dep-results" class="mt-1 max-h-64 overflow-y-auto"></div>
     </div>
   </div>
   {% endif %}
 
   <fieldset>
-    <legend class="mb-1 block text-xs font-medium text-gray-600">Що робимо</legend>
+    <legend class="mb-1 block text-xs font-medium text-gray-600">Операція</legend>
     <div class="grid grid-cols-2 gap-2">
       <label class="cursor-pointer">
         <input type="radio" name="kind" value="topup" checked class="peer sr-only">
-        <span class="flex h-11 items-center justify-center rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 peer-checked:border-green-600 peer-checked:bg-green-50 peer-checked:text-green-900 peer-focus-visible:ring-2 peer-focus-visible:ring-brand-gold">Внести</span>
+        <span class="flex h-11 items-center justify-center rounded-lg border border-gray-300 bg-white px-2 text-sm font-medium text-gray-700 peer-checked:border-2 peer-checked:border-brand-gold peer-checked:bg-brand-gold/10 peer-checked:text-brand-dark peer-focus-visible:ring-2 peer-focus-visible:ring-brand-gold">Внести</span>
       </label>
       <label class="cursor-pointer">
         <input type="radio" name="kind" value="refund" class="peer sr-only">
-        <span class="flex h-11 items-center justify-center rounded-lg border border-gray-300 bg-white text-sm font-medium text-gray-700 peer-checked:border-brand-dark peer-checked:bg-gray-100 peer-checked:text-brand-dark peer-focus-visible:ring-2 peer-focus-visible:ring-brand-gold">Повернути клієнту</span>
+        <span class="flex h-11 items-center justify-center rounded-lg border border-gray-300 bg-white px-2 text-sm font-medium text-gray-700 peer-checked:border-2 peer-checked:border-brand-gold peer-checked:bg-brand-gold/10 peer-checked:text-brand-dark peer-focus-visible:ring-2 peer-focus-visible:ring-brand-gold">Повернути</span>
       </label>
     </div>
   </fieldset>
 
-  <div class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
-    <div>
-      <label class="mb-1 block text-xs font-medium text-gray-600" for="dep-amount{{ client.pk|default:'' }}">Сума, ₴</label>
-      <input id="dep-amount{{ client.pk|default:'' }}" name="amount" type="text" inputmode="decimal" autocomplete="off" required placeholder="10 000"
-             class="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-right text-base tabular-nums text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-gold md:text-sm">
-    </div>
-    <fieldset>
-      <legend class="mb-1 block text-xs font-medium text-gray-600">Чим</legend>
-      <div class="grid grid-cols-2 gap-1.5">
-        <label class="cursor-pointer">
-          <input type="radio" name="method" value="cash" checked class="peer sr-only">
-          <span class="flex h-11 items-center justify-center rounded-lg border border-gray-300 bg-white text-sm text-gray-700 peer-checked:border-brand-gold peer-checked:bg-brand-gold/15 peer-checked:font-semibold peer-checked:text-brand-dark peer-focus-visible:ring-2 peer-focus-visible:ring-brand-gold">Готівка</span>
-        </label>
-        <label class="cursor-pointer">
-          <input type="radio" name="method" value="card" class="peer sr-only">
-          <span class="flex h-11 items-center justify-center rounded-lg border border-gray-300 bg-white text-sm text-gray-700 peer-checked:border-brand-gold peer-checked:bg-brand-gold/15 peer-checked:font-semibold peer-checked:text-brand-dark peer-focus-visible:ring-2 peer-focus-visible:ring-brand-gold">Картка</span>
-        </label>
-      </div>
-    </fieldset>
+  <div>
+    <label class="mb-1 block text-xs font-medium text-gray-600" for="dep-amount{{ client.pk|default:'' }}">Сума, ₴</label>
+    <input id="dep-amount{{ client.pk|default:'' }}" name="amount" type="text" inputmode="decimal" autocomplete="off" required
+           class="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-right text-base tabular-nums text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-gold md:text-sm">
   </div>
+
+  <fieldset>
+    <legend class="mb-1 block text-xs font-medium text-gray-600">Спосіб</legend>
+    <div class="grid grid-cols-2 gap-2">
+      <label class="cursor-pointer">
+        <input type="radio" name="method" value="cash" checked class="peer sr-only">
+        <span class="flex h-11 items-center justify-center rounded-lg border border-gray-300 bg-white px-2 text-sm font-medium text-gray-700 peer-checked:border-2 peer-checked:border-brand-gold peer-checked:bg-brand-gold/10 peer-checked:text-brand-dark peer-focus-visible:ring-2 peer-focus-visible:ring-brand-gold">Готівка</span>
+      </label>
+      <label class="cursor-pointer">
+        <input type="radio" name="method" value="card" class="peer sr-only">
+        <span class="flex h-11 items-center justify-center rounded-lg border border-gray-300 bg-white px-2 text-sm font-medium text-gray-700 peer-checked:border-2 peer-checked:border-brand-gold peer-checked:bg-brand-gold/10 peer-checked:text-brand-dark peer-focus-visible:ring-2 peer-focus-visible:ring-brand-gold">Картка</span>
+      </label>
+    </div>
+  </fieldset>
 
   <div>
-    <label class="mb-1 block text-xs font-medium text-gray-600" for="dep-note{{ client.pk|default:'' }}">Примітка <span class="font-normal text-gray-500">— необов'язково</span></label>
+    <label class="mb-1 block text-xs font-medium text-gray-600" for="dep-note{{ client.pk|default:'' }}">Примітка <span class="font-normal">— необов'язково</span></label>
     <input id="dep-note{{ client.pk|default:'' }}" name="note" type="text" maxlength="200" autocomplete="off" placeholder="напр. на лікування Барсика"
-           class="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-base text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-gold md:text-sm">
+           class="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-base text-brand-dark placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-gold md:text-sm">
   </div>
 
-  <button type="submit" class="h-11 w-full rounded-lg bg-brand-gold text-sm font-semibold text-brand-dark hover:brightness-95">Зберегти</button>
+  <button type="submit" class="dep-submit h-11 w-full rounded-lg bg-brand-gold px-3 text-sm font-semibold text-brand-dark hover:brightness-95">Внести на депозит</button>
 </form>
-{% if not client %}
 <script>
 (function () {
-  var form = document.currentScript.previousElementSibling;
-  var id = form.querySelector('.dep-client-id'), chosen = form.querySelector('.dep-chosen'),
-      search = form.querySelector('.dep-search'), q = form.querySelector('#dep-q');
+  var form = document.currentScript.previousElementSibling, btn = form.querySelector('.dep-submit');
+  // кнопка називає дію: внести чи повернути
+  form.querySelectorAll('[name=kind]').forEach(function (r) {
+    r.addEventListener('change', function () { btn.textContent = r.value === 'refund' ? 'Повернути клієнту' : 'Внести на депозит'; });
+  });
+  var id = form.querySelector('.dep-client-id');
+  if (!id) return;
+  var chosen = form.querySelector('.dep-chosen'), search = form.querySelector('.dep-search'),
+      q = form.querySelector('#dep-q'), need = form.querySelector('.dep-need');
   form.addEventListener('click', function (e) {
     var pick = e.target.closest('.dep-pick');
     if (pick) {
-      id.value = pick.dataset.id;
+      id.value = pick.dataset.id; need.classList.add('hidden');
       form.querySelector('.dep-chosen-name').textContent = pick.dataset.name + (pick.dataset.phone ? ' · ' + pick.dataset.phone : '');
       chosen.classList.remove('hidden'); search.classList.add('hidden');
       form.querySelector('[name=amount]').focus();
@@ -85,8 +90,7 @@
   // Enter у пошуку не відправляє форму без клієнта
   q.addEventListener('keydown', function (e) { if (e.key === 'Enter') e.preventDefault(); });
   form.addEventListener('submit', function (e) {
-    if (!id.value) { e.preventDefault(); alert('Оберіть клієнта зі списку.'); q.focus(); }
+    if (!id.value) { e.preventDefault(); need.classList.remove('hidden'); q.focus(); }
   });
 })();
 </script>
-{% endif %}
