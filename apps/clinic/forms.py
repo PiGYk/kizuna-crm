@@ -118,8 +118,16 @@ class ScheduleForm(_OrgSectionForm):
 
 class DesignForm(_OrgSectionForm):
     class Meta(_OrgSectionForm.Meta):
-        fields = ('logo', 'primary_color', 'sidebar_color', 'page_background')
-        widgets = {**_WIDGETS, 'page_background': forms.RadioSelect}
+        fields = ('logo', 'primary_color', 'sidebar_color', 'page_background', 'page_background_color')
+        widgets = {**_WIDGETS, 'page_background': forms.RadioSelect,
+                   'page_background_color': forms.TextInput(attrs={'type': 'color', 'class': _color,
+                                                                   'aria-label': 'Свій колір фону'})}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.initial.get('page_background_color'):
+            from .colors import GRAY
+            self.initial['page_background_color'] = GRAY['page']   # без цього вибір кольору стартує з чорного
 
     def _clean_color(self, name):
         value = (self.cleaned_data.get(name) or '').strip()
@@ -135,6 +143,14 @@ class DesignForm(_OrgSectionForm):
 
     def clean(self):
         cleaned = super().clean()
+        from .colors import MIN_LUMINANCE, is_color, luminance
+        color = (cleaned.get('page_background_color') or '').strip()
+        if cleaned.get('page_background') == 'custom':
+            if not is_color(color):
+                self.add_error('page_background_color', 'Оберіть свій колір фону.')
+            elif luminance(color) < MIN_LUMINANCE:
+                self.add_error('page_background_color', 'Затемний фон — на ньому погано видно текст. Оберіть світліший колір.')
+        cleaned['page_background_color'] = color.upper() if is_color(color) else ''
         # Нового файлу нема, а галочку «Видалити» поставили — прибираємо логотип.
         self.clear_logo = bool(self.data.get('logo-clear')) and not self.files.get('logo')
         return cleaned

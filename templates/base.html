@@ -51,16 +51,17 @@
     /* Меню прокручується, але без смуги: інакше середина вужча за шапку й низ (ANVAR 02.11) */
     .kz-no-scrollbar{scrollbar-width:none;-ms-overflow-style:none}
     .kz-no-scrollbar::-webkit-scrollbar{display:none}
-    /* «Сірий» фон (Налаштування → Дизайн, ANVAR 02.11): сторінка й картки приглушені, поля світліші за картки */
-    body.kz-fon-siryi,.kz-fon-siryi .bg-brand-cream{background-color:#dfe2e6}
-    .kz-fon-siryi .bg-white,.kz-fon-siryi .tg-mobile-sheet,.kz-fon-siryi .fin-kpi{background-color:#eef0f2}
-    .kz-fon-siryi .bg-gray-50{background-color:#e6e8eb}
-    .kz-fon-siryi input:not([type=checkbox]):not([type=radio]):not([type=submit]):not([type=button]):not(.bg-transparent),
-    .kz-fon-siryi select,.kz-fon-siryi textarea,.kz-fon-siryi .ql-container{background-color:#f7f8f9}
+    /* Фон сторінок (Налаштування → Дизайн): «Сірий» (ANVAR 02.11) або свій колір (04.11). Сторінка й картки
+       приглушені, поля світліші за картки; кольори — змінні --kz-* на тезі body (apps/clinic/colors.py) */
+    body.kz-fon,.kz-fon .bg-brand-cream{background-color:var(--kz-page)}
+    .kz-fon .bg-white,.kz-fon .tg-mobile-sheet,.kz-fon .fin-kpi{background-color:var(--kz-card)}
+    .kz-fon .bg-gray-50{background-color:var(--kz-muted)}
+    .kz-fon input:not([type=checkbox]):not([type=radio]):not([type=submit]):not([type=button]):not([type=color]):not(.bg-transparent),
+    .kz-fon select,.kz-fon textarea,.kz-fon .ql-container{background-color:var(--kz-field)}
   </style>
 </head>
 {# spellcheck=false: браузер перевіряв українські тексти чужим словником і підкреслював усе червоним (ANVAR 02.11) #}
-<body class="bg-brand-cream text-brand-dark{% if clinic.page_background == 'gray' %} kz-fon-siryi{% endif %}" spellcheck="false">
+{% with pal=clinic.page_palette %}<body class="bg-brand-cream text-brand-dark{% if pal %} kz-fon{% endif %}"{% if pal %} style="--kz-page:{{ pal.page }};--kz-card:{{ pal.card }};--kz-muted:{{ pal.muted }};--kz-field:{{ pal.field }}"{% endif %} spellcheck="false">{% endwith %}
 
 {% if user.is_authenticated %}
 <div class="flex h-screen overflow-hidden">

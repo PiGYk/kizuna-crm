@@ -251,21 +251,26 @@
         </div>
       </div>
 
-      <!-- Фон сторінок (ANVAR 02.11) -->
+      <!-- Фон сторінок (ANVAR 02.11; свій колір — 04.11) -->
       <div class="mb-6">
         <label class="block text-xs text-gray-500 mb-3">Фон сторінок</label>
-        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {% for value, label in design_form.fields.page_background.choices %}
           <label class="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 p-3 hover:bg-gray-50 has-[:checked]:border-brand-gold has-[:checked]:ring-1 has-[:checked]:ring-brand-gold">
             <input type="radio" name="page_background" value="{{ value }}"{% if design_form.page_background.value == value %} checked{% endif %} class="h-4 w-4 shrink-0">
+            {% if value == 'custom' %}
+            {{ design_form.page_background_color }}
+            {% else %}
             <span class="flex h-10 w-14 shrink-0 items-center justify-center rounded-md border border-gray-200 {% if value == 'gray' %}bg-[#dfe2e6]{% else %}bg-[#FFF7F3]{% endif %}" aria-hidden="true">
               <span class="block h-5 w-9 rounded-sm border border-gray-200 {% if value == 'gray' %}bg-[#eef0f2]{% else %}bg-white{% endif %}"></span>
             </span>
+            {% endif %}
             <span class="text-sm font-medium text-gray-700">{{ label }}</span>
           </label>
           {% endfor %}
         </div>
-        <p class="mt-2 text-xs text-gray-600">Для всієї клініки, на всіх пристроях.</p>
+        {% if design_form.page_background_color.errors %}<p class="mt-2 text-sm font-medium text-red-700">{{ design_form.page_background_color.errors.0 }}</p>{% endif %}
+        <p class="mt-2 text-xs text-gray-600">Для всієї клініки, на всіх пристроях. Свій колір — будь-який світлий: картки й поля стануть трохи світлішими за нього самі.</p>
       </div>
 
       <!-- Прев'ю -->
@@ -275,7 +280,7 @@
           <div id="preview-sidebar" class="w-36 flex items-center justify-center text-xs font-medium" style="background:{{ org.sidebar_color|default:'#12100F' }}; color: white;">
             Бічна панель
           </div>
-          <div class="flex-1 bg-gray-50 flex items-center gap-3 px-4">
+          <div id="preview-page" class="flex-1 bg-gray-50 flex items-center gap-3 px-4">
             <div id="preview-btn" class="px-3 py-1.5 rounded text-xs font-semibold" style="background:{{ org.primary_color|default:'#DEAA01' }}; color:{{ org.sidebar_color|default:'#12100F' }};">
               Кнопка
             </div>
@@ -755,16 +760,31 @@ function toggleDayStyle(cb) {
   var prevLink = document.getElementById('preview-link');
   if (!primary || !sidebar) return;
 
+  // фон сторінки в прев'ю: світлий / сірий / свій колір (ANVAR 04.11)
+  var pageColor = document.getElementById('id_page_background_color');
+  var prevPage = document.getElementById('preview-page');
+  function pageBg(){
+    var r = document.querySelector('input[name=page_background]:checked'), v = r ? r.value : 'light';
+    return v === 'gray' ? '#DFE2E6' : (v === 'custom' && pageColor ? pageColor.value : '#FFF7F3');
+  }
+
   function update(){
     var p = primary.value;
     var s = sidebar.value;
     if (prevBtn) { prevBtn.style.background = p; prevBtn.style.color = s; }
     if (prevSidebar) prevSidebar.style.background = s;
     if (prevLink) prevLink.style.color = p;
+    if (prevPage) prevPage.style.background = pageBg();
   }
 
   primary.addEventListener('input', update);
   sidebar.addEventListener('input', update);
+  document.querySelectorAll('input[name=page_background]').forEach(function (r) { r.addEventListener('change', update); });
+  if (pageColor) pageColor.addEventListener('input', function () {
+    var r = document.querySelector('input[name=page_background][value=custom]');
+    if (r) r.checked = true;
+    update();
+  });
   update();
 })();
 </script>

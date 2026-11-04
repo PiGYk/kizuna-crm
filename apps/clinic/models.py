@@ -119,9 +119,16 @@ class Organization(models.Model):
         'Колір бічної панелі', max_length=7, default='#12100F',
         help_text='Фон меню. HEX, наприклад #12100F',
     )
-    # ANVAR 02.11: «серый — глаза не так устают, как от белого»
-    PAGE_BACKGROUNDS = [('light', 'Світлий'), ('gray', 'Сірий — мʼякший для очей')]
+    # ANVAR 02.11: «серый — глаза не так устают, как от белого»; 04.11 — свій колір для всієї клініки
+    PAGE_BACKGROUNDS = [('light', 'Світлий'), ('gray', 'Сірий — мʼякший для очей'), ('custom', 'Свій колір')]
     page_background = models.CharField('Фон сторінок', max_length=10, choices=PAGE_BACKGROUNDS, default='light')
+    page_background_color = models.CharField('Свій колір фону', max_length=7, blank=True, default='')
+
+    @property
+    def page_palette(self):
+        """Кольори фону сторінки, карток і полів (apps/clinic/colors.py); None — світлий, як було."""
+        from .colors import page_palette
+        return page_palette(self.page_background, self.page_background_color)
 
     # --- Контакти ---
     address = models.CharField('Адреса', max_length=300, blank=True, default='')
