@@ -130,7 +130,7 @@
     <form method="post" action="{% url 'billing:pay' invoice.pk %}">
       {% csrf_token %}
       <div class="pay-box" data-due="{{ invoice.balance_due|stringformat:'s' }}">
-        {% include 'billing/partials/pay_rows.html' with due=invoice.balance_due %}
+        {% include 'billing/partials/pay_rows.html' with due=invoice.balance_due deposit=client_deposit %}
       </div>
       <div class="mt-5 flex flex-col gap-2">
         <button type="submit" name="action" value="close" class="h-11 rounded-lg bg-brand-gold text-sm font-semibold text-brand-dark hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-40">Оплатити й закрити рахунок</button>

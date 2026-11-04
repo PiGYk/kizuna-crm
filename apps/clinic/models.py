@@ -187,6 +187,7 @@ class Organization(models.Model):
         ('revenue',    'Доходність'),
         ('finance',    'Фінанси'),
         ('billing',    'Рахунки (всі)'),
+        ('deposits',   'Депозити'),
         ('shifts',     'Графік роботи'),
     ]
     ROLES_WITH_MENU = [
@@ -195,9 +196,9 @@ class Organization(models.Model):
         ('reception', 'Адміністратор рецепції'),
     ]
     DEFAULT_MENU_CONFIG = {
-        'doctor':    {'telegram': False, 'broadcast': False, 'analytics': False, 'debtors': False, 'revenue': False, 'finance': False, 'billing': False, 'shifts': True},
-        'assistant': {'telegram': True,  'broadcast': False, 'analytics': False, 'debtors': False, 'revenue': False, 'finance': True,  'billing': True,  'shifts': True},
-        'reception': {'telegram': True,  'broadcast': False, 'analytics': False, 'debtors': True,  'revenue': False, 'finance': True,  'billing': True,  'shifts': True},
+        'doctor':    {'telegram': False, 'broadcast': False, 'analytics': False, 'debtors': False, 'revenue': False, 'finance': False, 'billing': False, 'deposits': False, 'shifts': True},
+        'assistant': {'telegram': True,  'broadcast': False, 'analytics': False, 'debtors': False, 'revenue': False, 'finance': True,  'billing': True,  'deposits': True,  'shifts': True},
+        'reception': {'telegram': True,  'broadcast': False, 'analytics': False, 'debtors': True,  'revenue': False, 'finance': True,  'billing': True,  'deposits': True,  'shifts': True},
     }
     role_menu_config = models.JSONField(
         'Доступ до меню по ролях',

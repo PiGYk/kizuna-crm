@@ -78,7 +78,7 @@
           <span class="text-lg shrink-0">💳</span>
           <div class="flex-1 min-w-0">
             <div class="text-[11px] text-gray-400 uppercase">Оплата</div>
-            {% if invoice.status == 'paid' and payments|length > 1 %}
+            {% if invoice.status == 'paid' and payments|length > 1 or invoice.status == 'paid' and invoice.payment_method == 'deposit' %}
               {% include 'billing/partials/payments_list.html' %}
             {% elif invoice.status == 'paid' and payments %}
               <form method="post" action="{% url 'billing:update_payment' invoice.pk %}" class="flex gap-1.5 mt-0.5">
@@ -96,7 +96,7 @@
               </form>
             {% elif invoice.payment_method %}
               <div class="text-sm font-medium text-brand-dark">
-                {% if invoice.payment_method == 'cash' %}💵 Готівка{% else %}💳 Картка{% endif %}
+                {% if invoice.payment_method == 'cash' %}💵 Готівка{% elif invoice.payment_method == 'card' %}💳 Картка{% else %}{{ invoice.get_payment_method_display }}{% endif %}
               </div>
             {% else %}
               <div class="text-sm text-gray-400">—</div>

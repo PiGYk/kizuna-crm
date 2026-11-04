@@ -153,8 +153,11 @@ class ClientDetailView(LoginRequiredMixin, DetailView):
     context_object_name = 'client'
 
     def get_context_data(self, **kwargs):
+        from apps.billing import deposits
         ctx = super().get_context_data(**kwargs)
         ctx['patients'] = self.object.patients.select_related('assigned_doctor').all()
+        ctx['deposit_balance'] = deposits.balance(self.object)
+        ctx['deposit_history'] = deposits.history(self.object, limit=6)
         return ctx
 
 
@@ -644,6 +647,11 @@ def client_delete(request, pk):
     if denied:
         return denied
     summary = purge.client_summary(client)
+    from apps.billing.deposits import balance as deposit_balance, money
+    on_deposit = deposit_balance(client)
+    if on_deposit:
+        messages.error(request, f'На депозиті клієнта {money(on_deposit)} ₴ — спершу поверніть їх клієнту (картка клієнта → «Депозит»).')
+        return redirect('clients:detail', pk=pk)
     if request.method == 'POST':
         with_invoices = request.POST.get('with_invoices') == '1'
         restore = request.POST.get('restore')

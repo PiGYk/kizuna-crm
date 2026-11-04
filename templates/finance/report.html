@@ -74,7 +74,7 @@
     <div class="kpi-label">Дохід</div>
     <div class="kpi-value text-green-600" id="kpi-income">—</div>
     <div class="kpi-detail">
-      <span id="kpi-income-cash">0</span> готівка · <span id="kpi-income-card">0</span> картка
+      <span id="kpi-income-cash">0</span> готівка · <span id="kpi-income-card">0</span> картка<span id="kpi-income-dep-wrap" hidden> · <span id="kpi-income-dep">0</span> з депозиту</span>
     </div>
   </div>
   <div class="kpi">
@@ -182,6 +182,8 @@
       document.getElementById('kpi-income').textContent = fmt(d.income.total) + ' ₴';
       document.getElementById('kpi-income-cash').textContent = fmt0(d.income.cash);
       document.getElementById('kpi-income-card').textContent = fmt0(d.income.card);
+      document.getElementById('kpi-income-dep').textContent = fmt0(d.income.deposit || 0);
+      document.getElementById('kpi-income-dep-wrap').hidden = !d.income.deposit;
 
       document.getElementById('kpi-expenses').textContent = fmt(d.expenses.total) + ' ₴';
       document.getElementById('kpi-exp-cash').textContent = fmt0(d.expenses.cash);

@@ -1,10 +1,17 @@
-{% load l10n %}{# Рядки «спосіб + сума» (ANVAR 01.11.2026: частинами, змішано). Обгортка .pay-box з data-due — у формі, що включає цей шматок; mode=debt — погашення боргу (без закриття рахунку). #}
-<div class="pay-rows space-y-2">
+{% load l10n %}{# Рядки «спосіб + сума» (ANVAR 01.11.2026: частинами, змішано). Обгортка .pay-box з data-due — у формі, що включає цей шматок; mode=debt — погашення боргу (без закриття рахунку). deposit — залишок депозиту клієнта (ANVAR 04.11.2026): є гроші — з'являється спосіб «З депозиту». #}
+{% if deposit > 0 %}
+<div class="pay-dep mb-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-900">
+  <span>На депозиті клієнта <b class="whitespace-nowrap">{{ deposit|floatformat:"-2g" }} ₴</b></span>
+  <button type="button" class="pay-dep-use min-h-[36px] rounded-md px-2 text-sm font-semibold text-green-900 underline decoration-green-700 underline-offset-2 hover:bg-green-100">Оплатити з депозиту</button>
+</div>
+{% endif %}
+<div class="pay-rows space-y-2" data-deposit="{% if deposit > 0 %}{{ deposit|stringformat:'s' }}{% else %}0{% endif %}">
   <div class="pay-row grid grid-cols-[minmax(0,1fr)_8.5rem_2.75rem] items-center gap-2">
     <select name="pay_method" aria-label="Спосіб оплати"
       class="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-base text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-gold md:text-sm">
       <option value="cash">Готівка</option>
       <option value="card">Картка</option>
+      {% if deposit > 0 %}<option value="deposit">З депозиту</option>{% endif %}
     </select>
     <input name="pay_amount" type="text" inputmode="decimal" autocomplete="off" aria-label="Сума, ₴" value="{{ due|unlocalize }}"
       class="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-right text-base tabular-nums text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-gold md:text-sm">
@@ -22,28 +29,33 @@
   // кнопки форми стоять ПІСЛЯ цього шматка — запускаємось, коли сторінку дочитано
   function init() { document.querySelectorAll('.pay-box:not([data-ready])').forEach(function (box) {
     box.dataset.ready = '1';
-    var due = parseFloat(box.dataset.due) || 0, rows = box.querySelector('.pay-rows'), out = box.querySelector('.pay-sum');
+    var due = parseFloat(box.dataset.due) || 0, rows = box.querySelector('.pay-rows'), out = box.querySelector('.pay-sum'),
+        dep = parseFloat(rows.dataset.deposit) || 0;
     var form = box.closest('form'), submits = form.querySelectorAll('button[type=submit]'),
         closeBtn = form.querySelector('button[value=close]'), debt = box.dataset.mode === 'debt';
     if (closeBtn) closeBtn.dataset.label = closeBtn.textContent;
     function update() {
-      var total = 0, bad = false, inputs = rows.querySelectorAll('[name=pay_amount]');
+      var total = 0, fromDep = 0, bad = false, inputs = rows.querySelectorAll('[name=pay_amount]');
       inputs.forEach(function (i) {
         if (!i.value.trim()) { i.classList.remove('border-red-600'); return; }
         var n = num(i.value);
-        if (isNaN(n) || n <= 0) { bad = true; i.classList.add('border-red-600'); } else { total += n; i.classList.remove('border-red-600'); }
+        if (isNaN(n) || n <= 0) { bad = true; i.classList.add('border-red-600'); }
+        else { total += n; i.classList.remove('border-red-600'); if (i.closest('.pay-row').querySelector('select').value === 'deposit') fromDep += n; }
       });
-      var rest = Math.round((due - total) * 100) / 100, over = rest < 0;
+      var rest = Math.round((due - total) * 100) / 100, over = rest < 0,
+          depOver = Math.round((fromDep - dep) * 100) > 0;
       if (over) inputs.forEach(function (i) { if (i.value.trim()) i.classList.add('border-red-600'); });
-      box.dataset.rest = rest; box.dataset.bad = (bad || over) ? '1' : '';
+      if (depOver) inputs.forEach(function (i) { if (i.closest('.pay-row').querySelector('select').value === 'deposit') i.classList.add('border-red-600'); });
+      box.dataset.rest = rest; box.dataset.bad = (bad || over || depOver) ? '1' : '';
       var cls = 'pay-sum mt-2 rounded-lg px-3 py-2 text-sm tabular-nums ', msg;
       if (bad) { cls += 'bg-red-50 text-red-800 font-semibold'; msg = 'Перевірте суми: кожна має бути більше нуля'; }
+      else if (depOver) { cls += 'bg-red-50 text-red-800 font-semibold'; msg = 'З депозиту можна не більше ' + fmt(dep) + ' ₴ — стільки на депозиті клієнта'; }
       else if (over) { cls += 'bg-red-50 text-red-800 font-semibold'; msg = 'Забагато на ' + fmt(-rest) + ' ₴ — до сплати лише ' + fmt(due) + ' ₴'; }
       else if (rest > 0) { cls += 'bg-amber-50 text-amber-900'; msg = 'Разом ' + fmt(total) + ' ₴ · <b>' + (debt ? 'після погашення борг лишиться ' : 'залишок ') + fmt(rest) + ' ₴</b>' + (debt ? '' : ' — якщо закрити, стане боргом'); }
       else { cls += 'bg-green-50 text-green-900'; msg = 'Разом ' + fmt(total) + ' ₴ · <b>' + (debt ? 'після погашення борг 0 ₴' : 'сплачено повністю') + '</b>'; }
       out.className = cls; out.innerHTML = msg;
-      submits.forEach(function (b) { b.disabled = bad || over; b.classList.add('disabled:opacity-40', 'disabled:cursor-not-allowed'); });
-      if (closeBtn) closeBtn.textContent = (!bad && !over && rest > 0) ? 'Закрити з боргом ' + fmt(rest) + ' ₴' : closeBtn.dataset.label;
+      submits.forEach(function (b) { b.disabled = bad || over || depOver; b.classList.add('disabled:opacity-40', 'disabled:cursor-not-allowed'); });
+      if (closeBtn) closeBtn.textContent = (!bad && !over && !depOver && rest > 0) ? 'Закрити з боргом ' + fmt(rest) + ' ₴' : closeBtn.dataset.label;
       var many = rows.children.length > 1;
       rows.querySelectorAll('.pay-del').forEach(function (b) { b.classList.toggle('invisible', !many); });
     }
@@ -60,8 +72,25 @@
       if (b && rows.children.length > 1) { b.closest('.pay-row').remove(); update(); }
     });
     rows.addEventListener('input', update);
+    rows.addEventListener('change', update);
+    // «Оплатити з депозиту»: перший рядок — з депозиту (скільки є, до суми до сплати), решта — готівкою
+    var depUse = box.querySelector('.pay-dep-use');
+    if (depUse) depUse.addEventListener('click', function () {
+      var first = rows.firstElementChild, take = Math.min(due, dep);
+      while (rows.children.length > 1) rows.lastElementChild.remove();
+      first.querySelector('select').value = 'deposit';
+      first.querySelector('[name=pay_amount]').value = take.toFixed(2);
+      var left = Math.round((due - take) * 100) / 100;
+      if (left > 0) {
+        var row = first.cloneNode(true);
+        row.querySelector('select').value = 'cash';
+        row.querySelector('[name=pay_amount]').value = left.toFixed(2);
+        rows.appendChild(row);
+      }
+      update();
+    });
     box.closest('form').addEventListener('submit', function (e) {
-      if (box.dataset.bad) { e.preventDefault(); alert('Перевірте суми: кожна більше нуля, разом — не більше, ніж до сплати.'); return; }
+      if (box.dataset.bad) { e.preventDefault(); alert('Перевірте суми: кожна більше нуля, разом — не більше, ніж до сплати, а з депозиту — не більше, ніж на ньому.'); return; }
       var rest = parseFloat(box.dataset.rest) || 0, action = e.submitter ? e.submitter.value : '';
       if (action === 'close' && rest > 0 && !confirm('Залишок ' + fmt(rest) + ' ₴ стане боргом клієнта. Закрити рахунок?')) e.preventDefault();
     });

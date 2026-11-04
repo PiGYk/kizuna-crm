@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views
+from . import views, views_deposits
 
 app_name = 'billing'
 
@@ -20,6 +20,9 @@ urlpatterns = [
     path('<int:pk>/add-component/<int:line_id>/', views.add_component, name='add_component'),
     path('<int:pk>/update-line/<int:line_id>/', views.update_line, name='update_line'),
     path('<int:pk>/update-discount/', views.update_discount, name='update_discount'),
+    path('deposits/', views_deposits.deposit_list, name='deposits'),
+    path('deposits/add/', views_deposits.deposit_add, name='deposit_add'),
+    path('deposits/<int:op_id>/delete/', views_deposits.deposit_delete, name='deposit_delete'),
     path('client-search/', views.client_search, name='client_search'),
     path('patient-search/', views.patient_search, name='patient_search'),
     path('patients/<int:client_id>/', views.patient_list, name='patient_list'),

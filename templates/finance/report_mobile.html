@@ -43,7 +43,7 @@
         <div class="text-[11px] text-gray-400 uppercase tracking-wide">Дохід</div>
         <div class="text-xl font-bold text-green-600 mt-0.5" id="kpi-income">—</div>
         <div class="text-[10px] text-gray-400 mt-1">
-          <span id="kpi-income-cash">0</span> гот · <span id="kpi-income-card">0</span> карт
+          <span id="kpi-income-cash">0</span> гот · <span id="kpi-income-card">0</span> карт<span id="kpi-income-dep-wrap" hidden> · <span id="kpi-income-dep">0</span> деп</span>
         </div>
       </div>
       <div class="fin-kpi">
@@ -167,6 +167,8 @@ function tgCloseAllSheets() {
       document.getElementById('kpi-income').textContent = fmt(d.income.total) + ' ₴';
       document.getElementById('kpi-income-cash').textContent = fmt(d.income.cash);
       document.getElementById('kpi-income-card').textContent = fmt(d.income.card);
+      document.getElementById('kpi-income-dep').textContent = fmt(d.income.deposit || 0);
+      document.getElementById('kpi-income-dep-wrap').hidden = !d.income.deposit;
 
       document.getElementById('kpi-expenses').textContent = fmt(d.expenses.total) + ' ₴';
       document.getElementById('kpi-exp-cash').textContent = fmt(d.expenses.cash);

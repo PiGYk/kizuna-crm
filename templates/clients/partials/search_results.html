@@ -11,9 +11,15 @@
       {% endfor %}
     </div>
   </a>
+  {% elif mode == 'deposit' %}
+  <button type="button" class="dep-pick block w-full min-h-[44px] px-3 py-2.5 text-left hover:bg-brand-gold/5 rounded-lg border border-gray-100 mb-1 transition"
+          data-id="{{ client.pk }}" data-name="{{ client.full_name }}" data-phone="{{ client.phone }}">
+    <span class="block font-medium text-sm text-brand-dark">{{ client.full_name }}</span>
+    <span class="block text-xs text-gray-600">{{ client.phone }}{% for p in client.patients.all %} · {{ p.name }}{% endfor %}</span>
+  </button>
   {% else %}
   <div class="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0"
-       onclick="selectClient({{ client.pk }}, '{{ client.full_name }}', '{{ client.phone }}')">
+       onclick="selectClient({{ client.pk }}, '{{ client.full_name|escapejs }}', '{{ client.phone|escapejs }}')">
     <div class="font-medium text-sm text-gray-900">{{ client.full_name }}</div>
     <div class="text-xs text-gray-500 flex gap-2">
       <span>{{ client.phone }}</span>

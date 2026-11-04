@@ -315,7 +315,7 @@
   <form method="post" action="{% url 'billing:pay' invoice.pk %}" class="tg-mobile-sheet-body px-4 py-3">
     {% csrf_token %}
     <div class="pay-box" data-due="{{ invoice.balance_due|stringformat:'s' }}">
-      {% include 'billing/partials/pay_rows.html' with due=invoice.balance_due %}
+      {% include 'billing/partials/pay_rows.html' with due=invoice.balance_due deposit=client_deposit %}
     </div>
     <button type="submit" name="action" value="close" class="mt-4 w-full py-3 rounded-xl text-sm font-semibold bg-brand-gold text-brand-dark active:opacity-80 disabled:opacity-40">Оплатити й закрити рахунок</button>
     <button type="submit" name="action" value="keep_open" class="mt-2 w-full py-3 rounded-xl text-sm font-medium border border-gray-300 text-brand-dark active:bg-gray-50 disabled:opacity-40">Лише внести — рахунок відкритий</button>

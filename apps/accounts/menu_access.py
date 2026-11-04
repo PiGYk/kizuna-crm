@@ -18,6 +18,7 @@ _SECTIONS = {
                   'analytics:usage', 'analytics:usage_data', 'analytics:payroll'),
     'revenue': ('analytics:services',),
     'debtors': ('analytics:debtors',),
+    'deposits': ('billing:deposits', 'billing:deposit_add', 'billing:deposit_delete'),
     'finance': ('finance:expenses', 'finance:expense_create', 'finance:expense_edit', 'finance:expense_delete',
                 'finance:suppliers', 'finance:supplier_create', 'finance:supplier_detail', 'finance:supplier_edit',
                 'finance:supplier_delete', 'finance:cash_operations', 'finance:cash_operation_create',

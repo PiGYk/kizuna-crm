@@ -151,6 +151,18 @@ def cash_operations(request):
     movement = [(label, sums.get(key) or Decimal('0')) for key, label in (
         ('card_to_cash', 'Картка → готівка'), ('cash_to_card', 'Готівка → картка'),
         ('deposit', 'Внесення'), ('withdrawal', 'Вилучення'))]
+    # депозити клієнтів за той самий період (ANVAR 04.11.2026) — гроші клієнтів у касі, не прибуток
+    from apps.billing.models import ClientDeposit
+    dep_ops = ClientDeposit.objects.filter(organization=request.organization)
+    if date_from:
+        dep_ops = dep_ops.filter(created_at__date__gte=date_from)
+    if date_to:
+        dep_ops = dep_ops.filter(created_at__date__lte=date_to)
+    if not (date_from or date_to):
+        dep_ops = dep_ops.filter(created_at__date__gte=timezone.localdate().replace(day=1))
+    dep_sums = dict(dep_ops.values('kind').annotate(t=Sum('amount')).values_list('kind', 't'))
+    movement += [('Депозити клієнтів: внесено', dep_sums.get('topup') or Decimal('0')),
+                 ('Депозити клієнтів: повернуто', dep_sums.get('refund') or Decimal('0'))]
 
     template = 'finance/cash_operations_mobile.html' if is_mobile(request) else 'finance/cash_operations.html'
     return render(request, template, {
@@ -313,9 +325,11 @@ def report_data(request):
     from django.db.models import Q
     from apps.billing.models import InvoicePayment
     pay = InvoicePayment._base_manager.filter(invoice__in=invoices).aggregate(
-        cash=Sum('amount', filter=Q(method='cash')), card=Sum('amount', filter=Q(method='card')))
+        cash=Sum('amount', filter=Q(method='cash')), card=Sum('amount', filter=Q(method='card')),
+        deposit=Sum('amount', filter=Q(method='deposit')))
     income_cash = pay['cash'] or Decimal('0')
     income_card = pay['card'] or Decimal('0')
+    income_deposit = pay['deposit'] or Decimal('0')   # сплачено з депозиту клієнта (ANVAR 04.11.2026)
 
     # Витрати
     expenses = Expense.objects.filter(date__gte=start, date__lte=end)
@@ -409,6 +423,7 @@ def report_data(request):
             'total': float(income_total),
             'cash': float(income_cash),
             'card': float(income_card),
+            'deposit': float(income_deposit),
         },
         'expenses': {
             'total': float(expense_total),

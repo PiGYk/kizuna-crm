@@ -83,6 +83,7 @@ def analytics_data(request):
         cash_cnt=Count('invoice', filter=Q(method='cash'), distinct=True),
         card=Sum('amount', filter=Q(method='card')),
         card_cnt=Count('invoice', filter=Q(method='card'), distinct=True),
+        deposit=Sum('amount', filter=Q(method='deposit')),
     )
     revenue = agg['revenue'] or 0
     count = agg['count'] or 0
@@ -145,13 +146,13 @@ def analytics_data(request):
     )
 
     # Payment methods
-    pay_map = {'cash': 'Готівка', 'card': 'Картка', 'debt': 'Борг (не сплачено)', None: 'Не вказано'}
+    pay_map = {'cash': 'Готівка', 'card': 'Картка', 'deposit': 'З депозиту', 'debt': 'Борг (не сплачено)', None: 'Не вказано'}
     pay_methods = [
         {'payment_method': p['method'], 'total': p['total'], 'cnt': p['cnt']}
         for p in InvoicePayment._base_manager.filter(invoice__in=qs).values('method')
         .annotate(total=Sum('amount'), cnt=Count('invoice', distinct=True))
     ]
-    debt = (revenue or 0) - (cash or 0) - (card or 0)
+    debt = (revenue or 0) - (cash or 0) - (card or 0) - (pay['deposit'] or 0)
     if debt > 0:
         pay_methods.append({'payment_method': 'debt', 'total': debt,
                             'cnt': qs.filter(amount_paid__lt=F('total')).count()})

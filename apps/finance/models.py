@@ -97,8 +97,21 @@ def calculate_balances(org=None):
     deposits = cash_agg['deposits'] or zero
     withdrawals = cash_agg['withdrawals'] or zero
 
-    cash = fs.initial_cash + income_cash - expense_cash + card_to_cash - cash_to_card + deposits - withdrawals
-    card = fs.initial_card + income_card - expense_card - card_to_cash + cash_to_card
+    # депозити клієнтів (ANVAR 04.11.2026): внесене наперед — у касі одразу, повернуте — виходить.
+    # Оплата рахунку «з депозиту» нових грошей не додає (спосіб deposit вище не рахується).
+    from apps.billing.models import ClientDeposit
+    dep = ClientDeposit._base_manager.filter(organization=org).aggregate(
+        in_cash=Sum('amount', filter=Q(kind='topup', method='cash')),
+        in_card=Sum('amount', filter=Q(kind='topup', method='card')),
+        out_cash=Sum('amount', filter=Q(kind='refund', method='cash')),
+        out_card=Sum('amount', filter=Q(kind='refund', method='card')),
+    )
+    client_dep_cash = (dep['in_cash'] or zero) - (dep['out_cash'] or zero)
+    client_dep_card = (dep['in_card'] or zero) - (dep['out_card'] or zero)
+
+    cash = (fs.initial_cash + income_cash - expense_cash + card_to_cash - cash_to_card + deposits - withdrawals
+            + client_dep_cash)
+    card = fs.initial_card + income_card - expense_card - card_to_cash + cash_to_card + client_dep_card
 
     return {'cash': cash, 'card': card}
 

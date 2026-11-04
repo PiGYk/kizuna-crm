@@ -31,6 +31,7 @@ from apps.tg.utils import is_mobile
 
 from .models import Invoice, InvoiceLine
 from .payments import add_payment, parse_payment_rows, pay_rest
+from . import deposits
 
 
 def _lines_render(request, invoice):
@@ -363,6 +364,7 @@ def invoice_edit(request, pk):
     ctx['today_appointment'] = appt
     ctx['today_appointment_visit'] = appt.visits.first() if appt else None
     ctx['payments'] = _payments_of(invoice)
+    ctx['client_deposit'] = deposits.balance(invoice.client)
     template = 'billing/edit_mobile.html' if is_mobile(request) else 'billing/edit.html'
     return render(request, template, ctx)
 
@@ -584,12 +586,13 @@ def pay_invoice(request, pk):
     invoice.refresh_paid()
     try:
         rows = parse_payment_rows(request.POST)
+        deposits.check_rows(invoice.client, rows)
     except ValueError as exc:
         messages.error(request, f'Оплата не прийнята: {exc}.')
         return redirect('billing:edit', pk=pk)
     if not rows and 'pay_method' not in request.POST:
         method = request.POST.get('payment_method', Invoice.PaymentMethod.CASH)
-        if method not in Invoice.PaymentMethod.values:
+        if method not in (Invoice.PaymentMethod.CASH, Invoice.PaymentMethod.CARD):
             method = Invoice.PaymentMethod.CASH
         if invoice.balance_due > 0:
             rows = [(method, invoice.balance_due)]
@@ -643,6 +646,7 @@ def pay_debt(request, pk):
     invoice.refresh_paid()
     try:
         rows = parse_payment_rows(request.POST)
+        deposits.check_rows(invoice.client, rows)
     except ValueError as exc:
         messages.error(request, f'Оплата не прийнята: {exc}.')
         return redirect('billing:detail', pk=pk)
@@ -695,6 +699,7 @@ def invoice_detail(request, pk):
         'prev_pk': prev_invoice,
         'next_pk': next_invoice,
         'payments': _payments_of(invoice),
+        'client_deposit': deposits.balance(invoice.client) if invoice.has_debt else 0,
     })
 
 
@@ -782,11 +787,15 @@ def _restore_stock_from_invoice(invoice, user):
 def update_payment_method(request, pk):
     invoice = get_object_or_404(Invoice, pk=pk, status=Invoice.Status.PAID)
     method = request.POST.get('payment_method')
-    if method in Invoice.PaymentMethod.values:
+    # лише готівка ↔ картка: перемикач на «з депозиту» обійшов би перевірку залишку депозиту
+    if method in (Invoice.PaymentMethod.CASH, Invoice.PaymentMethod.CARD):
         from .models import InvoicePayment
         pays = list(InvoicePayment._base_manager.filter(invoice=invoice))
         if len(pays) > 1:
             messages.error(request, 'Оплата з кількох платежів — змініть спосіб у самих платежах.')
+            return redirect('billing:detail', pk=pk)
+        if pays and pays[0].method == Invoice.PaymentMethod.DEPOSIT:
+            messages.error(request, 'Рахунок сплачено з депозиту — щоб змінити, приберіть платіж і внесіть заново.')
             return redirect('billing:detail', pk=pk)
         if pays:
             InvoicePayment._base_manager.filter(pk=pays[0].pk).update(method=method)

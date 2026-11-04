@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% block title %}Депозити — Kizuna CRM{% endblock %}
+{% block content %}
+{# Депозити клієнтів (ANVAR 04.11.2026): хто скільки лишив наперед; внесення й повернення. Оплата рахунку з депозиту — у вікні оплати рахунку. #}
+<div class="mb-6">
+  <h1 class="text-2xl font-bold text-brand-dark">Депозити</h1>
+  <p class="mt-0.5 text-sm text-gray-600">Гроші, які клієнти лишили наперед. Рахунок оплачується з них у вікні оплати — спосіб «З депозиту».</p>
+</div>
+
+<div class="mb-5 grid grid-cols-2 gap-4">
+  <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+    <div class="mb-1 text-xs font-medium uppercase tracking-wide text-gray-600">На депозитах</div>
+    <div class="text-2xl font-bold text-brand-dark">{{ on_deposit|floatformat:"-2g" }} ₴</div>
+    <div class="mt-1 text-xs text-gray-600">гроші клієнтів у касі, ще не прибуток</div>
+  </div>
+  <div class="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+    <div class="mb-1 text-xs font-medium uppercase tracking-wide text-gray-600">Клієнтів з депозитом</div>
+    <div class="text-2xl font-bold text-brand-dark">{{ with_balance }}</div>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
+
+  <section id="dep-form" class="rounded-xl border border-gray-200 bg-white p-5 lg:order-2">
+    <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-600">Внести або повернути</h2>
+    {% url 'billing:deposits' as deposits_url %}
+    {% include 'billing/partials/deposit_form.html' with next=deposits_url %}
+  </section>
+
+  <section class="overflow-x-auto rounded-xl border border-gray-200 bg-white lg:order-1 lg:col-span-2">
+    {% if rows %}
+    <table class="w-full text-sm">
+      <thead class="border-b border-gray-200 bg-gray-50">
+        <tr>
+          <th class="px-4 py-3 text-left font-medium text-gray-600">Клієнт</th>
+          <th class="hidden px-4 py-3 text-right font-medium text-gray-600 md:table-cell">Внесено</th>
+          <th class="hidden px-4 py-3 text-right font-medium text-gray-600 md:table-cell">Сплачено</th>
+          <th class="hidden px-4 py-3 text-right font-medium text-gray-600 md:table-cell">Повернуто</th>
+          <th class="px-4 py-3 text-right font-medium text-gray-600">Залишок</th>
+          <th class="hidden px-2 py-3 sm:table-cell"><span class="sr-only">Дії</span></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100">
+        {% for r in rows %}
+        <tr class="hover:bg-gray-50">
+          <td class="px-4 py-3">
+            <a href="{% url 'clients:detail' r.client.pk %}" class="whitespace-nowrap font-medium text-brand-dark hover:underline">{{ r.client.full_name }}</a>
+            <div class="text-xs text-gray-600">{{ r.client.phone }}</div>
+          </td>
+          <td class="hidden px-4 py-3 text-right text-gray-700 md:table-cell">{{ r.topped|floatformat:"-2g" }}</td>
+          <td class="hidden px-4 py-3 text-right text-gray-700 md:table-cell">{{ r.spent|floatformat:"-2g" }}</td>
+          <td class="hidden px-4 py-3 text-right text-gray-700 md:table-cell">{{ r.refunded|floatformat:"-2g" }}</td>
+          <td class="whitespace-nowrap px-4 py-3 text-right font-semibold {% if r.balance > 0 %}text-green-800{% else %}text-gray-500{% endif %}">{{ r.balance|floatformat:"-2g" }} ₴</td>
+          <td class="hidden px-2 py-3 text-right sm:table-cell">
+            <a href="?client={{ r.client.pk }}#dep-form" class="inline-flex min-h-[36px] items-center whitespace-nowrap rounded-lg px-2 text-xs font-medium text-brand-dark underline decoration-brand-gold underline-offset-2 hover:bg-brand-gold/10">Внести / повернути</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot class="border-t-2 border-gray-200 bg-gray-50">
+        <tr>
+          <td class="px-4 py-3 text-right font-bold text-gray-700 md:hidden">Разом:</td>
+          <td colspan="4" class="hidden px-4 py-3 text-right font-bold text-gray-700 md:table-cell">Разом на депозитах:</td>
+          <td class="whitespace-nowrap px-4 py-3 text-right text-base font-bold text-brand-dark">{{ on_deposit|floatformat:"-2g" }} ₴</td>
+          <td class="hidden sm:table-cell"></td>
+        </tr>
+      </tfoot>
+    </table>
+    {% else %}
+    <div class="p-12 text-center">
+      <p class="font-medium text-gray-700">Депозитів поки немає</p>
+      <p class="mt-1 text-sm text-gray-600">Клієнт лишає гроші наперед — внесіть їх через форму «Внести або повернути».</p>
+    </div>
+    {% endif %}
+  </section>
+</div>
+
+{% if entries %}
+<section class="mt-6 rounded-xl border border-gray-200 bg-white">
+  <h2 class="border-b border-gray-100 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-gray-600">Останні операції</h2>
+  {% include 'billing/partials/deposit_history.html' with entries=entries show_client=True %}
+</section>
+{% endif %}
+{% endblock %}

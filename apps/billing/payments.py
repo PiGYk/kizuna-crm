@@ -13,6 +13,9 @@ def add_payment(invoice, amount, method, user=None, paid_at=None):
         raise ValueError('сума має бути більше нуля')
     if method not in Invoice.PaymentMethod.values:
         raise ValueError('невідомий спосіб оплати')
+    if method == Invoice.PaymentMethod.DEPOSIT:
+        from .deposits import check_rows
+        check_rows(invoice.client, [(method, amount)])   # не більше, ніж на депозиті клієнта
     kwargs = {'paid_at': paid_at} if paid_at else {}
     payment = InvoicePayment.objects.create(
         invoice=invoice, organization_id=invoice.organization_id, amount=amount, method=method,

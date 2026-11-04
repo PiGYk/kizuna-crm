@@ -44,6 +44,7 @@
 
 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
 
+  <div class="space-y-6">
   <!-- Client info -->
   <div class="bg-white rounded-xl border border-gray-200 p-5">
     <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Контакти</h2>
@@ -75,6 +76,31 @@
       <p class="text-sm text-gray-700">{{ client.notes }}</p>
     </div>
     {% endif %}
+  </div>
+
+  {# Депозит клієнта (ANVAR 04.11.2026): залишок, останні рухи, внести / повернути #}
+  {% if user_menu.deposits or deposit_balance or deposit_history %}
+  <div id="deposit" class="bg-white rounded-xl border border-gray-200 p-5">
+    <div class="flex items-baseline justify-between gap-2">
+      <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide">Депозит</h2>
+      <div class="text-xl font-bold whitespace-nowrap {% if deposit_balance > 0 %}text-green-800{% else %}text-brand-dark{% endif %}">{{ deposit_balance|floatformat:"-2g" }} ₴</div>
+    </div>
+    <p class="mt-1 text-xs text-gray-600">З депозиту оплачуються рахунки клієнта — спосіб «З депозиту» у вікні оплати.</p>
+    {% if deposit_history %}
+    <div class="-mx-5 mt-3 border-t border-gray-100">
+      {% include 'billing/partials/deposit_history.html' with entries=deposit_history show_client=False pad='px-5' %}
+    </div>
+    {% endif %}
+    {% if user_menu.deposits %}
+    <details class="mt-3 border-t border-gray-100 pt-3" {% if not deposit_history %}open{% endif %}>
+      <summary class="flex min-h-[44px] cursor-pointer items-center text-sm font-medium text-brand-dark underline decoration-brand-gold underline-offset-2">Внести або повернути</summary>
+      <div class="mt-2">
+        {% include 'billing/partials/deposit_form.html' with client=client next=request.get_full_path %}
+      </div>
+    </details>
+    {% endif %}
+  </div>
+  {% endif %}
   </div>
 
   <!-- Patients -->

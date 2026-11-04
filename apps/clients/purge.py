@@ -101,6 +101,9 @@ def purge_archive(org):
     from apps.billing.models import Invoice
     clients = Client._base_manager.filter(organization=org, is_archived=True)
     with_inv = set(Invoice._base_manager.filter(client__in=clients).values_list('client_id', flat=True))
+    # з історією депозиту — теж лише по одному (гроші клієнта в касі; ANVAR 04.11.2026)
+    from apps.billing.models import ClientDeposit
+    with_inv |= set(ClientDeposit._base_manager.filter(client__in=clients).values_list('client_id', flat=True))
     removed_clients = removed_patients = 0
     kept = []
     for c in clients:

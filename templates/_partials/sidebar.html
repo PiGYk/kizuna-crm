@@ -150,10 +150,18 @@
     {% endif %}
 
     {# ── Рахунки (flat) ─────────────────────────────────────────────────── #}
-    <a href="{% url 'billing:list' %}" class="sb-item {% if an == 'billing' %}sb-active{% endif %}">
+    <a href="{% url 'billing:list' %}" class="sb-item {% if an == 'billing' and 'deposit' not in un %}sb-active{% endif %}">
       <svg class="sb-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/></svg>
       Рахунки
     </a>
+
+    {# ── Депозити клієнтів (flat, ANVAR 04.11.2026) ─────────────────────── #}
+    {% if user_menu.deposits or not request.organization %}
+    <a href="{% url 'billing:deposits' %}" class="sb-item {% if an == 'billing' and 'deposit' in un %}sb-active{% endif %}">
+      <svg class="sb-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+      Депозити
+    </a>
+    {% endif %}
 
     {# ── Аналітика group ────────────────────────────────────────────────── #}
     {% if user_menu.analytics or user_menu.revenue or user_menu.debtors or not request.organization %}
