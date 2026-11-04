@@ -141,7 +141,7 @@ class ClinicSettingsView(AdminRequiredMixin, View):
         from apps.accounts.models import User
         from apps.accounts.staff import fired_users
         from apps.finance.models import FinanceSettings, calculate_balances
-        from apps.finance.forms import FinanceSettingsForm
+        from apps.finance.forms import ConsumablesForm, FinanceSettingsForm
         from apps.clients.tasks import REMIND_DAYS_BEFORE
         from apps.tg.models import TelegramChat
 
@@ -161,6 +161,7 @@ class ClinicSettingsView(AdminRequiredMixin, View):
             'fired': fired_users(org),
             'fs': fs,
             'finance_form': FinanceSettingsForm(instance=fs),
+            'consumables_form': ConsumablesForm(instance=fs),
             'balances': calculate_balances(org),
             'org': org,
             'tg_chats': TelegramChat.objects.filter(

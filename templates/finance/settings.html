@@ -58,6 +58,24 @@
     {% else %}
     <p class="text-xs text-gray-400">Готівка: {{ balance_form.initial_cash.value|default_if_none:"0" }} ₴ · картка: {{ balance_form.initial_card.value|default_if_none:"0" }} ₴. Змінює адміністратор.</p>
     {% endif %}
+
+    {# Розхідники у звітах прибутку (ANVAR 02.11) #}
+    <div class="mt-5 border-t border-gray-100 pt-4">
+      <h3 class="text-sm font-semibold text-brand-dark">Розхідники у звіті прибутку</h3>
+      {% if user.is_admin %}
+      <form method="post" action="{% url 'finance:settings_consumables' %}" class="mt-2">
+        {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <label for="id_consumables_percent" class="block text-xs text-gray-500 mb-1">% від виручки послуг без складу</label>
+        <div class="flex items-center gap-2">
+          <div class="w-28">{{ consumables_form.consumables_percent }}</div>
+          <button type="submit" class="px-4 py-2 rounded-lg text-sm font-semibold bg-brand-dark text-white hover:opacity-90 transition">Зберегти</button>
+        </div>
+      </form>
+      {% else %}
+      <p class="mt-1 text-sm text-gray-700">{{ consumables_form.consumables_percent.value }} % від виручки послуг без складу. Змінює адміністратор.</p>
+      {% endif %}
+      <p class="mt-1 text-xs text-gray-600">Рукавички, шприци, вата. 0 — не віднімати. Для послуг із заповненим складом не віднімається: їхні матеріали вже в собівартості.</p>
+    </div>
   </div>
 
   {# ── Expense categories ───────────────────────────────────────────── #}

@@ -87,6 +87,16 @@
   </div>
 </div>
 
+{# ── Рух між касами — перенесено зі звіту прибутку (ANVAR 02.11) ─── #}
+<div class="bg-white rounded-xl border border-gray-200 p-4 mb-5">
+  <div class="text-[11px] text-gray-500 uppercase tracking-wide font-medium mb-2">Рух між касами {{ movement_period }}</div>
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+    {% for label, total in movement %}
+    <div><div class="text-xs text-gray-600">{{ label }}</div><div class="text-base font-semibold text-brand-dark">{{ total|floatformat:2 }} ₴</div></div>
+    {% endfor %}
+  </div>
+</div>
+
 {# ── Filters ─────────────────────────────────────────────────────────── #}
 <div class="bg-white rounded-xl border border-gray-200 px-4 py-3 mb-4">
   <form method="get" class="flex flex-wrap items-center gap-3">

@@ -20,6 +20,11 @@ class FinanceSettings(models.Model):
     initial_card = models.DecimalField(
         'Початковий залишок картки', max_digits=12, decimal_places=2, default=0
     )
+    # Розхідники (рукавички, шприци, вата) у звітах прибутку — % від виручки ПОСЛУГ БЕЗ СКЛАДУ (ANVAR 02.11).
+    # Типово 0 — клініка вмикає сама; Kizuna — 5 (її давнє правило). Рахує apps/finance/consumables.py
+    consumables_percent = models.DecimalField(
+        'Розхідники, % від виручки послуг без складу', max_digits=4, decimal_places=1, default=0,
+    )
 
     class Meta:
         verbose_name = 'Налаштування балансу'

@@ -57,6 +57,25 @@
       </div>
     </div>
 
+    <!-- Розхідники у звітах прибутку (ANVAR 02.11) -->
+    <div class="px-3 pt-3">
+      <div class="fin-kpi">
+        <h2 class="text-sm font-semibold text-brand-dark mb-1">Розхідники у звіті прибутку</h2>
+        {% if user.is_admin %}
+        <form method="post" action="{% url 'finance:settings_consumables' %}" class="flex items-end gap-2">
+          {% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}">
+          <label class="flex-1"><span class="fin-label">% від виручки послуг без складу</span>
+            <input type="number" step="0.5" min="0" max="50" inputmode="decimal" name="consumables_percent"
+                   value="{% localize off %}{{ consumables_form.consumables_percent.value|default_if_none:'0' }}{% endlocalize %}" class="fin-input"></label>
+          <button type="submit" class="px-4 py-3 rounded-xl text-sm font-semibold bg-brand-dark text-white active:opacity-80">Зберегти</button>
+        </form>
+        {% else %}
+        <p class="text-sm text-gray-700">{{ consumables_form.consumables_percent.value }} % від виручки послуг без складу. Змінює адміністратор.</p>
+        {% endif %}
+        <p class="mt-1 text-[11px] text-gray-600">Рукавички, шприци, вата. 0 — не віднімати. Для послуг із заповненим складом не віднімається: їхні матеріали вже в собівартості.</p>
+      </div>
+    </div>
+
     <!-- Section 2: Categories -->
     <div class="px-3 pt-3">
       <div class="fin-kpi">

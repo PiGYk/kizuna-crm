@@ -66,6 +66,24 @@ class CashOperationForm(forms.ModelForm):
         }
 
 
+class ConsumablesForm(forms.ModelForm):
+    """Розхідники у звітах прибутку: % від виручки послуг без складу (ANVAR 02.11). Окремо від початкових
+    залишків — щоб форма залишків, яка цього поля не має, не падала на «обовʼязкове поле»."""
+
+    class Meta:
+        model = FinanceSettings
+        fields = ('consumables_percent',)
+        widgets = {
+            'consumables_percent': forms.NumberInput(attrs={'class': _tw, 'step': '0.5', 'min': '0', 'max': '50', 'inputmode': 'decimal'}),
+        }
+
+    def clean_consumables_percent(self):
+        value = self.cleaned_data.get('consumables_percent')
+        if value is None or value < 0 or value > 50:
+            raise forms.ValidationError('Від 0 до 50 %.')
+        return value
+
+
 class FinanceSettingsForm(forms.ModelForm):
     class Meta:
         model = FinanceSettings

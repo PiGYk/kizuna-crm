@@ -14,7 +14,7 @@
 
   .kpi { background: white; border: 1px solid rgb(229 231 235); border-radius: 0.75rem; padding: 1.25rem; }
   .kpi-label { font-size: 0.6875rem; color: rgb(156 163 175); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 500; }
-  .kpi-value { font-size: 1.5rem; font-weight: 700; margin-top: 0.25rem; font-variant-numeric: tabular-nums; }
+  .kpi-value { font-size: 1.5rem; font-weight: 700; margin-top: 0.25rem; }  /* без tnum: у Fixel нуль із рискою (ANVAR 02.11) */
   .kpi-detail { font-size: 0.6875rem; color: rgb(156 163 175); margin-top: 0.375rem; }
 
   .bar-row { display: grid; grid-template-columns: 1fr auto; gap: 0.75rem; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid rgb(243 244 246); }
@@ -24,7 +24,7 @@
   .bar-label .cnt { font-size: 0.75rem; color: rgb(156 163 175); flex-shrink: 0; }
   .bar-bar-wrap { position: relative; height: 4px; background: rgb(243 244 246); border-radius: 9999px; margin-top: 0.25rem; overflow: hidden; }
   .bar-bar { position: absolute; left: 0; top: 0; height: 100%; background: #f59e0b; border-radius: 9999px; }
-  .bar-amount { font-size: 0.875rem; font-weight: 600; color: rgb(31 41 55); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .bar-amount { font-size: 0.875rem; font-weight: 600; color: rgb(31 41 55); white-space: nowrap; }
 </style>
 
 {# ── Header ──────────────────────────────────────────────────────────── #}
@@ -69,7 +69,7 @@
 </div>
 
 {# ── KPI ─────────────────────────────────────────────────────────────── #}
-<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+<div class="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-5">
   <div class="kpi">
     <div class="kpi-label">Дохід</div>
     <div class="kpi-value text-green-600" id="kpi-income">—</div>
@@ -89,23 +89,16 @@
     <div class="kpi-value text-brand-dark" id="kpi-profit">—</div>
     <div class="kpi-detail" id="kpi-margin">маржа —</div>
   </div>
-  <div class="kpi">
-    <div class="kpi-label">Рух між касами</div>
-    <div class="text-[11px] mt-1 space-y-0.5 text-gray-600">
-      <div class="flex justify-between gap-2"><span>Карт→Гот</span><strong id="kpi-c2c" class="text-brand-dark tabular-nums">0 ₴</strong></div>
-      <div class="flex justify-between gap-2"><span>Гот→Карт</span><strong id="kpi-c2k" class="text-brand-dark tabular-nums">0 ₴</strong></div>
-      <div class="flex justify-between gap-2"><span>Внесення</span><strong id="kpi-dep" class="text-brand-dark tabular-nums">0 ₴</strong></div>
-      <div class="flex justify-between gap-2"><span>Вилучення</span><strong id="kpi-wd" class="text-brand-dark tabular-nums">0 ₴</strong></div>
-    </div>
-  </div>
 </div>
+{# Рух між касами — це рух грошей, не прибуток: тепер на сторінці «Каса» (ANVAR 02.11) #}
+<div id="pnl-warnings" class="mb-5 hidden space-y-2" aria-live="polite"></div>
 
 {# ── Прибуток з продажу (Revenue − COGS − Revenue × 0.05) ────────────── #}
 <div class="bg-white rounded-xl border border-gray-200 p-5 mb-5">
   <div class="flex items-start justify-between gap-4 mb-4">
     <div>
       <h2 class="text-base font-semibold text-brand-dark">Прибуток з продажу</h2>
-      <p class="text-xs text-gray-400 mt-0.5">Виручка від оплачених чеків мінус собівартість товарів та компонентів послуг, мінус 5% від виручки на неврахованих розхідників.</p>
+      <p class="text-xs text-gray-500 mt-0.5" id="gp-desc">Виручка від оплачених чеків мінус собівартість товарів і складу послуг.</p>
     </div>
     <div class="text-right shrink-0">
       <div class="text-[11px] text-gray-400 uppercase tracking-wide">Результат</div>
@@ -114,7 +107,7 @@
     </div>
   </div>
 
-  <div class="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr_auto_1fr] gap-3 text-sm items-stretch">
+  <div class="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr_auto_1fr] gap-3 text-sm items-stretch" id="gp-grid">
     <div class="bg-green-50 rounded-lg p-3">
       <div class="text-[11px] text-gray-500 uppercase tracking-wide">Виручка</div>
       <div class="font-semibold text-green-700 tabular-nums mt-0.5 text-base" id="gp-revenue">—</div>
@@ -129,9 +122,9 @@
         послуги: <span id="gp-cogs-serv" class="tabular-nums">0</span>
       </div>
     </div>
-    <div class="hidden md:flex items-center justify-center text-3xl text-gray-300 font-light px-1">−</div>
-    <div class="bg-amber-50 rounded-lg p-3">
-      <div class="text-[11px] text-gray-500 uppercase tracking-wide">−5% виручки (розхідники)</div>
+    <div class="hidden md:flex items-center justify-center text-3xl text-gray-300 font-light px-1 gp-ovh">−</div>
+    <div class="bg-amber-50 rounded-lg p-3 gp-ovh">
+      <div class="text-[11px] text-gray-500 uppercase tracking-wide" id="gp-overhead-label">Розхідники</div>
       <div class="font-semibold text-amber-700 tabular-nums mt-0.5 text-base" id="gp-overhead">—</div>
       <div class="text-[10px] text-gray-400 mt-0.5">рукавички, шприци, серветки тощо</div>
     </div>
@@ -208,10 +201,16 @@
         marginEl.textContent = 'маржа —';
       }
 
-      document.getElementById('kpi-c2c').textContent = fmt0(d.cash_register.card_to_cash) + ' ₴';
-      document.getElementById('kpi-c2k').textContent = fmt0(d.cash_register.cash_to_card) + ' ₴';
-      document.getElementById('kpi-dep').textContent = fmt0(d.cash_register.deposits) + ' ₴';
-      document.getElementById('kpi-wd').textContent = fmt0(d.cash_register.withdrawals) + ' ₴';
+      // Попередження: коли цифрі прибутку ще не можна вірити (ANVAR 02.11)
+      const wEl = document.getElementById('pnl-warnings');
+      wEl.innerHTML = '';
+      (d.warnings || []).forEach(function (t) {
+        const row = document.createElement('div');
+        row.className = 'rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-900';
+        row.textContent = t;
+        wEl.appendChild(row);
+      });
+      wEl.classList.toggle('hidden', !(d.warnings || []).length);
 
       // Прибуток з продажу
       if (d.cogs && typeof d.gross_profit === 'number') {
@@ -220,6 +219,16 @@
         document.getElementById('gp-cogs-prod').textContent = fmt0(d.cogs.products) + ' ₴';
         document.getElementById('gp-cogs-serv').textContent = fmt0(d.cogs.services) + ' ₴';
         document.getElementById('gp-overhead').textContent = fmt(d.cogs.overhead) + ' ₴';
+        // Розхідники — % клініки від виручки послуг без складу; 0 — картки нема (Налаштування → Фінанси)
+        const pct = d.cogs.overhead_pct || 0, pctTxt = String(pct).replace('.', ',');
+        document.querySelectorAll('.gp-ovh').forEach(el => el.classList.toggle('md:flex', pct > 0 && el.textContent.trim() === '−'));
+        document.querySelectorAll('.gp-ovh').forEach(el => { if (el.textContent.trim() !== '−') el.classList.toggle('hidden', !pct); });
+        const grid = document.getElementById('gp-grid');
+        grid.classList.toggle('md:grid-cols-[1fr_auto_1fr_auto_1fr]', pct > 0);
+        grid.classList.toggle('md:grid-cols-[1fr_auto_1fr]', !pct);
+        document.getElementById('gp-overhead-label').textContent = '−' + pctTxt + '% послуг без складу';
+        document.getElementById('gp-desc').textContent = 'Виручка від оплачених чеків мінус собівартість товарів і складу послуг'
+          + (pct ? ', мінус ' + pctTxt + '% від виручки послуг без складу на розхідники.' : '.');
 
         const gpEl = document.getElementById('gp-result');
         gpEl.textContent = fmt(d.gross_profit) + ' ₴';

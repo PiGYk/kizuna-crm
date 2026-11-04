@@ -53,20 +53,12 @@
           <span id="kpi-exp-cash">0</span>г · <span id="kpi-exp-card">0</span>к · <span id="kpi-exp-transfer">0</span>п
         </div>
       </div>
-      <div class="fin-kpi">
+      <div class="fin-kpi col-span-2">
         <div class="text-[11px] text-gray-400 uppercase tracking-wide">Прибуток</div>
         <div class="text-xl font-bold mt-0.5" id="kpi-profit">—</div>
       </div>
-      <div class="fin-kpi">
-        <div class="text-[11px] text-gray-400 uppercase tracking-wide mb-1">Каса</div>
-        <div class="text-[10px] space-y-0.5">
-          <div class="flex justify-between"><span class="text-gray-500">К→Г</span><strong id="kpi-c2c">0</strong></div>
-          <div class="flex justify-between"><span class="text-gray-500">Г→К</span><strong id="kpi-c2k">0</strong></div>
-          <div class="flex justify-between"><span class="text-gray-500">внес.</span><strong id="kpi-dep">0</strong></div>
-          <div class="flex justify-between"><span class="text-gray-500">вил.</span><strong id="kpi-wd">0</strong></div>
-        </div>
-      </div>
     </div>
+    <div id="pnl-warnings" class="px-3 pt-2 hidden space-y-1.5" aria-live="polite"></div>
 
     <!-- Chart -->
     <div class="px-3 pt-3">
@@ -185,10 +177,16 @@ function tgCloseAllSheets() {
       p.textContent = fmt(d.profit) + ' ₴';
       p.className = 'text-xl font-bold mt-0.5 ' + (d.profit >= 0 ? 'text-green-600' : 'text-red-500');
 
-      document.getElementById('kpi-c2c').textContent = fmt(d.cash_register.card_to_cash);
-      document.getElementById('kpi-c2k').textContent = fmt(d.cash_register.cash_to_card);
-      document.getElementById('kpi-dep').textContent = fmt(d.cash_register.deposits);
-      document.getElementById('kpi-wd').textContent = fmt(d.cash_register.withdrawals);
+      // Попередження: коли цифрі прибутку ще не можна вірити (ANVAR 02.11); рух між касами — на сторінці «Каса»
+      const wEl = document.getElementById('pnl-warnings');
+      wEl.innerHTML = '';
+      (d.warnings || []).forEach(function (t) {
+        const row = document.createElement('div');
+        row.className = 'rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900';
+        row.textContent = t;
+        wEl.appendChild(row);
+      });
+      wEl.classList.toggle('hidden', !(d.warnings || []).length);
 
       // Chart
       if (chart) chart.destroy();

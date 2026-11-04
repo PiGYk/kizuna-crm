@@ -25,6 +25,7 @@ urlpatterns = [
     # Налаштування (категорії + початкові залишки)
     path('settings/', views.settings_view, name='settings'),
     path('settings/balance/', views.settings_balance_update, name='settings_balance_update'),
+    path('settings/consumables/', views.settings_consumables_update, name='settings_consumables'),
     path('settings/category/create/', views.category_create, name='category_create'),
     path('settings/category/<int:pk>/delete/', views.category_delete, name='category_delete'),
 

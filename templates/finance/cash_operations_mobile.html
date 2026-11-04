@@ -57,6 +57,18 @@
       </div>
     </div>
 
+    <!-- Рух між касами — перенесено зі звіту прибутку (ANVAR 02.11) -->
+    <div class="px-3 pt-3">
+      <div class="fin-kpi">
+        <div class="text-[11px] text-gray-500 uppercase tracking-wide mb-1">Рух між касами {{ movement_period }}</div>
+        <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
+          {% for label, total in movement %}
+          <div class="flex justify-between gap-2"><span class="text-gray-600">{{ label }}</span><strong class="text-brand-dark">{{ total|floatformat:0 }} ₴</strong></div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
     <div class="px-3 pt-4 pb-24 flex flex-col gap-2">
       {% for op in operations %}
       {% with type=op.type %}

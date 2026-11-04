@@ -13,7 +13,7 @@ from django.views.decorators.http import require_POST
 from apps.billing.models import Invoice, InvoiceLine
 from apps.tg.utils import is_mobile
 from .models import ExpenseCategory, Supplier, Expense, CashOperation, FinanceSettings, calculate_balances
-from .forms import ExpenseCategoryForm, SupplierForm, ExpenseForm, CashOperationForm, FinanceSettingsForm
+from .forms import ExpenseCategoryForm, SupplierForm, ExpenseForm, CashOperationForm, FinanceSettingsForm, ConsumablesForm
 
 
 # ── Витрати ──────────────────────────────────────────────
@@ -144,12 +144,22 @@ def cash_operations(request):
 
     balances = calculate_balances(request.organization)
 
+    # Рух між касами за період — тут, а не у звіті прибутку: це рух грошей, не прибуток (ANVAR 02.11).
+    # Без фільтра — поточний місяць.
+    period_ops = ops if (date_from or date_to) else ops.filter(date__gte=timezone.localdate().replace(day=1))
+    sums = dict(period_ops.values('type').annotate(t=Sum('amount')).values_list('type', 't'))
+    movement = [(label, sums.get(key) or Decimal('0')) for key, label in (
+        ('card_to_cash', 'Картка → готівка'), ('cash_to_card', 'Готівка → картка'),
+        ('deposit', 'Внесення'), ('withdrawal', 'Вилучення'))]
+
     template = 'finance/cash_operations_mobile.html' if is_mobile(request) else 'finance/cash_operations.html'
     return render(request, template, {
         'operations': list(ops[:100]),
         'filter': {'from': date_from or '', 'to': date_to or ''},
         'cash_balance': balances['cash'],
         'card_balance': balances['card'],
+        'movement': movement,
+        'movement_period': 'за обраний період' if (date_from or date_to) else 'за цей місяць',
     })
 
 
@@ -192,7 +202,30 @@ def settings_view(request):
         'categories': categories,
         'form': ExpenseCategoryForm(),
         'balance_form': FinanceSettingsForm(instance=FinanceSettings.get_for_org(request.organization)),
+        'consumables_form': ConsumablesForm(instance=FinanceSettings.get_for_org(request.organization)),
     })
+
+
+@login_required
+@require_POST
+def settings_consumables_update(request):
+    """Розхідники у звітах прибутку, % від виручки послуг без складу (ANVAR 02.11) — налаштування адміна."""
+    if not request.user.is_admin():
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied
+    form = ConsumablesForm(request.POST, instance=FinanceSettings.get_for_org(request.organization))
+    if form.is_valid():
+        form.save()
+        pct = form.cleaned_data['consumables_percent']
+        messages.success(request, f'Розхідники у звіті прибутку: {pct}% від виручки послуг без складу.' if pct
+                         else 'Розхідники у звіті прибутку не віднімаються.')
+    else:
+        messages.error(request, 'Розхідники: вкажіть від 0 до 50 %.')
+    from django.utils.http import url_has_allowed_host_and_scheme
+    nxt = request.POST.get('next', '')
+    if nxt and url_has_allowed_host_and_scheme(nxt, allowed_hosts={request.get_host()}, require_https=request.is_secure()):
+        return redirect(nxt)
+    return redirect('finance:settings')
 
 
 @login_required
@@ -356,9 +389,20 @@ def report_data(request):
         cogs_services += ln.quantity * comp_cost
 
     cogs_total = cogs_products + cogs_services
-    cogs_overhead = income_total * Decimal('0.05')        # −5% від виручки розхідники
+    # Розхідники — % клініки від виручки послуг без складу (було жорстко −5% від усієї виручки; ANVAR 02.11)
+    from .consumables import consumables_for
+    cogs_overhead, cons_base, bare_services, cons_pct = consumables_for(request.organization, invoices)
     cogs_adjusted = cogs_total + cogs_overhead
     gross_profit = income_total - cogs_adjusted
+
+    # Попередження прямо у звіті: коли цифрі прибутку ще не можна вірити
+    warnings = []
+    if income_total and not expense_total:
+        warnings.append('Витрати за цей період не внесено — прибуток завищений.')
+    if bare_services:
+        from apps.clients.templatetags.clinic_html import uk_plural
+        warnings.append(f'У {bare_services} {uk_plural(bare_services, "проданої послуги,проданих послуг,проданих послуг")} '
+                        f'не заповнено склад — собівартість їхніх матеріалів не врахована.')
 
     return JsonResponse({
         'income': {
@@ -378,8 +422,11 @@ def report_data(request):
             'services': float(cogs_services),
             'total': float(cogs_total),
             'overhead': float(cogs_overhead),
+            'overhead_pct': float(cons_pct),
+            'overhead_base': float(cons_base),
             'adjusted': float(cogs_adjusted),
         },
+        'warnings': warnings,
         'gross_profit': float(gross_profit),
         'cash_register': {
             'card_to_cash': float(card_to_cash),

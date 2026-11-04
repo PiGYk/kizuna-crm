@@ -605,6 +605,17 @@
       </button>
     </form>
 
+    {# Розхідники у звітах прибутку (ANVAR 02.11) #}
+    <form method="post" action="{% url 'finance:settings_consumables' %}" class="mt-6 border-t border-gray-100 pt-5">
+      {% csrf_token %}<input type="hidden" name="next" value="{% url 'clinic:settings' %}#finance">
+      <label for="id_consumables_percent" class="block text-xs text-gray-500 mb-1">Розхідники у звіті прибутку, % від виручки послуг без складу</label>
+      <div class="flex items-center gap-2">
+        <div class="w-28">{{ consumables_form.consumables_percent }}</div>
+        <button type="submit" class="bg-brand-gold text-brand-dark px-5 py-2.5 rounded-lg text-sm font-semibold hover:brightness-95 transition">Зберегти</button>
+      </div>
+      <p class="mt-1 text-xs text-gray-600">Рукавички, шприци, вата. 0 — не віднімати. Для послуг із заповненим складом не віднімається: їхні матеріали вже в собівартості.</p>
+    </form>
+
     <div class="mt-4 flex gap-4">
       <a href="{% url 'finance:settings' %}" class="text-xs text-brand-gold hover:text-brand-dark font-medium">&rarr; Повні налаштування фінансів</a>
       <a href="{% url 'finance:cash_operations' %}" class="text-xs text-gray-400 hover:text-brand-dark">&rarr; Каса</a>

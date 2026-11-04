@@ -14,7 +14,8 @@ from apps.finance.models import Expense, ExpenseCategory
 from apps.accounts.mixins import admin_required
 from apps.tg.utils import is_mobile
 
-CONSUMABLES_RATE = Decimal('0.05')  # 5% від COGS — шприци/рукавички/пелюшки
+# Розхідники — % клініки від виручки послуг без складу: apps/finance/consumables.py (було 5% від COGS)
+from apps.finance.consumables import consumables_pct  # noqa: E402
 
 
 def _parse_range(request):
@@ -531,7 +532,7 @@ def _profit_for_range_cached(org, start, end, exclude_categories, exclude_expens
 
 
 def _profit_for_range(org, start, end, exclude_categories, exclude_expenses):
-    """Виручка − COGS − витратники(5%) − витрати з фінансів за період."""
+    """Виручка − COGS − розхідники (% клініки від послуг без складу) − витрати з фінансів за період."""
     revenue = Invoice.objects.filter(
         status='paid', organization=org,
         created_at__date__gte=start, created_at__date__lte=end,
@@ -545,7 +546,9 @@ def _profit_for_range(org, start, end, exclude_categories, exclude_expenses):
         t=Sum(F('quantity') * F('product__buy_price'), output_field=DecimalField(max_digits=14, decimal_places=2))
     )['t'] or Decimal('0')
 
-    consumables = (cogs * CONSUMABLES_RATE).quantize(Decimal('0.01'))
+    from apps.finance.consumables import consumables_for
+    consumables = consumables_for(org, Invoice.objects.filter(
+        status='paid', organization=org, created_at__date__gte=start, created_at__date__lte=end))[0]
 
     expenses_qs = Expense.objects.filter(
         organization=org, date__gte=start, date__lte=end,
@@ -593,6 +596,10 @@ def _profit_per_day(org, start, end, exclude_categories, exclude_expenses):
         .values_list('d', 't')
     )
 
+    from apps.finance.consumables import consumables_per_day
+    cons_per_day = consumables_per_day(org, Invoice.objects.filter(
+        status='paid', organization=org, created_at__date__gte=start, created_at__date__lte=end))
+
     exp_qs = Expense.objects.filter(organization=org, date__gte=start, date__lte=end)
     if exclude_categories:
         exp_qs = exp_qs.exclude(category_id__in=exclude_categories)
@@ -607,7 +614,7 @@ def _profit_per_day(org, start, end, exclude_categories, exclude_expenses):
     while d <= end:
         revenue = rev_per_day.get(d) or Decimal('0')
         cogs = cogs_per_day.get(d) or Decimal('0')
-        consumables = (cogs * CONSUMABLES_RATE).quantize(Decimal('0.01'))
+        consumables = cons_per_day.get(d) or Decimal('0')
         expenses = exp_per_day.get(d) or Decimal('0')
         net = revenue - cogs - consumables - expenses
         result[d] = {
@@ -709,5 +716,5 @@ def profit_data(request):
     return JsonResponse({
         'cards': cards,
         'chart': {'labels': labels, 'net': net_series, 'revenue': rev_series, 'period': chart_period},
-        'consumables_rate_pct': float(CONSUMABLES_RATE * 100),
+        'consumables_rate_pct': float(consumables_pct(org)),
     })
