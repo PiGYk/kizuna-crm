@@ -117,7 +117,7 @@ def _load_widget_registry():
 
 
 def _widget_allowed_for(role: str, widget_meta: dict) -> bool:
-    allowed_roles = widget_meta.get('roles_allowed') or ['admin', 'doctor', 'assistant']
+    allowed_roles = widget_meta.get('roles_allowed') or ['admin', 'doctor', 'assistant', 'reception']
     return role in allowed_roles
 
 
@@ -185,6 +185,10 @@ def dashboard_view(request, pk=None):
     for item in (dashboard.layout or []):
         widget_key = item.get('type') or item.get('widget_key')
         meta = widgets_registry.get(widget_key, {}) if widget_key else {}
+        if widget_key and meta and not _widget_allowed_for(role, meta):
+            # Заборонену ролі плитку не малюємо взагалі: інакше вона сама просить дані (hx-trigger=load),
+            # отримує 403 — а дюжина таких 403 за хвилину = бан IP клініки (nginx-4xx-flood, 04.11)
+            continue
         config = item.get('config') if isinstance(item.get('config'), dict) else {}
         try:
             from urllib.parse import urlencode

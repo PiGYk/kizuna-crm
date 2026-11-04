@@ -43,10 +43,27 @@ _ASSISTANT_LAYOUT = [
 ]
 
 
+# Рецепція (04.11): записи, рахунки, боржники, вакцини — без виручки й аналітики.
+_RECEPTION_LAYOUT = [
+    {'type': 'kpi_appointments_today',  'widget_id': _wid(), 'x': 0, 'y': 0, 'w': 3, 'h': 2, 'config': {}},
+    {'type': 'kpi_invoices_today',      'widget_id': _wid(), 'x': 3, 'y': 0, 'w': 3, 'h': 2, 'config': {}},
+    {'type': 'kpi_unpaid_invoices',     'widget_id': _wid(), 'x': 6, 'y': 0, 'w': 3, 'h': 2, 'config': {}},
+    {'type': 'kpi_overdue_vaccines',    'widget_id': _wid(), 'x': 9, 'y': 0, 'w': 3, 'h': 2, 'config': {}},
+    {'type': 'list_today_appointments', 'widget_id': _wid(), 'x': 0, 'y': 2, 'w': 6, 'h': 4, 'config': {}},
+    {'type': 'list_recent_invoices',    'widget_id': _wid(), 'x': 6, 'y': 2, 'w': 6, 'h': 4, 'config': {}},
+    {'type': 'list_debtors',            'widget_id': _wid(), 'x': 0, 'y': 6, 'w': 6, 'h': 4, 'config': {}},
+    {'type': 'list_overdue_vaccines',   'widget_id': _wid(), 'x': 6, 'y': 6, 'w': 6, 'h': 4, 'config': {}},
+    {'type': 'chart_appointments_week', 'widget_id': _wid(), 'x': 0, 'y':10, 'w': 8, 'h': 4, 'config': {}},
+    {'type': 'shifts_who_works_now',    'widget_id': _wid(), 'x': 8, 'y':10, 'w': 4, 'h': 2, 'config': {}},
+    {'type': 'quick_actions',           'widget_id': _wid(), 'x': 8, 'y':12, 'w': 4, 'h': 2, 'config': {}},
+]
+
+
 DEFAULT_LAYOUT_BY_ROLE = {
     'admin': _FULL_LAYOUT,
     'doctor': _FULL_LAYOUT,
     'assistant': _ASSISTANT_LAYOUT,
+    'reception': _RECEPTION_LAYOUT,
 }
 
 

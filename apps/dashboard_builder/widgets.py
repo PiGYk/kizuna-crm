@@ -43,8 +43,11 @@ def register(key, **kwargs):
 # HELPERS
 # ======================================================================
 
-ROLES_ALL = ['admin', 'doctor', 'assistant']
+ROLES_ALL = ['admin', 'doctor', 'assistant', 'reception']
 ROLES_FIN = ['admin', 'doctor']  # фінанси приховуємо від асистентів
+# Рецепція (роль з 01.11) приймає оплату й веде боржників — рахунки й борги їй потрібні, виручка й аналітика — ні.
+# Без ролі в цих списках кожен віджет відповідав 403, і 04.11 nginx-4xx-flood забанив IP клініки ANVAR.
+ROLES_DESK = ['admin', 'doctor', 'reception']
 
 CARD_CLASSES = (
     'bg-white rounded-xl border border-gray-200 p-4 h-full '
@@ -232,7 +235,7 @@ def render_kpi_revenue_month(request, config):
     'kpi_invoices_today',
     label='Чеків сьогодні', icon='🧾', category='KPI',
     default_w=3, default_h=2, min_w=2, min_h=2,
-    roles_allowed=ROLES_FIN,
+    roles_allowed=ROLES_DESK,
 )
 def render_kpi_invoices_today(request, config):
     from apps.billing.models import Invoice
@@ -247,7 +250,7 @@ def render_kpi_invoices_today(request, config):
     'kpi_unpaid_invoices',
     label='Несплачено рахунків', icon='⏳', category='KPI',
     default_w=3, default_h=2, min_w=2, min_h=2,
-    roles_allowed=ROLES_FIN,
+    roles_allowed=ROLES_DESK,
 )
 def render_kpi_unpaid_invoices(request, config):
     from apps.billing.models import Invoice
@@ -440,7 +443,7 @@ def render_list_overdue_vaccines(request, config):
     'list_recent_invoices',
     label='Останні чеки', icon='🧾', category='Списки',
     default_w=6, default_h=4, min_w=3, min_h=3,
-    roles_allowed=ROLES_FIN,
+    roles_allowed=ROLES_DESK,
     config_fields=[
         {'name': 'limit', 'label': 'К-сть', 'type': 'number', 'default': 8},
     ],
@@ -563,7 +566,7 @@ def render_list_top_services_revenue(request, config):
     'list_debtors',
     label='Боржники', icon='⚠️', category='Списки',
     default_w=6, default_h=4, min_w=3, min_h=3,
-    roles_allowed=ROLES_FIN,
+    roles_allowed=ROLES_DESK,
 )
 def render_list_debtors(request, config):
     from apps.billing.models import Invoice
