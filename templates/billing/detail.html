@@ -19,6 +19,7 @@
           <span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium bg-green-100 text-green-700">Оплачено</span>
         {% elif invoice.status == 'draft' %}
           <span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium bg-yellow-100 text-yellow-700">Чернетка</span>
+          {% if invoice.amount_paid %}<span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-100 text-amber-900">Внесено {{ invoice.amount_paid|floatformat:0 }} з {{ invoice.total|floatformat:0 }} ₴</span>{% endif %}
         {% else %}
           <span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium bg-gray-100 text-gray-500">Скасовано</span>
         {% endif %}
@@ -148,6 +149,14 @@
     {% endif %}
   </div>
 </div>
+
+{# аванс по чернетці — одразу на рахунку, без «Продовжити редагування» (ANVAR 04.11) #}
+{% if invoice.status == 'draft' and payments %}
+<div class="mb-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3">
+  <div class="mb-1 text-sm text-green-900">Внесено <b class="tabular-nums">{{ invoice.amount_paid }} ₴</b> · до сплати <b class="tabular-nums">{{ invoice.balance_due }} ₴</b></div>
+  {% include 'billing/partials/payments_list.html' %}
+</div>
+{% endif %}
 
 {% if invoice.has_debt %}
 <div class="mb-4">{% include 'billing/partials/debt_box.html' %}</div>

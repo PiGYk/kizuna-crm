@@ -28,9 +28,10 @@
     <span class="text-xs px-2 py-0.5 rounded-full font-medium
       {% if invoice.has_debt %}bg-red-50 text-red-800
       {% elif invoice.status == 'paid' %}bg-green-100 text-green-700
+      {% elif invoice.status == 'draft' and invoice.amount_paid %}bg-amber-100 text-amber-900
       {% elif invoice.status == 'draft' %}bg-yellow-100 text-yellow-700
       {% else %}bg-gray-100 text-gray-500{% endif %}">
-      {% if invoice.has_debt %}Борг {{ invoice.balance_due|floatformat:0 }} ₴{% elif invoice.status == 'paid' %}Оплачено{% elif invoice.status == 'draft' %}Чернетка{% else %}Скасовано{% endif %}
+      {% if invoice.has_debt %}Борг {{ invoice.balance_due|floatformat:0 }} ₴{% elif invoice.status == 'paid' %}Оплачено{% elif invoice.status == 'draft' and invoice.amount_paid %}Внесено {{ invoice.amount_paid|floatformat:0 }} з {{ invoice.total|floatformat:0 }} ₴{% elif invoice.status == 'draft' %}Чернетка{% else %}Скасовано{% endif %}
     </span>
   </header>
 
@@ -105,6 +106,12 @@
       </div>
     </div>
 
+    {% if invoice.status == 'draft' and payments %}
+    <div class="px-3 pt-3"><div class="rounded-2xl border border-green-200 bg-green-50 px-3 py-2">
+      <div class="mb-1 text-sm text-green-900">Внесено <b class="tabular-nums">{{ invoice.amount_paid }} ₴</b> · до сплати <b class="tabular-nums">{{ invoice.balance_due }} ₴</b></div>
+      {% include 'billing/partials/payments_list.html' %}
+    </div></div>
+    {% endif %}
     {% if invoice.has_debt %}
     <div class="px-3 pt-3">{% include 'billing/partials/debt_box.html' %}</div>
     {% endif %}

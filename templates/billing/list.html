@@ -155,6 +155,8 @@
             {% else %}
               <span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium bg-yellow-100 text-yellow-700">Чернетка</span>
             {% endif %}
+            {# аванс видно одразу в списку (ANVAR 04.11) #}
+            {% if inv.amount_paid %}<div class="mt-1 text-[11px] font-medium text-amber-900 whitespace-nowrap" title="Аванс по рахунку">внесено {{ inv.amount_paid|floatformat:0 }} · до сплати {{ inv.balance_due|floatformat:0 }} ₴</div>{% endif %}
           {% else %}
             <span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium bg-gray-100 text-gray-500">Скасовано</span>
           {% endif %}
