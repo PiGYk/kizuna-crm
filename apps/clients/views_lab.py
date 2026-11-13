@@ -8,8 +8,8 @@ from django.template.loader import render_to_string
 from django.views.decorators.http import require_POST
 
 from .forms import LabResultForm
-from .lab_panels import (DESCRIPTIVE, PANELS, learn_norms, merge_rows, rows_from_post, template_from_post,
-                         template_rows)
+from .lab_panels import (COLLECTION, DESCRIPTIVE, EXTRA, PANELS, annotate, extra_from_post, learn_norms, merge_rows,
+                         rows_from_post, template_from_post, template_rows)
 from .models import LabResult, Patient
 
 
@@ -19,8 +19,23 @@ def _lab_or_404(request, pk):
 
 _MATERIAL_HINT = {
     'biochemistry': 'напр. сироватка крові', 'hematology': 'напр. кров з ЕДТА',
-    'cytology': 'напр. мазок-відбиток, пунктат', 'histology': 'напр. біоптат шкіри', 'other': 'напр. сеча',
+    'cytology': 'напр. мазок-відбиток, пунктат', 'histology': 'напр. біоптат шкіри', 'other': 'напр. кал',
 }
+
+
+def _extra_initial(request, lab):
+    """Поля шапки для форми: з повторного показу (POST), зі збереженого бланку, або підстановки нового:
+    прилад — як в останньому такому бланку клініки, виконавець — хто заповнює."""
+    if lab.panel not in EXTRA:
+        return {}
+    if request.method == 'POST':
+        return {k: request.POST.get(f'x_{k}', '') for k, _ in EXTRA[lab.panel]}
+    if lab.pk:
+        return dict(lab.extra or {})
+    last = (LabResult.objects.filter(patient__client__organization=request.organization, panel=lab.panel)
+            .exclude(extra={}).order_by('-pk').values_list('extra', flat=True).first()) or {}
+    return {'device': last.get('device', ''),
+            'performer': request.user.get_full_name() or request.user.get_username()}
 
 
 def _render_form(request, lab, form, rows):
@@ -28,9 +43,10 @@ def _render_form(request, lab, form, rows):
     species = lab.patient.species
     form.fields['material'].widget.attrs['placeholder'] = _MATERIAL_HINT.get(lab.panel, '')
     if lab.panel == 'other':
-        form.fields['title'].widget.attrs['placeholder'] = 'напр. Загальний аналіз сечі'
+        form.fields['title'].widget.attrs['placeholder'] = 'напр. Копрограма'
     return render(request, 'clients/lab_form.html', {
-        'lab': lab, 'patient': lab.patient, 'form': form, 'rows': rows,
+        'lab': lab, 'patient': lab.patient, 'form': form, 'rows': annotate(rows),
+        'has_extra': lab.panel in EXTRA, 'x': _extra_initial(request, lab), 'collection_choices': COLLECTION,
         'descriptive': lab.panel in DESCRIPTIVE,
         'has_norms': species in ('dog', 'cat') or bool((org.lab_norms or {}).get(species)),
         'own_template': bool((org.lab_templates or {}).get(lab.panel, {}).get(species)),
@@ -43,6 +59,10 @@ def _render_form(request, lab, form, rows):
 def _save(request, lab, form):
     lab = form.save(commit=False)
     lab.rows = rows_from_post(request.POST)
+    if lab.panel in EXTRA:
+        lab.extra = extra_from_post(lab.panel, request.POST)
+        if lab.panel == 'urinalysis':   # матеріал — зі способу забору: у списках і друці «сеча, цистоцентез»
+            lab.material = ', '.join(filter(None, ['сеча', lab.extra.get('collection', '')]))
     doctor_id = request.POST.get('doctor') or None
     lab.doctor = (get_object_or_404(get_user_model(), pk=doctor_id, organization=request.organization)
                   if doctor_id else None)
@@ -103,6 +123,17 @@ def lab_edit(request, pk):
     return _render_form(request, lab, form, rows)
 
 
+def _extra_for_print(lab):
+    x = dict(lab.extra or {})
+    if x.get('collected_at'):
+        from datetime import datetime
+        try:
+            x['collected_at'] = datetime.fromisoformat(x['collected_at']).strftime('%d.%m.%Y %H:%M')
+        except ValueError:
+            pass
+    return x
+
+
 @login_required
 def lab_pdf(request, pk):
     lab = _lab_or_404(request, pk)
@@ -114,6 +145,7 @@ def lab_pdf(request, pk):
     from django.conf import settings
     html = render_to_string('clients/lab_pdf.html', {
         'lab': lab, 'patient': lab.patient, 'clinic': request.organization, 'rows': lab.rows_with_flags(),
+        'x': _extra_for_print(lab),
         'descriptive': lab.panel in DESCRIPTIVE,
         'font_dir': (Path(settings.BASE_DIR) / 'static' / 'fonts' / 'fixel').as_uri(),
     })

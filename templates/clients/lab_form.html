@@ -26,7 +26,7 @@
   <form method="post" id="lab-form" class="rounded-xl border border-gray-200 bg-white">
     {% csrf_token %}
     <input type="hidden" name="panel" value="{{ lab.panel }}">
-    <div class="grid grid-cols-2 gap-3 border-b border-gray-100 p-4 sm:grid-cols-3 sm:gap-4 md:p-5">
+    <div class="grid grid-cols-2 gap-3 border-b border-gray-100 p-4 sm:grid-cols-3 sm:gap-4 md:grid-cols-2 md:p-5 lg:grid-cols-3">
       <div>
         <label for="id_date" class="text-xs font-medium uppercase tracking-wide text-gray-600">Дата</label>
         <div class="mt-1">{{ form.date }}</div>
@@ -38,33 +38,58 @@
           {% for d in doctors %}<option value="{{ d.pk }}"{% if doctor_value == d.pk|stringformat:"d" %} selected{% endif %}>{{ d.get_full_name|default:d.username }}</option>{% endfor %}
         </select>
       </div>
+      {% if has_extra %}
+      {# Шапка бланку сечі (ANVAR 08.11): матеріал складається сам — «сеча, <спосіб забору>» #}
+      <div>
+        <label for="x-performer" class="text-xs font-medium uppercase tracking-wide text-gray-600">Виконавець</label>
+        <input id="x-performer" type="text" name="x_performer" value="{{ x.performer|default:'' }}" maxlength="80" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-brand-gold md:text-sm">
+      </div>
+      <div>
+        <label for="x-collection" class="text-xs font-medium uppercase tracking-wide text-gray-600">Забір</label>
+        <select id="x-collection" name="x_collection" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-brand-gold md:text-sm">
+          <option value="">— не вказано —</option>
+          {% for c in collection_choices %}<option value="{{ c }}"{% if x.collection == c %} selected{% endif %}>{{ c|capfirst }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-span-2 sm:col-span-1">
+        <label for="x-collected-at" class="text-xs font-medium uppercase tracking-wide text-gray-600">Дата й час забору</label>
+        <input id="x-collected-at" type="datetime-local" name="x_collected_at" value="{{ x.collected_at|default:'' }}" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-brand-gold md:text-sm">
+      </div>
+      <div class="col-span-2 sm:col-span-1">
+        <label for="x-device" class="text-xs font-medium uppercase tracking-wide text-gray-600">Аналізатор / смужка</label>
+        <input id="x-device" type="text" name="x_device" value="{{ x.device|default:'' }}" maxlength="60" placeholder="напр. UA-60V, Strips-15" class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-base placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-gold md:text-sm">
+      </div>
+      {% else %}
       <div class="col-span-2 sm:col-span-1">
         <label for="id_material" class="text-xs font-medium uppercase tracking-wide text-gray-600">Матеріал</label>
         <div class="mt-1">{{ form.material }}</div>
       </div>
+      {% endif %}
     </div>
 
     <div id="lab-table" class="{% if descriptive and not rows %}hidden{% endif %} border-b border-gray-100 px-4 pb-2 pt-3 md:px-5">
-      <div class="hidden grid-cols-[minmax(0,1fr)_7rem_1.5rem_13rem] gap-x-3 pb-1 text-xs font-medium text-gray-600 md:grid">
+      <div class="hidden grid-cols-[minmax(0,1fr)_7rem_1.5rem_13rem] gap-x-3 pb-1 text-xs font-medium text-gray-600 lg:grid">
         <span>Показник</span><span class="text-right">Результат</span><span></span><span>Норма, від – до</span>
       </div>
       <div id="lab-rows" class="divide-y divide-gray-200">
         {% for r in rows %}
-        <div class="lab-row -mx-2 grid grid-cols-[minmax(0,1fr)_6.5rem_1.5rem] items-center gap-x-3 gap-y-1 rounded-md px-2 py-2 focus-within:bg-amber-50/60 md:grid-cols-[minmax(0,1fr)_7rem_1.5rem_13rem] md:py-1.5">
+        {% ifchanged r.group %}{% if r.group_label %}<div class="lab-group pb-1 pt-4 text-xs font-semibold uppercase tracking-wide text-brand-dark first:pt-1">{{ r.group_label }}</div>{% endif %}{% endifchanged %}
+        <div class="lab-row -mx-2 grid grid-cols-[minmax(0,1fr)_6.5rem_1.5rem] items-center gap-x-3 gap-y-1 rounded-md px-2 py-2 focus-within:bg-amber-50/60 lg:grid-cols-[minmax(0,1fr)_7rem_1.5rem_13rem] lg:py-1.5">
           <input type="hidden" name="row_code" value="{{ r.code }}">
-          <div class="order-1 flex min-w-0 gap-1">
+          <input type="hidden" name="row_group" value="{{ r.group|default:'' }}">
+          <div class="order-1 flex min-w-0 flex-col lg:flex-row lg:gap-1">
             <input type="text" name="row_name" value="{{ r.name }}" maxlength="80" placeholder="Показник" aria-label="Назва показника" class="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1.5 text-sm text-brand-dark hover:border-gray-200 focus:border-gray-300 focus:bg-white focus:outline-none">
-            <input type="text" name="row_unit" value="{{ r.unit }}" maxlength="20" placeholder="од." aria-label="Одиниця" class="w-[4.5rem] shrink-0 rounded-md border border-transparent bg-transparent px-1 py-1.5 text-xs text-gray-600 hover:border-gray-200 focus:border-gray-300 focus:bg-white focus:outline-none">
+            <input type="text" name="row_unit" value="{{ r.unit }}" maxlength="20" placeholder="од." aria-label="Одиниця" class="w-full shrink-0 rounded-md border border-transparent bg-transparent px-2 py-0.5 text-xs text-gray-600 hover:border-gray-200 focus:border-gray-300 focus:bg-white focus:outline-none lg:w-[4.5rem] lg:px-1 lg:py-1.5">
           </div>
-          <input type="text" name="row_value" value="{{ r.value }}" maxlength="30" inputmode="decimal" aria-label="Результат: {{ r.name|default:'показник' }}"
-                 class="lab-value order-2 h-11 w-full rounded-md border border-gray-300 bg-white px-2 text-right text-base tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-gold md:h-8 md:text-sm">
+          <input type="text" name="row_value" value="{{ r.value }}" maxlength="30" inputmode="{% if r.textual %}text{% else %}decimal{% endif %}" aria-label="Результат: {{ r.name|default:'показник' }}"
+                 class="lab-value order-2 h-11 w-full rounded-md border border-gray-300 bg-white px-2 text-right text-base tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-gold lg:h-8 lg:text-sm">
           <span class="lab-flag order-3 flex items-center justify-center" aria-live="polite"></span>
-          <div class="order-4 col-span-3 flex items-center gap-1.5 text-xs text-gray-600 md:col-span-1">
-            <span class="md:hidden">Норма</span>
-            <input type="text" name="row_low" value="{{ r.low }}" maxlength="15" inputmode="decimal" aria-label="Норма від" class="lab-low h-9 w-16 rounded-md border border-gray-200 bg-white px-1.5 text-right text-xs tabular-nums text-gray-700 md:h-7">
+          <div class="order-4 col-span-3 flex items-center gap-1.5 text-xs text-gray-600 lg:col-span-1">
+            <span class="lg:hidden">Норма</span>
+            <input type="text" name="row_low" value="{{ r.low }}" maxlength="15" inputmode="{% if r.textual %}text{% else %}decimal{% endif %}" aria-label="Норма від" class="lab-low h-9 {% if r.textual %}w-24{% else %}w-16{% endif %} rounded-md border border-gray-200 bg-white px-1.5 text-right text-xs tabular-nums text-gray-700 lg:h-7">
             <span>–</span>
-            <input type="text" name="row_high" value="{{ r.high }}" maxlength="15" inputmode="decimal" aria-label="Норма до" class="lab-high h-9 w-16 rounded-md border border-gray-200 bg-white px-1.5 text-right text-xs tabular-nums text-gray-700 md:h-7">
-            <button type="button" class="lab-del ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-red-700 md:h-7 md:w-7" aria-label="Прибрати показник" title="Прибрати показник"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+            <input type="text" name="row_high" value="{{ r.high }}" maxlength="15" inputmode="decimal" aria-label="Норма до" class="lab-high h-9 w-16 rounded-md border border-gray-200 bg-white px-1.5 text-right text-xs tabular-nums text-gray-700 lg:h-7">
+            <button type="button" class="lab-del ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-red-700 lg:h-7 lg:w-7" aria-label="Прибрати показник" title="Прибрати показник"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
           </div>
         </div>
         {% endfor %}
@@ -92,7 +117,7 @@
         <div class="mt-1">{{ form.title }}</div>
       </div>
       <div>
-        <label for="id_description" class="text-xs font-medium uppercase tracking-wide text-gray-600">{% if descriptive %}Опис (мікроскопічна картина){% else %}Коментар{% endif %}</label>
+        <label for="id_description" class="text-xs font-medium uppercase tracking-wide text-gray-600">{% if descriptive %}Опис (мікроскопічна картина){% elif lab.panel == 'urinalysis' %}Коментар до мікроскопії{% else %}Коментар{% endif %}</label>
         <div class="mt-1">{{ form.description }}</div>
       </div>
       <div>
@@ -116,21 +141,22 @@
 </div>
 
 <template id="lab-row-custom">
-  <div class="lab-row -mx-2 grid grid-cols-[minmax(0,1fr)_6.5rem_1.5rem] items-center gap-x-3 gap-y-1 rounded-md px-2 py-2 focus-within:bg-amber-50/60 md:grid-cols-[minmax(0,1fr)_7rem_1.5rem_13rem] md:py-1.5">
+  <div class="lab-row -mx-2 grid grid-cols-[minmax(0,1fr)_6.5rem_1.5rem] items-center gap-x-3 gap-y-1 rounded-md px-2 py-2 focus-within:bg-amber-50/60 lg:grid-cols-[minmax(0,1fr)_7rem_1.5rem_13rem] lg:py-1.5">
           <input type="hidden" name="row_code" value="">
-          <div class="order-1 flex min-w-0 gap-1">
+          <input type="hidden" name="row_group" value="">
+          <div class="order-1 flex min-w-0 flex-col lg:flex-row lg:gap-1">
             <input type="text" name="row_name" maxlength="80" placeholder="Показник" aria-label="Назва показника" class="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1.5 text-sm text-brand-dark hover:border-gray-200 focus:border-gray-300 focus:bg-white focus:outline-none">
-            <input type="text" name="row_unit" maxlength="20" placeholder="од." aria-label="Одиниця" class="w-[4.5rem] shrink-0 rounded-md border border-transparent bg-transparent px-1 py-1.5 text-xs text-gray-600 hover:border-gray-200 focus:border-gray-300 focus:bg-white focus:outline-none">
+            <input type="text" name="row_unit" maxlength="20" placeholder="од." aria-label="Одиниця" class="w-full shrink-0 rounded-md border border-transparent bg-transparent px-2 py-0.5 text-xs text-gray-600 hover:border-gray-200 focus:border-gray-300 focus:bg-white focus:outline-none lg:w-[4.5rem] lg:px-1 lg:py-1.5">
           </div>
           <input type="text" name="row_value" maxlength="30" inputmode="decimal" aria-label="Результат"
-                 class="lab-value order-2 h-11 w-full rounded-md border border-gray-300 bg-white px-2 text-right text-base tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-gold md:h-8 md:text-sm">
+                 class="lab-value order-2 h-11 w-full rounded-md border border-gray-300 bg-white px-2 text-right text-base tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-gold lg:h-8 lg:text-sm">
           <span class="lab-flag order-3 flex items-center justify-center" aria-live="polite"></span>
-          <div class="order-4 col-span-3 flex items-center gap-1.5 text-xs text-gray-600 md:col-span-1">
-            <span class="md:hidden">Норма</span>
-            <input type="text" name="row_low" maxlength="15" inputmode="decimal" aria-label="Норма від" class="lab-low h-9 w-16 rounded-md border border-gray-200 bg-white px-1.5 text-right text-xs tabular-nums text-gray-700 md:h-7">
+          <div class="order-4 col-span-3 flex items-center gap-1.5 text-xs text-gray-600 lg:col-span-1">
+            <span class="lg:hidden">Норма</span>
+            <input type="text" name="row_low" maxlength="15" inputmode="decimal" aria-label="Норма від" class="lab-low h-9 w-16 rounded-md border border-gray-200 bg-white px-1.5 text-right text-xs tabular-nums text-gray-700 lg:h-7">
             <span>–</span>
-            <input type="text" name="row_high" maxlength="15" inputmode="decimal" aria-label="Норма до" class="lab-high h-9 w-16 rounded-md border border-gray-200 bg-white px-1.5 text-right text-xs tabular-nums text-gray-700 md:h-7">
-            <button type="button" class="lab-del ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-red-700 md:h-7 md:w-7" aria-label="Прибрати показник" title="Прибрати показник"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+            <input type="text" name="row_high" maxlength="15" inputmode="decimal" aria-label="Норма до" class="lab-high h-9 w-16 rounded-md border border-gray-200 bg-white px-1.5 text-right text-xs tabular-nums text-gray-700 lg:h-7">
+            <button type="button" class="lab-del ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-red-700 lg:h-7 lg:w-7" aria-label="Прибрати показник" title="Прибрати показник"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
           </div>
         </div>
 </template>
@@ -142,13 +168,19 @@
     var t = String(text || '').trim().replace(',', '.').replace(/\s+/g, '');
     return /^-?\d+(\.\d+)?$/.test(t) ? parseFloat(t) : null;
   }
+  // норма словом «негатив» (сеча): інший результат — поза нормою (lab_panels._NEGATIVE)
+  var NEG = ['негатив', 'негативно', 'негативний', 'neg', 'negative', 'не виявлено', 'немає', 'нема', '-', '−', '—', 'норма', 'norm', 'normal', 'n'];
+  function isNeg(text) { return NEG.indexOf(String(text || '').trim().toLowerCase()) >= 0; }
   var UP = '<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></svg>';
   var DOWN = '<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>';
   var HIGH = ['border-red-600', 'bg-red-50', 'text-red-800', 'font-semibold'], LOW = ['border-blue-600', 'bg-blue-50', 'text-blue-800', 'font-semibold'];
   function mark(row) {
     var input = row.querySelector('.lab-value'), f = row.querySelector('.lab-flag');
-    var v = num(input.value), lo = num(row.querySelector('.lab-low').value), hi = num(row.querySelector('.lab-high').value);
-    var flag = v === null ? '' : (hi !== null && v > hi ? 'high' : (lo !== null && v < lo ? 'low' : ''));
+    var lowT = row.querySelector('.lab-low').value, highT = row.querySelector('.lab-high').value;
+    var v = num(input.value), lo = num(lowT), hi = num(highT), raw = input.value.trim();
+    var flag = v === null
+      ? (raw && isNeg(lowT) && !highT.trim() && !isNeg(raw) ? 'high' : '')
+      : (hi !== null && v > hi ? 'high' : (lo !== null && v < lo ? 'low' : ''));
     row.dataset.flag = flag;
     f.innerHTML = flag === 'high' ? UP : (flag === 'low' ? DOWN : '');
     f.title = flag === 'high' ? 'Вище норми' : (flag === 'low' ? 'Нижче норми' : '');

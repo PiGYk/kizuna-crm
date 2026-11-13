@@ -16,6 +16,7 @@ class LabResult(models.Model):
     class Panel(models.TextChoices):
         BIOCHEMISTRY = 'biochemistry', 'Біохімія крові'
         HEMATOLOGY = 'hematology', 'Загальний аналіз крові'
+        URINALYSIS = 'urinalysis', 'Загальний аналіз сечі'
         CYTOLOGY = 'cytology', 'Цитологія'
         HISTOLOGY = 'histology', 'Гістологія'
         OTHER = 'other', 'Інший аналіз'
@@ -32,6 +33,8 @@ class LabResult(models.Model):
     rows = models.JSONField('Показники', default=list, blank=True)
     description = models.TextField('Опис', blank=True)
     conclusion = models.TextField('Висновок', blank=True)
+    # Поля шапки окремих бланків (lab_panels.EXTRA): сеча — забір, його час, аналізатор/смужка, виконавець
+    extra = models.JSONField('Додатково', default=dict, blank=True)
     doctor = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='lab_results', verbose_name='Лікар',
@@ -63,9 +66,9 @@ class LabResult(models.Model):
         return SHORT.get(self.panel, 'АН')
 
     def rows_with_flags(self):
-        from .lab_panels import flag, uk_number
-        return [{**r, 'flag': flag(r), 'value_uk': uk_number(r.get('value')), 'low_uk': uk_number(r.get('low')),
-                 'high_uk': uk_number(r.get('high'))} for r in self.rows or []]
+        from .lab_panels import annotate, flag, norm_display, uk_number
+        return [{**r, 'flag': flag(r), 'value_uk': uk_number(r.get('value')), 'norm': norm_display(r)}
+                for r in annotate(self.rows or [])]
 
     @property
     def out_of_range(self):

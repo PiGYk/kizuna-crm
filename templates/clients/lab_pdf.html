@@ -37,6 +37,8 @@
     .results tr.out.low td { background: #e8eefd; }
     .results tr.out.low td:first-child { border-left-color: #1d4ed8; }
     .results tr.out .num { font-weight: bold; }
+    .results tr.group td { font-size: 9.5px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.06em; color: #7a5c00;
+                           padding: 10px 6px 4px; border-bottom: 1px solid #c9c9c9; background: none; }
     .arrow { font-weight: bold; text-align: center; width: 18px; }
     .arrow.high { color: #b42318; }
     .arrow.low { color: #1d4ed8; }
@@ -64,7 +66,7 @@
     </td>
     <td>
       <div class="doc-title">{{ lab.display_title }}</div>
-      <div class="doc-date">{{ lab.date|date:"d.m.Y" }}</div>
+      <div class="doc-date">№ {{ lab.pk }} · {{ lab.date|date:"d.m.Y" }}</div>
     </td>
   </tr>
 </table>
@@ -83,7 +85,9 @@
 
 <div class="meta">
   {% if lab.material %}Матеріал: <strong>{{ lab.material }}</strong>{% endif %}
-  {% if lab.material and lab.doctor %} · {% endif %}
+  {% if x.collected_at %} · Забір: <strong>{{ x.collected_at }}</strong>{% endif %}
+  {% if x.device %} · Аналізатор: <strong>{{ x.device }}</strong>{% endif %}
+  {% if lab.material and lab.doctor or x.collected_at and lab.doctor or x.device and lab.doctor %} · {% endif %}
   {% if lab.doctor %}Лікар: <strong>{{ lab.doctor.get_full_name|default:lab.doctor.username }}</strong>{% endif %}
 </div>
 
@@ -94,22 +98,23 @@
   </thead>
   <tbody>
     {% for r in rows %}
+    {% ifchanged r.group %}{% if r.group_label %}<tr class="group"><td colspan="5">{{ r.group_label }}</td></tr>{% endif %}{% endifchanged %}
     <tr class="{% if r.flag %}out {{ r.flag }}{% endif %}">
       <td>{{ r.name }}</td>
       <td class="num">{{ r.value_uk }}</td>
       <td class="arrow {{ r.flag }}">{% if r.flag == 'high' %}↑{% elif r.flag == 'low' %}↓{% endif %}</td>
       <td class="unit">{{ r.unit }}</td>
-      <td class="norm">{% if r.low or r.high %}{{ r.low_uk|default:"…" }} – {{ r.high_uk|default:"…" }}{% endif %}</td>
+      <td class="norm">{{ r.norm }}</td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
-<div class="legend">↑ вище норми · ↓ нижче норми. Норми — референтні інтервали, прийняті клінікою.</div>
+<div class="legend">↑ вище норми{% if lab.panel == 'urinalysis' %} або не негатив{% endif %} · ↓ нижче норми. Норми — референтні інтервали, прийняті клінікою.</div>
 {% endif %}
 
 {% if lab.description %}
 <div class="section">
-  <div class="section-label">{% if descriptive %}Опис (мікроскопічна картина){% else %}Коментар{% endif %}</div>
+  <div class="section-label">{% if descriptive %}Опис (мікроскопічна картина){% elif lab.panel == 'urinalysis' %}Коментар до мікроскопії{% else %}Коментар{% endif %}</div>
   <div class="section-body">{{ lab.description }}</div>
 </div>
 {% endif %}
@@ -123,7 +128,7 @@
 
 <table class="signature-table" cellpadding="0" cellspacing="0">
   <tr>
-    <td>Лікар{% if lab.doctor %}: <strong>{{ lab.doctor.get_full_name|default:lab.doctor.username }}</strong>{% endif %}</td>
+    <td>{% if x.performer %}Виконавець: <strong>{{ x.performer }}</strong><br>{% endif %}Лікар{% if lab.doctor %}: <strong>{{ lab.doctor.get_full_name|default:lab.doctor.username }}</strong>{% endif %}</td>
     <td style="text-align:right">Підпис <span class="sign-line"></span><span class="stamp">М.П.</span></td>
   </tr>
 </table>

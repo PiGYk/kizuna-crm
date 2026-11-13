@@ -51,19 +51,73 @@ _HEMATOLOGY = [
     ('plt', 'Тромбоцити (PLT)', '×10⁹/л', {'dog': ('148', '484'), 'cat': ('151', '600')}),
 ]
 
+# Загальний аналіз сечі (ANVAR 08.11.2026 — бланк під аналізатор сечі UA-60V): три розділи, як на папері.
+# Коди з префіксом u_ — бо glu/ca/crea вже зайняті біохімією, а норми клініки (lab_norms) ключуються кодом.
+# Норма словом («негатив») — у полі «від», «до» порожнє: результат не-негатив позначається так само, як поза нормою.
+# Типові норми — лише загальновизнані (pH, питома вага, уробіліноген, осад); решту клініка вписує під свій прилад.
+_NEG = {'dog': ('негатив', ''), 'cat': ('негатив', '')}
+_URINALYSIS = [
+    ('u_col', 'Колір', '', {'dog': ('жовтий', ''), 'cat': ('жовтий', '')}, 'phys'),
+    ('u_cla', 'Прозорість', '', {'dog': ('прозора', ''), 'cat': ('прозора', '')}, 'phys'),
+    ('u_vol', "Об'єм зразка", 'мл', {}, 'phys'),
+    ('u_sgr', 'Питома вага (рефрактометр)', '', {'dog': ('1.015', '1.045'), 'cat': ('1.035', '1.060')}, 'phys'),
+    ('u_leu', 'Лейкоцити (LEU)', 'кл/мкл', _NEG, 'chem'),
+    ('u_uro', 'Уробіліноген (URO)', 'мкмоль/л', {'dog': ('3.2', '16'), 'cat': ('3.2', '16')}, 'chem'),
+    ('u_alb', 'Альбумін / мікроальбумін (ALB/MA)', 'мг/л', {}, 'chem'),
+    ('u_pro', 'Білок (PRO)', 'г/л', _NEG, 'chem'),
+    ('u_bil', 'Білірубін (BIL)', 'мкмоль/л', _NEG, 'chem'),
+    ('u_glu', 'Глюкоза (GLU)', 'ммоль/л', _NEG, 'chem'),
+    ('u_asc', 'Аскорбінова кислота (ASC)', 'ммоль/л', _NEG, 'chem'),
+    ('u_sg', 'Відносна густина, смужка (SG)', '', {}, 'chem'),
+    ('u_ket', 'Кетонові тіла (KET)', 'ммоль/л', _NEG, 'chem'),
+    ('u_nit', 'Нітрити (NIT)', '', _NEG, 'chem'),
+    ('u_cre', 'Креатинін сечі (CRE)', 'ммоль/л', {}, 'chem'),
+    ('u_ph', 'Кислотність (pH)', '', {'dog': ('5.5', '7.5'), 'cat': ('6.0', '7.5')}, 'chem'),
+    ('u_blo', 'Кров / гемоглобін (BLO)', 'ер/мкл', _NEG, 'chem'),
+    ('u_ca', 'Кальцій (CA)', 'ммоль/л', {}, 'chem'),
+    ('u_acr', 'Альбумін / креатинін (ACR)', 'мг/г', {}, 'chem'),
+    ('u_rbc', 'Еритроцити', 'у п/з', {'dog': ('0', '5'), 'cat': ('0', '5')}, 'micro'),
+    ('u_wbc', 'Лейкоцити', 'у п/з', {'dog': ('0', '5'), 'cat': ('0', '5')}, 'micro'),
+    ('u_epi', 'Епітелій', '', {}, 'micro'),
+    ('u_cast', 'Циліндри', '', {}, 'micro'),
+    ('u_crys', 'Кристали', '', {}, 'micro'),
+    ('u_bact', 'Бактерії', '', {}, 'micro'),
+    ('u_muc', 'Слиз / інше', '', {}, 'micro'),
+]
+GROUPS = {'phys': 'Фізичні властивості', 'chem': 'Хімічні показники (тест-смужка)', 'micro': 'Мікроскопія осаду'}
+_GROUP_ORDER = {'phys': 0, 'chem': 1, 'micro': 2}
+# результат числом — цифрова клавіатура; решта показників сечі — словом («негатив», «1+», «солом'яний»)
+_NUMERIC_URINE = {'u_vol', 'u_sgr', 'u_sg', 'u_ph', 'u_rbc', 'u_wbc'}
+
 PANELS = {
     'biochemistry': _BIOCHEMISTRY,
     'hematology': _HEMATOLOGY,
+    'urinalysis': _URINALYSIS,
     'cytology': [],
     'histology': [],
     'other': [],
 }
 # у цих бланках головне — опис під мікроскопом і висновок, а не таблиця чисел
 DESCRIPTIVE = ('cytology', 'histology')
-SHORT = {'biochemistry': 'Б/Х', 'hematology': 'ЗАК', 'cytology': 'ЦИТ', 'histology': 'ГІСТ', 'other': 'АН'}
+SHORT = {'biochemistry': 'Б/Х', 'hematology': 'ЗАК', 'urinalysis': 'ЗАС', 'cytology': 'ЦИТ', 'histology': 'ГІСТ',
+         'other': 'АН'}
+
+# Поля шапки, які є лише в окремих бланках (LabResult.extra): сеча — забір, його час, прилад, виконавець
+EXTRA = {'urinalysis': (('collection', 40), ('collected_at', 16), ('device', 60), ('performer', 80))}
+COLLECTION = ('вільне сечовипускання', 'цистоцентез', 'катетер')
 
 MAX_ROWS = 80
-_LIMITS = {'code': 20, 'name': 80, 'unit': 20, 'value': 30, 'low': 15, 'high': 15}
+_LIMITS = {'code': 20, 'name': 80, 'unit': 20, 'value': 30, 'low': 15, 'high': 15, 'group': 10}
+# слова, що означають «нічого не знайдено» — для показників із нормою словом
+_NEGATIVE = {'негатив', 'негативно', 'негативний', 'neg', 'negative', 'не виявлено', 'немає', 'нема', '-', '−', '—',
+             'норма', 'norm', 'normal', 'n'}
+
+
+def _spec(panel):
+    """(code, назва, одиниця, норми, розділ) — розділ є лише в бланках із розділами (сеча)."""
+    for item in PANELS.get(panel, []):
+        code, name, unit, norms, *rest = item
+        yield code, name, unit, norms, (rest[0] if rest else '')
 
 
 def template_rows(panel, species, clinic_norms=None, clinic_templates=None):
@@ -71,7 +125,7 @@ def template_rows(panel, species, clinic_norms=None, clinic_templates=None):
     «у різних аналізаторів різні показники й норми»): для цього виду, інакше перелік з іншого виду;
     нема свого — типовий. Норма: збережена клінікою для виду → зі свого бланку → типова."""
     own = (clinic_norms or {}).get(species, {})
-    typical = {code: norms.get(species, ('', '')) for code, _, _, norms in PANELS.get(panel, [])}
+    typical = {code: norms.get(species, ('', '')) for code, _, _, norms, _ in _spec(panel)}
     tpl = (clinic_templates or {}).get(panel) or {}
     if tpl:
         base = tpl.get(species)
@@ -83,12 +137,13 @@ def template_rows(panel, species, clinic_norms=None, clinic_templates=None):
             code = r.get('code', '')
             stored = (r.get('low', ''), r.get('high', '')) if same_species else ('', '')
             low, high = own.get(code) or (stored if any(stored) else typical.get(code, ('', '')))
-            rows.append({'code': code, 'name': r.get('name', ''), 'unit': r.get('unit', ''), 'value': '', 'low': low, 'high': high})
+            rows.append({'code': code, 'name': r.get('name', ''), 'unit': r.get('unit', ''), 'value': '', 'low': low,
+                         'high': high, 'group': r.get('group', '')})
         return rows
     rows = []
-    for code, name, unit, norms in PANELS.get(panel, []):
+    for code, name, unit, norms, group in _spec(panel):
         low, high = own.get(code) or norms.get(species, ('', ''))
-        rows.append({'code': code, 'name': name, 'unit': unit, 'value': '', 'low': low, 'high': high})
+        rows.append({'code': code, 'name': name, 'unit': unit, 'value': '', 'low': low, 'high': high, 'group': group})
     return rows
 
 
@@ -97,12 +152,15 @@ def merge_rows(panel, species, saved, clinic_norms=None, clinic_templates=None):
     have = {r.get('code') or r.get('name') for r in saved}
     extra = [r for r in template_rows(panel, species, clinic_norms, clinic_templates)
              if (r['code'] or r['name']) not in have]
-    return list(saved) + extra
+    rows = list(saved) + extra
+    if any(r.get('group') for r in rows):   # дописані показники — у свій розділ, а не в кінець бланку
+        rows.sort(key=lambda r: _GROUP_ORDER.get(r.get('group', ''), 9))
+    return rows
 
 
 def template_from_post(post):
     """Перелік показників для «запам'ятати як бланк клініки»: назви, одиниці, норми — без результатів."""
-    return [{k: r[k] for k in ('code', 'name', 'unit', 'low', 'high')} for r in rows_from_post(post, keep_empty=True)]
+    return [{k: r[k] for k in ('code', 'name', 'unit', 'low', 'high', 'group')} for r in rows_from_post(post, keep_empty=True)]
 
 
 def rows_from_post(post, keep_empty=False):
@@ -125,10 +183,18 @@ def to_number(text):
         return None
 
 
+def _negative(text):
+    return str(text or '').strip().lower() in _NEGATIVE
+
+
 def flag(row):
-    """'high' / 'low' / '' — лише коли і значення, і межа читаються як числа."""
+    """'high' / 'low' / '' — коли і значення, і межа читаються як числа. Норма словом «негатив» (сеча):
+    будь-який інший результат («1+», «слід», «позитив») — 'high'."""
     value = to_number(row.get('value', ''))
     if value is None:
+        raw, low = str(row.get('value') or '').strip(), row.get('low', '')
+        if raw and _negative(low) and not str(row.get('high') or '').strip() and not _negative(raw):
+            return 'high'
         return ''
     high, low = to_number(row.get('high', '')), to_number(row.get('low', ''))
     if high is not None and value > high:
@@ -143,7 +209,7 @@ def learn_norms(rows, species, clinic_norms):
     оновлений словник або None, якщо нічого не змінилось."""
     if not species:
         return None
-    defaults = {code: norms.get(species, ('', '')) for panel in PANELS.values() for code, _, _, norms in panel}
+    defaults = {code: norms.get(species, ('', '')) for panel in PANELS for code, _, _, norms, _ in _spec(panel)}
     norms = {k: dict(v) for k, v in (clinic_norms or {}).items()}
     own = norms.setdefault(species, {})
     changed = False
@@ -166,3 +232,36 @@ def uk_number(text):
     """Для друку: десяткова кома в усіх числах бланку (лікар пише і «6,1», і «18.4»)."""
     text = str(text or '')
     return text.replace('.', ',') if to_number(text) is not None else text
+
+
+def norm_display(row):
+    """Норма для друку: «4,11 – 7,94», «негатив», «… – 5»."""
+    low, high = uk_number(row.get('low')), uk_number(row.get('high'))
+    if low and not high and to_number(row.get('low')) is None:
+        return low
+    if low or high:
+        return f'{low or "…"} – {high or "…"}'
+    return ''
+
+
+def is_textual(row):
+    """Результат словом («негатив», «1+») — у полі клавіатура з літерами, а не цифрова."""
+    code, low = row.get('code') or '', row.get('low') or ''
+    return (code.startswith('u_') and code not in _NUMERIC_URINE) or bool(low and to_number(low) is None)
+
+
+def annotate(rows):
+    """Підписи розділів і тип клавіатури — для форми й друку."""
+    return [{**r, 'group_label': GROUPS.get(r.get('group') or '', ''), 'textual': is_textual(r)} for r in rows]
+
+
+def extra_from_post(panel, post):
+    """Поля шапки бланку (LabResult.extra) — лише ті, що є в цьому бланку; порожні не зберігаємо."""
+    out = {}
+    for key, limit in EXTRA.get(panel, ()):
+        value = (post.get(f'x_{key}') or '').strip()[:limit]
+        if key == 'collection' and value and value not in COLLECTION:
+            value = ''
+        if value:
+            out[key] = value
+    return out
