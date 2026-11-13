@@ -63,12 +63,12 @@ _URINALYSIS = [
     ('u_sgr', 'Питома вага (рефрактометр)', '', {'dog': ('1.015', '1.045'), 'cat': ('1.035', '1.060')}, 'phys'),
     ('u_leu', 'Лейкоцити (LEU)', 'кл/мкл', _NEG, 'chem'),
     ('u_uro', 'Уробіліноген (URO)', 'мкмоль/л', {'dog': ('3.2', '16'), 'cat': ('3.2', '16')}, 'chem'),
-    ('u_alb', 'Альбумін / мікроальбумін (ALB/MA)', 'мг/л', {}, 'chem'),
+    ('u_alb', 'Мікроальбумін (ALB/MA)', 'мг/л', {}, 'chem'),
     ('u_pro', 'Білок (PRO)', 'г/л', _NEG, 'chem'),
     ('u_bil', 'Білірубін (BIL)', 'мкмоль/л', _NEG, 'chem'),
     ('u_glu', 'Глюкоза (GLU)', 'ммоль/л', _NEG, 'chem'),
     ('u_asc', 'Аскорбінова кислота (ASC)', 'ммоль/л', _NEG, 'chem'),
-    ('u_sg', 'Відносна густина, смужка (SG)', '', {}, 'chem'),
+    ('u_sg', 'Густина, смужка (SG)', '', {}, 'chem'),
     ('u_ket', 'Кетонові тіла (KET)', 'ммоль/л', _NEG, 'chem'),
     ('u_nit', 'Нітрити (NIT)', '', _NEG, 'chem'),
     ('u_cre', 'Креатинін сечі (CRE)', 'ммоль/л', {}, 'chem'),
@@ -109,8 +109,9 @@ COLLECTION = ('вільне сечовипускання', 'цистоценте
 MAX_ROWS = 80
 _LIMITS = {'code': 20, 'name': 80, 'unit': 20, 'value': 30, 'low': 15, 'high': 15, 'group': 10}
 # слова, що означають «нічого не знайдено» — для показників із нормою словом
-_NEGATIVE = {'негатив', 'негативно', 'негативний', 'neg', 'negative', 'не виявлено', 'немає', 'нема', '-', '−', '—',
-             'норма', 'norm', 'normal', 'n'}
+_NEGATIVE = {'негатив', 'негативно', 'негативний', 'neg', 'neg.', 'negative', 'не виявлено', 'не виявлені', 'немає', 'нема',
+             'відсутні', 'відсутній', 'відсутня', '-', '−', '—', '–', 'норма', 'в нормі', 'нормальний', 'norm', 'normal',
+             'n', 'not detected', 'nd'}
 
 
 def _spec(panel):
@@ -189,13 +190,14 @@ def _negative(text):
 
 def flag(row):
     """'high' / 'low' / '' — коли і значення, і межа читаються як числа. Норма словом «негатив» (сеча):
-    будь-який інший результат («1+», «слід», «позитив») — 'high'."""
+    будь-який інший результат — і словом («1+», «слід»), і числом більше нуля («LEU 75») — 'high'."""
     value = to_number(row.get('value', ''))
+    word_norm = _negative(row.get('low', '')) and not str(row.get('high') or '').strip()
     if value is None:
-        raw, low = str(row.get('value') or '').strip(), row.get('low', '')
-        if raw and _negative(low) and not str(row.get('high') or '').strip() and not _negative(raw):
-            return 'high'
-        return ''
+        raw = str(row.get('value') or '').strip()
+        return 'high' if raw and word_norm and not _negative(raw) else ''
+    if word_norm:
+        return 'high' if value > 0 else ''
     high, low = to_number(row.get('high', '')), to_number(row.get('low', ''))
     if high is not None and value > high:
         return 'high'

@@ -39,6 +39,9 @@
     .results tr.out .num { font-weight: bold; }
     .results tr.group td { font-size: 9.5px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.06em; color: #7a5c00;
                            padding: 10px 6px 4px; border-bottom: 1px solid #c9c9c9; background: none; }
+    /* сеча: до 26 показників і три розділи — щільніші рядки, щоб повний бланк влазив на аркуш */
+    .compact .results td { padding: 3px 6px; }
+    .compact .results tr.group td { padding: 7px 6px 3px; }
     .arrow { font-weight: bold; text-align: center; width: 18px; }
     .arrow.high { color: #b42318; }
     .arrow.low { color: #1d4ed8; }
@@ -55,7 +58,7 @@
     .footer { margin-top: 22px; padding-top: 8px; border-top: 1px solid #e5e5e5; font-size: 9.5px; color: #555; text-align: center; }
   </style>
 </head>
-<body>
+<body{% if lab.panel == 'urinalysis' %} class="compact"{% endif %}>
 
 <table class="header-table" cellpadding="0" cellspacing="0">
   <tr>
@@ -85,7 +88,7 @@
 
 <div class="meta">
   {% if lab.material %}Матеріал: <strong>{{ lab.material }}</strong>{% endif %}
-  {% if x.collected_at %} · Забір: <strong>{{ x.collected_at }}</strong>{% endif %}
+  {% if x.collected_at %} · Час забору: <strong>{{ x.collected_at }}</strong>{% endif %}
   {% if x.device %} · Аналізатор: <strong>{{ x.device }}</strong>{% endif %}
   {% if lab.material and lab.doctor or x.collected_at and lab.doctor or x.device and lab.doctor %} · {% endif %}
   {% if lab.doctor %}Лікар: <strong>{{ lab.doctor.get_full_name|default:lab.doctor.username }}</strong>{% endif %}
@@ -109,7 +112,7 @@
     {% endfor %}
   </tbody>
 </table>
-<div class="legend">↑ вище норми{% if lab.panel == 'urinalysis' %} або не негатив{% endif %} · ↓ нижче норми. Норми — референтні інтервали, прийняті клінікою.</div>
+<div class="legend">↑ вище норми{% if lab.panel == 'urinalysis' %} або виявлено там, де норма «негатив»{% endif %} · ↓ нижче норми. Норми — референтні інтервали, прийняті клінікою.</div>
 {% endif %}
 
 {% if lab.description %}
@@ -127,9 +130,15 @@
 {% endif %}
 
 <table class="signature-table" cellpadding="0" cellspacing="0">
+  {% if x.performer %}
   <tr>
-    <td>{% if x.performer %}Виконавець: <strong>{{ x.performer }}</strong><br>{% endif %}Лікар{% if lab.doctor %}: <strong>{{ lab.doctor.get_full_name|default:lab.doctor.username }}</strong>{% endif %}</td>
-    <td style="text-align:right">Підпис <span class="sign-line"></span><span class="stamp">М.П.</span></td>
+    <td>Виконавець: <strong>{{ x.performer }}</strong></td>
+    <td style="text-align:right">Підпис <span class="sign-line"></span><span class="stamp" style="visibility:hidden">М.П.</span></td>
+  </tr>
+  {% endif %}
+  <tr>
+    <td{% if x.performer %} style="padding-top:12px"{% endif %}>Лікар: {% if lab.doctor %}<strong>{{ lab.doctor.get_full_name|default:lab.doctor.username }}</strong>{% else %}<span class="sign-line"></span>{% endif %}</td>
+    <td style="text-align:right{% if x.performer %};padding-top:12px{% endif %}">Підпис <span class="sign-line"></span><span class="stamp">М.П.</span></td>
   </tr>
 </table>
 
