@@ -8,8 +8,9 @@
 
 <div class="grid grid-cols-1 items-start gap-6 xl:grid-cols-[320px_minmax(0,1fr)] 2xl:grid-cols-[360px_minmax(0,1fr)]">
 
-  <!-- Ліва колонка: медичні дані — одна картка, розділи рядками -->
-  <div class="overflow-hidden rounded-xl border border-gray-200 bg-white divide-y divide-gray-100">
+  <!-- Ліва колонка: медичні дані — одна картка, розділи рядками. Без overflow-hidden: випадне меню «+ Бланк» мусить
+       виходити за край картки (ANVAR 14.11: шостий пункт «Інший аналіз» ховався під краєм, коли під «Аналізами» мало місця) -->
+  <div class="rounded-xl border border-gray-200 bg-white divide-y divide-gray-100">
 
     <!-- Вакцини -->
     <div class="patient-section px-4">
