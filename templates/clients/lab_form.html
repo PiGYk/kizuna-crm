@@ -75,6 +75,22 @@
       <div id="lab-rows" class="divide-y divide-gray-200">
         {% for r in rows %}
         {% ifchanged r.group %}{% if r.group_label %}<div class="lab-group pb-1 pt-4 text-xs font-semibold uppercase tracking-wide text-brand-dark first:pt-1">{{ r.group_label }}</div>{% endif %}{% endifchanged %}
+        {% if r.free_text %}
+        {# Рядок опису без норми (кристали, слиз — ANVAR 16.11): поле з переносом замість результату й норми (до xl — окремим рядком на всю ширину); одиниця й норма — приховані, щоб рядки форми не зсунулись #}
+        <div class="lab-row lab-text -mx-2 grid grid-cols-[minmax(0,1fr)_8.5rem_1.5rem] items-center gap-x-3 gap-y-1 rounded-md px-2 py-2 focus-within:bg-amber-50/60 lg:grid-cols-[minmax(0,1fr)_6rem_8.5rem_1.5rem] xl:grid-cols-[minmax(0,1fr)_4.5rem_9rem_1.5rem_14rem] xl:py-1.5">
+          <input type="hidden" name="row_code" value="{{ r.code }}">
+          <input type="hidden" name="row_group" value="{{ r.group|default:'' }}">
+          <input type="hidden" name="row_unit" value="{{ r.unit }}">
+          <input type="hidden" name="row_low" value="">
+          <input type="hidden" name="row_high" value="">
+          <input type="text" name="row_name" value="{{ r.name }}" maxlength="80" placeholder="Показник" aria-label="Назва показника" class="order-1 col-span-3 min-w-0 rounded-md border border-transparent bg-transparent px-2 py-1.5 text-sm text-brand-dark placeholder:text-gray-500 hover:border-gray-200 focus:border-gray-300 focus:bg-white focus:outline-none lg:col-span-4 xl:col-span-1">
+          <div class="order-2 col-span-3 flex min-w-0 items-center gap-1.5 lg:col-span-4">
+            <textarea name="row_value" rows="1" maxlength="150" placeholder="опис" aria-label="Результат: {{ r.name|default:'показник' }}"
+                      class="lab-value lab-grow block min-w-0 flex-1 resize-none overflow-hidden rounded-md border border-gray-300 px-2 py-[9px] text-base leading-6 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-gold xl:py-[5px] xl:text-sm xl:leading-5">{{ r.value }}</textarea>
+            <button type="button" class="lab-del flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-red-700 xl:h-7 xl:w-7" aria-label="Прибрати показник" title="Прибрати показник"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+          </div>
+        </div>
+        {% else %}
         <div class="lab-row -mx-2 grid grid-cols-[minmax(0,1fr)_8.5rem_1.5rem] items-center gap-x-3 gap-y-1 rounded-md px-2 py-2 focus-within:bg-amber-50/60 lg:grid-cols-[minmax(0,1fr)_6rem_8.5rem_1.5rem] xl:grid-cols-[minmax(0,1fr)_4.5rem_9rem_1.5rem_14rem] xl:py-1.5">
           <input type="hidden" name="row_code" value="{{ r.code }}">
           <input type="hidden" name="row_group" value="{{ r.group|default:'' }}">
@@ -91,6 +107,7 @@
             <button type="button" class="lab-del ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-red-700 xl:h-7 xl:w-7" aria-label="Прибрати показник" title="Прибрати показник"><svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
           </div>
         </div>
+        {% endif %}
         {% endfor %}
       </div>
       <p class="py-2 text-xs text-gray-600">
@@ -172,6 +189,7 @@
   var DOWN = '<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>';
   var HIGH = ['border-red-600', 'bg-red-50', 'text-red-800', 'font-semibold'], LOW = ['border-blue-600', 'bg-blue-50', 'text-blue-800', 'font-semibold'];
   function mark(row) {
+    if (row.classList.contains('lab-text')) return;   // рядок опису (кристали, слиз) — норми нема, позначати нічого
     var input = row.querySelector('.lab-value'), f = row.querySelector('.lab-flag');
     var lowT = row.querySelector('.lab-low').value, highT = row.querySelector('.lab-high').value;
     var v = num(input.value), lo = num(lowT), hi = num(highT), raw = input.value.trim();
@@ -188,7 +206,7 @@
     lowEl.classList.toggle('w-36', !!word);   // «не виявлено», «відсутній» — цілком
     row.dataset.flag = flag;
     f.innerHTML = flag === 'high' ? UP : (flag === 'low' ? DOWN : '');
-    f.title = flag === 'high' ? (wordNorm ? 'Виявлено (норма — негатив)' : 'Вище норми') : (flag === 'low' ? 'Нижче норми' : '');
+    f.title = flag === 'high' ? (wordNorm ? 'Виявлено (норма — ' + lowT.trim() + ')' : 'Вище норми') : (flag === 'low' ? 'Нижче норми' : '');
     f.className = 'lab-flag order-4 flex items-center justify-center ' + (flag === 'high' ? 'text-red-700' : 'text-blue-700');
     HIGH.forEach(function (c) { input.classList.toggle(c, flag === 'high'); });
     LOW.forEach(function (c) { if (c !== 'font-semibold') input.classList.toggle(c, flag === 'low'); });
@@ -203,11 +221,20 @@
     el.textContent = out ? 'Поза нормою: ' + out : (filled ? 'Усе в межах норми' : '');
     el.className = 'mr-auto text-sm font-medium ' + (out ? 'text-red-800' : 'text-green-800');
   }
+  // рядок опису росте за текстом: увесь опис видно і на планшеті, і на телефоні
+  function grow(el) {
+    if (!el.offsetParent) return;
+    el.style.height = 'auto';
+    el.style.height = (el.scrollHeight + el.offsetHeight - el.clientHeight) + 'px';
+  }
   var form = document.getElementById('lab-form'), dirty = false;
   form.querySelectorAll('.lab-row').forEach(mark);
+  form.querySelectorAll('.lab-grow').forEach(grow);
+  window.addEventListener('resize', function () { form.querySelectorAll('.lab-grow').forEach(grow); });
   count();
   form.addEventListener('input', function (e) {
     dirty = true;
+    if (e.target.classList.contains('lab-grow')) grow(e.target);
     var row = e.target.closest('.lab-row');
     if (row) { mark(row); count(); }
   });

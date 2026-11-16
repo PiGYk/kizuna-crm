@@ -32,6 +32,7 @@
     .results td { padding: 5px 6px; border-bottom: 1px solid #e6e6e6; font-size: 11.5px; vertical-align: top; }
     .results .num { text-align: right; white-space: nowrap; }  /* без tnum: у Fixel рівноширокий нуль із рискою */
     .results .unit, .results .norm { color: #555; white-space: nowrap; }
+    .results .desc { text-align: left; }  /* рядок опису (кристали, слиз): текст на всю ширину, з переносом */
     .results tr.out td { background: #fde8e6; }
     .results tr.out td:first-child { border-left: 3px solid #b42318; }
     .results tr.out.low td { background: #e8eefd; }
@@ -104,15 +105,19 @@
     {% ifchanged r.group %}{% if r.group_label %}<tr class="group"><td colspan="5">{{ r.group_label }}</td></tr>{% endif %}{% endifchanged %}
     <tr class="{% if r.flag %}out {{ r.flag }}{% endif %}">
       <td>{{ r.name }}</td>
+      {% if r.free_text %}
+      <td class="desc" colspan="4">{{ r.value }}</td>
+      {% else %}
       <td class="num">{{ r.value_uk }}</td>
       <td class="arrow {{ r.flag }}">{% if r.flag == 'high' %}↑{% elif r.flag == 'low' %}↓{% endif %}</td>
       <td class="unit">{{ r.unit }}</td>
       <td class="norm">{{ r.norm }}</td>
+      {% endif %}
     </tr>
     {% endfor %}
   </tbody>
 </table>
-<div class="legend">↑ вище норми{% if lab.panel == 'urinalysis' %} або виявлено там, де норма «негатив»{% endif %} · ↓ нижче норми. Норми — референтні інтервали, прийняті клінікою.</div>
+<div class="legend">↑ вище норми{% if lab.panel == 'urinalysis' %} або виявлено там, де норма «негатив» чи «відсутні»{% endif %} · ↓ нижче норми. Норми — референтні інтервали, прийняті клінікою.</div>
 {% endif %}
 
 {% if lab.description %}

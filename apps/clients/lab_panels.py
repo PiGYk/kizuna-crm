@@ -83,13 +83,17 @@ _URINALYSIS = [
     ('u_epi', 'Епітелій', '', {}, 'micro'),
     ('u_cast', 'Циліндри', '', {}, 'micro'),
     ('u_crys', 'Кристали', '', {}, 'micro'),
-    ('u_bact', 'Бактерії', '', {}, 'micro'),
+    ('u_bact', 'Бактерії', '', {'dog': ('відсутні', ''), 'cat': ('відсутні', '')}, 'micro'),
     ('u_muc', 'Слиз / інше', '', {}, 'micro'),
 ]
 GROUPS = {'phys': 'Фізичні властивості', 'chem': 'Хімічні показники (тест-смужка)', 'micro': 'Мікроскопія осаду'}
 _GROUP_ORDER = {'phys': 0, 'chem': 1, 'micro': 2}
 # результат числом — цифрова клавіатура; решта показників сечі — словом («негатив», «1+», «солом'яний»)
 _NUMERIC_URINE = {'u_vol', 'u_sgr', 'u_sg', 'u_ph', 'u_rbc', 'u_wbc'}
+# рядок опису без норми (ANVAR 16.11: «в кристалах норм нема, потрібен просто рядок опису»): широке поле на
+# FREE_TEXT_MAX знаків замість числа з нормою — «трипельфосфати у значній кількості» не влазило в 30
+FREE_TEXT = {'u_crys', 'u_muc'}
+FREE_TEXT_MAX = 150
 
 PANELS = {
     'biochemistry': _BIOCHEMISTRY,
@@ -173,7 +177,10 @@ def rows_from_post(post, keep_empty=False):
     n = min(len(cols['name']), MAX_ROWS)
     rows = []
     for i in range(n):
-        row = {k: (cols[k][i] if i < len(cols[k]) else '').strip()[:lim] for k, lim in _LIMITS.items()}
+        raw = {k: (cols[k][i] if i < len(cols[k]) else '').strip() for k in _LIMITS}
+        row = {k: raw[k][:lim] for k, lim in _LIMITS.items()}
+        if row['code'] in FREE_TEXT:
+            row['value'], row['low'], row['high'] = ' '.join(raw['value'].split())[:FREE_TEXT_MAX], '', ''   # Enter у полі — пробіл
         if row['name'] and (row['value'] or keep_empty):
             rows.append(row)
     return rows
@@ -192,7 +199,10 @@ def _negative(text):
 
 def flag(row):
     """'high' / 'low' / '' — коли і значення, і межа читаються як числа. Норма словом «негатив» (сеча):
-    будь-який інший результат — і словом («1+», «слід»), і числом більше нуля («LEU 75») — 'high'."""
+    будь-який інший результат — і словом («1+», «слід»), і числом більше нуля («LEU 75») — 'high'.
+    Рядок опису (FREE_TEXT: кристали, слиз) норми не має — не позначається."""
+    if row.get('code') in FREE_TEXT:
+        return ''
     value = to_number(row.get('value', ''))
     word_norm = _negative(row.get('low', '')) and not str(row.get('high') or '').strip()
     if value is None:
@@ -255,8 +265,9 @@ def is_textual(row):
 
 
 def annotate(rows):
-    """Підписи розділів і тип клавіатури — для форми й друку."""
-    return [{**r, 'group_label': GROUPS.get(r.get('group') or '', ''), 'textual': is_textual(r)} for r in rows]
+    """Підписи розділів, тип клавіатури і рядок опису (без норми) — для форми й друку."""
+    return [{**r, 'group_label': GROUPS.get(r.get('group') or '', ''), 'textual': is_textual(r),
+             'free_text': r.get('code') in FREE_TEXT} for r in rows]
 
 
 def extra_from_post(panel, post):
