@@ -7,7 +7,7 @@
   <div>
     <h1 class="text-2xl font-bold text-brand-dark">Рахунки</h1>
     <div class="text-[11px] uppercase tracking-wide text-gray-400 font-medium mt-1">
-      {{ total_count }} {% if date_from or date_to %}за період{% else %}всього{% endif %}
+      {{ total_count }} {{ period_caption }}
       {% if only_own %} · тільки мої{% endif %}
     </div>
   </div>
@@ -19,8 +19,8 @@
       </button>
       <div data-menu-body class="absolute right-0 top-full mt-1 w-60 bg-white border border-gray-200 rounded-xl shadow-lg z-30 py-1 hidden">
         <a href="{% url 'analytics:debtors' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">📋 Боржники (аналітика)</a>
-        <a href="?status=draft" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">📝 Тільки чернетки</a>
-        <a href="?status=paid" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">✅ Тільки оплачені</a>
+        <a href="?status=draft&period=all" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">📝 Тільки чернетки</a>
+        <a href="?status=paid&period=all" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">✅ Тільки оплачені</a>
       </div>
     </div>
     <a href="{% url 'billing:create' %}"
@@ -29,6 +29,17 @@
       Новий чек
     </a>
   </div>
+</div>
+
+{# 16.11 ANVAR: період над підсумками; без вибору — сьогодні #}
+<div class="flex flex-wrap items-center gap-x-3 gap-y-2 mb-4">
+  <nav class="inline-flex flex-wrap gap-1 bg-white border border-gray-200 rounded-xl p-1" aria-label="Період">
+    {% for p in period_links %}
+    <a href="?{{ p.qs }}"{% if p.active %} aria-current="page"{% endif %}
+      class="px-3 lg:px-3.5 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition {% if p.active %}bg-brand-dark text-white{% else %}text-gray-600 hover:bg-gray-50 hover:text-brand-dark{% endif %}">{{ p.label }}</a>
+    {% endfor %}
+  </nav>
+  {% if period_range %}<span class="text-sm text-gray-600 tabular-nums whitespace-nowrap">{{ period_range }}</span>{% endif %}
 </div>
 
 <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
@@ -47,7 +58,7 @@
     <div class="text-2xl font-bold text-brand-dark mt-1 tabular-nums">{{ kpi.avg_check|floatformat:0 }} ₴</div>
     <div class="text-xs text-gray-400 mt-0.5">з оплачених</div>
   </div>
-  <a href="?status=draft" class="bg-white border rounded-xl px-4 py-3 transition block {% if kpi.debtor_count %}border-amber-300 hover:border-amber-400{% else %}border-gray-200 hover:border-gray-300{% endif %}">
+  <a href="?status=draft&period=all" class="bg-white border rounded-xl px-4 py-3 transition block {% if kpi.debtor_count %}border-amber-300 hover:border-amber-400{% else %}border-gray-200 hover:border-gray-300{% endif %}">
     <div class="text-[11px] uppercase tracking-wide text-gray-500 font-medium">Чернетки &gt;24 год</div>
     <div class="text-2xl font-bold mt-1 tabular-nums {% if kpi.debtor_count %}text-amber-600{% else %}text-brand-dark{% endif %}">{{ kpi.debtor_count }}</div>
     <div class="text-xs text-gray-400 mt-0.5">потребують уваги</div>
@@ -55,6 +66,7 @@
 </div>
 
 <form method="get" id="filter-form" class="bg-white border border-gray-200 rounded-xl p-3 mb-4">
+  {% if period_chosen %}<input type="hidden" name="period" value="{{ period_chosen }}">{% endif %}
   <div class="grid grid-cols-1 md:grid-cols-12 gap-2">
     <div class="md:col-span-4 relative">
       <input type="search" name="q" value="{{ q }}" placeholder="Клієнт, телефон, пацієнт, #номер…"
@@ -212,10 +224,15 @@
   {% else %}
   <div class="p-12 text-center">
     <div class="text-5xl mb-3">🧾</div>
+    {% if period and period != 'all' %}
+    <div class="text-base font-semibold text-brand-dark mb-1">Рахунків {{ period_caption }}{% if has_active_filter %} з такими фільтрами{% endif %} немає</div>
+    <div class="text-sm text-gray-600 mb-4"><a href="?{{ period_all_qs }}" class="text-brand-gold font-medium">Показати за весь час</a></div>
+    {% else %}
     <div class="text-base font-semibold text-brand-dark mb-1">Рахунків не знайдено</div>
     <div class="text-sm text-gray-400 mb-4">
       {% if has_active_filter %}Спробуй <a href="{% url 'billing:list' %}" class="text-brand-gold font-medium">скинути фільтри</a>{% else %}Створи перший чек щоб почати{% endif %}
     </div>
+    {% endif %}
     <a href="{% url 'billing:create' %}" class="inline-block bg-brand-gold text-brand-dark px-4 py-2 rounded-lg text-sm font-semibold hover:brightness-95">+ Новий чек</a>
   </div>
   {% endif %}

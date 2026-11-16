@@ -95,6 +95,29 @@ def _only_own_invoices(request):
             and not org.can_see_menu(request.user.role, 'billing'))
 
 
+# Кнопки періоду над списком (16.11.2026, ANVAR): «Рахунки» відкриваються за сьогодні.
+# ключ → (підпис кнопки, днів разом із сьогоднішнім, підпис біля лічильника)
+INVOICE_PERIODS = {
+    'today': ('Сьогодні', 1, 'за сьогодні'),
+    '3d': ('3 дні', 3, 'за 3 дні'),
+    '7d': ('7 днів', 7, 'за 7 днів'),
+    'month': ('Місяць', 30, 'за місяць'),
+    'year': ('Рік', 365, 'за рік'),
+    'all': ('Увесь час', None, 'всього'),
+}
+
+
+def _invoice_period(request, q, date_from, date_to):
+    """Діючий період: свої дати «від/до» важливіші за кнопки; без кнопки — сьогодні,
+    а пошук без кнопки шукає за весь час (старий рахунок клієнта мусить знаходитись)."""
+    chosen = request.GET.get('period', '')
+    if chosen not in INVOICE_PERIODS:
+        chosen = ''
+    if date_from or date_to:
+        return '', chosen
+    return chosen or ('all' if q else 'today'), chosen
+
+
 @login_required
 def invoice_list(request):
     from datetime import datetime, time, timedelta
@@ -157,6 +180,29 @@ def invoice_list(request):
         except ValueError:
             date_to = ''
 
+    period, period_chosen = _invoice_period(request, q, date_from, date_to)
+    period_range = ''
+    if period and period != 'all':
+        today = timezone.localdate()
+        start = today - timedelta(days=INVOICE_PERIODS[period][1] - 1)
+        filtered = filtered.filter(created_at__gte=timezone.make_aware(datetime.combine(start, time.min)))
+        if start == today:
+            period_range = f'{today:%d.%m.%Y}'
+        elif start.year == today.year:
+            period_range = f'{start:%d.%m} – {today:%d.%m.%Y}'
+        else:
+            period_range = f'{start:%d.%m.%Y} – {today:%d.%m.%Y}'
+    # посилання кнопок: решта фільтрів лишається, свої дати й сторінка — ні
+    keep = request.GET.copy()
+    for k in ('page', 'from', 'to', 'period'):
+        keep.pop(k, None)
+    period_links = []
+    for key, (label, _days, _caption) in INVOICE_PERIODS.items():
+        keep['period'] = key
+        period_links.append({'key': key, 'label': label, 'qs': keep.urlencode(), 'active': key == period})
+    qs_no_page = request.GET.copy()
+    qs_no_page.pop('page', None)
+
     sort_allowed = {'-created_at', 'created_at', '-total', 'total', '-pk', 'pk'}
     if sort not in sort_allowed:
         sort = '-created_at'
@@ -206,6 +252,13 @@ def invoice_list(request):
         'total_count': total_count,
         'overdue_cutoff': cutoff,
         'has_active_filter': bool(q or payment or status or doctor_id or date_from or date_to),
+        'period': period,
+        'period_chosen': period_chosen,
+        'period_links': period_links,
+        'period_all_qs': next(p['qs'] for p in period_links if p['key'] == 'all'),
+        'period_range': period_range,
+        'period_caption': INVOICE_PERIODS[period][2] if period else 'за період',
+        'qs_no_page': qs_no_page.urlencode(),
     })
 
 

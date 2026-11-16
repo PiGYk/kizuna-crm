@@ -34,6 +34,20 @@
 
   <div class="flex-1 overflow-y-auto pb-24" style="-webkit-overflow-scrolling: touch; background: #f7f7f8;">
 
+    {# 16.11 ANVAR: період; без вибору — сьогодні #}
+    <div class="px-3 pt-3">
+      <nav class="grid grid-cols-3 gap-1.5" aria-label="Період">
+        {% for p in period_links %}
+        <a href="?{{ p.qs }}"{% if p.active %} aria-current="page"{% endif %}
+           class="flex items-center justify-center min-h-[44px] rounded-xl border text-sm font-medium whitespace-nowrap {% if p.active %}bg-brand-dark text-white border-brand-dark{% else %}bg-white text-gray-700 border-gray-200 active:bg-gray-100{% endif %}">{{ p.label }}</a>
+        {% endfor %}
+      </nav>
+      <div class="flex items-center justify-between gap-2 mt-2 px-0.5 text-xs text-gray-600 tabular-nums">
+        <span class="whitespace-nowrap">{% if period_range %}{{ period_range }}{% else %}{{ invoices.paginator.count }} {{ period_caption }}{% endif %}</span>
+        <span class="whitespace-nowrap">оплачено {{ kpi.paid_sum|floatformat:0 }}&nbsp;₴</span>
+      </div>
+    </div>
+
     {% if invoices %}
     <div class="px-3 pt-3 flex flex-col gap-2">
       {% for inv in invoices %}
@@ -92,22 +106,29 @@
     {% if invoices.has_other_pages %}
     <div class="px-3 pt-4 flex items-center justify-between gap-2">
       {% if invoices.has_previous %}
-      <a href="?page={{ invoices.previous_page_number }}{% if payment_filter %}&payment={{ payment_filter }}{% endif %}"
+      <a href="?{% if qs_no_page %}{{ qs_no_page }}&{% endif %}page={{ invoices.previous_page_number }}"
          class="flex-1 text-center py-2 rounded-xl text-sm bg-white border border-gray-200 text-brand-dark active:bg-gray-100">← Попередня</a>
       {% else %}<div class="flex-1"></div>{% endif %}
       <div class="text-xs text-gray-400 px-2">{{ invoices.number }} / {{ invoices.paginator.num_pages }}</div>
       {% if invoices.has_next %}
-      <a href="?page={{ invoices.next_page_number }}{% if payment_filter %}&payment={{ payment_filter }}{% endif %}"
+      <a href="?{% if qs_no_page %}{{ qs_no_page }}&{% endif %}page={{ invoices.next_page_number }}"
          class="flex-1 text-center py-2 rounded-xl text-sm bg-white border border-gray-200 text-brand-dark active:bg-gray-100">Наступна →</a>
       {% else %}<div class="flex-1"></div>{% endif %}
     </div>
     {% endif %}
 
     {% else %}
+    {% if period and period != 'all' %}
+    <div class="text-center text-sm text-gray-600 py-16">
+      Рахунків {{ period_caption }}{% if has_active_filter %} з такими фільтрами{% endif %} немає.<br>
+      <a href="?{{ period_all_qs }}" class="inline-block mt-2 py-2 text-brand-gold font-medium">Показати за весь час</a>
+    </div>
+    {% else %}
     <div class="text-center text-sm text-gray-400 py-16">
       Рахунків ще немає.<br>
       Натисни <span class="text-brand-gold font-medium">+</span> щоб створити перший.
     </div>
+    {% endif %}
     {% endif %}
   </div>
 
@@ -125,19 +146,19 @@
   <div class="tg-mobile-sheet-handle"></div>
   <div class="px-4 py-3 border-b border-gray-100 text-sm font-semibold text-brand-dark">Метод оплати</div>
   <div class="tg-mobile-sheet-body py-2">
-    <a href="{% url 'billing:list' %}"
+    <a href="?period={{ period|default:'all' }}"
        class="w-full flex items-center gap-3 px-5 py-3 text-sm {% if not payment_filter %}text-brand-gold font-semibold{% else %}text-brand-dark{% endif %} active:bg-gray-100"
        style="min-height: 48px;">
       <span class="text-xl">📋</span><span class="flex-1">Усі</span>
       {% if not payment_filter %}<span>✓</span>{% endif %}
     </a>
-    <a href="?payment=cash"
+    <a href="?period={{ period|default:'all' }}&payment=cash"
        class="w-full flex items-center gap-3 px-5 py-3 text-sm {% if payment_filter == 'cash' %}text-brand-gold font-semibold{% else %}text-brand-dark{% endif %} active:bg-gray-100 border-t border-gray-100"
        style="min-height: 48px;">
       <span class="text-xl">💵</span><span class="flex-1">Готівка</span>
       {% if payment_filter == 'cash' %}<span>✓</span>{% endif %}
     </a>
-    <a href="?payment=card"
+    <a href="?period={{ period|default:'all' }}&payment=card"
        class="w-full flex items-center gap-3 px-5 py-3 text-sm {% if payment_filter == 'card' %}text-brand-gold font-semibold{% else %}text-brand-dark{% endif %} active:bg-gray-100 border-t border-gray-100"
        style="min-height: 48px;">
       <span class="text-xl">💳</span><span class="flex-1">Картка</span>
