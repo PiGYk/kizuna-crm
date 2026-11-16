@@ -67,7 +67,12 @@ MIDDLEWARE = [
 
 AUTHENTICATION_BACKENDS = [
     'axes.backends.AxesStandaloneBackend',
+    # ⚠️ModelBackend не прибирати: шлях бекенда записаний у кожній живій сесії,
+    # без нього рядка викине всіх, хто зараз у системі.
     'django.contrib.auth.backends.ModelBackend',
+    # 16.11.2026: вхід за email або логіном без огляду на регістр. Лише те, чого
+    # не впізнав ModelBackend (apps/accounts/backends.py).
+    'apps.accounts.backends.LoginOrEmailBackend',
 ]
 
 # django-axes: brute-force protection на login
