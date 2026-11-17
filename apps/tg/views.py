@@ -1,4 +1,5 @@
 import functools
+import hmac
 import html
 import io
 import json
@@ -303,12 +304,14 @@ def webhook(request, org_slug):
         return HttpResponse('unknown org', status=404)
 
     # Перевірка підпису Telegram (X-Telegram-Bot-Api-Secret-Token).
+    # Без секрету — відмова: адресу видно з публічного коду, і без підпису будь-хто підкидав би
+    # підроблені оновлення. Секрет створює set_webhook разом із реєстрацією вебхука в Telegram.
     if not org.webhook_secret:
-        logger.warning('webhook: org %s has no webhook_secret — all requests accepted (insecure)', org_slug)
-    else:
-        incoming = request.headers.get('X-Telegram-Bot-Api-Secret-Token', '')
-        if not incoming or incoming != org.webhook_secret:
-            return HttpResponse('forbidden', status=403)
+        logger.warning('webhook: org %s has no webhook_secret — rejected, register webhook in settings', org_slug)
+        return HttpResponse('forbidden', status=403)
+    incoming = request.headers.get('X-Telegram-Bot-Api-Secret-Token', '')
+    if not hmac.compare_digest(incoming.encode(), org.webhook_secret.encode()):
+        return HttpResponse('forbidden', status=403)
 
     try:
         data = json.loads(request.body)
