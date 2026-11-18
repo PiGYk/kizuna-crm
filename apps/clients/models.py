@@ -15,6 +15,8 @@ class Client(models.Model):
     last_name = models.CharField('Прізвище', max_length=100)
     phone = models.CharField('Телефон', max_length=20, db_index=True)
     email = models.EmailField('Email', blank=True)
+    # Де живе клієнт (ANVAR 18.11.2026). Іде і в бланки згод — там рядок «адреса» раніше лишався порожнім.
+    address = models.CharField('Адреса', max_length=300, blank=True, default='')
     notes = models.TextField('Нотатки', blank=True)
     discount_percent = models.DecimalField(
         'Знижка, %', max_digits=5, decimal_places=2, default=0,

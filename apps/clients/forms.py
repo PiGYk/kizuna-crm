@@ -47,9 +47,12 @@ def _apply_field_class(form):
 class ClientForm(forms.ModelForm):
     class Meta:
         model = Client
-        fields = ('first_name', 'last_name', 'phone', 'email', 'notes', 'discount_percent')
+        fields = ('first_name', 'last_name', 'phone', 'email', 'address', 'notes', 'discount_percent')
         widgets = {
             'notes': forms.Textarea(attrs={'rows': 3}),
+            # autocomplete off: інакше браузер рецепції підставляє власну адресу, а не клієнта
+            'address': forms.TextInput(attrs={'placeholder': 'Місто, вулиця, будинок, квартира',
+                                              'autocomplete': 'off'}),
         }
 
     def __init__(self, *args, org=None, **kwargs):

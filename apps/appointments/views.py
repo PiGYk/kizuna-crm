@@ -493,7 +493,7 @@ def client_by_phone(request):
 def quick_create_client_patient(request):
     """POST /appointments/quick-client/ → створює Client (+ Patient опційно).
 
-    Тіло form-data: first_name, last_name, phone, email, discount_percent +
+    Тіло form-data: first_name, last_name, phone, email, address, discount_percent +
                     (опц.) pet_name, species, breed, sex, date_of_birth, age («5» — роки).
     Якщо pet_name або species пустий — patient НЕ створюється.
     Дублі телефону блокуються у QuickClientForm.clean().

@@ -19,7 +19,7 @@ class QuickClientForm(forms.ModelForm):
 
     class Meta:
         model = Client
-        fields = ('first_name', 'last_name', 'phone', 'email', 'discount_percent')
+        fields = ('first_name', 'last_name', 'phone', 'email', 'address', 'discount_percent')
 
     def clean_phone(self):
         phone = (self.cleaned_data.get('phone') or '').strip()

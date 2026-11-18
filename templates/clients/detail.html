@@ -59,6 +59,12 @@
         <dd class="font-medium">{{ client.email }}</dd>
       </div>
       {% endif %}
+      {% if client.address %}
+      <div class="flex justify-between gap-4">
+        <dt class="shrink-0 text-gray-500">Адреса</dt>
+        <dd class="min-w-0 break-words text-right font-medium">{{ client.address }}</dd>
+      </div>
+      {% endif %}
       <div class="flex justify-between">
         <dt class="text-gray-500">Клієнт з</dt>
         <dd class="text-gray-600">{{ client.created_at|date:"d.m.Y" }}</dd>

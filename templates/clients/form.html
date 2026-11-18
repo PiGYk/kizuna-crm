@@ -38,6 +38,11 @@
         {{ form.email }}
       </div>
       <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Адреса</label>
+        {{ form.address }}
+        {% if form.address.errors %}<p class="text-red-500 text-xs mt-1">{{ form.address.errors|join:", " }}</p>{% endif %}
+      </div>
+      <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Нотатки</label>
         {{ form.notes }}
       </div>
