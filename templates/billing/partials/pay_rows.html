@@ -11,6 +11,7 @@
       class="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-base text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-gold md:text-sm">
       <option value="cash">Готівка</option>
       <option value="card">Картка</option>
+      <option value="transfer">Переказ на ФОП</option>
       {% if deposit > 0 %}<option value="deposit">З депозиту</option>{% endif %}
     </select>
     <input name="pay_amount" type="text" inputmode="decimal" autocomplete="off" aria-label="Сума, ₴" value="{{ due|unlocalize }}"

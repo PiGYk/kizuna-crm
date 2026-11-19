@@ -147,16 +147,20 @@ class CheckboxService:
                     return
         raise RuntimeError('Checkbox: зміна не відкрилась за 30 секунд')
 
-    def create_cash_receipt(self, invoice) -> dict:
-        """Готівковий чек — підписується одразу."""
+    def create_cash_receipt(self, invoice, payment_type='CASH', label=None) -> dict:
+        """Готівковий чек — підписується одразу. payment_type='CASHLESS' з міткою — безготівка без термінала
+        (create_transfer_receipt)."""
         goods = self._build_goods(invoice)
         if not goods:
             raise ValueError('Рахунок не містить позицій з ненульовою ціною.')
 
         total_kopecks = round(float(invoice.total) * 100)
+        payment = {'type': payment_type, 'value': total_kopecks}
+        if label:
+            payment['label'] = label
         payload = {
             'goods': goods,
-            'payments': [{'type': 'CASH', 'value': total_kopecks}],
+            'payments': [payment],
         }
 
         phone = getattr(invoice.client, 'phone', '')
@@ -174,6 +178,11 @@ class CheckboxService:
             logger.error('Checkbox POST /receipts/sell %s: %s', resp.status_code, resp.text)
         resp.raise_for_status()
         return resp.json()
+
+    def create_transfer_receipt(self, invoice) -> dict:
+        """Переказ на рахунок ФОП (Олег 19.11.2026): клієнт заплатив зі свого банку повз Checkbox — чек безготівкою.
+        Мітка — з переліку Checkbox для безготівкових оплат."""
+        return self.create_cash_receipt(invoice, payment_type='CASHLESS', label='Інтернет банкінг')
 
     def close_shift(self):
         resp = requests.post(

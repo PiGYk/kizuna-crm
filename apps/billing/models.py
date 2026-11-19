@@ -18,6 +18,8 @@ class Invoice(models.Model):
     class PaymentMethod(models.TextChoices):
         CASH = 'cash', 'Готівка'
         CARD = 'card', 'Картка'
+        # клієнт переказав на рахунок ФОП зі свого банку, повз Checkbox (Олег 19.11.2026) — гроші на рахунку, як з картки
+        TRANSFER = 'transfer', 'Переказ на ФОП'
         # з грошей, що клієнт лишив наперед (ANVAR 04.11.2026) — у касу нових грошей не додає (apps/billing/deposits.py)
         DEPOSIT = 'deposit', 'З депозиту'
 
@@ -274,3 +276,5 @@ class InvoiceLine(models.Model):
 
     class Meta:
         verbose_name = 'Рядок рахунку'
+        # індекс з міграції 0009 (групування топ-послуг/товарів); без нього в моделі makemigrations його зносив
+        indexes = [models.Index(fields=['invoice', 'line_type'], name='line_inv_type_idx')]

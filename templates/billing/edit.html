@@ -111,6 +111,10 @@
           class="w-full py-2.5 rounded-lg text-sm font-medium border-2 border-gray-200 text-gray-600 text-left px-4 flex items-center gap-2 hover:border-gray-300">
           <span class="text-base">💵</span> Готівка (офіційна)
         </button>
+        <button type="button" onclick="selectFiscalType('transfer')" id="fiscal-btn-transfer"
+          class="w-full py-2.5 rounded-lg text-sm font-medium border-2 border-gray-200 text-gray-600 text-left px-4 flex items-center gap-2 hover:border-gray-300">
+          <span class="text-base">🏦</span> Переказ на рахунок ФОП (гроші вже прийшли)
+        </button>
       </div>
       <div class="flex gap-3">
         <button type="submit" class="flex-1 bg-brand-gold text-brand-dark py-2.5 rounded-lg text-sm font-semibold hover:brightness-95">Розрахувати</button>
@@ -356,7 +360,7 @@ function openFiscalModal() { const m = document.getElementById('fiscal-modal'); 
 function closeFiscalModal() { const m = document.getElementById('fiscal-modal'); m.classList.add('hidden'); m.classList.remove('flex'); }
 function selectFiscalType(type) {
   document.getElementById('fiscal-type-input').value = type;
-  const btns = { card: 'fiscal-btn-card', cash: 'fiscal-btn-cash' };
+  const btns = { card: 'fiscal-btn-card', cash: 'fiscal-btn-cash', transfer: 'fiscal-btn-transfer' };
   const activeClass = 'border-brand-gold bg-brand-gold/10 text-brand-dark';
   const inactiveClass = 'border-gray-200 text-gray-600 hover:border-gray-300';
   Object.entries(btns).forEach(([k, id]) => {

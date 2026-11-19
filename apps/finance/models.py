@@ -74,7 +74,8 @@ def calculate_balances(org=None):
     from apps.billing.models import InvoicePayment
     inv_agg = InvoicePayment._base_manager.filter(organization=org).aggregate(
         cash=Sum('amount', filter=Q(method='cash')),
-        card=Sum('amount', filter=Q(method='card')),
+        # переказ на рахунок ФОП (19.11.2026) — ті самі гроші на рахунку, що й з картки
+        card=Sum('amount', filter=Q(method__in=('card', 'transfer'))),
     )
     income_cash = inv_agg['cash'] or zero
     income_card = inv_agg['card'] or zero

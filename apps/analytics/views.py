@@ -81,8 +81,9 @@ def analytics_data(request):
     pay = InvoicePayment._base_manager.filter(invoice__in=qs).aggregate(
         cash=Sum('amount', filter=Q(method='cash')),
         cash_cnt=Count('invoice', filter=Q(method='cash'), distinct=True),
-        card=Sum('amount', filter=Q(method='card')),
-        card_cnt=Count('invoice', filter=Q(method='card'), distinct=True),
+        # безготівка: картка й переказ на рахунок ФОП (19.11.2026); окремо обидва — у «Способах оплати»
+        card=Sum('amount', filter=Q(method__in=('card', 'transfer'))),
+        card_cnt=Count('invoice', filter=Q(method__in=('card', 'transfer')), distinct=True),
         deposit=Sum('amount', filter=Q(method='deposit')),
     )
     revenue = agg['revenue'] or 0
@@ -146,7 +147,7 @@ def analytics_data(request):
     )
 
     # Payment methods
-    pay_map = {'cash': 'Готівка', 'card': 'Картка', 'deposit': 'З депозиту', 'debt': 'Борг (не сплачено)', None: 'Не вказано'}
+    pay_map = {'cash': 'Готівка', 'card': 'Картка', 'transfer': 'Переказ на ФОП', 'deposit': 'З депозиту', 'debt': 'Борг (не сплачено)', None: 'Не вказано'}
     pay_methods = [
         {'payment_method': p['method'], 'total': p['total'], 'cnt': p['cnt']}
         for p in InvoicePayment._base_manager.filter(invoice__in=qs).values('method')

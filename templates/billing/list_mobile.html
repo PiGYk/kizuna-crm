@@ -88,7 +88,7 @@
           <div class="flex items-center gap-2 text-[11px] text-gray-400 mt-1">
             {% if inv.patient %}<span class="truncate">🐾 {{ inv.patient.name }}</span><span>·</span>{% endif %}
             <span>{{ inv.created_at|date:"d.m H:i" }}</span>
-            {% if inv.payment_method == 'cash' %}<span>· 💵</span>{% elif inv.payment_method == 'card' %}<span>· 💳</span>{% endif %}
+            {% if inv.payment_method == 'cash' %}<span>· 💵</span>{% elif inv.payment_method == 'card' %}<span>· 💳</span>{% elif inv.payment_method == 'transfer' %}<span>· 🏦</span>{% endif %}
             <span class="ml-auto">
               {% if inv.status == 'paid' and inv.has_debt %}<span class="px-2 py-0.5 rounded-full bg-red-50 text-red-800 font-medium">Борг {{ inv.balance_due|floatformat:0 }} ₴</span>
               {% elif inv.status == 'paid' %}<span class="px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">Оплачено</span>

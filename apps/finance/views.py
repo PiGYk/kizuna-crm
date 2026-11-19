@@ -325,7 +325,8 @@ def report_data(request):
     from django.db.models import Q
     from apps.billing.models import InvoicePayment
     pay = InvoicePayment._base_manager.filter(invoice__in=invoices).aggregate(
-        cash=Sum('amount', filter=Q(method='cash')), card=Sum('amount', filter=Q(method='card')),
+        cash=Sum('amount', filter=Q(method='cash')),
+        card=Sum('amount', filter=Q(method__in=('card', 'transfer'))),   # з переказом на ФОП (19.11.2026)
         deposit=Sum('amount', filter=Q(method='deposit')))
     income_cash = pay['cash'] or Decimal('0')
     income_card = pay['card'] or Decimal('0')

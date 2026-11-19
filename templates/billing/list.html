@@ -154,6 +154,7 @@
         <td class="px-4 py-2.5 text-center text-base">
           {% if inv.payment_method == 'cash' %}<span title="Готівка">💵</span>
           {% elif inv.payment_method == 'card' %}<span title="Картка">💳</span>
+          {% elif inv.payment_method == 'transfer' %}<span title="Переказ на ФОП">🏦</span>
           {% else %}<span class="text-gray-300 text-sm">—</span>{% endif %}
         </td>
         <td class="px-4 py-2.5 text-center">
