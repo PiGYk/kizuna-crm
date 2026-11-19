@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-
+{% load l10n %}
 {% block title %}Чек #{{ invoice.pk }} — Kizuna CRM{% endblock %}
 
 {% block content %}
@@ -52,7 +52,7 @@
 {% if invoice.fiscal_status == 'pending' %}
 <div class="mb-4 flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
   <svg class="w-5 h-5 shrink-0 animate-spin" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 0 0 4.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 0 1-15.357-2m15.357 2H15"/></svg>
-  <span class="flex-1 font-medium">Очікуємо оплату через Monobank QR…</span>
+  <span class="flex-1 font-medium">Очікуємо оплату{% if invoice.qr_amount %} <span class="tabular-nums">{{ invoice.qr_amount }}&nbsp;₴</span>{% endif %} через Monobank QR…</span>
   <div class="flex gap-2 shrink-0 flex-wrap">
     <form method="post" action="{% url 'billing:confirm_payment' invoice.pk %}">
       {% csrf_token %}
@@ -99,9 +99,17 @@
   <div class="bg-white rounded-xl p-6 max-w-sm w-full shadow-xl">
     <h2 class="text-lg font-bold text-brand-dark mb-1">Розрахувати</h2>
     <p class="text-sm text-gray-500 mb-5">Оберіть спосіб оплати — чек буде відправлено в Checkbox.</p>
-    <form method="post" action="{% url 'billing:fiscalize' invoice.pk %}">
+    <form method="post" action="{% url 'billing:fiscalize' invoice.pk %}"
+          onsubmit="var b=this.querySelector('button[type=submit]');setTimeout(function(){b.disabled=true},0)">
       {% csrf_token %}
       <input type="hidden" name="payment_type" id="fiscal-type-input" value="card">
+      {# сума вручну (Олег 19.11.2026): менше залишку — чек на цю частину; свіжу «До сплати» підставляє openFiscalModal #}
+      <input type="hidden" name="due_seen" id="fiscal-seen" value="{{ invoice.balance_due|unlocalize }}">
+      <label for="fiscal-amount" class="block text-sm font-medium text-brand-dark mb-1">Скільки платять зараз, ₴</label>
+      <input id="fiscal-amount" name="amount" type="text" inputmode="decimal" autocomplete="off" required value="{{ invoice.balance_due|unlocalize }}"
+        onkeydown="if(event.key==='Enter')event.preventDefault()"
+        class="h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-right text-base tabular-nums text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-gold md:text-sm">
+      <p class="mt-1 mb-4 text-xs text-gray-600">До сплати <span id="fiscal-due">{{ invoice.balance_due|unlocalize }}</span> ₴. Менше — чек на цю частину, рахунок лишається відкритим.</p>
       <div class="flex flex-col gap-2 mb-5">
         <button type="button" onclick="selectFiscalType('card')" id="fiscal-btn-card"
           class="w-full py-2.5 rounded-lg text-sm font-medium border-2 border-brand-gold bg-brand-gold/10 text-brand-dark text-left px-4 flex items-center gap-2">
@@ -356,7 +364,12 @@ document.addEventListener('click', e => {
 });
 
 // ── Modals ──────────────────────────────────────────────────────────────────
-function openFiscalModal() { const m = document.getElementById('fiscal-modal'); m.classList.remove('hidden'); m.classList.add('flex'); }
+function openFiscalModal() {
+  // «скільки платять зараз» — свіжа «До сплати» з таблиці рядків (її перемальовує HTMX), а не з моменту відкриття сторінки
+  const d = document.querySelector('[data-kz-due]');
+  if (d) { const v = d.dataset.kzDue; document.getElementById('fiscal-amount').value = v; document.getElementById('fiscal-seen').value = v; document.getElementById('fiscal-due').textContent = v; }
+  const m = document.getElementById('fiscal-modal'); m.classList.remove('hidden'); m.classList.add('flex');
+}
 function closeFiscalModal() { const m = document.getElementById('fiscal-modal'); m.classList.add('hidden'); m.classList.remove('flex'); }
 function selectFiscalType(type) {
   document.getElementById('fiscal-type-input').value = type;

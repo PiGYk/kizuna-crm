@@ -68,6 +68,8 @@ class Invoice(models.Model):
         max_length=10, choices=FiscalStatus.choices, default=FiscalStatus.NONE,
         verbose_name='Статус фіскалізації'
     )
+    # Сума QR, що зараз висить на терміналі (Олег 19.11.2026: частина боргу чи залишку). Порожньо — весь залишок.
+    qr_amount = models.DecimalField('Сума на QR', max_digits=10, decimal_places=2, null=True, blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True,
         related_name='created_invoices'
@@ -163,6 +165,8 @@ class InvoicePayment(models.Model):
     amount = models.DecimalField('Сума', max_digits=10, decimal_places=2)
     method = models.CharField('Спосіб', max_length=10, choices=Invoice.PaymentMethod.choices)
     paid_at = models.DateTimeField('Коли', default=timezone.now)
+    # фіскальний чек Checkbox саме на цей платіж (Олег 19.11.2026: частина боргу чи залишку — окремим чеком)
+    fiscal_receipt_id = models.CharField('ID чеку Checkbox', max_length=100, null=True, blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
     )

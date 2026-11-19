@@ -3,7 +3,7 @@
   {% for p in payments %}
   <li class="flex items-center gap-3 py-1.5">
     <span class="w-28 shrink-0 tabular-nums text-gray-600">{{ p.paid_at|date:"d.m.Y H:i" }}</span>
-    <span class="flex-1 text-brand-dark">{{ p.get_method_display }}</span>
+    <span class="flex-1 text-brand-dark">{{ p.get_method_display }}{% if p.fiscal_receipt_id %} <span class="ml-1 whitespace-nowrap rounded bg-green-100 px-1.5 py-0.5 text-xs font-medium text-green-800" title="На цей платіж пробито фіскальний чек Checkbox">🧾 чек</span>{% endif %}</span>
     <span class="tabular-nums font-medium text-brand-dark">{{ p.amount }} ₴</span>
     {% if user.is_admin %}
     <form method="post" action="{% url 'billing:delete_payment' invoice.pk p.pk %}" onsubmit="return confirm('Видалити помилковий платіж {{ p.amount }} ₴? {% if p.method == 'deposit' %}Гроші повернуться на депозит клієнта, а {% if invoice.status == 'paid' %}сума стане боргом.{% else %}сума — до сплати.{% endif %}{% elif invoice.status == 'paid' %}Сума стане боргом клієнта.{% else %}Сума повернеться до сплати.{% endif %}')">

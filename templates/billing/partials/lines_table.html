@@ -238,11 +238,11 @@
         <span class="text-2xl font-bold text-brand-dark tabular-nums">{{ invoice.balance_due|floatformat:2 }}&nbsp;₴</span>
       </div>
       <div class="p-3 space-y-2">
-        <button type="button" onclick="openFiscalModal()" {% if not lines or invoice.amount_paid %}disabled{% endif %}
+        <button type="button" onclick="openFiscalModal()" data-kz-due="{{ invoice.balance_due|unlocalize }}" {% if not lines or not invoice.balance_due %}disabled{% endif %}
           class="w-full bg-brand-gold text-brand-dark py-2.5 rounded-lg text-sm font-semibold hover:brightness-95 disabled:opacity-40 disabled:cursor-not-allowed transition inline-flex items-center justify-center gap-2">
           <span>🧾</span> Розрахувати (фіскальний чек)
         </button>
-        {% if invoice.amount_paid %}<p class="text-xs text-gray-600">Частину вже внесено, а фіскальний чек пробивається лише на всю суму. Решту прийміть через «Оплатити без чека».</p>{% endif %}
+        {% if invoice.amount_paid %}<p class="text-xs text-gray-600">Частину вже внесено — чек пробʼється на ту суму, яку платять зараз.</p>{% endif %}
         <div class="grid grid-cols-2 gap-2">
           <button type="button" onclick="openPayModal()" {% if not lines %}disabled{% endif %}
             class="border-2 border-brand-gold text-brand-dark py-2 rounded-lg text-sm font-medium hover:bg-brand-gold/10 disabled:opacity-40 disabled:cursor-not-allowed">

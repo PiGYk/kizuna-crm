@@ -656,8 +656,8 @@ def pay_invoice(request, pk):
 
     if request.POST.get('action') == 'keep_open':
         if invoice.fiscal_status == Invoice.FiscalStatus.PENDING:
-            # QR-код на термінал уже виставлено на всю суму — аванс зверху дав би переплату
-            messages.error(request, 'Клієнт зараз оплачує всю суму за QR-кодом — аванс не вноситься. Скасуйте очікування оплати або дочекайтесь її.')
+            # на терміналі висить QR — аванс зверху міг би дати переплату
+            messages.error(request, f'Клієнт зараз оплачує {invoice.qr_amount or invoice.balance_due} ₴ за QR-кодом — аванс не вноситься. Скасуйте очікування оплати або дочекайтесь її.')
             return redirect('billing:edit', pk=pk)
         if not rows:
             messages.error(request, 'Вкажіть суму, яку внесли.')
@@ -671,9 +671,12 @@ def pay_invoice(request, pk):
     # клієнт таки оплатив за QR — гроші прийшли, а чека нема). Спершу питаємо Checkbox.
     if invoice.fiscal_status == Invoice.FiscalStatus.PENDING and invoice.fiscal_receipt_id:
         qr = _settle_pending_qr(request.organization, invoice)
-        if qr != 'dropped':
+        if qr == 'paid':
             messages.error(request, _QR_MSG[qr])
             return redirect('billing:edit', pk=pk)
+        if qr == 'error':
+            # «Оплатити» не блокуємо (01.11: цим шляхом закривали рахунки з живим QR десятки разів) — лише попереджаємо
+            messages.warning(request, _QR_MSG['unknown'])
 
     try:
         _writeoff_stock(invoice, request.user)
@@ -711,6 +714,14 @@ def pay_debt(request, pk):
     except ValueError as exc:
         messages.error(request, f'Оплата не прийнята: {exc}.')
         return redirect('billing:detail', pk=pk)
+    # на частину боргу висить QR (Олег 19.11.2026) — клієнт уже заплатив: спершу «Перевірити оплату», інакше чека не буде
+    if invoice.fiscal_status == Invoice.FiscalStatus.PENDING and invoice.fiscal_receipt_id:
+        qr = _settle_pending_qr(request.organization, invoice)
+        if qr == 'paid':
+            messages.error(request, _QR_MSG[qr])
+            return redirect('billing:detail', pk=pk)
+        if qr == 'error':
+            messages.warning(request, _QR_MSG['unknown'])
     paying = sum((amount for _, amount in rows), Decimal('0'))
     if not rows:
         messages.error(request, 'Вкажіть суму.')
@@ -734,9 +745,12 @@ def delete_payment(request, pk, payment_id):
     if not request.user.is_admin():
         messages.error(request, 'Платежі прибирає лише адміністратор.')
     else:
-        InvoicePayment._base_manager.filter(pk=payment_id, invoice=invoice).delete()
+        gone = InvoicePayment._base_manager.filter(pk=payment_id, invoice=invoice)
+        had_receipt = gone.exclude(fiscal_receipt_id__isnull=True).exclude(fiscal_receipt_id='').exists()
+        gone.delete()
         invoice.refresh_paid()
-        messages.success(request, 'Платіж прибрано.')
+        messages.success(request, 'Платіж прибрано.' + (' Його фіскальний чек лишається в ДПС — за потреби зробіть '
+                                                       'чек повернення в Checkbox.' if had_receipt else ''))
     return redirect('billing:detail' if invoice.status == Invoice.Status.PAID else 'billing:edit', pk=pk)
 
 
@@ -881,8 +895,11 @@ def _send_payment_link_tg(invoice, org) -> bool:
         if not tg_chat:
             return False
         patient_str = f' ({invoice.patient.name})' if invoice.patient else ''
+        # QR на частину (Олег 19.11.2026) — клієнт бачить, скільки платить зараз, а не лише суму рахунку
+        amount = invoice.qr_amount or invoice.total
+        now_str = f', до сплати зараз {amount} грн' if amount != invoice.total else ''
         text = (
-            f'💳 Рахунок #{invoice.pk}{patient_str} на суму {invoice.total} грн\n\n'
+            f'💳 Рахунок #{invoice.pk}{patient_str} на суму {invoice.total} грн{now_str}\n\n'
             f'Оплатіть за посиланням:\n{invoice.fiscal_page_url}'
         )
         _send_tg(tg_chat.tg_user_id, text, org=org)
@@ -900,7 +917,7 @@ def send_payment_link_tg(request, pk):
     invoice = get_object_or_404(Invoice, pk=pk)
     if not invoice.fiscal_page_url:
         messages.error(request, 'Немає активного посилання на оплату.')
-        return redirect('billing:edit', pk=pk)
+        return _back(invoice)
 
     org = request.organization
     sent = _send_payment_link_tg(invoice, org)
@@ -908,26 +925,83 @@ def send_payment_link_tg(request, pk):
         messages.success(request, 'Посилання на оплату надіслано клієнту в Telegram.')
     else:
         messages.warning(request, 'Клієнт не прив\'язаний до Telegram або посилання відсутнє.')
-    return redirect('billing:edit', pk=pk)
+    return _back(invoice)
 
 
 # ── Фіскалізація через Checkbox ─────────────────────────────────────────────
+
+def _back(invoice):
+    """Чернетка — назад у редагування, закритий рахунок (борг) — на сторінку рахунку."""
+    return redirect('billing:detail' if invoice.status == Invoice.Status.PAID else 'billing:edit', pk=invoice.pk)
+
+
+def _parse_amount(raw, due):
+    """«Скільки платять зараз» (Олег 19.11.2026): порожньо — увесь залишок; не більше залишку."""
+    import re
+    s = (raw or '').strip().replace(' ', '').replace('\xa0', '').replace(',', '.')
+    if not s:
+        return due
+    if not re.fullmatch(r'\d+(\.\d{1,2})?', s):
+        raise ValueError(f'«{raw}» — не сума')
+    amount = Decimal(s).quantize(Decimal('0.01'))
+    if amount <= 0:
+        raise ValueError('має бути більше нуля')
+    if amount > due:
+        raise ValueError(f'{amount} ₴ — більше, ніж до сплати ({due} ₴)')
+    return amount
+
+
+def _left_note(invoice, closed):
+    """Що лишилось після платежу — для повідомлення персоналу."""
+    if closed:
+        return 'Рахунок закрито.'
+    if invoice.status == Invoice.Status.DRAFT:
+        return f'Рахунок відкритий, до сплати ще {invoice.balance_due} ₴.'
+    return 'Борг погашено.' if not invoice.has_debt else f'Борг ще {invoice.balance_due} ₴.'
+
+
+def _fiscal_reset(invoice):
+    """QR знято (скасували, протух, не пройшов) — стан чека рахунку знову з платежів: є платіж із чеком — «Оплачено»
+    з його чеком, нема — «—»."""
+    from .models import InvoicePayment
+    last = (InvoicePayment._base_manager.filter(invoice=invoice).exclude(fiscal_receipt_id__isnull=True)
+            .exclude(fiscal_receipt_id='').order_by('-paid_at', '-pk').values_list('fiscal_receipt_id', flat=True).first())
+    invoice.fiscal_receipt_id = last or ''
+    invoice.fiscal_status = Invoice.FiscalStatus.SENT if last else Invoice.FiscalStatus.NONE
+    invoice.fiscal_page_url = ''
+    invoice.qr_amount = None
+    invoice.save(update_fields=['fiscal_receipt_id', 'fiscal_status', 'fiscal_page_url', 'qr_amount'])
+
 
 @login_required
 @require_POST
 @transaction.atomic
 def fiscalize_invoice(request, pk):
+    """Оплата з фіскальним чеком Checkbox — на весь залишок або на частину (Олег 19.11.2026: «вручну виставляти, скільки
+    оплачують з боргу, на QR або готівкою»). Чернетка: сплачено все — рахунок закривається (склад списується), частина —
+    аванс, рахунок лишається відкритим. Закритий рахунок із боргом — частина боргу або весь. Чек — на суму цього платежу:
+    перша оплата на весь рахунок — з позиціями, як раніше, інакше один рядок «Оплата за рахунком №N (частина)»."""
     org = request.organization
+    invoice = get_object_or_404(Invoice.objects.select_for_update(), pk=pk,
+                                status__in=(Invoice.Status.DRAFT, Invoice.Status.PAID))
     if org and not request.user.is_superuser and not org.can_use_checkbox:
         messages.error(request, 'Фіскалізація Checkbox доступна з тарифу «Клініка».')
-        return redirect('billing:edit', pk=pk)
-
-    invoice = get_object_or_404(Invoice, pk=pk, status=Invoice.Status.DRAFT)
+        return _back(invoice)
     invoice.refresh_paid()
-    if invoice.amount_paid > 0:
-        # Чек і QR на термінал Checkbox — завжди на всю суму рахунку: з авансом клієнт заплатив би його вдруге
-        messages.error(request, f'По рахунку вже внесено {invoice.amount_paid} ₴ — фіскальний чек пробивається лише на всю суму. Решту прийміть через «Оплатити».')
-        return redirect('billing:edit', pk=pk)
+    due = invoice.balance_due
+    if due <= 0:
+        messages.error(request, 'За рахунком уже все сплачено.' if invoice.total else 'Рахунок порожній.')
+        return _back(invoice)
+    # форма показувала одну суму до сплати, а тепер інша (дописали рядки, хтось вніс платіж) — сума могла бути хибна
+    seen = request.POST.get('due_seen')
+    if seen and _parse_decimal(seen, None) != due:
+        messages.error(request, f'Сума до сплати змінилась — тепер {due} ₴. Перевірте суму й розрахуйте ще раз.')
+        return _back(invoice)
+    try:
+        amount = _parse_amount(request.POST.get('amount'), due)
+    except ValueError as exc:
+        messages.error(request, f'Сума: {exc}.')
+        return _back(invoice)
     payment_type = request.POST.get('payment_type', 'card')
     # QR на всю суму ще чекає оплати (19.11.2026: 55 рахунків закрили «Оплатити» з QR, що висів, і 3 з них
     # клієнт таки оплатив за QR — гроші прийшли, а чека нема). Спершу питаємо Checkbox.
@@ -935,68 +1009,73 @@ def fiscalize_invoice(request, pk):
         qr = _settle_pending_qr(org, invoice)
         if qr != 'dropped':
             messages.error(request, _QR_MSG[qr])
-            return redirect('billing:edit', pk=pk)
+            return _back(invoice)
+    whole = invoice.amount_paid == 0 and amount == invoice.total   # чек з позиціями рахунку, як раніше
+    part = None if whole else amount
+    closes = invoice.status == Invoice.Status.DRAFT and amount >= due
 
     from .checkbox_service import CheckboxService
+    from .models import InvoicePayment
     svc = CheckboxService(org)
 
     try:
         svc.authenticate()
+        svc.ensure_shift_open()
 
         if payment_type in ('cash', 'transfer'):
-            # Готівка або переказ на рахунок ФОП (Олег 19.11.2026): гроші вже в нас — фіскалізуємо одразу
-            # і закриваємо рахунок (списуємо склад). Переказ іде в чек безготівкою «Інтернет банкінг».
+            # Готівка або переказ на рахунок ФОП (Олег 19.11.2026): гроші вже в нас — чек одразу. Переказ — чек
+            # безготівкою «Інтернет банкінг». Не вистачає складу або чек не пробився — ні платежу, ні списання.
             method = Invoice.PaymentMethod.TRANSFER if payment_type == 'transfer' else Invoice.PaymentMethod.CASH
-            svc.ensure_shift_open()
-            if method == Invoice.PaymentMethod.TRANSFER:
-                receipt = svc.create_transfer_receipt(invoice)
-            else:
-                receipt = svc.create_cash_receipt(invoice)
-            invoice.fiscal_receipt_id = receipt.get('id', '')
-            invoice.fiscal_status = Invoice.FiscalStatus.SENT
-            invoice.payment_method = method
-
-            try:
-                _writeoff_stock(invoice, request.user)
-            except InsufficientStockError as exc:
-                transaction.set_rollback(True)
-                messages.error(
-                    request,
-                    'Чек пробитий, але не вистачає на складі: ' + '; '.join(exc.items)
-                    + '. Поповніть склад і спробуйте знову.'
-                )
-                return redirect('billing:edit', pk=pk)
-
-            invoice.status = Invoice.Status.PAID
-            invoice.save(update_fields=['fiscal_receipt_id', 'fiscal_status', 'payment_method', 'status'])
-            pay_rest(invoice, method, request.user)
-            messages.success(request, 'Чек на переказ пробито, рахунок закрито.' if method == Invoice.PaymentMethod.TRANSFER
-                             else 'Готівковий чек пробито, рахунок закрито.')
+            with transaction.atomic():
+                if closes:
+                    _writeoff_stock(invoice, request.user)   # спершу склад: не вистачає — чек не б'ємо
+                pay = add_payment(invoice, amount, method, request.user)
+                if method == Invoice.PaymentMethod.TRANSFER:
+                    receipt = svc.create_transfer_receipt(invoice, amount=part)
+                else:
+                    receipt = svc.create_cash_receipt(invoice, amount=part)
+                receipt_id = receipt.get('id') or ''
+                InvoicePayment._base_manager.filter(pk=pay.pk).update(fiscal_receipt_id=receipt_id or None)
+                invoice.fiscal_receipt_id = receipt_id
+                invoice.fiscal_status = Invoice.FiscalStatus.SENT
+                fields = ['fiscal_receipt_id', 'fiscal_status']
+                if closes:
+                    invoice.status = Invoice.Status.PAID
+                    fields.append('status')
+                invoice.save(update_fields=fields)
+                invoice.refresh_paid()
+            what = 'Чек на переказ' if method == Invoice.PaymentMethod.TRANSFER else 'Готівковий чек'
+            messages.success(request, f'{what} на {amount} ₴ пробито. {_left_note(invoice, closes)}')
 
         else:
-            # Картка: створюємо invoice → QR отримує суму → очікуємо оплату
-            svc.ensure_shift_open()
-            cb_invoice = svc.create_invoice(invoice)
+            # Картка: Checkbox invoice → сума на QR-терміналі (і посилання клієнту в Telegram) → «Перевірити оплату»
+            cb_invoice = svc.create_invoice(invoice, amount=part)
             invoice.fiscal_receipt_id = cb_invoice.get('id', '')
             invoice.fiscal_page_url = cb_invoice.get('page_url', '') or ''
             invoice.fiscal_status = Invoice.FiscalStatus.PENDING
-            invoice.payment_method = Invoice.PaymentMethod.CARD
-            invoice.save(update_fields=['fiscal_receipt_id', 'fiscal_page_url', 'fiscal_status', 'payment_method'])
+            invoice.qr_amount = amount
+            fields = ['fiscal_receipt_id', 'fiscal_page_url', 'fiscal_status', 'qr_amount']
+            if invoice.status == Invoice.Status.DRAFT:
+                invoice.payment_method = Invoice.PaymentMethod.CARD
+                fields.append('payment_method')
+            invoice.save(update_fields=fields)
 
             # Відправляємо посилання на оплату в Telegram якщо клієнт верифікований
             tg_sent = _send_payment_link_tg(invoice, org)
-            if tg_sent:
-                messages.success(request, 'Сума відправлена на QR термінал. Посилання на оплату надіслано клієнту в Telegram.')
-            else:
-                messages.success(request, 'Сума відправлена на QR термінал. Очікуємо оплату від клієнта.')
+            messages.success(request, f'{amount} ₴ відправлено на QR-термінал. ' + (
+                'Посилання на оплату надіслано клієнту в Telegram.' if tg_sent else 'Очікуємо оплату від клієнта.'))
 
+    except InsufficientStockError as exc:
+        messages.error(request, 'Недостатньо залишку: ' + '; '.join(exc.items)
+                       + '. Поповніть склад або приберіть позиції — чек не пробито.')
     except Exception as exc:
         logger.error('Checkbox error invoice=%s: %s', pk, exc)
-        invoice.fiscal_status = Invoice.FiscalStatus.ERROR
-        invoice.save(update_fields=['fiscal_status'])
+        if invoice.status == Invoice.Status.DRAFT:
+            Invoice._base_manager.filter(pk=invoice.pk).update(fiscal_status=Invoice.FiscalStatus.ERROR)
         messages.error(request, f'Помилка Checkbox: {exc}')
+        invoice.refresh_from_db()
 
-    return redirect('billing:edit', pk=pk)
+    return _back(invoice)
 
 
 # ── Підтвердження оплати через Checkbox (картка/QR) ──────────────────────────
@@ -1006,17 +1085,20 @@ def fiscalize_invoice(request, pk):
 @transaction.atomic
 def confirm_checkbox_payment(request, pk):
     """
-    Перевіряє статус Checkbox invoice.
-    Якщо DONE — списує товари і закриває рахунок як PAID.
+    Перевіряє оплату за QR у Checkbox. Оплачено — платіж на суму, що прийшла, і фіскальний чек на неї; чернетку,
+    сплачену повністю, закриваємо (склад списується). QR на весь рахунок без авансу — чек з позиціями, як раніше;
+    на частину (Олег 19.11.2026) — один рядок «Оплата за рахунком №N (частина)».
     """
-    invoice = get_object_or_404(Invoice, pk=pk, status=Invoice.Status.DRAFT)
+    invoice = get_object_or_404(Invoice.objects.select_for_update(), pk=pk,
+                                status__in=(Invoice.Status.DRAFT, Invoice.Status.PAID))
 
     if invoice.fiscal_status != Invoice.FiscalStatus.PENDING or not invoice.fiscal_receipt_id:
         messages.error(request, 'Немає активного очікування оплати.')
-        return redirect('billing:edit', pk=pk)
+        return _back(invoice)
 
     org = request.organization
     from .checkbox_service import CheckboxService
+    from .models import InvoicePayment
     svc = CheckboxService(org)
 
     try:
@@ -1028,46 +1110,62 @@ def confirm_checkbox_payment(request, pk):
         FAILED_STATUSES = {'EXPIRED', 'CANCELLED', 'FAILED', 'FAILURE'}   # FAILURE — так Checkbox віддає невдалу оплату
 
         if status in PAID_STATUSES:
-            # Оплата підтверджена — списуємо товари
-            try:
-                _writeoff_stock(invoice, request.user)
-            except InsufficientStockError as exc:
-                logger.error('Insufficient stock on checkbox confirm invoice=%s: %s', pk, exc.items)
-                messages.error(
-                    request,
-                    'Оплата прийнята, але не вистачає на складі: ' + '; '.join(exc.items)
-                    + '. Поповніть склад і повторіть або скоригуйте рахунок.'
-                )
-                return redirect('billing:edit', pk=pk)
-
-            # Друга дія: пробиваємо фіскальний чек через /receipts/sell.
-            # Без цього кроку Checkbox знає про оплату через термінал, але
-            # ДПС-чека не існує — і весь місяць CARD-оплат залишається не фіскалізованим.
+            invoice.refresh_paid()
+            # скільки клієнт заплатив — зі слів Checkbox (копійки); інакше — сума QR, старі QR (до 19.11) — увесь залишок
+            paid_kop = cb_data.get('final_amount') or cb_data.get('amount')
+            if paid_kop:
+                amount = (Decimal(paid_kop) / 100).quantize(Decimal('0.01'))
+            else:
+                amount = invoice.qr_amount or invoice.balance_due
+            whole = invoice.amount_paid == 0 and amount == invoice.total
+            closes = invoice.status == Invoice.Status.DRAFT and amount >= invoice.balance_due
             fiscal_warn = None
-            try:
-                receipt = svc.fiscalize_card_invoice(invoice, cb_data)
-                invoice.fiscal_receipt_id = receipt.get('id') or invoice.fiscal_receipt_id
-                invoice.fiscal_status = Invoice.FiscalStatus.SENT
-            except Exception as exc:
-                logger.error('Checkbox card fiscalize failed invoice=%s: %s', pk, exc)
-                fiscal_warn = str(exc)
-                invoice.fiscal_status = Invoice.FiscalStatus.ERROR
+            with transaction.atomic():
+                if closes:
+                    try:
+                        _writeoff_stock(invoice, request.user)
+                    except InsufficientStockError as exc:
+                        logger.error('Insufficient stock on checkbox confirm invoice=%s: %s', pk, exc.items)
+                        messages.error(
+                            request,
+                            'Оплата прийнята, але не вистачає на складі: ' + '; '.join(exc.items)
+                            + '. Поповніть склад і повторіть або скоригуйте рахунок.'
+                        )
+                        return _back(invoice)
 
-            invoice.status = Invoice.Status.PAID
-            invoice.payment_method = Invoice.PaymentMethod.CARD
-            invoice.save(update_fields=['fiscal_receipt_id', 'fiscal_status', 'status', 'payment_method'])
-            pay_rest(invoice, Invoice.PaymentMethod.CARD, request.user)
+                # Друга дія: фіскальний чек через /receipts/sell. Без цього кроку Checkbox знає про оплату через
+                # термінал, але ДПС-чека не існує. Чек не пробився — платіж однаково записуємо: гроші вже прийшли.
+                receipt_id = ''
+                try:
+                    receipt = svc.fiscalize_card_invoice(invoice, cb_data, amount=None if whole else amount)
+                    receipt_id = receipt.get('id') or ''
+                except Exception as exc:
+                    logger.error('Checkbox card fiscalize failed invoice=%s: %s', pk, exc)
+                    fiscal_warn = str(exc)
+
+                pay = add_payment(invoice, amount, Invoice.PaymentMethod.CARD, request.user)
+                if receipt_id:
+                    InvoicePayment._base_manager.filter(pk=pay.pk).update(fiscal_receipt_id=receipt_id)
+                invoice.fiscal_receipt_id = receipt_id or invoice.fiscal_receipt_id
+                invoice.fiscal_status = Invoice.FiscalStatus.ERROR if fiscal_warn else Invoice.FiscalStatus.SENT
+                invoice.fiscal_page_url = ''
+                invoice.qr_amount = None
+                fields = ['fiscal_receipt_id', 'fiscal_status', 'fiscal_page_url', 'qr_amount']
+                if closes:
+                    invoice.status = Invoice.Status.PAID
+                    fields.append('status')
+                invoice.save(update_fields=fields)
+                invoice.refresh_paid()
 
             if fiscal_warn:
-                messages.warning(request, f'Оплату прийнято, але фіскальний чек не пробився: {fiscal_warn}')
+                messages.warning(request, f'Оплату {amount} ₴ прийнято, але фіскальний чек не пробився: {fiscal_warn}. '
+                                          f'{_left_note(invoice, closes)}')
             else:
-                messages.success(request, 'Оплату підтверджено, фіскальний чек пробито. Рахунок закрито.')
-            return redirect('billing:detail', pk=pk)
+                messages.success(request, f'Оплату {amount} ₴ підтверджено, фіскальний чек пробито. {_left_note(invoice, closes)}')
+            return _back(invoice)
 
         elif status in FAILED_STATUSES:
-            invoice.fiscal_status = Invoice.FiscalStatus.ERROR
-            invoice.fiscal_receipt_id = ''
-            invoice.save(update_fields=['fiscal_status', 'fiscal_receipt_id'])
+            _fiscal_reset(invoice)
             messages.error(request, f'Оплата не пройшла (статус: {status}). Спробуйте ще раз.')
 
         else:
@@ -1077,14 +1175,15 @@ def confirm_checkbox_payment(request, pk):
         logger.error('Checkbox confirm error invoice=%s: %s', pk, exc)
         messages.error(request, f'Помилка перевірки оплати: {exc}')
 
-    return redirect('billing:edit', pk=pk)
+    return _back(invoice)
 
 
 # ── QR, що висить, коли рахунок закривають іншим способом ────────────────────
 
 _QR_MSG = {
-    'paid': 'Клієнт уже оплатив за QR-кодом — натисніть «Перевірити оплату»: пробʼється чек, і рахунок закриється.',
+    'paid': 'Клієнт уже оплатив за QR-кодом — натисніть «Перевірити оплату»: пробʼється чек, і платіж запишеться.',
     'error': 'Не вдалося перевірити QR-оплату в Checkbox. Спробуйте ще раз або натисніть «Скасувати» в блоці очікування оплати.',
+    'unknown': 'Checkbox не відповів, чи оплачено QR-код. Якщо клієнт таки заплатив за QR, гроші прийшли без чека — перевірте в Checkbox.',
 }
 
 
@@ -1103,10 +1202,7 @@ def _settle_pending_qr(org, invoice):
     except Exception as exc:
         logger.warning('Checkbox: pending QR check failed invoice=%s: %s', invoice.pk, exc)
         return 'error'
-    invoice.fiscal_receipt_id = ''
-    invoice.fiscal_page_url = ''
-    invoice.fiscal_status = Invoice.FiscalStatus.NONE
-    invoice.save(update_fields=['fiscal_receipt_id', 'fiscal_page_url', 'fiscal_status'])
+    _fiscal_reset(invoice)
     return 'dropped'
 
 
@@ -1116,14 +1212,15 @@ def _settle_pending_qr(org, invoice):
 @require_POST
 def cancel_fiscal(request, pk):
     org = request.organization
+    invoice = get_object_or_404(Invoice, pk=pk, status__in=(Invoice.Status.DRAFT, Invoice.Status.PAID))
     if org and not request.user.is_superuser and not org.can_use_checkbox:
         messages.error(request, 'Фіскалізація Checkbox доступна з тарифу «Клініка».')
-        return redirect('billing:edit', pk=pk)
-
-    invoice = get_object_or_404(Invoice, pk=pk, status=Invoice.Status.DRAFT)
-    if not invoice.fiscal_receipt_id:
-        messages.error(request, 'Немає активного invoice для скасування.')
-        return redirect('billing:edit', pk=pk)
+        return _back(invoice)
+    # закритий рахунок — лише QR, що висить: чек, уже пробитий на платіж, тут не чіпаємо
+    if not invoice.fiscal_receipt_id or (invoice.status == Invoice.Status.PAID
+                                         and invoice.fiscal_status != Invoice.FiscalStatus.PENDING):
+        messages.error(request, 'Немає активного очікування оплати для скасування.')
+        return _back(invoice)
 
     from .checkbox_service import CheckboxService
     svc = CheckboxService(org)
@@ -1131,21 +1228,30 @@ def cancel_fiscal(request, pk):
     try:
         svc.authenticate()
         if invoice.fiscal_status in (Invoice.FiscalStatus.PENDING, Invoice.FiscalStatus.ERROR):
+            # клієнт уже заплатив за QR — скасувати = гроші без чека (19.11.2026: так загубились чеки на 3 850 ₴)
             try:
-                svc.cancel_invoice(invoice.fiscal_receipt_id)
-            except Exception as cancel_exc:
-                # Якщо Checkbox каже invoice не існує/вже завершено — все одно скидаємо state.
-                logger.warning('Checkbox cancel returned error (continuing): %s', cancel_exc)
-        invoice.fiscal_receipt_id = ''
-        invoice.fiscal_status = Invoice.FiscalStatus.NONE
-        invoice.payment_method = None
-        invoice.save(update_fields=['fiscal_receipt_id', 'fiscal_status', 'payment_method'])
+                st = (svc.get_invoice_status(invoice.fiscal_receipt_id) or {}).get('status', '')
+            except Exception:
+                st = ''   # Checkbox не знає такого QR — скидаємо, як і раніше
+            if st in ('SUCCESS', 'DONE'):
+                messages.error(request, _QR_MSG['paid'])
+                return _back(invoice)
+            if st not in ('EXPIRED', 'CANCELLED', 'FAILED', 'FAILURE'):
+                try:
+                    svc.cancel_invoice(invoice.fiscal_receipt_id)
+                except Exception as cancel_exc:
+                    # Якщо Checkbox каже invoice не існує/вже завершено — все одно скидаємо state.
+                    logger.warning('Checkbox cancel returned error (continuing): %s', cancel_exc)
+        _fiscal_reset(invoice)
+        if invoice.status == Invoice.Status.DRAFT:
+            invoice.payment_method = None   # спосіб обирали під QR; закритий рахунок свій спосіб бере з платежів
+            invoice.save(update_fields=['payment_method'])
         messages.success(request, 'Платіж скасовано. Можна розрахувати знову.')
     except Exception as exc:
         logger.error('Checkbox cancel error invoice=%s: %s', pk, exc)
         messages.error(request, f'Помилка скасування: {exc}')
 
-    return redirect('billing:edit', pk=pk)
+    return _back(invoice)
 
 
 # ── Допоміжна функція списання залишків ──────────────────────────────────────

@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load l10n %}
 {% block title %}Чек #{{ invoice.pk }} — Kizuna CRM{% endblock %}
 
 {% block extra_head %}
@@ -63,7 +64,7 @@
       <svg class="w-4 h-4 shrink-0 animate-spin text-amber-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
       </svg>
-      <span class="text-xs font-medium text-amber-800 flex-1">Очікуємо оплату через Monobank QR</span>
+      <span class="text-xs font-medium text-amber-800 flex-1">Очікуємо оплату{% if invoice.qr_amount %} <span class="tabular-nums">{{ invoice.qr_amount }}&nbsp;₴</span>{% endif %} через Monobank QR</span>
     </div>
     <div class="flex gap-1.5 flex-wrap">
       <form method="post" action="{% url 'billing:confirm_payment' invoice.pk %}">
@@ -110,7 +111,7 @@
   <!-- Sticky bottom: Total + Pay/Fiscalize + FAB+ -->
   <div class="shrink-0 border-t border-gray-200 bg-white px-3 py-2 flex items-center gap-2"
        style="padding-bottom: max(8px, env(safe-area-inset-bottom));">
-    <button type="button" onclick="tgOpenSheet('mob-fiscal-sheet')"
+    <button type="button" onclick="kzFiscalFill();tgOpenSheet('mob-fiscal-sheet')"
             class="flex-1 py-3 rounded-xl text-sm font-semibold bg-brand-gold text-brand-dark active:opacity-80">
       Розрахувати
     </button>
@@ -279,13 +280,16 @@
     <div class="text-sm font-semibold text-brand-dark">Розрахувати (Checkbox)</div>
     <div class="text-[11px] text-gray-400 mt-0.5">Фіскальний чек буде відправлено в ДПС</div>
   </div>
-  {% if invoice.amount_paid %}
-  <div class="tg-mobile-sheet-body px-4 py-3 text-sm text-gray-700">
-    По рахунку вже внесено <b class="tabular-nums">{{ invoice.amount_paid|floatformat:2 }}&nbsp;₴</b>. Фіскальний чек пробивається лише на всю суму рахунку, тому решту прийміть через «Оплатити».
-  </div>
-  {% else %}
-  <form method="post" action="{% url 'billing:fiscalize' invoice.pk %}" class="tg-mobile-sheet-body px-4 py-3 space-y-2">
+  <form method="post" action="{% url 'billing:fiscalize' invoice.pk %}" class="tg-mobile-sheet-body px-4 py-3 space-y-2"
+        onsubmit="var b=this.querySelector('button[type=submit]');setTimeout(function(){b.disabled=true},0)">
     {% csrf_token %}
+    {# сума вручну (Олег 19.11.2026); свіжу «До сплати» з рядків підставляє kzFiscalFill при відкритті #}
+    <input type="hidden" name="due_seen" id="mob-fiscal-seen" value="{{ invoice.balance_due|unlocalize }}">
+    <label for="mob-fiscal-amount" class="block text-sm font-medium text-brand-dark">Скільки платять зараз, ₴</label>
+    <input id="mob-fiscal-amount" name="amount" type="text" inputmode="decimal" autocomplete="off" required value="{{ invoice.balance_due|unlocalize }}"
+      onkeydown="if(event.key==='Enter')event.preventDefault()"
+      class="h-11 w-full rounded-xl border border-gray-300 bg-white px-3 text-right text-base tabular-nums text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-gold">
+    <p class="text-xs text-gray-600">Менше, ніж до сплати, — чек на цю частину, рахунок лишається відкритим.</p>
     <label>
       <input type="radio" name="payment_type" value="card" class="hidden peer" checked>
       <span class="block px-4 py-3 rounded-xl border-2 border-gray-200 text-sm bg-white peer-checked:border-brand-gold peer-checked:bg-brand-gold/10 peer-checked:text-brand-dark">
@@ -308,7 +312,13 @@
       Розрахувати
     </button>
   </form>
-  {% endif %}
+  <script>
+  function kzFiscalFill() {
+    var d = document.querySelector('[data-kz-due]'); if (!d) return;
+    var v = d.getAttribute('data-kz-due');
+    document.getElementById('mob-fiscal-amount').value = v; document.getElementById('mob-fiscal-seen').value = v;
+  }
+  </script>
 </div>
 
 <!-- Pay sheet: частинами й змішано (ANVAR 01.11.2026) -->

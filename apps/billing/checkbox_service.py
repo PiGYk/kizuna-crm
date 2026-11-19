@@ -20,6 +20,11 @@ def _normalize_phone(phone: str) -> str | None:
     return None
 
 
+def _kop(amount) -> int:
+    """Гривні (Decimal/str) → копійки для Checkbox."""
+    return int((Decimal(str(amount)) * 100).quantize(Decimal('1')))
+
+
 class CheckboxService:
 
     def __init__(self, org):
@@ -57,17 +62,18 @@ class CheckboxService:
 
     # ── QR / картка ──────────────────────────────────────────────────────────
 
-    def create_invoice(self, invoice) -> dict:
+    def create_invoice(self, invoice, amount=None) -> dict:
         """
         Створює Checkbox invoice → Monobank QR термінал отримує суму.
         Клієнт платить → Checkbox сам фіскалізує чек.
+        amount — QR на частину (Олег 19.11.2026: частина боргу чи залишок після авансу): один рядок на цю суму.
         Повертає {id, external_id, status, page_url}.
         """
         terminal_id = self.get_monobank_terminal_id()
         if not terminal_id:
             raise ValueError('Monobank QR термінал не знайдено в Checkbox.')
 
-        goods = self._build_goods(invoice)
+        goods = self._build_goods(invoice) if amount is None else self._part_goods(invoice, _kop(amount))
         if not goods:
             raise ValueError('Рахунок не містить позицій з ненульовою ціною.')
 
@@ -147,14 +153,18 @@ class CheckboxService:
                     return
         raise RuntimeError('Checkbox: зміна не відкрилась за 30 секунд')
 
-    def create_cash_receipt(self, invoice, payment_type='CASH', label=None) -> dict:
+    def create_cash_receipt(self, invoice, payment_type='CASH', label=None, amount=None) -> dict:
         """Готівковий чек — підписується одразу. payment_type='CASHLESS' з міткою — безготівка без термінала
-        (create_transfer_receipt)."""
-        goods = self._build_goods(invoice)
+        (create_transfer_receipt). amount — чек на частину: один рядок на суму платежу (_part_goods)."""
+        if amount is None:
+            goods = self._build_goods(invoice)
+            total_kopecks = round(float(invoice.total) * 100)
+        else:
+            total_kopecks = _kop(amount)
+            goods = self._part_goods(invoice, total_kopecks)
         if not goods:
             raise ValueError('Рахунок не містить позицій з ненульовою ціною.')
 
-        total_kopecks = round(float(invoice.total) * 100)
         payment = {'type': payment_type, 'value': total_kopecks}
         if label:
             payment['label'] = label
@@ -179,10 +189,10 @@ class CheckboxService:
         resp.raise_for_status()
         return resp.json()
 
-    def create_transfer_receipt(self, invoice) -> dict:
+    def create_transfer_receipt(self, invoice, amount=None) -> dict:
         """Переказ на рахунок ФОП (Олег 19.11.2026): клієнт заплатив зі свого банку повз Checkbox — чек безготівкою.
         Мітка — з переліку Checkbox для безготівкових оплат."""
-        return self.create_cash_receipt(invoice, payment_type='CASHLESS', label='Інтернет банкінг')
+        return self.create_cash_receipt(invoice, payment_type='CASHLESS', label='Інтернет банкінг', amount=amount)
 
     def close_shift(self):
         resp = requests.post(
@@ -194,19 +204,22 @@ class CheckboxService:
 
     # ── Фіскалізація картки після оплати через Monobank QR ──────────────────
 
-    def fiscalize_card_invoice(self, invoice, cb_invoice_data) -> dict:
+    def fiscalize_card_invoice(self, invoice, cb_invoice_data, amount=None) -> dict:
         """
         Після того як Checkbox invoice отримав статус SUCCESS, треба окремо
         пробити фіскальний чек через /receipts/sell з типом CASHLESS.
         Інакше касир бачить тільки оплату на терміналі, а ДПС-чека немає.
+        amount — QR був на частину (Олег 19.11.2026): чек одним рядком на суму, що реально прийшла.
         """
-        goods = self._build_goods(invoice)
+        paid = cb_invoice_data.get('final_amount') or cb_invoice_data.get('amount')
+        if amount is None:
+            goods = self._build_goods(invoice)
+            amount = paid or round(float(invoice.total) * 100)
+        else:
+            amount = paid or _kop(amount)
+            goods = self._part_goods(invoice, amount)
         if not goods:
             raise ValueError('Рахунок не містить позицій з ненульовою ціною.')
-
-        amount = cb_invoice_data.get('final_amount') or cb_invoice_data.get('amount')
-        if not amount:
-            amount = round(float(invoice.total) * 100)
 
         payment = {
             'type': 'CASHLESS',
@@ -250,6 +263,14 @@ class CheckboxService:
         return resp.json()
 
     # ── Helpers ───────────────────────────────────────────────────────────────
+
+    def _part_goods(self, invoice, kop) -> list:
+        """Чек на частину рахунку (Олег 19.11.2026: частина боргу чи залишок після авансу) — один рядок на суму
+        платежу: частину не розкласти по позиціях рахунку, а чек мусить збігатися з грошима, що прийшли."""
+        if kop <= 0:
+            return []
+        return [{'good': {'code': f'kz-{invoice.pk}', 'name': f'Оплата за рахунком №{invoice.pk} (частина)', 'price': kop},
+                 'quantity': 1000}]
 
     def _build_goods(self, invoice) -> list:
         from decimal import Decimal
