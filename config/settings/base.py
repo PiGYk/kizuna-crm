@@ -220,6 +220,12 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': crontab(hour='12,19', minute=0),
         'options': {'expires': 3600},
     },
+    # Неробочий час (Олег 19.11.2026): що клієнти написали вночі — персоналу зранку (вікно — Organization.quiet_*).
+    'tg-night-messages': {
+        'task': 'apps.tg.broadcast_tasks.deliver_night_messages',
+        'schedule': crontab(minute='*/10'),
+        'options': {'expires': 540},
+    },
 }
 
 # Листи супроводу тріалу. Поки False — задача робить сухий прогін і лише пише в лог.

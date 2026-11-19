@@ -22,6 +22,10 @@ def notify_staff_new_message_task(self, chat_id, preview_text):
     except TelegramChat.DoesNotExist:
         logger.warning('notify_staff_new_message_task: chat %s not found', chat_id)
         return
+    # неробочий час (Олег 19.11.2026): уночі персонал не смикаємо — зранку прийде все разом (deliver_night_messages)
+    from . import quiet
+    if quiet.is_quiet(chat.organization):
+        return
 
     with org_context(chat.organization):
         try:
@@ -199,3 +203,41 @@ def _send_broadcast_inner(broadcast, org):
         'Broadcast %s done: %s sent, %s failed, %s skipped (cooldown)',
         broadcast_id, sent, failed, skipped,
     )
+
+
+@shared_task
+def deliver_night_messages():
+    """Ранок після неробочого часу (Олег 19.11.2026): персоналу — по сповіщенню на кожен чат, що писав уночі, з кнопкою
+    «Швидка відповідь», як удень. Чат, де вже відповіла людина з персоналу, пропускаємо. Раз на ніч — quiet_sent_on."""
+    from django.utils import timezone
+    from apps.clinic.models import Organization
+    from . import quiet
+    from .models import TelegramMessage
+    from .views import MENU_BUTTONS
+    today = timezone.localdate()
+    for org in Organization.objects.filter(quiet_from__isnull=False, quiet_until__isnull=False):
+        if quiet.is_quiet(org) or org.quiet_sent_on == today:
+            continue
+        start, end = quiet.last_window(org)
+        msgs = (TelegramMessage._base_manager
+                .filter(chat__organization=org, chat__is_staff=False, direction=TelegramMessage.Direction.IN,
+                        created_at__gte=start, created_at__lt=end)
+                .order_by('created_at').values('chat_id', 'text', 'media_type', 'created_at'))
+        per_chat = {}
+        for m in msgs:
+            t = (m['text'] or '').strip()
+            if not m['media_type'] and (not t or t in MENU_BUTTONS or t.startswith('/')):
+                continue
+            n = per_chat.get(m['chat_id'], (0,))[0]
+            per_chat[m['chat_id']] = (n + 1, t or '[медіа]', m['created_at'])
+        sent = 0
+        for chat_id, (n, last_text, last_at) in per_chat.items():
+            if TelegramMessage._base_manager.filter(chat_id=chat_id, direction=TelegramMessage.Direction.OUT,
+                                                    sent_by__isnull=False, created_at__gt=last_at).exists():
+                continue   # уночі вже відповіла людина з персоналу
+            when = timezone.localtime(last_at).strftime('%H:%M')
+            more = f'{n} повідомл., останнє о {when}' if n > 1 else f'о {when}'
+            notify_staff_new_message_task.delay(chat_id, f'🌙 Писали вночі ({more}):\n{last_text}')
+            sent += 1
+        Organization.objects.filter(pk=org.pk).update(quiet_sent_on=today)
+        logger.info('deliver_night_messages org=%s: %s чатів', org.pk, sent)

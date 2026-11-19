@@ -356,6 +356,7 @@ def _webhook_process(request, org, data):
     contact = message.get('contact')    # контакт
     location = message.get('location')  # геолокація {latitude, longitude}
     caption = message.get('caption', '').strip()
+    bot_replied = False  # бот уже відповів на це повідомлення — нічна автовідповідь не потрібна
 
     has_media = bool(
         photo or document or voice or video or animation
@@ -610,6 +611,7 @@ def _webhook_process(request, org, data):
         reply = _handle_command(chat, text, from_user)
         if reply:
             reply_text, reply_markup = reply
+            bot_replied = True
             _send_tg(tg_user_id, reply_text, reply_markup, org=chat.organization)
             TelegramMessage.objects.create(
                 chat=chat,
@@ -630,6 +632,13 @@ def _webhook_process(request, org, data):
     if not chat.is_staff:
         is_menu_press = text in MENU_BUTTONS or text.startswith('/')
         if has_media or not is_menu_press:
+            # неробочий час (Олег 19.11.2026): клієнту — «опрацюємо у робочий час» одразу, персоналу — зранку
+            if not bot_replied:
+                try:
+                    from . import quiet
+                    quiet.maybe_autoreply(chat)
+                except Exception as exc:
+                    logger.warning('quiet autoreply failed chat=%s: %s', chat.pk, exc)
             try:
                 from .broadcast_tasks import notify_staff_new_message_task
                 notify_staff_new_message_task.delay(chat.pk, text or caption or '[медіа]')

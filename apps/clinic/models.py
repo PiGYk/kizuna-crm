@@ -135,6 +135,11 @@ class Organization(models.Model):
     phone = models.CharField('Телефон', max_length=50, blank=True, default='')
     email = models.EmailField('Email', blank=True, default='')
     work_hours = models.CharField('Години роботи', max_length=100, blank=True, default='')
+    # неробочий час (Олег 19.11.2026): з quiet_from до quiet_until (можна через північ) персоналу про повідомлення клієнтів
+    # не сповіщаємо — зранку все разом, а клієнт одразу чує «опрацюємо у робочий час» (apps/tg/quiet.py). Порожньо — вимкнено.
+    quiet_from = models.TimeField('Неробочий час — з', null=True, blank=True)
+    quiet_until = models.TimeField('Неробочий час — до', null=True, blank=True)
+    quiet_sent_on = models.DateField('Нічні повідомлення надіслано персоналу', null=True, blank=True)
     website = models.CharField('Веб-сайт / домен', max_length=200, blank=True, default='')
     # Посилання на відео «як нас знайти» — бот чіпляє його до підтвердження
     # запису (запит Каті 29.09.2026). Поле клінічне, не константа: CRM
