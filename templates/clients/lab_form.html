@@ -18,6 +18,17 @@
       <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
       Друк
     </a>
+    {% if has_tg %}
+    <form method="post" action="{% url 'tg:send_lab_pdf' lab.pk %}" id="lab-tg">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <button type="submit" title="Надіслати клієнту в Telegram"
+              class="inline-flex h-11 items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 text-sm font-medium text-sky-700 hover:bg-gray-50 disabled:opacity-60 md:h-10 md:px-4">
+        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11zM21.854 2.147l-10.94 10.939"/></svg>
+        <span class="sm:hidden">TG</span><span class="hidden sm:inline">Telegram</span>
+      </button>
+    </form>
+    {% endif %}
     {% endif %}
     <button type="submit" form="lab-form" class="h-11 rounded-lg bg-brand-gold px-5 text-sm font-semibold text-brand-dark hover:brightness-95 md:h-10">Зберегти</button>
   </div>
@@ -242,6 +253,11 @@
   var print = document.getElementById('lab-print');
   if (print) print.addEventListener('click', function (e) {
     if (dirty && !confirm('Є незбережені зміни. Друк покаже останній збережений бланк — спершу натисніть «Зберегти». Друкувати все одно?')) e.preventDefault();
+  });
+  var tg = document.getElementById('lab-tg');
+  if (tg) tg.addEventListener('submit', function (e) {
+    if (dirty && !confirm('Є незбережені зміни. У Telegram піде останній збережений бланк — спершу натисніть «Зберегти». Надіслати все одно?')) { e.preventDefault(); return; }
+    tg.querySelector('button').disabled = true;
   });
   // × у рядку — прибрати показник із цього бланку (ANVAR 02.11: «не только добавить, а и удалить»)
   document.getElementById('lab-rows').addEventListener('click', function (e) {

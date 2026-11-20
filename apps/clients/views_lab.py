@@ -53,6 +53,7 @@ def _render_form(request, lab, form, rows):
         'typical_only': request.GET.get('typovyi') == '1',
         'doctors': get_user_model().practitioners(org, keep=lab.doctor_id).order_by('last_name', 'first_name'),
         'doctor_value': request.POST.get('doctor', str(lab.doctor_id or '')),
+        'has_tg': bool(lab.pk) and lab.patient.client.tg_chats.exists(),
     })
 
 
@@ -134,22 +135,27 @@ def _extra_for_print(lab):
     return x
 
 
-@login_required
-def lab_pdf(request, pk):
-    lab = _lab_or_404(request, pk)
-    try:
-        from weasyprint import HTML
-    except ImportError:
-        return HttpResponse('WeasyPrint не встановлено', status=500)
+def render_lab_pdf(request, lab):
+    """PDF бланку — один для «Друк» і для відправки в Telegram (apps/tg/views.py: send_lab_pdf)."""
     from pathlib import Path
     from django.conf import settings
+    from weasyprint import HTML
     html = render_to_string('clients/lab_pdf.html', {
         'lab': lab, 'patient': lab.patient, 'clinic': request.organization, 'rows': lab.rows_with_flags(),
         'x': _extra_for_print(lab),
         'descriptive': lab.panel in DESCRIPTIVE,
         'font_dir': (Path(settings.BASE_DIR) / 'static' / 'fonts' / 'fixel').as_uri(),
     })
-    pdf = HTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf()
+    return HTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf()
+
+
+@login_required
+def lab_pdf(request, pk):
+    lab = _lab_or_404(request, pk)
+    try:
+        pdf = render_lab_pdf(request, lab)
+    except ImportError:
+        return HttpResponse('WeasyPrint не встановлено', status=500)
     response = HttpResponse(pdf, content_type='application/pdf')
     response['Content-Disposition'] = f'filename="analiz-{lab.pk}-{lab.date:%d%m%Y}.pdf"'
     return response

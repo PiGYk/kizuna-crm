@@ -2483,6 +2483,73 @@ def send_ultrasound_pdf(request, report_pk):
     return redirect('clients:patient_detail', pk=patient.pk)
 
 
+# ── Відправити PDF бланку аналізу в Telegram ────────────────────────────────
+
+@login_required
+@_require_telegram_plan
+@require_POST
+def send_lab_pdf(request, lab_pk):
+    """Бланк аналізу (біохімія, ЗАК, сеча…) — той самий PDF, що «Друк» (Катя 20.11: «є тільки PDF, переслати
+    в телеграм нема»). Повертає туди, звідки натиснули (`next`: бланк, чат), інакше — у картку пацієнта."""
+    from django.urls import reverse
+    from django.utils.http import url_has_allowed_host_and_scheme
+    from apps.clients.models import LabResult
+    from apps.clients.views_lab import render_lab_pdf
+
+    lab = get_object_or_404(
+        LabResult.objects.select_related('patient__client'),
+        pk=lab_pk,
+        patient__client__organization=request.organization,
+    )
+    patient = lab.patient
+    back = request.POST.get('next', '')
+    if not url_has_allowed_host_and_scheme(back, allowed_hosts={request.get_host()},
+                                           require_https=request.is_secure()):
+        back = reverse('clients:patient_detail', args=[patient.pk])
+
+    tg_chats = list(patient.client.tg_chats.all())
+    if not tg_chats:
+        messages.error(request, f'Клієнт {patient.client} не прив\'язаний до Telegram.')
+        return redirect(back)
+
+    try:
+        pdf_bytes = render_lab_pdf(request, lab)
+    except Exception as e:
+        messages.error(request, f'Помилка генерації PDF: {e}')
+        return redirect(back)
+
+    filename = f'analiz-{patient.name}-{lab.date:%d%m%Y}.pdf'
+    caption = f'{lab.display_title} · {patient.name} · {lab.date:%d.%m.%Y}'
+    sent, errors = 0, []
+    for tg_chat in tg_chats:
+        try:   # підпис іде з parse_mode=HTML — «<5» чи «&» у назві не мають ламати відправку
+            result = _send_tg_document(tg_chat.tg_user_id, pdf_bytes, filename, html.escape(f'🔬 {caption}'),
+                                       org=tg_chat.organization)
+        except Exception as e:
+            result = {'ok': False, 'description': str(e)}
+        if result.get('ok'):
+            TelegramMessage.objects.create(
+                chat=tg_chat,
+                direction=TelegramMessage.Direction.OUT,
+                text=f'[PDF] {caption}',
+                tg_message_id=result.get('result', {}).get('message_id'),
+                sent_by=request.user,
+                is_read=True,
+            )
+            tg_chat.last_message_at = timezone.now()
+            tg_chat.save(update_fields=['last_message_at'])
+            sent += 1
+        elif result.get('description'):
+            errors.append(result['description'])
+
+    if sent:
+        messages.success(request, f'«{lab.display_title}» відправлено в Telegram ({sent} чат(ів)).')
+    else:
+        messages.error(request, 'Telegram помилка: не вдалось відправити жодному чату.'
+                       + (f' Відповідь Telegram: {errors[0]}' if errors else ''))
+    return redirect(back)
+
+
 # ── Відправити фото аналізу в Telegram ──────────────────────────────────────
 
 @login_required

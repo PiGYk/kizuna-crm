@@ -256,6 +256,15 @@
               </button>
             </form>
             {% endfor %}
+            {% for lab in patient.lab_results.all|slice:":3" %}
+            <form method="post" action="{% url 'tg:send_lab_pdf' lab.pk %}">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{{ request.get_full_path }}">
+              <button type="submit" class="w-full text-left px-4 py-1.5 text-xs text-gray-600 hover:bg-brand-gold/10 transition flex items-center gap-2">
+                <span class="text-gray-400">🧪</span> {{ lab.display_title }} {{ lab.date|date:"d.m.Y" }}
+              </button>
+            </form>
+            {% endfor %}
             {% for a in patient.analyses.all|slice:":3" %}
             <form method="post" action="{% url 'tg:send_analysis_photo' a.pk %}">
               {% csrf_token %}

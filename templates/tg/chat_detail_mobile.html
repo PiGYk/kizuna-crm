@@ -320,6 +320,19 @@
       </form>
       {% endfor %}
 
+      {% for lab in patient.lab_results.all|slice:":5" %}
+      <form method="post" action="{% url 'tg:send_lab_pdf' lab.pk %}" class="block">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <button type="submit"
+                class="w-full flex items-center gap-3 px-5 py-3 text-left active:bg-gray-100 text-sm border-b border-gray-50"
+                style="min-height: 48px;">
+          <span class="text-base">🧪</span>
+          <span class="flex-1">{{ lab.display_title }} {{ lab.date|date:"d.m.Y" }}</span>
+        </button>
+      </form>
+      {% endfor %}
+
       {% for a in patient.analyses.all|slice:":5" %}
       <form method="post" action="{% url 'tg:send_analysis_photo' a.pk %}" class="block">
         {% csrf_token %}

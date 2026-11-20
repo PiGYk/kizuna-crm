@@ -285,6 +285,7 @@
       </div>
 
       {% if lab_results %}
+        {% with has_tg=patient.client.tg_chats.exists %}
         <div class="divide-y divide-gray-100{% if analyses %} mb-1 border-b border-gray-100{% endif %}">
           {% for lab in lab_results %}
           <div class="group flex items-center gap-3 py-2">
@@ -294,9 +295,17 @@
               <div class="text-xs text-gray-500 tabular-nums">{{ lab.date|date:"d.m.Y" }}{% with n=lab.out_of_range %}{% if n %} · <span class="font-medium text-red-700">поза нормою: {{ n }}</span>{% endif %}{% endwith %}</div>
             </a>
             <a href="{% url 'clients:lab_pdf' lab.pk %}" target="_blank" rel="noopener" class="flex h-11 shrink-0 items-center px-2 text-xs font-medium text-brand-dark underline decoration-brand-gold underline-offset-2 md:h-8" title="Друк">PDF</a>
+            {% if has_tg %}
+            <form method="post" action="{% url 'tg:send_lab_pdf' lab.pk %}" class="shrink-0"
+                  onsubmit="var b=this.querySelector('button');b.disabled=true;b.textContent='…';">
+              {% csrf_token %}
+              <button type="submit" class="flex h-11 w-11 items-center justify-center text-xs font-medium text-sky-700 hover:text-sky-900 md:h-8 md:w-8" title="Відправити в Telegram">TG</button>
+            </form>
+            {% endif %}
           </div>
           {% endfor %}
         </div>
+        {% endwith %}
       {% endif %}
       {% if analyses %}
         {% with has_tg=patient.client.tg_chats.exists %}

@@ -27,4 +27,5 @@ urlpatterns = [
     path('<int:pk>/avatar/', views.chat_avatar, name='avatar'),
     path('<int:pk>/toggle-staff/', views.chat_toggle_staff, name='toggle_staff'),
     path('send-ultrasound/<int:report_pk>/', views.send_ultrasound_pdf, name='send_ultrasound_pdf'),
+    path('send-lab/<int:lab_pk>/', views.send_lab_pdf, name='send_lab_pdf'),
 ]
