@@ -71,7 +71,7 @@ def _save(request, lab, form):
         lab.created_by = request.user
     lab.save()
     org = request.organization
-    learned = learn_norms(lab.rows, lab.patient.species, org.lab_norms)
+    learned = learn_norms(lab.rows, lab.patient.species, org.lab_norms, org.lab_templates)
     if learned is not None:
         org.lab_norms = learned
         org.save(update_fields=['lab_norms'])

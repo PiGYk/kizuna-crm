@@ -218,12 +218,19 @@ def flag(row):
     return ''
 
 
-def learn_norms(rows, species, clinic_norms):
+def learn_norms(rows, species, clinic_norms, clinic_templates=None):
     """Норми, які лікар змінив у бланку, клініка запам'ятовує для цього виду. Повертає
-    оновлений словник або None, якщо нічого не змінилось."""
+    оновлений словник або None, якщо нічого не змінилось. Показник зі свого бланку клініки, якого нема серед
+    типових (білірубін прямий, MID/GRA аналізатора на три популяції — Катя 22.11), запам'ятовується так само;
+    рядок без коду («+ Показник») — ні: його норму несе лише бланк клініки."""
     if not species:
         return None
     defaults = {code: norms.get(species, ('', '')) for panel in PANELS for code, _, _, norms, _ in _spec(panel)}
+    for by_species in (clinic_templates or {}).values():
+        for tpl_rows in by_species.values():
+            for t in tpl_rows:
+                if t.get('code'):
+                    defaults.setdefault(t['code'], ('', ''))
     norms = {k: dict(v) for k, v in (clinic_norms or {}).items()}
     own = norms.setdefault(species, {})
     changed = False
