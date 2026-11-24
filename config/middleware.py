@@ -1,3 +1,5 @@
+import time
+
 from django.contrib.auth import logout
 from django.shortcuts import redirect
 from apps.clinic.tenant import set_current_org, clear_current_org
@@ -116,3 +118,32 @@ class TenantMiddleware:
         if org.is_trial_expired:
             return redirect('trial_expired')
         return None
+
+
+class SessionProlongMiddleware:
+    """Вхід живе 14 днів від останньої роботи, а не від входу.
+
+    Без цього строк сесії (SESSION_COOKIE_AGE, 14 днів) ішов від входу, і раз на два тижні викидало
+    навіть тих, хто працює щодня (ANVAR 16.11 не зміг зайти). Продовжуємо раз на годину, а не щозапиту
+    (SESSION_SAVE_EVERY_REQUEST): у сесії лежать рядки імпорту складу й послуг, чат опитує сервер
+    щоп'ять секунд — щозапиту переписувало б усе це, і запит з іншої вкладки міг би затерти щойно записане.
+
+    Повинен стояти ПІСЛЯ AuthenticationMiddleware: змінену тут сесію зберігає SessionMiddleware —
+    з новим строком і в базі, і в куці.
+    """
+    KEY = 'kz_prodovzheno'
+    EVERY = 3600  # секунд між продовженнями
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        user = getattr(request, 'user', None)
+        session = getattr(request, 'session', None)
+        if session is not None and user is not None and user.is_authenticated:
+            now = int(time.time())
+            last = session.get(self.KEY)
+            if not isinstance(last, int) or now - last >= self.EVERY:
+                session[self.KEY] = now
+        return response
