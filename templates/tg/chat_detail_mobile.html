@@ -669,8 +669,11 @@ function tgScroller(el) {
 }
 function tgNote(text) {
   var box = document.getElementById('tg-note'); if (!box) return;
+  var m = document.querySelector('[data-msg-id]'), sc = m && tgScroller(m),
+      stick = sc && sc.scrollHeight - sc.scrollTop - sc.clientHeight < 48;
   box.textContent = text;
   box.classList.remove('hidden');
+  if (stick) sc.scrollTop = sc.scrollHeight;  // підказка забирає висоту — інакше ховає останнє повідомлення
   clearTimeout(window._tgNoteTimer);
   window._tgNoteTimer = setTimeout(function () { box.classList.add('hidden'); }, 4000);
 }
@@ -697,11 +700,12 @@ document.addEventListener('keydown', function (e) {
 (function () {
   var box = document.getElementById('mobile-messages');
   if (!box) return;
-  var el = null, bub = null, ico = null, sx = 0, sy = 0, dx = 0, active = false, skip = false, ready = false;
+  var el = null, bub = null, ico = null, aside = null, sx = 0, sy = 0, dx = 0, active = false, skip = false, ready = false;
   // значок «відповісти» біля краю рядка: проявляється з рухом, на порозі — золотий (Telegram робить так само)
   function swipeIcon(row) {
     var s = document.createElement('span');
     s.setAttribute('aria-hidden', 'true');
+    s.setAttribute('data-swipe-ico', '');
     s.style.cssText = 'position:absolute;right:4px;top:50%;width:32px;height:32px;margin-top:-16px;border-radius:9999px;'
       + 'display:flex;align-items:center;justify-content:center;color:#12100F;background:rgba(18,16,15,.08);'
       + 'opacity:0;transition:transform .12s ease-out,background-color .12s;pointer-events:none';
@@ -716,6 +720,10 @@ document.addEventListener('keydown', function (e) {
     el = e.target.closest('[data-msg-id][data-reply-text]');
     if (!el) return;
     bub = el.firstElementChild;
+    aside = bub.nextElementSibling;  // кнопки дій рядка — на час свайпу гаснуть, щоб не було двох стрілок
+    if (aside && aside.hasAttribute('data-swipe-ico')) aside = null;
+    if (aside) aside.style.transition = '';  // новий свайп до кінця попереднього повернення — без затримки
+    bub.style.transition = '';
     sx = e.touches[0].clientX; sy = e.touches[0].clientY; dx = 0; active = false; skip = false;
   }, { passive: true });
   box.addEventListener('touchmove', function (e) {
@@ -729,7 +737,9 @@ document.addEventListener('keydown', function (e) {
     dx = Math.max(-80, Math.min(0, mx));
     bub.style.transform = 'translateX(' + dx + 'px)';
     if (!ico) ico = swipeIcon(el);
-    var p = Math.min(1, -dx / 56), now = dx <= -56;
+    // кнопки гаснуть до −32 px, значок проявляється з −28 до −56 — разом вони не видні
+    var q = Math.min(1, Math.max(0, (-dx - 12) / 20)), p = Math.min(1, Math.max(0, (-dx - 28) / 28)), now = dx <= -56;
+    if (aside) aside.style.opacity = 1 - q;
     ico.style.opacity = p;
     ico.style.transform = 'scale(' + (now ? 1.1 : 0.6 + 0.4 * p) + ')';
     ico.style.background = now ? '#DEAA01' : 'rgba(18,16,15,.08)';
@@ -744,8 +754,19 @@ document.addEventListener('keydown', function (e) {
       setTimeout(function () { b.style.transition = ''; }, 170);
       if (dx <= -56) tgReplyStart(el.getAttribute('data-msg-id'));
     }
-    if (ico) ico.remove();
-    el = bub = ico = null; active = false; ready = false; dx = 0;
+    if (aside) {
+      var a = aside;
+      a.style.transition = 'opacity .15s ease-out .12s';  // з'являються, коли значок уже згас
+      a.style.opacity = '';
+      setTimeout(function () { a.style.transition = ''; }, 300);
+    }
+    if (ico) {
+      var i = ico;  // гасне разом із поверненням бульбашки, а не зникає миттєво
+      i.style.transition = 'opacity .15s ease-out, transform .15s ease-out';
+      i.style.opacity = '0';
+      setTimeout(function () { i.remove(); }, 170);
+    }
+    el = bub = ico = aside = null; active = false; ready = false; dx = 0;
   }
   box.addEventListener('touchend', end);
   box.addEventListener('touchcancel', end);

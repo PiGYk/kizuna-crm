@@ -48,7 +48,7 @@
 
     <!-- Заголовок чату -->
     <div class="px-5 py-3 border-b border-gray-100 flex items-center gap-3">
-      <a href="{% url 'tg:list' %}" class="lg:hidden tg-back-arrow text-brand-dark active:opacity-70" aria-label="Назад">
+      <a href="{% url 'tg:list' %}" class="lg:hidden tg-back-arrow p-2 -ml-2 text-brand-dark active:opacity-70" aria-label="Назад">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
       </a>
       {% if chat.avatar_file_id %}
@@ -582,8 +582,11 @@ function tgScroller(el) {
 }
 function tgNote(text) {
   var box = document.getElementById('tg-note'); if (!box) return;
+  var m = document.querySelector('[data-msg-id]'), sc = m && tgScroller(m),
+      stick = sc && sc.scrollHeight - sc.scrollTop - sc.clientHeight < 48;
   box.textContent = text;
   box.classList.remove('hidden');
+  if (stick) sc.scrollTop = sc.scrollHeight;  // підказка забирає висоту — інакше ховає останнє повідомлення
   clearTimeout(window._tgNoteTimer);
   window._tgNoteTimer = setTimeout(function () { box.classList.add('hidden'); }, 4000);
 }

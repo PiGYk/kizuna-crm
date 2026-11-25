@@ -20,11 +20,12 @@
 }
 
 
-/* 1. Hover-only stuck-state на тачі */
+/* 1. Hover-only stuck-state на тачі.
+   .hover:brightness-95 сюди НЕ додавати: revert фону вбивав колір кнопки — bg-brand-gold ставав сірим ButtonFace
+   («Надіслати» і «Зберегти» сіріли після дотику на планшеті, 25.11). Новим тач-елементам — [@media(hover:hover)]:hover:… */
 @media (hover: none) {
   .hover\:bg-gray-50:hover,
   .hover\:bg-gray-100:hover,
-  .hover\:brightness-95:hover,
   .hover\:bg-white\/10:hover { background-color: revert; filter: revert; }
 }
 

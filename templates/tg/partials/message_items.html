@@ -123,14 +123,14 @@
   <div class="flex items-center gap-0.5 self-center order-first shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100 transition">
     {% if msg.can_reply %}{% include 'tg/partials/_reply_btn.html' %}{% endif %}
     <button type="button" title="Редагувати" onclick="tgEditStart({{ msg.id }})"
-      class="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 hover:text-brand-dark hover:bg-gray-100 active:opacity-70">
+      class="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 [@media(hover:hover)]:hover:text-brand-dark [@media(hover:hover)]:hover:bg-gray-100 active:opacity-70">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.4-9.6a2 2 0 1 1 2.83 2.83L11.83 15H9v-2.83l8.6-8.77z"/></svg>
     </button>
     <form hx-post="{% url 'tg:delete_message' msg.id %}" hx-target="closest [data-msg-id]" hx-swap="outerHTML"
           hx-confirm="Видалити це повідомлення? Воно зникне і в Telegram у клієнта.">
       {% csrf_token %}
       <button type="submit" title="Видалити"
-        class="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 hover:text-red-500 hover:bg-red-50 active:opacity-70">
+        class="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 [@media(hover:hover)]:hover:text-red-500 [@media(hover:hover)]:hover:bg-red-50 active:opacity-70">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.87 12.14A2 2 0 0 1 16.14 21H7.86a2 2 0 0 1-2-1.86L5 7m5 4v6m4-6v6m1-10V4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3M4 7h16"/></svg>
       </button>
     </form>
