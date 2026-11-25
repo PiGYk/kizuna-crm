@@ -10,6 +10,13 @@
   });
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<style>
+  /* Клік по цитаті — оригінал коротко підсвічується (колір, не рух) */
+  @keyframes tg-flash { from { outline-color: rgba(222, 170, 1, .9); } to { outline-color: rgba(222, 170, 1, 0); } }
+  [data-msg-id].tg-flash > :first-child { outline: 3px solid rgba(222, 170, 1, 0); outline-offset: 2px; animation: tg-flash 1.6s ease-out; }
+  /* свайп «відповісти»: горизонталь віддаємо скрипту, вертикальна прокрутка й щипок — браузеру */
+  #mobile-messages [data-reply-text] > :first-child { touch-action: pan-y pinch-zoom; }
+</style>
 {% endblock %}
 
 {% block fab_url %}{% endblock %}
@@ -105,9 +112,26 @@
     </button>
   </div>
 
+  <!-- ── Відповідь на обране повідомлення (над полем вводу) ─────────────── -->
+  <div id="tg-reply-bar" data-form="mobile-send-form" data-input="mobile-msg-input" data-join="1" data-client-name="{{ chat.display_name }}"
+       class="hidden shrink-0 bg-gray-50 border-t border-gray-200 pl-3 pr-1 py-1 flex items-center gap-2">
+    <span class="w-[3px] self-stretch my-1 rounded-full bg-brand-gold shrink-0" aria-hidden="true"></span>
+    <button type="button" onclick="tgJumpTo(tgReplyBar().dataset.target)" class="min-w-0 flex-1 text-left py-1">
+      <span class="block text-xs font-semibold text-brand-dark truncate">Відповідь · <span data-reply-who></span></span>
+      <span class="block text-sm leading-5 text-gray-600 truncate" data-reply-snippet></span>
+    </button>
+    <button type="button" onclick="tgReplyCancel(true)"
+            class="tg-mobile-tap text-gray-500 active:text-brand-dark shrink-0"
+            aria-label="Скасувати відповідь">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+    </button>
+  </div>
+
   <!-- ── Bottom input bar ──────────────────────────────────────────────── -->
   <div id="tg-toast"
        class="hidden mx-2 mb-1 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs shrink-0"></div>
+  <div id="tg-note" role="status"
+       class="hidden mx-2 mb-1 px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 text-gray-700 text-xs shrink-0"></div>
 
   <form id="mobile-send-form"
         class="tg-mobile-input shrink-0 border-t border-gray-100 flex items-end gap-1 px-2 pt-2"
@@ -115,8 +139,9 @@
         hx-target="#mobile-messages-list"
         hx-swap="beforeend"
         hx-encoding="multipart/form-data"
-        hx-on::after-request="if (event.detail.successful) { tgClearAttach(); this.reset(); tgScrollBottom(); }">
+        hx-on::after-request="if (event.detail.successful) { tgClearAttach(); this.reset(); tgReplyCancel(); tgScrollBottom(); }">
     {% csrf_token %}
+    <input type="hidden" name="reply_to" value="">
 
     {% if chat.client and user.role != 'client' %}
     <button type="button"
@@ -604,6 +629,127 @@ function tgEditCancel(id){
   var v=w.querySelector('[data-text-view="'+id+'"]'); if(v) v.classList.remove('hidden');
   var f=w.querySelector('[data-edit="'+id+'"]'); if(f) f.classList.add('hidden');
 }
+
+// ── Відповідь на обране повідомлення (Олег 25.11.2026) ──────────────────────
+function tgReplyBar() { return document.getElementById('tg-reply-bar'); }
+function tgReplyStart(id) {
+  var w = document.querySelector('[data-msg-id="' + id + '"]'), bar = tgReplyBar();
+  if (!w || !bar || !w.hasAttribute('data-reply-text')) return;
+  var form = document.getElementById(bar.dataset.form);
+  if (!form) return;
+  form.querySelector('input[name="reply_to"]').value = id;
+  bar.dataset.target = id;
+  bar.querySelector('[data-reply-who]').textContent =
+    w.getAttribute('data-reply-ours') === '1' ? 'Клініка' : bar.dataset.clientName;
+  bar.querySelector('[data-reply-snippet]').textContent = w.getAttribute('data-reply-text') || '…';
+  // смужка забирає висоту в стрічки: стояли внизу — лишаємось унизу, як у Telegram
+  var sc = tgScroller(w), stick = sc && sc.scrollHeight - sc.scrollTop - sc.clientHeight < 48;
+  bar.classList.remove('hidden');
+  if (bar.dataset.join) form.classList.remove('border-t');  // одна лінія над смужкою, а не дві
+  if (stick) sc.scrollTop = sc.scrollHeight;
+  var inp = document.getElementById(bar.dataset.input);
+  if (inp) inp.focus({ preventScroll: true });
+}
+function tgReplyCancel(refocus) {
+  var bar = tgReplyBar(); if (!bar) return;
+  var form = document.getElementById(bar.dataset.form);
+  var h = form && form.querySelector('input[name="reply_to"]');
+  if (h) h.value = '';
+  bar.dataset.target = '';
+  bar.classList.add('hidden');
+  if (form && bar.dataset.join) form.classList.add('border-t');
+  if (refocus) { var inp = document.getElementById(bar.dataset.input); if (inp) inp.focus({ preventScroll: true }); }
+}
+function tgScroller(el) {
+  for (var p = el.parentElement; p; p = p.parentElement) {
+    var oy = getComputedStyle(p).overflowY;
+    if ((oy === 'auto' || oy === 'scroll') && p.scrollHeight > p.clientHeight) return p;
+  }
+  return null;
+}
+function tgNote(text) {
+  var box = document.getElementById('tg-note'); if (!box) return;
+  box.textContent = text;
+  box.classList.remove('hidden');
+  clearTimeout(window._tgNoteTimer);
+  window._tgNoteTimer = setTimeout(function () { box.classList.add('hidden'); }, 4000);
+}
+// Гортаємо лише стрічку повідомлень (не сторінку) — і коротко підсвічуємо оригінал.
+function tgJumpTo(id) {
+  var el = id ? document.querySelector('[data-msg-id="' + id + '"]') : null;
+  if (!el) { tgNote('Це повідомлення вище в історії — прокрутіть стрічку вгору.'); return; }
+  var sc = tgScroller(el);
+  if (sc) {
+    var top = sc.scrollTop + el.getBoundingClientRect().top - sc.getBoundingClientRect().top
+      - (sc.clientHeight - el.offsetHeight) / 2;
+    var smooth = !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    sc.scrollTo({ top: Math.max(0, top), behavior: smooth ? 'smooth' : 'auto' });
+  }
+  el.classList.remove('tg-flash'); void el.offsetWidth; el.classList.add('tg-flash');
+  setTimeout(function () { el.classList.remove('tg-flash'); }, 1700);
+}
+document.addEventListener('keydown', function (e) {
+  var bar = tgReplyBar();
+  if (e.key === 'Escape' && bar && !bar.classList.contains('hidden')) tgReplyCancel(true);
+});
+
+// Свайп повідомлення вліво — відповісти, як у Telegram (на телефоні; на клієнтських є ще й кнопка).
+(function () {
+  var box = document.getElementById('mobile-messages');
+  if (!box) return;
+  var el = null, bub = null, ico = null, sx = 0, sy = 0, dx = 0, active = false, skip = false, ready = false;
+  // значок «відповісти» біля краю рядка: проявляється з рухом, на порозі — золотий (Telegram робить так само)
+  function swipeIcon(row) {
+    var s = document.createElement('span');
+    s.setAttribute('aria-hidden', 'true');
+    s.style.cssText = 'position:absolute;right:4px;top:50%;width:32px;height:32px;margin-top:-16px;border-radius:9999px;'
+      + 'display:flex;align-items:center;justify-content:center;color:#12100F;background:rgba(18,16,15,.08);'
+      + 'opacity:0;transition:transform .12s ease-out,background-color .12s;pointer-events:none';
+    s.innerHTML = '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" '
+      + 'stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 17l-5-5 5-5"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>';
+    row.appendChild(s);
+    return s;
+  }
+  box.addEventListener('touchstart', function (e) {
+    el = null;
+    if (e.touches.length !== 1 || e.target.closest('audio, video, textarea, input, select, form')) return;
+    el = e.target.closest('[data-msg-id][data-reply-text]');
+    if (!el) return;
+    bub = el.firstElementChild;
+    sx = e.touches[0].clientX; sy = e.touches[0].clientY; dx = 0; active = false; skip = false;
+  }, { passive: true });
+  box.addEventListener('touchmove', function (e) {
+    if (!el || skip) return;
+    var mx = e.touches[0].clientX - sx, my = e.touches[0].clientY - sy;
+    if (!active) {
+      if (Math.abs(my) > 10 && Math.abs(my) >= Math.abs(mx)) { skip = true; return; }  // це прокрутка стрічки
+      if (mx > -12) return;
+      active = true;
+    }
+    dx = Math.max(-80, Math.min(0, mx));
+    bub.style.transform = 'translateX(' + dx + 'px)';
+    if (!ico) ico = swipeIcon(el);
+    var p = Math.min(1, -dx / 56), now = dx <= -56;
+    ico.style.opacity = p;
+    ico.style.transform = 'scale(' + (now ? 1.1 : 0.6 + 0.4 * p) + ')';
+    ico.style.background = now ? '#DEAA01' : 'rgba(18,16,15,.08)';
+    if (now && !ready && navigator.vibrate) navigator.vibrate(10);
+    ready = now;
+  }, { passive: true });
+  function end() {
+    if (el && bub && active) {
+      var b = bub;
+      b.style.transition = 'transform .15s ease-out';
+      b.style.transform = '';
+      setTimeout(function () { b.style.transition = ''; }, 170);
+      if (dx <= -56) tgReplyStart(el.getAttribute('data-msg-id'));
+    }
+    if (ico) ico.remove();
+    el = bub = ico = null; active = false; ready = false; dx = 0;
+  }
+  box.addEventListener('touchend', end);
+  box.addEventListener('touchcancel', end);
+})();
 </script>
 
 {% endblock %}

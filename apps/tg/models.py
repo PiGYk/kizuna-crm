@@ -96,6 +96,14 @@ class TelegramMessage(models.Model):
     )
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    # Відповідь на конкретне повідомлення (Олег 25.11.2026): нашу CRM шле з reply_parameters,
+    # клієнтську бачимо з reply_to_message вебхука. reply_quote — знімок цитати
+    # {"ours": bool, "text": "…"}: автовідповіді бота лежать у CRM без tg_message_id,
+    # а оригінал можуть видалити — цитата лишається.
+    reply_to = models.ForeignKey(
+        'self', on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+    )
+    reply_quote = models.JSONField(null=True, blank=True)
 
     class Meta:
         ordering = ['created_at']
@@ -115,6 +123,43 @@ class TelegramMessage(models.Model):
     def __str__(self):
         preview = (self.text[:40] + '...') if len(self.text) > 40 else self.text
         return f'{self.get_direction_display()}: {preview}'
+
+    @property
+    def quote_text(self):
+        """Короткий текст цитати, коли на це повідомлення відповідають: текст або що за медіа."""
+        label = MEDIA_QUOTE_LABELS.get(self.media_type, '')
+        if self.media_type in ('voice', 'location'):
+            return label
+        text = ' '.join((self.text or '').split())
+        if self.media_type == 'sticker':  # text = емодзі стікера або «[анім стікер]»
+            return f'{label} {text}' if text and not text.startswith('[') else label
+        if not text and self.media_type in ('pdf', 'document'):
+            text = self.media_filename
+        text = text[:QUOTE_MAX]
+        if label and text:
+            return f'{label} · {text}'
+        return text or label or '…'
+
+    @property
+    def reply_info(self):
+        """Цитата над бульбашкою-відповіддю: {'id', 'ours', 'text'} або None.
+        id — оригінал у CRM (None, якщо його тут нема): клік по цитаті веде до нього."""
+        q = self.reply_quote
+        if not q:
+            return None
+        return {'id': self.reply_to_id, 'ours': bool(q.get('ours')), 'text': q.get('text') or '…'}
+
+    @property
+    def can_reply(self):
+        """Відповісти через Telegram можна лише на повідомлення, яке Telegram підтвердив (є tg_message_id)."""
+        return bool(self.tg_message_id)
+
+
+QUOTE_MAX = 200
+MEDIA_QUOTE_LABELS = {
+    'photo': 'Фото', 'image': 'Фото', 'pdf': 'PDF', 'document': 'Файл', 'video': 'Відео',
+    'voice': 'Голосове', 'sticker': 'Стікер', 'contact': 'Контакт', 'location': 'Геолокація',
+}
 
 
 class QuickReplyPrompt(models.Model):

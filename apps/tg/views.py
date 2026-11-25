@@ -101,12 +101,20 @@ def route_hint(org) -> str:
     return '\n'.join(parts)
 
 
-def _send_tg(chat_id, text, reply_markup=None, org=None):
+def _reply_parameters(reply_to_message_id):
+    """Bot API reply_parameters: відповідь цитатою на повідомлення в цьому ж чаті.
+    allow_sending_without_reply — якщо клієнт оригінал уже стер, повідомлення однаково піде, просто без цитати."""
+    return {'message_id': int(reply_to_message_id), 'allow_sending_without_reply': True}
+
+
+def _send_tg(chat_id, text, reply_markup=None, org=None, reply_to_message_id=None):
     token = _get_token(org)
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     payload = {'chat_id': chat_id, 'text': text, 'parse_mode': 'HTML'}
     if reply_markup:
         payload['reply_markup'] = reply_markup
+    if reply_to_message_id:
+        payload['reply_parameters'] = _reply_parameters(reply_to_message_id)
     resp = requests.post(url, json=payload, timeout=10)
     return resp.json()
 
@@ -236,14 +244,22 @@ def _send_tg_document(chat_id, pdf_bytes, filename, caption='', org=None):
     return resp.json()
 
 
-def _send_tg_photo_upload(chat_id, file_bytes, filename, caption='', org=None):
+def _upload_data(chat_id, caption, reply_to_message_id, **extra):
+    """Поля multipart-запиту відправки файлу; reply_parameters тут — JSON-рядком, як вимагає Bot API."""
+    data = {'chat_id': chat_id, 'caption': caption, **extra}
+    if reply_to_message_id:
+        data['reply_parameters'] = json.dumps(_reply_parameters(reply_to_message_id))
+    return data
+
+
+def _send_tg_photo_upload(chat_id, file_bytes, filename, caption='', org=None, reply_to_message_id=None):
     """Відправити фото з bytes (завантажений файл від користувача)."""
     token = _get_token(org)
     url = f"https://api.telegram.org/bot{token}/sendPhoto"
     try:
         resp = requests.post(
             url,
-            data={'chat_id': chat_id, 'caption': caption},
+            data=_upload_data(chat_id, caption, reply_to_message_id),
             files={'photo': (filename, io.BytesIO(file_bytes))},
             timeout=30,
         )
@@ -252,14 +268,15 @@ def _send_tg_photo_upload(chat_id, file_bytes, filename, caption='', org=None):
         return {'ok': False}
 
 
-def _send_tg_document_upload(chat_id, file_bytes, filename, content_type='application/octet-stream', caption='', org=None):
+def _send_tg_document_upload(chat_id, file_bytes, filename, content_type='application/octet-stream', caption='', org=None,
+                             reply_to_message_id=None):
     """Відправити файл-документ з bytes."""
     token = _get_token(org)
     url = f"https://api.telegram.org/bot{token}/sendDocument"
     try:
         resp = requests.post(
             url,
-            data={'chat_id': chat_id, 'caption': caption},
+            data=_upload_data(chat_id, caption, reply_to_message_id),
             files={'document': (filename, io.BytesIO(file_bytes), content_type)},
             timeout=60,
         )
@@ -268,14 +285,14 @@ def _send_tg_document_upload(chat_id, file_bytes, filename, content_type='applic
         return {'ok': False}
 
 
-def _send_tg_video_upload(chat_id, file_bytes, filename, caption='', org=None):
+def _send_tg_video_upload(chat_id, file_bytes, filename, caption='', org=None, reply_to_message_id=None):
     """Відправити відео з bytes (програється inline в Telegram)."""
     token = _get_token(org)
     url = f"https://api.telegram.org/bot{token}/sendVideo"
     try:
         resp = requests.post(
             url,
-            data={'chat_id': chat_id, 'caption': caption, 'supports_streaming': True},
+            data=_upload_data(chat_id, caption, reply_to_message_id, supports_streaming=True),
             files={'video': (filename, io.BytesIO(file_bytes))},
             timeout=120,
         )
@@ -627,6 +644,13 @@ def _webhook_process(request, org, data):
             org.slug, chat.pk, sorted(message.keys()),
         )
 
+    # Клієнт відповів у Telegram на конкретне повідомлення — у CRM над ним буде цитата.
+    if reply_to.get('message_id') and incoming_msg_id:
+        try:
+            _link_incoming_reply(chat, incoming_msg_id, reply_to, message.get('quote'))
+        except Exception as exc:
+            logger.warning('webhook: reply link failed chat=%s msg=%s: %s', chat.pk, incoming_msg_id, exc)
+
     # Нотифікація staff про нове повідомлення — від верифікованих і неверифікованих.
     # Ігноруємо натискання меню-кнопок і команди (/start тощо) — це UI-шум, не повідомлення.
     if not chat.is_staff:
@@ -647,6 +671,37 @@ def _webhook_process(request, org, data):
                 logger.warning('notify_staff_new_message dispatch failed: %s', exc)
 
     return HttpResponse('ok')
+
+
+_TG_MEDIA_QUOTE_KEYS = (
+    ('photo', 'photo'), ('video', 'video'), ('animation', 'video'), ('video_note', 'video'), ('voice', 'voice'),
+    ('audio', 'document'), ('document', 'document'), ('sticker', 'sticker'), ('contact', 'contact'),
+    ('location', 'location'),
+)
+
+
+def _link_incoming_reply(chat, tg_message_id, reply_to_message, quote=None):
+    """Повідомлення клієнта, що є відповіддю: звʼязати з оригіналом у цьому ж чаті й зберегти знімок цитати.
+
+    Оригінал шукаємо за tg_message_id. Автовідповідей бота в CRM без tg_message_id нема — тоді цитату
+    беремо з самого Telegram (reply_to_message). quote — клієнт процитував лише шматок: показуємо його."""
+    from apps.tg.models import MEDIA_QUOTE_LABELS, QUOTE_MAX
+    target = TelegramMessage.objects.filter(
+        chat=chat, tg_message_id=reply_to_message.get('message_id'),
+    ).first()
+    part = ' '.join(((quote or {}).get('text') or '').split())[:QUOTE_MAX]
+    if target:
+        ours = target.direction == TelegramMessage.Direction.OUT
+        text = part or target.quote_text
+    else:
+        ours = bool((reply_to_message.get('from') or {}).get('is_bot'))
+        text = part or ' '.join((reply_to_message.get('text') or reply_to_message.get('caption') or '').split())[:QUOTE_MAX]
+        if not text:
+            kind = next((mt for key, mt in _TG_MEDIA_QUOTE_KEYS if reply_to_message.get(key)), '')
+            text = MEDIA_QUOTE_LABELS.get(kind, '…')
+    TelegramMessage.objects.filter(
+        chat=chat, tg_message_id=tg_message_id, direction=TelegramMessage.Direction.IN,
+    ).update(reply_to=target, reply_quote={'ours': ours, 'text': text})
 
 
 def _notify_staff_new_message(chat, preview_text):
@@ -2097,6 +2152,20 @@ def send_message(request, pk):
         text=text,
     )
 
+    # Відповідь на обране повідомлення — лише з цього ж чату і лише на підтверджене Telegram.
+    # Оригінал устигли видалити — повідомлення йде звичайним, як і в самому Telegram.
+    reply_tg_id = None
+    reply_pk = (request.POST.get('reply_to') or '').strip()
+    if reply_pk.isdigit():
+        target = chat.messages.filter(pk=int(reply_pk), tg_message_id__isnull=False).first()
+        if target:
+            reply_tg_id = target.tg_message_id
+            msg.reply_to = target
+            msg.reply_quote = {
+                'ours': target.direction == TelegramMessage.Direction.OUT,
+                'text': target.quote_text,
+            }
+
     if media:
         file_bytes = media.read()
         filename = media.name
@@ -2110,19 +2179,21 @@ def send_message(request, pk):
 
         if is_image:
             result = _send_tg_photo_upload(
-                chat.tg_user_id, file_bytes, filename, caption=text, org=chat.organization
+                chat.tg_user_id, file_bytes, filename, caption=text, org=chat.organization,
+                reply_to_message_id=reply_tg_id,
             )
             msg.media_type = 'photo'
         elif is_video:
             result = _send_tg_video_upload(
-                chat.tg_user_id, file_bytes, filename, caption=text, org=chat.organization
+                chat.tg_user_id, file_bytes, filename, caption=text, org=chat.organization,
+                reply_to_message_id=reply_tg_id,
             )
             msg.media_type = 'video'
             msg.media_filename = filename
         else:
             result = _send_tg_document_upload(
                 chat.tg_user_id, file_bytes, filename, content_type=content_type,
-                caption=text, org=chat.organization,
+                caption=text, org=chat.organization, reply_to_message_id=reply_tg_id,
             )
             msg.media_type = 'document'
             msg.media_filename = filename
@@ -2131,7 +2202,7 @@ def send_message(request, pk):
         msg.media_file.save(filename, ContentFile(file_bytes), save=False)
     else:
         # _esc: без екранування текст із '<' («температура <39») Telegram відхиляє.
-        result = _send_tg(chat.tg_user_id, _esc(text), org=chat.organization)
+        result = _send_tg(chat.tg_user_id, _esc(text), org=chat.organization, reply_to_message_id=reply_tg_id)
         msg.tg_message_id = result.get('result', {}).get('message_id')
 
     # TG помилка (юзер заблокував бота, чат недоступний тощо) — не зберігаємо як OUT.

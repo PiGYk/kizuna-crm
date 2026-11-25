@@ -7,6 +7,11 @@
   document.documentElement.classList.add('has-tg-chat');
   document.addEventListener('DOMContentLoaded', function () { document.body.classList.add('has-tg-chat'); });
 </script>
+<style>
+  /* Клік по цитаті — оригінал коротко підсвічується (колір, не рух) */
+  @keyframes tg-flash { from { outline-color: rgba(222, 170, 1, .9); } to { outline-color: rgba(222, 170, 1, 0); } }
+  [data-msg-id].tg-flash > :first-child { outline: 3px solid rgba(222, 170, 1, 0); outline-offset: 2px; animation: tg-flash 1.6s ease-out; }
+</style>
 {% endblock %}
 
 {% block fab_url %}{% endblock %}
@@ -15,7 +20,7 @@
 <div class="flex gap-4 tg-chat-shell">
 
   <!-- Список чатів (ліва панель) -->
-  <div class="w-72 bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col shrink-0 hidden md:flex">
+  <div class="w-72 bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col shrink-0 hidden lg:flex">
     <div class="px-4 py-3 border-b border-gray-100">
       <span class="text-sm font-semibold text-brand-dark">Telegram чати</span>
     </div>
@@ -43,7 +48,7 @@
 
     <!-- Заголовок чату -->
     <div class="px-5 py-3 border-b border-gray-100 flex items-center gap-3">
-      <a href="{% url 'tg:list' %}" class="md:hidden tg-back-arrow text-brand-dark active:opacity-70" aria-label="Назад">
+      <a href="{% url 'tg:list' %}" class="lg:hidden tg-back-arrow text-brand-dark active:opacity-70" aria-label="Назад">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
       </a>
       {% if chat.avatar_file_id %}
@@ -216,6 +221,8 @@
     <div class="tg-input-bar px-3 md:px-4 pt-3 border-t border-gray-100 bg-white">
       <div id="tg-toast"
            class="hidden mb-2 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs"></div>
+      <div id="tg-note" role="status"
+           class="hidden mb-2 px-3 py-2 rounded-lg bg-gray-50 border border-gray-200 text-gray-700 text-xs"></div>
       <!-- Прев'ю вкладення -->
       <div id="attach-preview" class="hidden mb-2 flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
         <img id="attach-img-preview" src="" alt="" class="hidden h-14 w-14 object-cover rounded-lg shrink-0">
@@ -289,14 +296,31 @@
       </div>
       {% endif %}
 
+      <!-- Відповідь на обране повідомлення: «Відповісти» біля бульбашки → тут цитата, × — скасувати -->
+      <div id="tg-reply-bar" data-form="send-form" data-input="msg-text-input" data-client-name="{{ chat.display_name }}"
+           class="hidden mb-2 flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 pl-2 pr-1 py-1">
+        <span class="w-[3px] self-stretch my-1 rounded-full bg-brand-gold shrink-0" aria-hidden="true"></span>
+        <svg class="w-4 h-4 shrink-0 text-gray-500" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 17l-5-5 5-5"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+        <button type="button" onclick="tgJumpTo(tgReplyBar().dataset.target)" title="Показати повідомлення"
+                class="min-w-0 flex-1 text-left py-1">
+          <span class="block text-xs font-semibold text-brand-dark truncate">Відповідь · <span data-reply-who></span></span>
+          <span class="block text-xs text-gray-600 truncate" data-reply-snippet></span>
+        </button>
+        <button type="button" onclick="tgReplyCancel(true)" title="Скасувати відповідь" aria-label="Скасувати відповідь"
+                class="shrink-0 w-8 h-8 flex items-center justify-center rounded-full text-gray-500 hover:text-brand-dark hover:bg-gray-200/70 active:opacity-70">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
       <form id="send-form"
             hx-post="{% url 'tg:send' chat.pk %}"
             hx-target="#messages-list"
             hx-swap="beforeend"
             hx-encoding="multipart/form-data"
-            hx-on::after-request="if (event.detail.successful) { clearAttach(); this.reset(); tgScrollBottom(); }"
+            hx-on::after-request="if (event.detail.successful) { clearAttach(); this.reset(); tgReplyCancel(); tgScrollBottom(); }"
             class="flex gap-2 items-end">
         {% csrf_token %}
+        <input type="hidden" name="reply_to" value="">
         <input type="file" name="media" id="media-input" accept="image/*,video/*,application/pdf,.doc,.docx"
                class="hidden" onchange="handleAttach(this)">
         <button type="button" onclick="document.getElementById('media-input').click()"
@@ -518,6 +542,69 @@ function tgEditCancel(id){
   var v=w.querySelector('[data-text-view="'+id+'"]'); if(v) v.classList.remove('hidden');
   var f=w.querySelector('[data-edit="'+id+'"]'); if(f) f.classList.add('hidden');
 }
+
+// ── Відповідь на обране повідомлення (Олег 25.11.2026) ──────────────────────
+function tgReplyBar() { return document.getElementById('tg-reply-bar'); }
+function tgReplyStart(id) {
+  var w = document.querySelector('[data-msg-id="' + id + '"]'), bar = tgReplyBar();
+  if (!w || !bar || !w.hasAttribute('data-reply-text')) return;
+  var form = document.getElementById(bar.dataset.form);
+  if (!form) return;
+  form.querySelector('input[name="reply_to"]').value = id;
+  bar.dataset.target = id;
+  bar.querySelector('[data-reply-who]').textContent =
+    w.getAttribute('data-reply-ours') === '1' ? 'Клініка' : bar.dataset.clientName;
+  bar.querySelector('[data-reply-snippet]').textContent = w.getAttribute('data-reply-text') || '…';
+  // смужка забирає висоту в стрічки: стояли внизу — лишаємось унизу, як у Telegram
+  var sc = tgScroller(w), stick = sc && sc.scrollHeight - sc.scrollTop - sc.clientHeight < 48;
+  bar.classList.remove('hidden');
+  if (bar.dataset.join) form.classList.remove('border-t');  // одна лінія над смужкою, а не дві
+  if (stick) sc.scrollTop = sc.scrollHeight;
+  var inp = document.getElementById(bar.dataset.input);
+  if (inp) inp.focus({ preventScroll: true });
+}
+function tgReplyCancel(refocus) {
+  var bar = tgReplyBar(); if (!bar) return;
+  var form = document.getElementById(bar.dataset.form);
+  var h = form && form.querySelector('input[name="reply_to"]');
+  if (h) h.value = '';
+  bar.dataset.target = '';
+  bar.classList.add('hidden');
+  if (form && bar.dataset.join) form.classList.add('border-t');
+  if (refocus) { var inp = document.getElementById(bar.dataset.input); if (inp) inp.focus({ preventScroll: true }); }
+}
+function tgScroller(el) {
+  for (var p = el.parentElement; p; p = p.parentElement) {
+    var oy = getComputedStyle(p).overflowY;
+    if ((oy === 'auto' || oy === 'scroll') && p.scrollHeight > p.clientHeight) return p;
+  }
+  return null;
+}
+function tgNote(text) {
+  var box = document.getElementById('tg-note'); if (!box) return;
+  box.textContent = text;
+  box.classList.remove('hidden');
+  clearTimeout(window._tgNoteTimer);
+  window._tgNoteTimer = setTimeout(function () { box.classList.add('hidden'); }, 4000);
+}
+// Гортаємо лише стрічку повідомлень (не сторінку) — і коротко підсвічуємо оригінал.
+function tgJumpTo(id) {
+  var el = id ? document.querySelector('[data-msg-id="' + id + '"]') : null;
+  if (!el) { tgNote('Це повідомлення вище в історії — прокрутіть стрічку вгору.'); return; }
+  var sc = tgScroller(el);
+  if (sc) {
+    var top = sc.scrollTop + el.getBoundingClientRect().top - sc.getBoundingClientRect().top
+      - (sc.clientHeight - el.offsetHeight) / 2;
+    var smooth = !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    sc.scrollTo({ top: Math.max(0, top), behavior: smooth ? 'smooth' : 'auto' });
+  }
+  el.classList.remove('tg-flash'); void el.offsetWidth; el.classList.add('tg-flash');
+  setTimeout(function () { el.classList.remove('tg-flash'); }, 1700);
+}
+document.addEventListener('keydown', function (e) {
+  var bar = tgReplyBar();
+  if (e.key === 'Escape' && bar && !bar.classList.contains('hidden')) tgReplyCancel(true);
+});
 </script>
 
 {% endblock %}

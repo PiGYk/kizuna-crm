@@ -1,0 +1,11 @@
+{% comment %}
+Цитата над бульбашкою-відповіддю (ПК і телефон). Клік — до оригіналу, якщо він є в CRM.
+Знімок цитати лежить у самому повідомленні (reply_quote), тож запитів до бази тут нема.
+{% endcomment %}
+{% with r=msg.reply_info %}{% if r %}
+<{% if r.id %}button type="button" onclick="tgJumpTo({{ r.id }})" title="Показати повідомлення, на яке відповідь"{% else %}div{% endif %}
+  class="block w-full min-w-0 text-left mb-2 pl-2 pr-2 py-1 rounded-md border-l-[3px] {% if msg.direction == 'out' %}border-brand-dark/50 bg-brand-dark/[0.07]{% else %}border-brand-gold bg-brand-dark/[0.05]{% endif %}{% if r.id %} cursor-pointer [@media(hover:hover)]:hover:brightness-95 active:opacity-80{% endif %}">
+  <span class="block text-xs font-semibold leading-4 truncate">{% if r.ours %}Клініка{% else %}{{ chat.display_name }}{% endif %}</span>
+  <span class="text-xs leading-4 opacity-80 line-clamp-2 break-words">{{ r.text }}</span>
+</{% if r.id %}button{% else %}div{% endif %}>
+{% endif %}{% endwith %}

@@ -8,19 +8,23 @@
   <span class="px-3 py-0.5 rounded-full bg-gray-200/70 text-[11px] font-medium text-gray-500">{{ msg.day_label }}</span>
 </div>
 {% endif %}
-<div class="flex group items-center gap-1 {% if msg.direction == 'out' %}justify-end{% else %}justify-start{% endif %}" data-msg-id="{{ msg.id }}">
+<div class="relative flex group items-center gap-1 {% if msg.direction == 'out' %}justify-end{% else %}justify-start{% endif %}" data-msg-id="{{ msg.id }}"{% if msg.can_reply %} data-reply-ours="{% if msg.direction == 'out' %}1{% else %}0{% endif %}" data-reply-text="{{ msg.quote_text }}"{% endif %}>
 
   {% if msg.media_type == 'sticker' %}
     {# Стікер без bubble #}
-    <div class="flex flex-col {% if msg.direction == 'out' %}items-end{% else %}items-start{% endif %}">
+    <div class="flex flex-col min-w-0 max-w-[85%] {% if msg.direction == 'out' %}items-end{% else %}items-start{% endif %}">
+      {% include 'tg/partials/_reply_quote.html' %}
       {% if msg.media_file %}
         <img src="{{ msg.media_file.url }}" alt="sticker" class="w-24 h-24 object-contain">
+      {% elif msg.text %}
+        <span class="{% if msg.text|length <= 4 %}text-5xl leading-none{% else %}text-sm text-gray-500{% endif %}">{{ msg.text }}</span>
       {% endif %}
       <span class="text-xs text-gray-400 mt-0.5 px-1">{{ msg.created_at|date:"H:i" }}</span>
     </div>
   {% else %}
 
-  <div class="tg-bubble {% if msg.direction == 'out' %}tg-bubble-out bg-brand-gold text-brand-dark{% else %}tg-bubble-in bg-white border border-gray-200 text-brand-dark{% endif %}">
+  <div class="tg-bubble min-w-0 {% if msg.direction == 'out' %}tg-bubble-out bg-brand-gold text-brand-dark{% else %}tg-bubble-in bg-white border border-gray-200 text-brand-dark{% endif %}">
+    {% include 'tg/partials/_reply_quote.html' %}
 
     {% if msg.media_type == 'photo' or msg.media_type == 'image' %}
       {% if msg.media_file %}
@@ -120,19 +124,23 @@
     {% endif %}
   </div>
   {% if msg.direction == 'out' %}
-  <div class="flex items-center gap-0.5 self-center order-first shrink-0 opacity-70">
+  <div class="flex items-center gap-0.5 self-center order-first shrink-0">
     <button type="button" title="Редагувати" onclick="tgEditStart({{ msg.id }})"
-      class="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-brand-dark hover:bg-gray-100 active:opacity-70">
+      class="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 hover:text-brand-dark hover:bg-gray-100 active:opacity-70">
       <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.4-9.6a2 2 0 1 1 2.83 2.83L11.83 15H9v-2.83l8.6-8.77z"/></svg>
     </button>
     <form hx-post="{% url 'tg:delete_message' msg.id %}" hx-target="closest [data-msg-id]" hx-swap="outerHTML"
           hx-confirm="Видалити це повідомлення? Воно зникне і в Telegram у клієнта.">
       {% csrf_token %}
       <button type="submit" title="Видалити"
-        class="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 active:opacity-70">
+        class="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 hover:text-red-500 hover:bg-red-50 active:opacity-70">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.87 12.14A2 2 0 0 1 16.14 21H7.86a2 2 0 0 1-2-1.86L5 7m5 4v6m4-6v6m1-10V4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3M4 7h16"/></svg>
       </button>
     </form>
+  </div>
+  {% elif msg.can_reply %}
+  <div class="flex items-center self-center shrink-0">
+    {% include 'tg/partials/_reply_btn.html' with tap=1 %}
   </div>
   {% endif %}
   {% endif %}
