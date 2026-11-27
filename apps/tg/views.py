@@ -2389,7 +2389,8 @@ def send_invoice_pdf(request, invoice_pk):
     from django.template.loader import render_to_string
     from apps.billing.models import Invoice
 
-    invoice = get_object_or_404(Invoice, pk=invoice_pk, organization=request.organization)
+    from apps.billing.views import dostupni_rakhunky
+    invoice = get_object_or_404(dostupni_rakhunky(request), pk=invoice_pk)
 
     tg_chats = list(invoice.client.tg_chats.all())
     if not tg_chats:

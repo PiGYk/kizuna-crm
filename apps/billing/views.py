@@ -95,6 +95,19 @@ def _only_own_invoices(request):
             and not org.can_see_menu(request.user.role, 'billing'))
 
 
+def dostupni_rakhunky(request, qs=None):
+    """Рахунки, які ця людина може відкрити й чіпати. Без «Рахунки (всі)» — лише свої: де вона лікар АБО які створила
+    сама (лікарі Kizuna створюють рахунок на лікаря за замовчуванням — з 01.10 так 62 з 62). Один набір і для списку,
+    і для кожної дії за номером: до 27.11.2026 список ховав чужі, а відкриття, правка, оплата й PDF брали будь-який
+    рахунок клініки за адресою (Ревізор, №867)."""
+    if qs is None:
+        qs = Invoice.objects.all()
+    qs = qs.filter(organization=request.organization)
+    if _only_own_invoices(request):
+        qs = qs.filter(Q(doctor=request.user) | Q(created_by=request.user))
+    return qs
+
+
 # Кнопки періоду над списком (16.11.2026, ANVAR): «Рахунки» відкриваються за сьогодні.
 # ключ → (підпис кнопки, днів разом із сьогоднішнім, підпис біля лічильника)
 INVOICE_PERIODS = {
@@ -128,10 +141,9 @@ def invoice_list(request):
     base = Invoice.objects.select_related('client', 'patient', 'doctor').filter(
         organization=request.organization
     )
-    # без «Рахунки (всі)» — лише свої
+    # без «Рахунки (всі)» — лише свої: лікар або сам створив
     only_own = _only_own_invoices(request)
-    if only_own:
-        base = base.filter(doctor=request.user)
+    base = dostupni_rakhunky(request, base)
 
     q = request.GET.get('q', '').strip()
     payment = request.GET.get('payment', '')
@@ -403,7 +415,7 @@ def _payments_of(invoice):
 
 @login_required
 def invoice_edit(request, pk):
-    invoice = get_object_or_404(Invoice, pk=pk)
+    invoice = get_object_or_404(dostupni_rakhunky(request), pk=pk)
     if invoice.status != Invoice.Status.DRAFT:
         return redirect('billing:detail', pk=pk)
 
@@ -427,7 +439,7 @@ def invoice_edit(request, pk):
 @login_required
 @require_POST
 def add_line(request, pk):
-    invoice = get_object_or_404(Invoice, pk=pk, status=Invoice.Status.DRAFT)
+    invoice = get_object_or_404(dostupni_rakhunky(request), pk=pk, status=Invoice.Status.DRAFT)
     line_type = request.POST.get('line_type')
 
     if line_type == 'service':
@@ -492,7 +504,7 @@ def add_line(request, pk):
 @require_POST
 def add_component(request, pk, line_id):
     """Додає препарат зі складу як дочірній рядок до послуги (ціна 0)."""
-    invoice = get_object_or_404(Invoice, pk=pk, status=Invoice.Status.DRAFT)
+    invoice = get_object_or_404(dostupni_rakhunky(request), pk=pk, status=Invoice.Status.DRAFT)
     parent = get_object_or_404(InvoiceLine, pk=line_id, invoice=invoice, line_type='service')
 
     product_id = request.POST.get('product_id')
@@ -521,7 +533,7 @@ def add_component(request, pk, line_id):
 @login_required
 @require_POST
 def update_line(request, pk, line_id):
-    invoice = get_object_or_404(Invoice, pk=pk, status=Invoice.Status.DRAFT)
+    invoice = get_object_or_404(dostupni_rakhunky(request), pk=pk, status=Invoice.Status.DRAFT)
     line = get_object_or_404(InvoiceLine, pk=line_id, invoice=invoice)
     line.unit_price = _parse_decimal(request.POST.get('unit_price'), line.unit_price)
     line.quantity = _parse_decimal(request.POST.get('quantity'), line.quantity)
@@ -535,7 +547,7 @@ def update_line(request, pk, line_id):
 @login_required
 @require_POST
 def remove_line(request, pk, line_id):
-    invoice = get_object_or_404(Invoice, pk=pk, status=Invoice.Status.DRAFT)
+    invoice = get_object_or_404(dostupni_rakhunky(request), pk=pk, status=Invoice.Status.DRAFT)
     line = get_object_or_404(InvoiceLine, pk=line_id, invoice=invoice)
     line.delete()
     invoice.save_total()
@@ -547,7 +559,7 @@ def remove_line(request, pk, line_id):
 @login_required
 @require_POST
 def update_discount(request, pk):
-    invoice = get_object_or_404(Invoice, pk=pk, status=Invoice.Status.DRAFT)
+    invoice = get_object_or_404(dostupni_rakhunky(request), pk=pk, status=Invoice.Status.DRAFT)
     invoice.discount = _parse_decimal(request.POST.get('discount'), Decimal('0'))
     invoice.discount_type = request.POST.get('discount_type', Invoice.DiscountType.PERCENT)
     invoice.notes = request.POST.get('notes', '')
@@ -561,7 +573,7 @@ def update_discount(request, pk):
 @login_required
 @require_POST
 def toggle_vaccine(request, pk):
-    invoice = get_object_or_404(Invoice, pk=pk, status=Invoice.Status.DRAFT)
+    invoice = get_object_or_404(dostupni_rakhunky(request), pk=pk, status=Invoice.Status.DRAFT)
     product_id = request.POST.get('product_id')
     checked = request.POST.get('checked') == 'true'
     product = get_object_or_404(Product, pk=product_id, category__name='Вакцини')
@@ -635,7 +647,7 @@ def pay_invoice(request, pk):
     action=close — закрити рахунок (склад списується; недоплачене стає боргом клієнта);
     action=keep_open — лише внести оплату (аванс), рахунок лишається відкритим.
     Стара форма з одним payment_method — оплата всього залишку цим способом."""
-    invoice = get_object_or_404(Invoice, pk=pk, status=Invoice.Status.DRAFT)
+    invoice = get_object_or_404(dostupni_rakhunky(request), pk=pk, status=Invoice.Status.DRAFT)
     invoice.refresh_paid()
     try:
         rows = parse_payment_rows(request.POST)
@@ -706,7 +718,7 @@ def pay_invoice(request, pk):
 @transaction.atomic
 def pay_debt(request, pk):
     """Погасити борг за закритим рахунком — повністю або частинами, будь-яким способом."""
-    invoice = get_object_or_404(Invoice, pk=pk, status=Invoice.Status.PAID)
+    invoice = get_object_or_404(dostupni_rakhunky(request), pk=pk, status=Invoice.Status.PAID)
     invoice.refresh_paid()
     try:
         rows = parse_payment_rows(request.POST)
@@ -741,7 +753,7 @@ def pay_debt(request, pk):
 def delete_payment(request, pk, payment_id):
     """Прибрати помилковий платіж (лише адміністратор): сума повертається в борг / до сплати."""
     from .models import InvoicePayment
-    invoice = get_object_or_404(Invoice, pk=pk)
+    invoice = get_object_or_404(dostupni_rakhunky(request), pk=pk)
     if not request.user.is_admin():
         messages.error(request, 'Платежі прибирає лише адміністратор.')
     else:
@@ -758,12 +770,10 @@ def delete_payment(request, pk, payment_id):
 
 @login_required
 def invoice_detail(request, pk):
-    invoice = get_object_or_404(Invoice, pk=pk)
+    invoice = get_object_or_404(dostupni_rakhunky(request), pk=pk)
     lines = invoice.lines.select_related('service', 'product').all()
 
-    base_nav = Invoice.objects.filter(organization=request.organization)
-    if _only_own_invoices(request):
-        base_nav = base_nav.filter(doctor=request.user)
+    base_nav = dostupni_rakhunky(request)
     prev_invoice = base_nav.filter(pk__lt=invoice.pk).order_by('-pk').values_list('pk', flat=True).first()
     next_invoice = base_nav.filter(pk__gt=invoice.pk).order_by('pk').values_list('pk', flat=True).first()
 
@@ -783,7 +793,7 @@ def invoice_detail(request, pk):
 @login_required
 @require_POST
 def cancel_invoice(request, pk):
-    invoice = get_object_or_404(Invoice, pk=pk, status=Invoice.Status.DRAFT)
+    invoice = get_object_or_404(dostupni_rakhunky(request), pk=pk, status=Invoice.Status.DRAFT)
     if invoice.amount_paid > 0:
         messages.error(request, f'На рахунку внесено {invoice.amount_paid} ₴ — спершу приберіть платежі (поверніть гроші клієнту).')
         return redirect('billing:edit', pk=pk)
@@ -801,7 +811,7 @@ def cancel_invoice(request, pk):
 def delete_invoice(request, pk):
     from django.contrib import messages
 
-    invoice = get_object_or_404(Invoice, pk=pk)
+    invoice = get_object_or_404(dostupni_rakhunky(request), pk=pk)
 
     if invoice.status in (Invoice.Status.DRAFT, Invoice.Status.CANCELLED):
         if invoice.amount_paid > 0:
@@ -860,7 +870,7 @@ def _restore_stock_from_invoice(invoice, user):
 @login_required
 @require_POST
 def update_payment_method(request, pk):
-    invoice = get_object_or_404(Invoice, pk=pk, status=Invoice.Status.PAID)
+    invoice = get_object_or_404(dostupni_rakhunky(request), pk=pk, status=Invoice.Status.PAID)
     method = request.POST.get('payment_method')
     # лише готівка / картка / переказ: перемикач на «з депозиту» обійшов би перевірку залишку депозиту
     if method in (Invoice.PaymentMethod.CASH, Invoice.PaymentMethod.CARD, Invoice.PaymentMethod.TRANSFER):
@@ -914,7 +924,7 @@ def _send_payment_link_tg(invoice, org) -> bool:
 @login_required
 @require_POST
 def send_payment_link_tg(request, pk):
-    invoice = get_object_or_404(Invoice, pk=pk)
+    invoice = get_object_or_404(dostupni_rakhunky(request), pk=pk)
     if not invoice.fiscal_page_url:
         messages.error(request, 'Немає активного посилання на оплату.')
         return _back(invoice)
@@ -982,7 +992,7 @@ def fiscalize_invoice(request, pk):
     аванс, рахунок лишається відкритим. Закритий рахунок із боргом — частина боргу або весь. Чек — на суму цього платежу:
     перша оплата на весь рахунок — з позиціями, як раніше, інакше один рядок «Оплата за рахунком №N (частина)»."""
     org = request.organization
-    invoice = get_object_or_404(Invoice.objects.select_for_update(), pk=pk,
+    invoice = get_object_or_404(dostupni_rakhunky(request, Invoice.objects.select_for_update()), pk=pk,
                                 status__in=(Invoice.Status.DRAFT, Invoice.Status.PAID))
     if org and not request.user.is_superuser and not org.can_use_checkbox:
         messages.error(request, 'Фіскалізація Checkbox доступна з тарифу «Клініка».')
@@ -1089,7 +1099,7 @@ def confirm_checkbox_payment(request, pk):
     сплачену повністю, закриваємо (склад списується). QR на весь рахунок без авансу — чек з позиціями, як раніше;
     на частину (Олег 19.11.2026) — один рядок «Оплата за рахунком №N (частина)».
     """
-    invoice = get_object_or_404(Invoice.objects.select_for_update(), pk=pk,
+    invoice = get_object_or_404(dostupni_rakhunky(request, Invoice.objects.select_for_update()), pk=pk,
                                 status__in=(Invoice.Status.DRAFT, Invoice.Status.PAID))
 
     if invoice.fiscal_status != Invoice.FiscalStatus.PENDING or not invoice.fiscal_receipt_id:
@@ -1212,7 +1222,7 @@ def _settle_pending_qr(org, invoice):
 @require_POST
 def cancel_fiscal(request, pk):
     org = request.organization
-    invoice = get_object_or_404(Invoice, pk=pk, status__in=(Invoice.Status.DRAFT, Invoice.Status.PAID))
+    invoice = get_object_or_404(dostupni_rakhunky(request), pk=pk, status__in=(Invoice.Status.DRAFT, Invoice.Status.PAID))
     if org and not request.user.is_superuser and not org.can_use_checkbox:
         messages.error(request, 'Фіскалізація Checkbox доступна з тарифу «Клініка».')
         return _back(invoice)
@@ -1338,7 +1348,7 @@ def invoice_pdf(request, pk):
     except ImportError:
         return HttpResponse('WeasyPrint не встановлено', status=500)
 
-    invoice = get_object_or_404(Invoice, pk=pk, organization=request.organization)
+    invoice = get_object_or_404(dostupni_rakhunky(request), pk=pk, organization=request.organization)
     lines = list(invoice.lines.select_related('service', 'product').all())
     html_string = render_to_string('billing/pdf.html', {
         'invoice': invoice,
