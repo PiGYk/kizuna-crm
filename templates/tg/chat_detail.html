@@ -281,7 +281,7 @@
             </form>
             {% endfor %}
           {% endfor %}
-          {% for inv in chat.client.invoices.all|slice:":3" %}
+          {% for inv in rakhunky_chatu|slice:":3" %}
           <form method="post" action="{% url 'tg:send_invoice_pdf' inv.pk %}">
             {% csrf_token %}
             <button type="submit" class="w-full text-left px-4 py-1.5 text-xs text-gray-600 hover:bg-brand-gold/10 transition flex items-center gap-2">
@@ -289,7 +289,7 @@
             </button>
           </form>
           {% endfor %}
-          {% if not chat.client.patients.exists and not chat.client.invoices.exists %}
+          {% if not chat.client.patients.exists and not rakhunky_chatu %}
           <div class="px-4 py-3 text-xs text-gray-300">Немає документів</div>
           {% endif %}
         </div>

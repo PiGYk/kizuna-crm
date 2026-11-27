@@ -1874,16 +1874,21 @@ def chat_detail(request, pk):
             'client__patients__visits',
             'client__patients__ultrasounds',
             'client__patients__analyses',
-            'client__invoices',
         )
     )
     chat = get_object_or_404(qs, pk=pk, organization=request.organization)
     # позначаємо прочитаними
     chat.messages.filter(direction='in', is_read=False).update(is_read=True)
 
+    # Меню «надіслати документ» — лише рахунки, які ця людина може відкрити. Інакше лікар з «лише свої рахунки» бачить
+    # чужі чеки клієнта, а їхні кнопки ведуть на 404 (Ревізор, №923, 27.11.2026).
+    from apps.billing.views import dostupni_rakhunky
+    rakhunky_chatu = list(dostupni_rakhunky(request).filter(client=chat.client)[:5]) if chat.client_id else []
+
     template = 'tg/chat_detail_mobile.html' if is_mobile(request) else 'tg/chat_detail.html'
     return render(request, template, {
         'chat': chat,
+        'rakhunky_chatu': rakhunky_chatu,
     })
 
 
