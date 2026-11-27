@@ -133,7 +133,10 @@ def _chart(canvas_id, chart_type, labels, datasets, options=None):
             'plugins': {'legend': {'display': chart_type != 'bar'}},
         },
     }
-    cfg_json = json.dumps(cfg, ensure_ascii=False)
+    # У <script> — без «<», «>», «&»: ПІБ лікаря з «</script>» інакше вийшов би зі скрипта й виконався в кожного,
+    # хто відкрив головну (Ревізор, №870). Для JS це той самий текст: < — те саме «<».
+    cfg_json = (json.dumps(cfg, ensure_ascii=False)
+                .replace('<', '\\u003c').replace('>', '\\u003e').replace('&', '\\u0026'))
     return mark_safe(f'''
       <div class="relative w-full h-full min-h-[180px]">
         <canvas id="{canvas_id}"></canvas>

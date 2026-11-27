@@ -723,8 +723,8 @@ def _notify_staff_new_message(chat, preview_text):
         preview = (preview_text or '')[:150]
         text = (
             f'💬 <b>Нове повідомлення</b>\n\n'
-            f'Від: <b>{client_name}</b>\n'
-            f'{preview}'
+            f'Від: <b>{_esc(client_name)}</b>\n'
+            f'{_esc(preview)}'
         )
         reply_markup = {
             'inline_keyboard': [[
@@ -1537,11 +1537,11 @@ def _handle_health_check_callback(callback_query, chat, org, token):
     hc.save(update_fields=['status', 'responded_at'])
 
     if is_ok:
-        reply = f'Дякуємо! Раді що {hc.patient.name} почувається добре \U0001f43e'
+        reply = f'Дякуємо! Раді що {_esc(hc.patient.name)} почувається добре \U0001f43e'
     else:
         # Телефон — ТІЛЬКИ власний номер організації. Без fallback: інакше клієнти
         # клініки, яка не заповнила поле, отримували б чужий номер.
-        reply = f'Дякуємо за відповідь. Наш лікар зв\'яжеться з вами щодо {hc.patient.name}.'
+        reply = f'Дякуємо за відповідь. Наш лікар зв\'яжеться з вами щодо {_esc(hc.patient.name)}.'
         org_phone = (getattr(org, 'phone', '') or '').strip()
         if org_phone:
             reply += f'\n\nАбо зателефонуйте: {org_phone}'
@@ -1551,10 +1551,10 @@ def _handle_health_check_callback(callback_query, chat, org, token):
         for sc in staff_chats:
             _send_tg(sc.tg_user_id, (
                 f'\u26a0\ufe0f <b>Клієнт має питання!</b>\n\n'
-                f'Пацієнт: <b>{hc.patient.name}</b>\n'
-                f'Власник: {hc.patient.client}\n'
-                f'Тип: {hc.get_trigger_display()}\n'
-                f'Питання: {hc.question[:200]}'
+                f'Пацієнт: <b>{_esc(hc.patient.name)}</b>\n'
+                f'Власник: {_esc(hc.patient.client)}\n'
+                f'Тип: {_esc(hc.get_trigger_display())}\n'
+                f'Питання: {_esc(hc.question[:200])}'
             ), org=org)
 
     # Відповідь на callback

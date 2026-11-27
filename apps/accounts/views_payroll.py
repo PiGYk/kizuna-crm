@@ -281,7 +281,8 @@ def shift_toggle(request):
             end_time=end_t,
         )
 
-    return redirect(request.META.get('HTTP_REFERER', 'accounts:shifts'))
+    from apps.utils.povernennia import nazad
+    return redirect(nazad(request, 'accounts:shifts'))  # лише на свій сайт (Ревізор, №870)
 
 
 

@@ -82,8 +82,8 @@ def _principal_propfind(request, username):
       <d:prop>
         <d:resourcetype><d:collection/><d:principal/></d:resourcetype>
         <d:displayname>{xml_escape(username)}</d:displayname>
-        <d:current-user-principal><d:href>{principal_url}/</d:href></d:current-user-principal>
-        <card:addressbook-home-set><d:href>{home_url}/</d:href></card:addressbook-home-set>
+        <d:current-user-principal><d:href>{xml_escape(principal_url)}/</d:href></d:current-user-principal>
+        <card:addressbook-home-set><d:href>{xml_escape(home_url)}/</d:href></card:addressbook-home-set>
       </d:prop>
       <d:status>HTTP/1.1 200 OK</d:status>
     </d:propstat>
@@ -160,7 +160,7 @@ def _addressbook_propfind(request, username, depth):
             etag = client_etag(client, patient)
             href = _vcard_href(request, username, client.pk)
             responses.append(f'''  <d:response>
-    <d:href>{href}</d:href>
+    <d:href>{xml_escape(href)}</d:href>
     <d:propstat>
       <d:prop>
         <d:resourcetype/>
@@ -238,7 +238,7 @@ def _multiget_report(request, username, body):
         href = _vcard_href(request, username, client.pk)
         vcard_text = render_vcard(client)
         responses.append(f'''  <d:response>
-    <d:href>{href}</d:href>
+    <d:href>{xml_escape(href)}</d:href>
     <d:propstat>
       <d:prop>
         <d:getetag>{etag}</d:getetag>
@@ -274,7 +274,7 @@ def _sync_collection_report(request, username, body):
         etag = client_etag(client, patient)
         href = _vcard_href(request, username, client.pk)
         responses.append(f'''  <d:response>
-    <d:href>{href}</d:href>
+    <d:href>{xml_escape(href)}</d:href>
     <d:propstat>
       <d:prop>
         <d:getetag>{etag}</d:getetag>

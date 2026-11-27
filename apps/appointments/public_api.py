@@ -574,7 +574,7 @@ def _create_crm_objects(lead: LeadRequest, org, booking_dt=None, slot_duration=3
 def _notify_staff(lead: LeadRequest, org) -> None:
     """Надсилає повідомлення в TG усім адмінам організації, у яких є чат з ботом."""
     try:
-        from apps.tg.views import _send_tg, _get_token
+        from apps.tg.views import _esc, _send_tg, _get_token
         from apps.tg.models import TelegramChat
         from django.contrib.auth import get_user_model
 
@@ -585,20 +585,22 @@ def _notify_staff(lead: LeadRequest, org) -> None:
         date_str = lead.preferred_date.strftime('%d.%m.%Y') if lead.preferred_date else '—'
         time_str = lead.preferred_time.strftime('%H:%M') if lead.preferred_time else '—'
 
+        # Усе, що людина ввела у форму, — через _esc: Telegram читає текст як HTML, «<» в імені ламав сповіщення,
+        # а <a href=…> підсунув би персоналу чуже посилання (Ревізор, №870).
         lines = ['🐾 <b>Нова заявка з сайту</b>\n']
         if day_rules.is_site_surgery(lead.service_note):
             lines.insert(0, f'<b>{day_rules.SURGERY_CONSULT_NOTE}</b>\n')
-        lines.append(f'👤 <b>{lead.name}</b>')
-        lines.append(f'📞 {lead.phone}')
+        lines.append(f'👤 <b>{_esc(lead.name)}</b>')
+        lines.append(f'📞 {_esc(lead.phone)}')
         if lead.pet_name:
             pet_str = lead.pet_name
             if lead.pet_type:
                 pet_str += f' ({lead.pet_type})'
-            lines.append(f'🐶 <i>{pet_str}</i>')
+            lines.append(f'🐶 <i>{_esc(pet_str)}</i>')
         if lead.service_note:
-            lines.append(f'💊 {lead.service_note}')
+            lines.append(f'💊 {_esc(lead.service_note)}')
         lines.append(f'📅 <b>{date_str}</b> о <b>{time_str}</b>')
-        lines.append(f'\n<i>Джерело: {lead.source}</i>')
+        lines.append(f'\n<i>Джерело: {_esc(lead.source)}</i>')
 
         text = '\n'.join(lines)
 

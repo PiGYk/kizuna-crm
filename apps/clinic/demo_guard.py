@@ -68,4 +68,5 @@ class DemoProfanityMiddleware:
                 'X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({'ok': False, 'error': _JOKE}, status=400)
         messages.error(request, _JOKE)
-        return redirect(request.META.get('HTTP_REFERER') or '/dashboard/')
+        from apps.utils.povernennia import nazad
+        return redirect(nazad(request, '/dashboard/'))  # лише на свій сайт (Ревізор, №870)
