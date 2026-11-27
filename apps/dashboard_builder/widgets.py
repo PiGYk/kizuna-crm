@@ -134,7 +134,7 @@ def _chart(canvas_id, chart_type, labels, datasets, options=None):
         },
     }
     # У <script> — без «<», «>», «&»: ПІБ лікаря з «</script>» інакше вийшов би зі скрипта й виконався в кожного,
-    # хто відкрив головну (Ревізор, №870). Для JS це той самий текст: < — те саме «<».
+    # хто відкрив головну (Ревізор, №870). Для JS текст той самий: браузер читає ці коди як ті самі символи.
     cfg_json = (json.dumps(cfg, ensure_ascii=False)
                 .replace('<', '\\u003c').replace('>', '\\u003e').replace('&', '\\u0026'))
     return mark_safe(f'''
