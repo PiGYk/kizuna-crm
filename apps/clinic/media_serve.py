@@ -25,6 +25,25 @@ _LEGACY_OWNERS = {
 # картинки довідки — спільні для всіх клінік
 _SHARED_PREFIXES = ('help-screens/',)
 
+# Файли пацієнтів і чатів — будь-якого типу. «Як є» віддаємо лише те, що браузер показує, не виконуючи коду: картинки,
+# PDF, звук, відео. Решту — вкладенням: HTML чи SVG, відкритий у вкладці CRM, виконав би свій скрипт від імені того, хто
+# відкрив (Ревізор, №868, 27.11.2026). SVG лишає свій тип, щоб <img> і далі показував логотипи й схеми.
+_INLINE_EXT = frozenset({
+    'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic', 'heif', 'avif',
+    'pdf',
+    'mp3', 'm4a', 'ogg', 'oga', 'opus', 'wav', 'aac', 'amr',
+    'mp4', 'webm', 'mov', 'm4v', '3gp',
+})
+
+
+def _yak_viddaty(path):
+    """(Content-Disposition, Content-Type) для файла; (None, None) — показувати як є, тип визначить nginx."""
+    ext = os.path.splitext(path)[1].lower().lstrip('.')
+    if ext in _INLINE_EXT:
+        return None, None
+    disp = f"attachment; filename*=UTF-8''{quote(os.path.basename(path))}"
+    return disp, (None if ext == 'svg' else 'application/octet-stream')
+
 
 def _legacy_owner_pk(path):
     """Номер клініки, чий запис посилається на файл; None — не знайдено або шлях невідомий."""
@@ -97,4 +116,10 @@ def serve_media(request, path):
     # Видаляємо CT — порожній рядок змушує nginx відправляти text/html для mp4.
     # Без хедера nginx сам визначить Content-Type через mime.types.
     del response['Content-Type']
+    disp, ctype = _yak_viddaty(safe_path)
+    if disp:
+        response['Content-Disposition'] = disp
+    if ctype:
+        response['Content-Type'] = ctype
+    response['X-Content-Type-Options'] = 'nosniff'
     return response
