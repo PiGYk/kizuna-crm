@@ -314,11 +314,9 @@ def _route_info(org):
 # ── Rate limit для lead ───────────────────────────────────────────────────────
 
 def _client_ip(request):
-    """Намагається отримати реальний IP клієнта з X-Forwarded-For."""
-    xff = request.META.get('HTTP_X_FORWARDED_FOR', '')
-    if xff:
-        return xff.split(',')[0].strip()
-    return request.META.get('REMOTE_ADDR', '0.0.0.0')
+    """Справжня адреса клієнта — як у accounts/views.py: nginx ставить X-Real-IP = $remote_addr і перезаписує те, що
+    прислав клієнт. Перший елемент X-Forwarded-For пише сам клієнт — за ним ліміт заявок обходився (Ревізор, №870)."""
+    return (request.META.get('HTTP_X_REAL_IP') or request.META.get('REMOTE_ADDR') or '0.0.0.0').strip()
 
 
 def _rate_limit_ok(request, max_per_minute=5):

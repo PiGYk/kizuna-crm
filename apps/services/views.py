@@ -390,7 +390,7 @@ def service_import_template(request):
     import csv as _csv
     from django.http import HttpResponse
 
-    response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+    response = HttpResponse('\ufeff', content_type='text/csv; charset=utf-8')
     response['Content-Disposition'] = 'attachment; filename="services_template.csv"'
     writer = _csv.writer(response)
     writer.writerow(['Код', 'Назва', 'Ціна', 'Категорія', 'Опис', 'Товар для списання', 'Кількість списання'])
@@ -408,9 +408,10 @@ def service_export(request):
     import csv as _csv
     from django.http import HttpResponse
 
-    response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+    response = HttpResponse('\ufeff', content_type='text/csv; charset=utf-8')
     response['Content-Disposition'] = 'attachment; filename="services_export.csv"'
-    writer = _csv.writer(response)
+    from apps.utils.bez_formul import csv_writer
+    writer = csv_writer(response)  # «=…» — текстом, не формулою; BOM — раз на файл (№870)
     writer.writerow(['Код', 'Назва', 'Ціна', 'Категорія', 'Опис',
                      'Товар для списання', 'Кількість списання', 'Наявне списання (довідка)'])
 

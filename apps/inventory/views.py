@@ -665,7 +665,7 @@ def reorder_export(request):
 
 @login_required
 def export_template(request):
-    response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+    response = HttpResponse('\ufeff', content_type='text/csv; charset=utf-8')
     response['Content-Disposition'] = 'attachment; filename="import_template.csv"'
     writer = csv.writer(response)
     writer.writerow(['назва', 'артикул', 'категорія', 'одиниця', 'вхідна_ціна', 'вихідна_ціна', 'залишок', 'мін_залишок', 'нотатки'])
@@ -820,9 +820,10 @@ def export_inventory(request):
     headers = [h for _, h, _ in columns]
 
     if fmt == 'csv':
-        response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+        response = HttpResponse('\ufeff', content_type='text/csv; charset=utf-8')
         response['Content-Disposition'] = 'attachment; filename="inventory.csv"'
-        writer = csv.writer(response)
+        from apps.utils.bez_formul import csv_writer
+        writer = csv_writer(response)  # «=…» — текстом, не формулою; BOM — раз на файл (№870)
         writer.writerow(headers)
         for p in products:
             writer.writerow([fn(p) for _, _, fn in columns])
@@ -850,6 +851,8 @@ def export_inventory(request):
     for row_idx, p in enumerate(products, 2):
         for col_idx, (key, _, fn) in enumerate(columns, 1):
             cell = ws.cell(row=row_idx, column=col_idx, value=fn(p))
+            if cell.data_type == 'f':  # openpyxl робить формулою текст з «=» — лишаємо текстом (№870)
+                cell.data_type = 's'
             if key in ('buy_price', 'sell_price'):
                 cell.number_format = '#,##0.00'
             elif key == 'quantity':

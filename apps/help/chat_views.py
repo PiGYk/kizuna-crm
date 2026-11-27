@@ -15,10 +15,9 @@ _TOO_LONG = "Питання задовге — сформулюйте корот
 
 
 def _client_ip(request):
-    fwd = request.META.get("HTTP_X_FORWARDED_FOR", "")
-    if fwd:
-        return fwd.split(",")[0].strip()[:45]
-    return (request.META.get("REMOTE_ADDR") or "0.0.0.0")[:45]
+    # Як accounts/views.py: X-Real-IP ставить nginx; перший елемент X-Forwarded-For пише клієнт — ліміти чату
+    # й заявок за ним обходились (Ревізор, №870, 27.11.2026).
+    return (request.META.get("HTTP_X_REAL_IP") or request.META.get("REMOTE_ADDR") or "0.0.0.0").strip()[:45]
 
 
 def _body(request):
